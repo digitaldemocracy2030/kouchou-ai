@@ -94,6 +94,7 @@ export function ScatterChart({clusterList, argumentList, targetLevel}: Props) {
       config={{
         responsive: true,
         displayModeBar: false,
+        locale: 'ja',
       }}
     />
   )

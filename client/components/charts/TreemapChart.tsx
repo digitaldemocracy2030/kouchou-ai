@@ -48,6 +48,7 @@ export function TreemapChart({clusterList, argumentList}: Props) {
       config={{
         responsive: true,
         displayModeBar: false,
+        locale: 'ja',
       }}
     />
   )
