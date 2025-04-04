@@ -237,11 +237,42 @@ function ReportCard({ report }: { report: Report }) {
               </Tooltip>
             )}
             {report.status === 'ready' && (
-              <Link href={`${process.env.NEXT_PUBLIC_CLIENT_BASEPATH}/${report.slug}`} target="_blank">
-                <Button variant="ghost">
-                  <ExternalLinkIcon />
-                </Button>
-              </Link>
+              <>
+                <Tooltip content={report.is_public ? '公開中' : '非公開'} openDelay={0} closeDelay={0}>
+                  <Box display="flex" alignItems="center">
+                    <Button
+                      variant={report.is_public ? 'solid' : 'outline'}
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(getApiBaseUrl() + `/admin/reports/${report.slug}/toggle-public`, {
+                            method: 'POST',
+                            headers: {
+                              'x-api-key': process.env.NEXT_PUBLIC_ADMIN_API_KEY || '',
+                              'Content-Type': 'application/json'
+                            }
+                          })
+                          if (!response.ok) {
+                            throw new Error('公開状態の変更に失敗しました')
+                          }
+                          await response.json()
+                          window.location.reload()
+                        } catch (error) {
+                          console.error(error)
+                          alert('公開状態の変更に失敗しました')
+                        }
+                      }}
+                    >
+                      {report.is_public ? '公開中' : '非公開'}
+                    </Button>
+                  </Box>
+                </Tooltip>
+                <Link href={`${process.env.NEXT_PUBLIC_CLIENT_BASEPATH}/${report.slug}`} target="_blank">
+                  <Button variant="ghost">
+                    <ExternalLinkIcon />
+                  </Button>
+                </Link>
+              </>
             )}
             <MenuRoot>
               <MenuTrigger asChild>

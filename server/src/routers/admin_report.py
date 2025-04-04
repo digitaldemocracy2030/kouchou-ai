@@ -70,3 +70,19 @@ async def get_current_step(slug: str):
         return {"current_step": status.get("current_job", "unknown")}
     except Exception:
         return {"current_step": "error"}
+
+
+@router.post("/admin/reports/{slug}/toggle-public")
+async def toggle_report_public_state(slug: str, api_key: str = Depends(verify_admin_api_key)) -> dict:
+    try:
+        from src.services.report_status import toggle_report_public_state
+
+        is_public = toggle_report_public_state(slug)
+
+        return {"success": True, "is_public": is_public}
+    except ValueError as e:
+        slogger.error(f"ValueError: {e}", exc_info=True)
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        slogger.error(f"Exception: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e

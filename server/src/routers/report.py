@@ -24,7 +24,9 @@ async def verify_public_api_key(api_key: str = Security(api_key_header)):
 @router.get("/reports", dependencies=[Depends(verify_public_api_key)])
 async def reports() -> list[Report]:
     all_reports = load_status_as_reports()
-    ready_reports = [report for report in all_reports if report.status == ReportStatus.READY]
+    ready_reports = [
+        report for report in all_reports if report.status == ReportStatus.READY and getattr(report, "is_public", True)
+    ]
     return ready_reports
 
 
@@ -38,6 +40,8 @@ async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> di
         raise HTTPException(status_code=404, detail="Report not found")
     if target_report_status.status != ReportStatus.READY:
         raise HTTPException(status_code=404, detail="Report is not ready")
+    if not getattr(target_report_status, "is_public", True):
+        raise HTTPException(status_code=404, detail="Report not found")
     if not report_path.exists():
         raise HTTPException(status_code=404, detail="Report not found")
 

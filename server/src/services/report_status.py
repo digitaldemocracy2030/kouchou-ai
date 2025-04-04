@@ -45,6 +45,7 @@ def add_new_report_to_status(report_input: ReportInput) -> None:
             "title": report_input.question,
             "description": report_input.intro,
             "is_pubcom": report_input.is_pubcom,
+            "is_public": True,  # デフォルトは公開状態
         }
         save_status()
 
@@ -60,3 +61,12 @@ def set_status(slug: str, status: str) -> None:
 def get_status(slug: str) -> str:
     with _lock:
         return _report_status.get(slug, {}).get("status", "undefined")
+
+
+def toggle_report_public_state(slug: str) -> bool:
+    with _lock:
+        if slug not in _report_status:
+            raise ValueError(f"slug {slug} not found in report status")
+        _report_status[slug]["is_public"] = not _report_status[slug].get("is_public", True)
+        save_status()
+        return _report_status[slug]["is_public"]
