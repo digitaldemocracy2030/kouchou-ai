@@ -3,7 +3,7 @@ import threading
 
 from src.config import settings
 from src.schemas.admin_report import ReportInput
-from src.schemas.report import Report
+from src.schemas.report import Report, ReportStatus
 
 STATE_FILE = settings.DATA_DIR / "report_status.json"
 _lock = threading.RLock()
@@ -19,7 +19,7 @@ def load_status() -> None:
         _report_status = {}
 
 
-def load_status_as_reports() -> list[Report]:
+def load_status_as_reports(include_deleted: bool = False) -> list[Report]:
     global _report_status
     try:
         with open(STATE_FILE) as f:
@@ -28,7 +28,13 @@ def load_status_as_reports() -> list[Report]:
         _report_status = {}
     except json.JSONDecodeError:
         _report_status = {}
-    return [Report(**report) for report in _report_status.values()]
+
+    reports = [Report(**report) for report in _report_status.values()]
+
+    if not include_deleted:
+        reports = [report for report in reports if report.status != ReportStatus.DELETED]
+
+    return reports
 
 
 def save_status() -> None:

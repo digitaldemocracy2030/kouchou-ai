@@ -7,6 +7,7 @@ class ReportStatus(Enum):
     PROCESSING = "processing"
     READY = "ready"
     ERROR = "error"
+    DELETED = "deleted"
 
 
 class Report(SchemaBaseModel):

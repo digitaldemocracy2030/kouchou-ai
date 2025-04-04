@@ -253,8 +253,33 @@ function ReportCard({ report }: { report: Report }) {
                 <MenuItem value="duplicate">
                   レポートを複製して新規作成(開発中)
                 </MenuItem>
-                <MenuItem value="delete" color="fg.error">
-                  レポートを削除する(開発中)
+                <MenuItem 
+                  value="delete" 
+                  color="fg.error"
+                  onClick={async () => {
+                    if (confirm(`レポート「${report.title}」を削除してもよろしいですか？`)) {
+                      try {
+                        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASEPATH}/admin/reports/${report.slug}`, {
+                          method: 'DELETE',
+                          headers: {
+                            'x-api-key': process.env.NEXT_PUBLIC_ADMIN_API_KEY || '',
+                            'Content-Type': 'application/json'
+                          }
+                        })
+                        if (response.ok) {
+                          alert('レポートを削除しました')
+                          window.location.reload()
+                        } else {
+                          alert('レポートの削除に失敗しました')
+                        }
+                      } catch (error) {
+                        console.error(error)
+                        alert('レポートの削除に失敗しました')
+                      }
+                    }
+                  }}
+                >
+                  レポートを削除する
                 </MenuItem>
               </MenuContent>
             </MenuRoot>

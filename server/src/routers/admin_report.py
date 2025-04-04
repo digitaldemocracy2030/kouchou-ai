@@ -6,9 +6,9 @@ from fastapi.security.api_key import APIKeyHeader
 
 from src.config import settings
 from src.schemas.admin_report import ReportInput
-from src.schemas.report import Report
+from src.schemas.report import Report, ReportStatus
 from src.services.report_launcher import launch_report_generation
-from src.services.report_status import load_status_as_reports
+from src.services.report_status import load_status_as_reports, set_status
 from src.utils.logger import setup_logger
 
 slogger = setup_logger()
@@ -70,3 +70,22 @@ async def get_current_step(slug: str):
         return {"current_step": status.get("current_job", "unknown")}
     except Exception:
         return {"current_step": "error"}
+
+
+@router.delete("/admin/reports/{slug}")
+async def delete_report(slug: str, api_key: str = Depends(verify_admin_api_key)):
+    try:
+        set_status(slug, ReportStatus.DELETED.value)
+        return ORJSONResponse(
+            content={"message": f"Report {slug} marked as deleted"},
+            headers={
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+    except ValueError as e:
+        slogger.error(f"ValueError: {e}", exc_info=True)
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        slogger.error(f"Exception: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
