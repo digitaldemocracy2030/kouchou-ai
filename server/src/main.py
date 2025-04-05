@@ -8,6 +8,7 @@ from src.config import settings
 from src.middleware.security_middleware import register_security_middleware
 from src.routers import router
 from src.services.report_status import load_status
+from src.services.report_sync import initialize_from_storage
 from src.utils.logger import setup_logger
 
 slogger = setup_logger()
@@ -34,6 +35,15 @@ def get_app():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ストレージからファイルを初期化
+    slogger.info(f"Initializing files from storage (type: {settings.STORAGE_TYPE})")
+    success = initialize_from_storage()
+    if success:
+        slogger.info("Successfully initialized files from storage")
+    else:
+        slogger.warning("Failed to initialize some files from storage")
+
+    # ステータスファイルをロード
     load_status()
     yield
 

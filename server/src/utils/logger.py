@@ -52,6 +52,10 @@ def setup_logger(
     DEFAULT_LOG_LEVEL = "INFO"
     DEFAULT_THIRD_PARTY_LOGGERS = ["uvicorn", "uvicorn.access", "uvicorn.error", "fastapi"]
 
+    logging.getLogger("azure").setLevel(logging.WARNING)
+    logging.getLogger("azure.storage").setLevel(logging.WARNING)
+    logging.getLogger("azure.identity").setLevel(logging.WARNING)
+
     try:
         # 環境変数またはデフォルト値からログレベルを取得
         if log_level is None:

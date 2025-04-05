@@ -1,3 +1,5 @@
+.env.azure.generated
+.env.azure
 .env
 .idea
 .next

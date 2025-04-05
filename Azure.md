@@ -66,6 +66,8 @@ AZURE_ACR_NAME=yourregistry
 AZURE_ACR_SKU=Basic
 AZURE_CONTAINER_ENV=your-container-env
 AZURE_WORKSPACE_NAME=your-logs
+AZURE_BLOB_STORAGE_CONTAINER_NAME=your_container_name
+AZURE_BLOB_STORAGE_ACCOUNT_NAME=your_account_name
 ```
 
 これらの設定は任意で、未設定の場合はシステムが自動的に以下のデフォルト値を使用します：
@@ -92,14 +94,17 @@ make azure-setup-all
 
 1. リソースグループとACRのセットアップ
 2. ACRへのログイン
-3. コンテナイメージのビルド
-4. イメージのプッシュ
-5. Container Appsへのデプロイ
-6. ポリシーとヘルスチェックの適用
-7. 環境変数の設定
-8. 管理画面の環境変数を修正してビルド
-9. 環境の検証
-10. サービスURLの確認
+3. ストレージの作成
+4. コンテナイメージのビルド
+5. イメージのプッシュ
+6. Container Appsへのデプロイ
+7. マネージドIDのContainer Appへの割り当て
+8. Container AppのマネージドIDへのストレージアクセス権の割り当て
+9. ポリシーとヘルスチェックの適用
+10. 環境変数の設定
+11. 管理画面の環境変数を修正してビルド
+12. 環境の検証
+13. サービスURLの確認
 
 全体のプロセスは初回実行時に約20分程度かかることがあります。
 
@@ -117,32 +122,41 @@ make azure-setup
 # 2. ACRへのログイン
 make azure-acr-login-auto
 
-# 3. コンテナイメージのビルド
+# 3. ストレージの作成
+make azure-create-storage
+
+# 4. コンテナイメージのビルド
 make azure-build
 
-# 4. イメージをプッシュ
+# 5. イメージをプッシュ
 make azure-push
 
-# 5. Container Appsへのデプロイ
+# 6. Container Appsへのデプロイ
 make azure-deploy
 
 # 待機（20秒）
 
-# 6. ポリシーとヘルスチェックの適用
+# 7. マネージドIDのContainer Appへの割り当て
+make azure-assign-managed-identity
+
+# 8. Container AppのマネージドIDへのストレージアクセス権の割り当て
+make azure-assign-storage-access
+
+# 9. ポリシーとヘルスチェックの適用
 make azure-apply-policies
 
-# 7. 環境変数の設定
+# 10. 環境変数の設定
 make azure-config-update
 
 # 待機（30秒）
 
-# 8. 管理画面の環境変数を修正してビルド
+# 11. 管理画面の環境変数を修正してビルド
 make azure-fix-client-admin
 
-# 9. 環境の検証
+# 12. 環境の検証
 make azure-verify
 
-# 10. サービスURLの確認
+# 13. サービスURLの確認
 make azure-info
 ```
 
@@ -239,4 +253,3 @@ make azure-logs-admin
 
 ```bash
 make azure-apply-policies
-```

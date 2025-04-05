@@ -84,6 +84,22 @@ azure-setup:
 	    echo '>>> 設定されたACR名を.env.azureに保存しています...' && \
 	    echo 'AZURE_ACR_NAME=$(AZURE_ACR_NAME)' > /workspace/.env.azure.generated"
 
+# ストレージの作成
+azure-create-storage:
+	$(call read-env)
+	docker run -it --rm -v $(shell pwd):/workspace -v $(HOME)/.azure:/root/.azure -w /workspace mcr.microsoft.com/azure-cli /bin/bash -c "\
+	    echo '>>> ストレージアカウントの作成...' && \
+	    az storage account create \
+	        --name $(AZURE_BLOB_STORAGE_ACCOUNT_NAME) \
+	        --resource-group $(AZURE_RESOURCE_GROUP) \
+	        --location $(AZURE_LOCATION) \
+	        --sku Standard_LRS && \
+	    echo '>>> ストレージコンテナの作成...' && \
+	    az storage container create \
+	        --account-name $(AZURE_BLOB_STORAGE_ACCOUNT_NAME) \
+	        --name $(AZURE_BLOB_STORAGE_CONTAINER_NAME) \
+	        --public-access off"
+
 # ACRに自動ログイン
 azure-acr-login-auto:
 	$(call read-env)
@@ -175,6 +191,41 @@ azure-deploy:
 	        --ingress external \
 	        --min-replicas 1"
 
+# マネージドIDのContainer Appへの割り当て
+azure-assign-managed-identity:
+	$(call read-env)
+	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
+	    echo '>>> API Container App にシステム割り当てマネージド ID を追加中...' && \
+	    az containerapp identity assign --name api --resource-group $(AZURE_RESOURCE_GROUP) --system-assigned && \
+	    echo 'Managed identity assigned.'"
+
+# apiを再起動（ストレージへのアクセス権限を割り当てた後、api上にストレージの情報をsyncするために利用）
+azure-restart-api:
+	$(call read-env)
+	@echo ">>> API Container App をスケールダウン（再起動準備）..."
+	docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli \
+	az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0
+	@sleep 5
+	@echo ">>> API Container App をスケールアップ（再起動）..."
+	docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli \
+	az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1
+
+# Container AppのマネージドIDへのストレージアクセス権の割り当て
+azure-assign-storage-access:
+	$(call read-env)
+	@echo ">>> 現在のサブスクリプションIDを取得中..."
+	$(eval AZURE_SUBSCRIPTION_ID := $(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli az account show --query id -o tsv))
+	@echo ">>> AZURE_SUBSCRIPTION_ID=$(AZURE_SUBSCRIPTION_ID)"
+	@echo ">>> Container Apps のマネージド ID へのストレージアクセス権を割り当て中..."
+	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
+	    API_PRINCIPAL=\$$(az containerapp show --name api --resource-group $(AZURE_RESOURCE_GROUP) --query identity.principalId -o tsv); \
+	    echo 'API container managed identity: '\$$API_PRINCIPAL; \
+	    az role assignment create --assignee \$$API_PRINCIPAL \
+	        --role 'Storage Blob Data Contributor' \
+	        --scope '/subscriptions/$(AZURE_SUBSCRIPTION_ID)/resourceGroups/$(AZURE_RESOURCE_GROUP)/providers/Microsoft.Storage/storageAccounts/$(AZURE_BLOB_STORAGE_ACCOUNT_NAME)'; \
+	    echo 'Storage access role assigned to API container.'"
+	$(MAKE) azure-restart-api
+
 # 環境変数の更新
 azure-config-update:
 	$(call read-env)
@@ -185,7 +236,7 @@ azure-config-update:
 	    echo '>>> ドメイン情報: API='\$$API_DOMAIN', CLIENT='\$$CLIENT_DOMAIN', ADMIN='\$$CLIENT_ADMIN_DOMAIN && \
 	    echo '>>> APIの環境変数を更新...' && \
 	    az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --set-env-vars 'OPENAI_API_KEY=$(OPENAI_API_KEY)' 'PUBLIC_API_KEY=$(PUBLIC_API_KEY)' 'ADMIN_API_KEY=$(ADMIN_API_KEY)' 'LOG_LEVEL=info' && \
+	        --set-env-vars 'OPENAI_API_KEY=$(OPENAI_API_KEY)' 'PUBLIC_API_KEY=$(PUBLIC_API_KEY)' 'ADMIN_API_KEY=$(ADMIN_API_KEY)' 'LOG_LEVEL=info' 'AZURE_BLOB_STORAGE_ACCOUNT_NAME=$(AZURE_BLOB_STORAGE_ACCOUNT_NAME)' 'AZURE_BLOB_STORAGE_CONTAINER_NAME=$(AZURE_BLOB_STORAGE_CONTAINER_NAME)' 'STORAGE_TYPE=azure_blob' && \
 	    echo '>>> クライアントの環境変数を更新...' && \
 	    az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) \
 	        --set-env-vars 'NEXT_PUBLIC_PUBLIC_API_KEY=$(PUBLIC_API_KEY)' \"NEXT_PUBLIC_API_BASEPATH=https://\$$API_DOMAIN\" \"API_BASEPATH=https://\$$API_DOMAIN\" && \
@@ -266,34 +317,44 @@ azure-setup-all:
 	@echo ">>> 2. ACRへのログイン..."
 	@$(MAKE) azure-acr-login-auto
 
-	@echo ">>> 3. コンテナイメージのビルド..."
+
+	@echo ">>> 3. ストレージの作成"
+	@$(MAKE) azure-create-storage
+
+	@echo ">>> 4. コンテナイメージのビルド..."
 	@$(MAKE) azure-build
 
-	@echo ">>> 4. イメージのプッシュ..."
+	@echo ">>> 5. イメージのプッシュ..."
 	@$(MAKE) azure-push
 
-	@echo ">>> 5. Container Appsへのデプロイ..."
+	@echo ">>> 6. Container Appsへのデプロイ..."
 	@$(MAKE) azure-deploy
 
 	@echo ">>> コンテナアプリ作成を待機中（20秒）..."
 	@sleep 20
 
-	@echo ">>> 5a. ポリシーとヘルスチェックの適用..."
+	@echo ">>> 7. マネージドIDのContainer Appへの割り当て"
+	@$(MAKE) azure-assign-managed-identity
+
+	@echo ">>> 8. Container AppのマネージドIDへのストレージアクセス権の割り当て"
+	@$(MAKE) azure-assign-storage-access
+
+	@echo ">>> 8a. ポリシーとヘルスチェックの適用..."
 	@$(MAKE) azure-apply-policies
 
-	@echo ">>> 6. 環境変数の設定..."
+	@echo ">>> 9. 環境変数の設定..."
 	@$(MAKE) azure-config-update
 
-	@echo ">>> 環境変数の反映を待機中（30秒）..."
+	@echo ">>> 10. 環境変数の反映を待機中（30秒）..."
 	@sleep 30
 
-	@echo ">>> 7. 管理画面の環境変数を修正してビルド..."
+	@echo ">>> 11. 管理画面の環境変数を修正してビルド..."
 	@$(MAKE) azure-fix-client-admin
 
-	@echo ">>> 8. 環境の検証..."
+	@echo ">>> 12. 環境の検証..."
 	@$(MAKE) azure-verify
 
-	@echo ">>> 9. サービスURLの確認..."
+	@echo ">>> 13. サービスURLの確認..."
 	@$(MAKE) azure-info
 
 	@echo ">>> セットアップが完了しました。上記のURLでサービスにアクセスできます。"

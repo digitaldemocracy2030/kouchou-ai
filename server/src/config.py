@@ -6,6 +6,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 Environment = Literal["development", "production"]
+StorageType = Literal["local", "azure_blob"]
 
 
 class Settings(BaseSettings):
@@ -19,6 +20,15 @@ class Settings(BaseSettings):
     CONFIG_DIR: Path = TOOL_DIR / "pipeline" / "configs"
     INPUT_DIR: Path = TOOL_DIR / "pipeline" / "inputs"
     DATA_DIR: Path = BASE_DIR / "data"
+
+    # ストレージ設定
+    STORAGE_TYPE: StorageType = Field(env="STORAGE_TYPE", default="local")
+    AZURE_BLOB_STORAGE_ACCOUNT_NAME: str | None = Field(env="AZURE_BLOB_STORAGE_ACCOUNT_NAME", default=None)
+    AZURE_BLOB_STORAGE_CONTAINER_NAME: str | None = Field(env="AZURE_BLOB_STORAGE_CONTAINER_NAME", default=None)
+
+    @property
+    def azure_blob_storage_account_url(self) -> str:
+        return f"https://{self.AZURE_BLOB_STORAGE_ACCOUNT_NAME}.blob.core.windows.net"
 
     class Config:
         env_file = ".env"

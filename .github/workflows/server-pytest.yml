@@ -39,4 +39,7 @@ jobs:
 
     - name: Run tests with pytest
       run: |
+        export ADMIN_API_KEY=dummy
+        export PUBLIC_API_KEY=dummy
+        export OPENAI_API_KEY=dummy
         pytest --cov=src --cov-report=term
