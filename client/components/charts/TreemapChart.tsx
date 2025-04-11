@@ -1,14 +1,14 @@
 import type { Argument, Cluster } from "@/type";
-import type { PlotData } from "plotly.js";
-import React from "react";
+import type { PlotData, PlotHoverEvent } from "plotly.js";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
   clusterList: Cluster[];
   argumentList: Argument[];
+  onHover: (event: Readonly<PlotHoverEvent>) => void;
 };
 
-export function TreemapChart({ clusterList, argumentList }: Props) {
+export function TreemapChart({ clusterList, argumentList, onHover }: Props) {
   const convertedArgumentList = argumentList.map(convertArgumentToCluster);
   const list = [
     { ...clusterList[0], parent: "" },
@@ -70,6 +70,7 @@ export function TreemapChart({ clusterList, argumentList }: Props) {
         displayModeBar: false,
         locale: "ja",
       }}
+      onHover={onHover}
     />
   );
 }
