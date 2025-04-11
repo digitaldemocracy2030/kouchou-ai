@@ -439,6 +439,48 @@ azure-logs-admin:
 	$(call read-env)
 	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli az containerapp logs show --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --follow
 
+# デプロイの完全アップデート
+azure-update-deployment:
+	$(call read-env)
+
+	@echo ">>> レポートのバックアップを取得..."
+	$(eval API_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name api --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
+	@echo ">>> API_DOMAIN: $(API_DOMAIN)"
+	@cd $(shell pwd) && python3 scripts/fetch_reports.py --api-url https://$(API_DOMAIN)
+
+	@echo ">>> コンテナイメージのビルド..."
+	@$(MAKE) azure-build
+
+	@echo ">>> イメージのプッシュ..."
+	@$(MAKE) azure-push
+
+	@echo ">>> 環境変数の設定..."
+	@$(MAKE) azure-config-update
+
+	@echo ">>> APIコンテナを再起動中..."
+	@docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
+	  echo '>>> 一時的にスケールダウン...' && \
+	  az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
+	  echo '>>> 再度スケールアップ...' && \
+	  sleep 5 && \
+	  az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1"
+
+	@echo ">>> クライアントコンテナを再起動中..."
+	@docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
+	  echo '>>> 一時的にスケールダウン...' && \
+	  az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
+	  echo '>>> 再度スケールアップ...' && \
+	  sleep 5 && \
+	  az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1"
+	
+	@echo ">>> 管理者クライアントコンテナを再起動中..."
+	@$(MAKE) azure-fix-client-admin
+
+	@echo ">>> 9. サービスURLの確認..."
+	@$(MAKE) azure-info
+
+	@echo ">>> デプロイの更新が完了しました。"
+
 # リソースの完全削除
 azure-cleanup:
 	$(call read-env)
