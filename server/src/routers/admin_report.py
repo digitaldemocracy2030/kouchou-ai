@@ -1,4 +1,9 @@
 import json
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+from zipfile import ZipFile
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.responses import FileResponse, ORJSONResponse
@@ -116,6 +121,97 @@ async def update_report_visibility(slug: str, api_key: str = Depends(verify_admi
     except ValueError as e:
         slogger.error(f"ValueError: {e}", exc_info=True)
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        slogger.error(f"Exception: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+@router.post("/admin/static-export")
+async def create_static_export(api_key: str = Depends(verify_admin_api_key)):
+    """
+    静的ファイルをエクスポートし、ZIPファイルとして提供するエンドポイント
+    クライアントコンテナでビルドを実行し、結果をZIPファイルとして返す
+    """
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+            zip_path = temp_dir_path / "static_export.zip"
+
+            repo_root = Path(__file__).parent.parent.parent.parent.resolve()
+            out_dir = repo_root / "out"
+
+            if out_dir.exists():
+                subprocess.run(["rm", "-rf", str(out_dir)], check=True)
+
+            slogger.info("Starting API container...")
+            subprocess.run(
+                ["docker", "compose", "up", "-d", "api"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            try:
+                slogger.info("Running build in client container...")
+                user_id = os.getuid()
+                group_id = os.getgid()
+
+                subprocess.run(
+                    [
+                        "docker",
+                        "compose",
+                        "run",
+                        "--user",
+                        f"{user_id}:{group_id}",
+                        "--rm",
+                        "-v",
+                        f"{repo_root}/server:/server",
+                        "-v",
+                        f"{repo_root}/out:/app/dist",
+                        "client",
+                        "sh",
+                        "-c",
+                        "npm run build:static && cp -r out/* dist",
+                    ],
+                    cwd=repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+
+                slogger.info("Stopping containers...")
+                subprocess.run(
+                    ["docker", "compose", "down"],
+                    cwd=repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+
+                if not out_dir.exists():
+                    raise HTTPException(status_code=500, detail="Static export failed - output directory not found")
+
+                slogger.info("Creating ZIP file...")
+                with ZipFile(zip_path, "w") as zipf:
+                    for file_path in out_dir.rglob("*"):
+                        if file_path.is_file():
+                            zipf.write(file_path, arcname=str(file_path.relative_to(out_dir)))
+
+                return FileResponse(path=str(zip_path), media_type="application/zip", filename="static_export.zip")
+            finally:
+                try:
+                    subprocess.run(
+                        ["docker", "compose", "down"],
+                        cwd=repo_root,
+                        capture_output=True,
+                        text=True,
+                    )
+                except Exception as e:
+                    slogger.error(f"コンテナ停止中にエラーが発生: {e}", exc_info=True)
+    except subprocess.CalledProcessError as e:
+        slogger.error(f"静的エクスポート実行エラー: {e.stderr}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Static export process failed: {e.stderr}") from e
     except Exception as e:
         slogger.error(f"Exception: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
