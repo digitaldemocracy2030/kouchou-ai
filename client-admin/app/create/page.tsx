@@ -172,9 +172,11 @@ export default function Page() {
         setCsvColumns(Object.keys(commentData.comments[0]));
       }
 
-      setRecommendedClusters(
-        calculateRecommendedClusters(commentData.comments.length),
-      );
+      const recommended = calculateRecommendedClusters(commentData.comments.length);
+      setRecommendedClusters(recommended);
+      // 推奨クラスタ数を自動的に適用
+      setClusterLv1(recommended.lv1);
+      setClusterLv2(recommended.lv2);
 
       toaster.create({
         type: "success",
@@ -401,9 +403,11 @@ export default function Page() {
       if (columns.includes("comment")) {
         setSelectedCommentColumn("comment");
       }
-      setRecommendedClusters(
-        calculateRecommendedClusters(spreadsheetData.length),
-      );
+      const recommended = calculateRecommendedClusters(spreadsheetData.length);
+      setRecommendedClusters(recommended);
+      // 推奨クラスタ数を自動的に適用
+      setClusterLv1(recommended.lv1);
+      setClusterLv2(recommended.lv2);
     } else {
       // データがない場合はカラムリセット
       setCsvColumns([]);
@@ -491,9 +495,11 @@ export default function Page() {
                             if (columns.includes("comment")) {
                               setSelectedCommentColumn("comment");
                             }
-                            setRecommendedClusters(
-                              calculateRecommendedClusters(parsed.length),
-                            );
+                            const recommended = calculateRecommendedClusters(parsed.length);
+                            setRecommendedClusters(recommended);
+                            // 推奨クラスタ数を自動的に適用
+                            setClusterLv1(recommended.lv1);
+                            setClusterLv2(recommended.lv2);
                           }
                         }
                       }}
@@ -542,29 +548,17 @@ export default function Page() {
                       </Field.Root>
                     )}
 
-                    {recommendedClusters && (
-                      <Field.Root mt={4}>
-                        <Field.Label>おすすめクラスタ数設定</Field.Label>
-                        <HStack>
-                          <Text>
-                            {recommendedClusters.lv1}→{recommendedClusters.lv2}
-                          </Text>
-                          <Button
-                            onClick={() => {
-                              setClusterLv1(recommendedClusters.lv1);
-                              setClusterLv2(recommendedClusters.lv2);
-                            }}
-                            size="sm"
-                            colorScheme="blue"
-                          >
-                            この設定にする
-                          </Button>
-                        </HStack>
-                        <Field.HelperText>
-                          コメント数に基づいた推奨クラスタ数です。「AI詳細設定」でも変更できます。
-                        </Field.HelperText>
-                      </Field.Root>
-                    )}
+                    <Field.Root mt={4}>
+                      <Field.Label>現在のクラスタ数設定</Field.Label>
+                      <HStack>
+                        <Text>
+                          {clusterLv1}→{clusterLv2}
+                        </Text>
+                      </HStack>
+                      <Field.HelperText>
+                        初期値はコメント数に基づいた推奨クラスタ数です。「AI詳細設定」でも変更できます。
+                      </Field.HelperText>
+                    </Field.Root>
                   </VStack>
                 </Tabs.Content>
 
@@ -624,30 +618,17 @@ export default function Page() {
                         </Field.Root>
                       )}
 
-                      {recommendedClusters && (
-                        <Field.Root mt={4}>
-                          <Field.Label>おすすめクラスタ数設定</Field.Label>
-                          <HStack>
-                            <Text>
-                              {recommendedClusters.lv1}→
-                              {recommendedClusters.lv2}
-                            </Text>
-                            <Button
-                              onClick={() => {
-                                setClusterLv1(recommendedClusters.lv1);
-                                setClusterLv2(recommendedClusters.lv2);
-                              }}
-                              size="sm"
-                              colorScheme="blue"
-                            >
-                              この設定にする
-                            </Button>
-                          </HStack>
-                          <Field.HelperText>
-                            コメント数に基づいた推奨クラスタ数です。「AI詳細設定」でも変更できます。
-                          </Field.HelperText>
-                        </Field.Root>
-                      )}
+                      <Field.Root mt={4}>
+                        <Field.Label>現在のクラスタ数設定</Field.Label>
+                        <HStack>
+                          <Text>
+                            {clusterLv1}→{clusterLv2}
+                          </Text>
+                        </HStack>
+                        <Field.HelperText>
+                          初期値はコメント数に基づいた推奨クラスタ数です。「AI詳細設定」でも変更できます。
+                        </Field.HelperText>
+                      </Field.Root>
                     </Field.Root>
                     {spreadsheetImported && (
                       <Text color="green.500" fontSize="sm">
@@ -786,6 +767,14 @@ export default function Page() {
                           setClusterLv2(newClusterLv2);
                           setAutoAdjusted(true);
                         }
+                        
+                        // 推奨クラスタ数表示を更新（nullでない場合のみ）
+                        if (recommendedClusters) {
+                          setRecommendedClusters({
+                            lv1: newClusterLv1,
+                            lv2: newClusterLv2 > clusterLv2 ? newClusterLv2 : clusterLv2
+                          });
+                        }
                       }
                     }}
                   />
@@ -799,6 +788,14 @@ export default function Page() {
                       if (newClusterLv2 > clusterLv2) {
                         setClusterLv2(newClusterLv2);
                         setAutoAdjusted(true);
+                      }
+                      
+                      // 推奨クラスタ数表示を更新（nullでない場合のみ）
+                      if (recommendedClusters) {
+                        setRecommendedClusters({
+                          lv1: newClusterLv1,
+                          lv2: newClusterLv2 > clusterLv2 ? newClusterLv2 : clusterLv2
+                        });
                       }
                     }}
                     variant="outline"
@@ -816,8 +813,24 @@ export default function Page() {
                         const adjustedValue = clusterLv1 * 2;
                         setClusterLv2(adjustedValue);
                         setAutoAdjusted(true);
+                        
+                        // 推奨クラスタ数表示を更新（nullでない場合のみ）
+                        if (recommendedClusters) {
+                          setRecommendedClusters({
+                            lv1: recommendedClusters.lv1,
+                            lv2: adjustedValue
+                          });
+                        }
                       } else {
                         setAutoAdjusted(false);
+                        
+                        // 推奨クラスタ数表示を更新（nullでない場合のみ）
+                        if (recommendedClusters) {
+                          setRecommendedClusters({
+                            lv1: recommendedClusters.lv1,
+                            lv2: newClusterLv2
+                          });
+                        }
                       }
                     }}
                     variant="outline"
@@ -841,6 +854,14 @@ export default function Page() {
                         // 最大値を1000に制限
                         const limitedValue = Math.min(1000, v);
                         setClusterLv2(limitedValue);
+                        
+                        // 推奨クラスタ数表示を更新（nullでない場合のみ）
+                        if (recommendedClusters) {
+                          setRecommendedClusters({
+                            lv1: recommendedClusters.lv1,
+                            lv2: limitedValue
+                          });
+                        }
                       }
                     }}
                     onBlur={(e) => {
@@ -857,6 +878,14 @@ export default function Page() {
                         } else {
                           setAutoAdjusted(false);
                         }
+                        
+                        // 推奨クラスタ数表示を更新（nullでない場合のみ）
+                        if (recommendedClusters) {
+                          setRecommendedClusters({
+                            lv1: recommendedClusters.lv1,
+                            lv2: newValue
+                          });
+                        }
                       }
                     }}
                   />
@@ -870,8 +899,24 @@ export default function Page() {
                         const adjustedValue = clusterLv1 * 2;
                         setClusterLv2(adjustedValue);
                         setAutoAdjusted(true);
+                        
+                        // 推奨クラスタ数表示を更新（nullでない場合のみ）
+                        if (recommendedClusters) {
+                          setRecommendedClusters({
+                            lv1: recommendedClusters.lv1,
+                            lv2: adjustedValue
+                          });
+                        }
                       } else {
                         setAutoAdjusted(false);
+                        
+                        // 推奨クラスタ数表示を更新（nullでない場合のみ）
+                        if (recommendedClusters) {
+                          setRecommendedClusters({
+                            lv1: recommendedClusters.lv1,
+                            lv2: newClusterLv2
+                          });
+                        }
                       }
                     }}
                     variant="outline"
