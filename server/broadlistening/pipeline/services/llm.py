@@ -1,11 +1,11 @@
+import logging
 import os
 
 import openai
 from dotenv import load_dotenv
-
-# FIXME: Issue #58
-from langchain.embeddings import OpenAIEmbeddings
+from langchain.embeddings import OpenAIEmbeddings  # FIXME: Issue #58
 from openai import AzureOpenAI
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 # from langchain_openai import AzureOpenAIEmbeddings
 
@@ -34,6 +34,12 @@ if use_azure == "true":
         raise RuntimeError("AZURE_EMBEDDING_DEPLOYMENT_NAME environment variable is not set")
 
 
+@retry(
+    retry=retry_if_exception_type(openai.RateLimitError),
+    wait=wait_exponential(multiplier=3, min=3, max=20),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 def request_to_openai(
     messages: list[dict],
     model: str = "gpt-4",
@@ -41,18 +47,34 @@ def request_to_openai(
 ) -> dict:
     openai.api_type = "openai"
     response_format = {"type": "json_object"} if is_json else None
-    response = openai.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=0,
-        n=1,
-        seed=0,
-        response_format=response_format,
-        timeout=30,
-    )
-    return response.choices[0].message.content
+    try:
+        response = openai.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0,
+            n=1,
+            seed=0,
+            response_format=response_format,
+            timeout=30,
+        )
+        return response.choices[0].message.content
+    except openai.RateLimitError as e:
+        logging.warning(f"OpenAI API rate limit hit: {e}")
+        raise
+    except openai.AuthenticationError as e:
+        logging.error(f"OpenAI API authentication error: {str(e)}")
+        raise
+    except openai.BadRequestError as e:
+        logging.error(f"OpenAI API bad request error: {str(e)}")
+        raise
 
 
+@retry(
+    retry=retry_if_exception_type(openai.RateLimitError),
+    wait=wait_exponential(multiplier=1, min=2, max=20),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 def request_to_azure_chatcompletion(
     messages: list[dict],
     is_json: bool = False,
@@ -73,17 +95,26 @@ def request_to_azure_chatcompletion(
     else:
         response_format = None
 
-    response = client.chat.completions.create(
-        model=deployment,
-        messages=messages,
-        temperature=0,
-        n=1,
-        seed=0,
-        response_format=response_format,
-        timeout=30,
-    )
-
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model=deployment,
+            messages=messages,
+            temperature=0,
+            n=1,
+            seed=0,
+            response_format=response_format,
+            timeout=30,
+        )
+        return response.choices[0].message.content
+    except openai.RateLimitError as e:
+        logging.warning(f"OpenAI API rate limit hit: {e}")
+        raise
+    except openai.AuthenticationError as e:
+        logging.error(f"OpenAI API authentication error: {str(e)}")
+        raise
+    except openai.BadRequestError as e:
+        logging.error(f"OpenAI API bad request error: {str(e)}")
+        raise
 
 
 def request_to_chat_openai(
