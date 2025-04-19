@@ -31,3 +31,10 @@ class ReportInput(SchemaBaseModel):
     comments: list[Comment]  # コメントのリスト
     is_pubcom: bool = False  # CSV出力モード出力フラグ
     inputType: Literal["file", "spreadsheet"] = "file"  # 入力タイプ
+
+
+class ReportMetadataUpdate(SchemaBaseModel):
+    """レポートのメタデータ更新用スキーマ"""
+
+    title: str | None = None  # レポートのタイトル
+    description: str | None = None  # レポートの調査概要

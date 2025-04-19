@@ -5,10 +5,15 @@ from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.security.api_key import APIKeyHeader
 
 from src.config import settings
-from src.schemas.admin_report import ReportInput
+from src.schemas.admin_report import ReportInput, ReportMetadataUpdate
 from src.schemas.report import Report, ReportStatus
 from src.services.report_launcher import launch_report_generation
-from src.services.report_status import load_status_as_reports, set_status, toggle_report_public_state
+from src.services.report_status import (
+    load_status_as_reports,
+    set_status,
+    toggle_report_public_state,
+    update_report_metadata,
+)
 from src.utils.logger import setup_logger
 
 slogger = setup_logger()
@@ -113,6 +118,38 @@ async def update_report_visibility(slug: str, api_key: str = Depends(verify_admi
         is_public = toggle_report_public_state(slug)
 
         return {"success": True, "isPublic": is_public}
+    except ValueError as e:
+        slogger.error(f"ValueError: {e}", exc_info=True)
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        slogger.error(f"Exception: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+@router.patch("/admin/reports/{slug}/metadata")
+async def update_report_metadata_endpoint(
+    slug: str, metadata: ReportMetadataUpdate, api_key: str = Depends(verify_admin_api_key)
+) -> dict:
+    """レポートのメタデータ（タイトル、説明）を更新するエンドポイント
+
+    Args:
+        slug: レポートのスラッグ
+        metadata: 更新するメタデータ
+        api_key: 管理者APIキー
+
+    Returns:
+        更新後のレポート情報
+    """
+    try:
+        updated_report = update_report_metadata(
+            slug=slug,
+            title=metadata.title,
+            description=metadata.description,
+        )
+        return {
+            "success": True,
+            "report": updated_report,
+        }
     except ValueError as e:
         slogger.error(f"ValueError: {e}", exc_info=True)
         raise HTTPException(status_code=404, detail=str(e)) from e

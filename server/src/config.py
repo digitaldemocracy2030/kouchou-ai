@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     PUBLIC_API_KEY: str = Field(env="PUBLIC_API_KEY")
     OPENAI_API_KEY: str = Field(env="OPENAI_API_KEY")
     ENVIRONMENT: Environment = Field(env="ENVIRONMENT", default="production")
+
+    # Next.jsのrevalidate API用の設定
+    NEXT_PUBLIC_SITE_URL: str = Field(env="NEXT_PUBLIC_SITE_URL", default="http://localhost:3000")
+    REVALIDATE_SECRET: str = Field(env="REVALIDATE_SECRET", default="revalidate-secret")
+    REVALIDATE_URL: str = Field(env="REVALIDATE_URL", default="http://client:3000/api/revalidate")
     BASE_DIR: Path = Path(__file__).parent.parent
     TOOL_DIR: Path = BASE_DIR / "broadlistening"
     REPORT_DIR: Path = TOOL_DIR / "pipeline" / "outputs"

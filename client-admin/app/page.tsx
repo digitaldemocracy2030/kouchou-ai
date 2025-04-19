@@ -8,21 +8,25 @@ import {
   MenuRoot,
   MenuTrigger,
 } from "@/components/ui/menu";
+import { toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Report } from "@/type";
 import {
   Box,
   Button,
   Card,
+  Dialog,
   Flex,
   HStack,
   Heading,
   Icon,
+  Input,
   Popover,
   Portal,
   Spinner,
   Steps,
   Text,
+  Textarea,
   VStack
 } from "@chakra-ui/react";
 import {
@@ -218,6 +222,11 @@ function ReportCard({
         : stepKeys.indexOf(progress);
 
   const [lastProgress, setLastProgress] = useState<string | null>(null);
+  
+  // 編集ダイアログの状態管理
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState(report.title);
+  const [editDescription, setEditDescription] = useState(report.description || "");
 
   // エラー状態の判定
   const isErrorState = progress === "error" || report.status === "error";
@@ -250,14 +259,23 @@ function ReportCard({
       position="relative"
       transition="all 0.2s"
       role="group"
-      _hover={report.status === "ready" ? {
+      pointerEvents={isEditDialogOpen ? "none" : "auto"}
+      _hover={report.status === "ready" && !isEditDialogOpen ? {
         backgroundColor: "gray.50",
         cursor: "pointer",
       } : {}}
-      onClick={() => {
+      onClick={(e) => {
+        // ダイアログが開いている場合は何もしない
+        if (isEditDialogOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+        
         if (report.status === "ready") {
           window.open(`${process.env.NEXT_PUBLIC_CLIENT_BASEPATH}/${report.slug}`, "_blank");
         }
+        return true;
       }}
     >
       <Card.Body>
@@ -547,6 +565,17 @@ function ReportCard({
                   レポートを複製して新規作成(開発中)
                 </MenuItem>
                 <MenuItem
+                  value="edit"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditTitle(report.title);
+                    setEditDescription(report.description || "");
+                    setIsEditDialogOpen(true);
+                  }}
+                >
+                  レポートを編集する
+                </MenuItem>
+                <MenuItem
                   value="delete"
                   color="fg.error"
                   onClick={async (e) => {
@@ -588,6 +617,129 @@ function ReportCard({
           </HStack>
         </HStack>
       </Card.Body>
+      
+      <Dialog.Root
+        open={isEditDialogOpen}
+        onOpenChange={({ open }) => setIsEditDialogOpen(open)}
+        modal={true}
+        closeOnInteractOutside={false}
+        trapFocus={true}
+      >
+        <Dialog.Backdrop
+          style={{
+            zIndex: 1000,
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.4)",
+            backdropFilter: "blur(2px)"
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }}
+        />
+        <Dialog.Positioner>
+          <Dialog.Content
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
+            }}
+            style={{
+              pointerEvents: "auto",
+              position: "relative",
+              zIndex: 1001,
+              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)"
+            }}
+          >
+            <Dialog.CloseTrigger position="absolute" top={3} right={3} />
+            <Dialog.Header>
+              <Dialog.Title>レポートを編集</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body>
+              <VStack gap={4} align="stretch">
+                <Box>
+                  <Text mb={2} fontWeight="bold">タイトル</Text>
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="レポートのタイトルを入力"
+                  />
+                </Box>
+                <Box>
+                  <Text mb={2} fontWeight="bold">調査概要</Text>
+                  <Textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="調査の概要を入力"
+                  />
+                </Box>
+              </VStack>
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                キャンセル
+              </Button>
+              <Button
+                ml={3}
+                onClick={async () => {
+                  try {
+                    const response = await fetch(
+                      `${getApiBaseUrl()}/admin/reports/${report.slug}/metadata`,
+                      {
+                        method: "PATCH",
+                        headers: {
+                          "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          title: editTitle,
+                          description: editDescription,
+                        }),
+                      }
+                    );
+
+                    if (!response.ok) {
+                      const errorData = await response.json();
+                      throw new Error(errorData.detail || "メタデータの更新に失敗しました");
+                    }
+
+                    // レポート一覧を更新
+                    if (setReports && reports) {
+                      const updatedReports = reports.map((r) =>
+                        r.slug === report.slug
+                          ? { ...r, title: editTitle, description: editDescription }
+                          : r
+                      );
+                      setReports(updatedReports);
+                    }
+
+                    // 成功メッセージを表示
+                    toaster.create({
+                      type: "success",
+                      title: "更新完了",
+                      description: "レポート情報が更新されました",
+                    });
+
+                    // ダイアログを閉じる
+                    setIsEditDialogOpen(false);
+                  } catch (error) {
+                    console.error("メタデータの更新に失敗しました:", error);
+                    toaster.create({
+                      type: "error",
+                      title: "更新エラー",
+                      description: "メタデータの更新に失敗しました",
+                    });
+                  }
+                }}
+              >
+                保存
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
     </Card.Root>
   );
 }
