@@ -10,6 +10,8 @@ type ReportProps = {
   selectedChart: string;
   isFullscreen: boolean;
   onExitFullscreen: () => void;
+  showClusterLabels: boolean;
+  onToggleClusterLabels: (show: boolean) => void;
 };
 
 export function Chart({
@@ -17,6 +19,8 @@ export function Chart({
   selectedChart,
   isFullscreen,
   onExitFullscreen,
+  showClusterLabels,
+  onToggleClusterLabels,
 }: ReportProps) {
   if (isFullscreen) {
     return (
@@ -58,6 +62,7 @@ export function Chart({
                 : Math.max(...result.clusters.map((c) => c.level))
             }
             onHover={() => setTimeout(avoidHoverTextCoveringShrinkButton, 500)}
+            showClusterLabels={showClusterLabels}
           />
         )}
         {selectedChart === "treemap" && (
@@ -90,6 +95,7 @@ export function Chart({
                 ? 1
                 : Math.max(...result.clusters.map((c) => c.level))
             }
+            showClusterLabels={showClusterLabels}
           />
         )}
       </Box>

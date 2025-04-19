@@ -87,7 +87,7 @@ export function SelectChartButton({
         </HStack>
       </RadioCardRoot>
       <HStack>
-        <Tooltip content={"濃い意見グループ設定"} openDelay={0} closeDelay={0}>
+        <Tooltip content={"表示設定"} openDelay={0} closeDelay={0}>
           <Button
             onClick={onClickDensitySetting}
             variant={"outline"}

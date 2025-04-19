@@ -1,4 +1,5 @@
 import type { Argument, Cluster } from "@/type";
+import { Box } from "@chakra-ui/react";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
@@ -6,6 +7,7 @@ type Props = {
   argumentList: Argument[];
   targetLevel: number;
   onHover?: () => void;
+  showClusterLabels?: boolean;
 };
 
 export function ScatterChart({
@@ -13,6 +15,7 @@ export function ScatterChart({
   argumentList,
   targetLevel,
   onHover,
+  showClusterLabels
 }: Props) {
   const targetClusters = clusterList.filter(
     (cluster) => cluster.level === targetLevel,
@@ -94,8 +97,10 @@ export function ScatterChart({
   });
 
   return (
-    <ChartCore
-      data={clusterData.map((data) => ({
+    <Box width="100%" height="100%" display="flex" flexDirection="column">
+      <Box position="relative" flex="1">
+        <ChartCore
+        data={clusterData.map((data) => ({
         x: data.xValues,
         y: data.yValues,
         mode: "markers",
@@ -127,7 +132,7 @@ export function ScatterChart({
           showticklabels: false,
         },
         hovermode: "closest",
-        annotations: clusterData.map((data) => ({
+        annotations: showClusterLabels ? clusterData.map((data) => ({
           x: data.centerX,
           y: data.centerY,
           text: data.cluster.label,
@@ -142,7 +147,7 @@ export function ScatterChart({
           bordercolor: clusterColorMap[data.cluster.id],
           borderpad: 4,
           borderwidth: 1,
-        })),
+        })) : [],
         showlegend: false,
       }}
       useResizeHandler={true}
@@ -153,6 +158,8 @@ export function ScatterChart({
         locale: "ja",
       }}
       onHover={onHover}
-    />
+        />
+      </Box>
+    </Box>
   );
 }
