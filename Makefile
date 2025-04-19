@@ -238,7 +238,7 @@ azure-config-update:
 	    echo '>>> ドメイン情報: API='\$$API_DOMAIN', CLIENT='\$$CLIENT_DOMAIN', ADMIN='\$$CLIENT_ADMIN_DOMAIN && \
 	    echo '>>> APIの環境変数を更新...' && \
 	    az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --set-env-vars 'OPENAI_API_KEY=$(OPENAI_API_KEY)' 'PUBLIC_API_KEY=$(PUBLIC_API_KEY)' 'ADMIN_API_KEY=$(ADMIN_API_KEY)' 'LOG_LEVEL=info' 'AZURE_BLOB_STORAGE_ACCOUNT_NAME=$(AZURE_BLOB_STORAGE_ACCOUNT_NAME)' 'AZURE_BLOB_STORAGE_CONTAINER_NAME=$(AZURE_BLOB_STORAGE_CONTAINER_NAME)' 'STORAGE_TYPE=azure_blob' && \
+	        --set-env-vars 'OPENAI_API_KEY=$(OPENAI_API_KEY)' 'PUBLIC_API_KEY=$(PUBLIC_API_KEY)' 'ADMIN_API_KEY=$(ADMIN_API_KEY)' 'LOG_LEVEL=info' 'AZURE_BLOB_STORAGE_ACCOUNT_NAME=$(AZURE_BLOB_STORAGE_ACCOUNT_NAME)' 'AZURE_BLOB_STORAGE_CONTAINER_NAME=$(AZURE_BLOB_STORAGE_CONTAINER_NAME)' 'STORAGE_TYPE=azure_blob' \"REVALIDATE_URL=https://\$$CLIENT_DOMAIN/api/revalidate\" 'REVALIDATE_SECRET=$(REVALIDATE_SECRET)' && \
 	    echo '>>> クライアントの環境変数を更新...' && \
 	    az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) \
 	        --set-env-vars 'NEXT_PUBLIC_PUBLIC_API_KEY=$(PUBLIC_API_KEY)' \"NEXT_PUBLIC_API_BASEPATH=https://\$$API_DOMAIN\" \"API_BASEPATH=https://\$$API_DOMAIN\" && \
@@ -422,9 +422,20 @@ azure-logs-admin:
 	$(call read-env)
 	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli az containerapp logs show --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --follow
 
+
+# REVALIDATE_SECRETが.envファイルに定義されているか確認
+azure-check-revalidate-secret:
+	$(call read-env)
+	@if [ -z "$(REVALIDATE_SECRET)" ]; then \
+		echo "エラー: REVALIDATE_SECRETが.envファイルに定義されていません。"; \
+		echo "REVALIDATE_SECRETを.envファイルに追加してから再実行してください。"; \
+		exit 1; \
+	fi
+
 # デプロイの完全アップデート
 azure-update-deployment:
 	$(call read-env)
+	@$(MAKE) azure-check-revalidate-secret
 
 	@echo ">>> レポートのバックアップを取得..."
 	$(eval API_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name api --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
