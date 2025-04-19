@@ -773,11 +773,11 @@ export default function Page() {
                     type="number"
                     value={clusterLv1.toString()}
                     min={2}
-                    max={20}
+                    max={40}
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       if (!Number.isNaN(v)) {
-                        const newClusterLv1 = Math.max(2, Math.min(20, v));
+                        const newClusterLv1 = Math.max(2, Math.min(40, v));
                         setClusterLv1(newClusterLv1);
 
                         // 第一階層のクラスタ数 * 2 > 第二階層のクラスタ数の場合のみ、第二階層の値を更新
@@ -791,7 +791,7 @@ export default function Page() {
                   />
                   <Button
                     onClick={() => {
-                      const newClusterLv1 = Math.min(20, clusterLv1 + 1);
+                      const newClusterLv1 = Math.min(40, clusterLv1 + 1);
                       setClusterLv1(newClusterLv1);
 
                       // 第一階層のクラスタ数 * 2 > 第二階層のクラスタ数の場合のみ、第二階層の値を更新
