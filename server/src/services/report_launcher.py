@@ -29,6 +29,9 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
             "prompt": report_input.prompt.extraction,
             "workers": report_input.workers,
             "limit": comment_num,
+            "model": report_input.model,
+            "properties": [],
+            "categories": [],
         },
         "hierarchical_clustering": {
             "cluster_nums": report_input.cluster,
