@@ -7,14 +7,14 @@ import { overviewPrompt } from "../overviewPrompt";
 // カスタムフック: プロンプト設定の管理
 export function usePromptSettings() {
   const [extraction, setExtraction] = useState<string>(extractionPrompt);
-  const [initialLabelling, setInitialLabelling] = useState<string>(initialLabellingPrompt);
-  const [mergeLabelling, setMergeLabelling] = useState<string>(mergeLabellingPrompt);
+  const [initial_labelling, setInitialLabelling] = useState<string>(initialLabellingPrompt);
+  const [merge_labelling, setMergeLabelling] = useState<string>(mergeLabellingPrompt);
   const [overview, setOverview] = useState<string>(overviewPrompt);
 
   return {
     extraction,
-    initialLabelling,
-    mergeLabelling,
+    initial_labelling,
+    merge_labelling,
     overview,
     setExtraction,
     setInitialLabelling,
@@ -22,8 +22,8 @@ export function usePromptSettings() {
     setOverview,
     getPromptSettings: () => ({
       extraction,
-      initialLabelling,
-      mergeLabelling,
+      initial_labelling,
+      merge_labelling,
       overview
     })
   };

@@ -13,8 +13,8 @@ export interface ClusterSettings {
 
 export interface PromptSettings {
   extraction: string;
-  initialLabelling: string;
-  mergeLabelling: string;
+  initial_labelling: string;
+  merge_labelling: string;
   overview: string;
 }
 

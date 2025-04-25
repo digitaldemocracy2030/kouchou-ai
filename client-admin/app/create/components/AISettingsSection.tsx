@@ -117,7 +117,7 @@ export function AISettingsSection({
         <Field.Label>初期ラベリングプロンプト</Field.Label>
         <Textarea
           h={"150px"}
-          value={promptSettings.initialLabelling}
+          value={promptSettings.initial_labelling}
           onChange={(e) => promptSettings.setInitialLabelling(e.target.value)}
         />
         <Field.HelperText>
@@ -129,7 +129,7 @@ export function AISettingsSection({
         <Field.Label>統合ラベリングプロンプト</Field.Label>
         <Textarea
           h={"150px"}
-          value={promptSettings.mergeLabelling}
+          value={promptSettings.merge_labelling}
           onChange={(e) => promptSettings.setMergeLabelling(e.target.value)}
         />
         <Field.HelperText>
