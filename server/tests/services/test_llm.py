@@ -302,7 +302,7 @@ class TestLLMService:
                 response = request_to_chat_openai(messages, model="gpt-4o")
 
         assert response == "OpenAI response"
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False)
+        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, None)
 
     def test_request_to_chat_openai_use_azure(self, mock_openai_response):
         """request_to_chat_openai: USE_AZURE=trueの場合はrequest_to_azure_chatcompletionを使用する"""
@@ -322,7 +322,7 @@ class TestLLMService:
                 response = request_to_chat_openai(messages, model="gpt-4o", is_json=True)
 
         assert response == "Azure response"
-        mock_request_to_azure.assert_called_once_with(messages, True)
+        mock_request_to_azure.assert_called_once_with(messages, True, None)
 
     def test_validate_model_valid(self):
         """_validate_model: 有効なモデルの場合は例外を発生させない"""
