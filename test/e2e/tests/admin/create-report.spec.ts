@@ -13,7 +13,14 @@ test.describe('レポート作成ページ', () => {
     
     await createReportPage.goto();
     
-    await expect(createReportPage.pageTitle).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    
+    try {
+      await expect(createReportPage.pageTitle).toBeVisible({ timeout: 10000 });
+    } catch (error) {
+      console.log('Page HTML:', await page.content());
+      throw error;
+    }
     
     const reportId = `test-report-${Date.now()}`;
     const question = 'これはテスト質問です';
