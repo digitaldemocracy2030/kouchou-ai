@@ -58,13 +58,14 @@ test.describe('レポート作成ページ', () => {
     }
     
     console.log(`[TEST-STEP] ステップ6: ページの状態確認を開始`);
+    let inputFieldExists = false;
     try {
       console.log(`[TEST-STEP] ステップ6.1: 現在のURL: ${page.url()}`);
       
       const bodyContent = await page.locator('body').textContent();
       console.log(`[TEST-STEP] ステップ6.2: ボディテキスト長: ${bodyContent?.length || 0}`);
       
-      const inputFieldExists = await page.locator('input').count() > 0;
+      inputFieldExists = await page.locator('input').count() > 0;
       console.log(`[TEST-STEP] ステップ6.3: 入力フィールドの存在: ${inputFieldExists}`);
       
       if (inputFieldExists) {
