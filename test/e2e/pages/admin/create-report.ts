@@ -33,8 +33,8 @@ export class CreateReportPage {
     console.log('Waiting for page to load (domcontentloaded)...');
     await this.page.waitForLoadState('domcontentloaded');
     
-    console.log('Waiting for page to load (networkidle)...');
-    await this.page.waitForLoadState('networkidle');
+    // console.log('Waiting for page to load (networkidle)...');
+    // await this.page.waitForLoadState('networkidle');
     
     console.log('Waiting for page title to be visible...');
     await this.page.waitForSelector('h2:has-text("新しいレポートを作成する")', { timeout: 10000 });
