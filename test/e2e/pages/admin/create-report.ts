@@ -45,7 +45,8 @@ export class CreateReportPage {
 
   async uploadCsvFile(filePath: string) {
     await this.csvTab.click();
-    await this.csvFileUpload.setInputFiles(filePath);
+    const fileInput = this.page.locator('input[type="file"]');
+    await fileInput.setInputFiles(filePath);
   }
 
   async submitForm() {
