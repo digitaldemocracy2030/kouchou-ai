@@ -2,7 +2,7 @@ import { Page, Locator } from '@playwright/test';
 
 /**
  * レポート作成ページのPage Object
- * シンプルで信頼性の高いセレクタを使用
+ * data-testid属性を使用した信頼性の高いセレクタを使用
  */
 export class CreateReportPage {
   readonly page: Page;
@@ -17,16 +17,29 @@ export class CreateReportPage {
   constructor(page: Page) {
     this.page = page;
     
-    this.pageTitle = page.locator('h2:has-text("新しいレポートを作成する"), .chakra-heading:has-text("新しいレポートを作成する")');
+    this.pageTitle = page.getByTestId('create-report-title');
     
-    this.titleField = page.locator('label:has-text("タイトル") + div input, .chakra-field label:has-text("タイトル") ~ input');
-    this.introField = page.locator('label:has-text("調査概要") + div input, .chakra-field label:has-text("調査概要") ~ input');
-    this.idField = page.locator('label:has-text("ID") + div input, .chakra-field label:has-text("ID") ~ input');
+    this.titleField = page.getByTestId('title-field');
+    this.introField = page.getByTestId('intro-field');
+    this.idField = page.getByTestId('id-field');
     
-    this.csvTab = page.locator('button:has-text("CSVファイル"), [role="tab"]:has-text("CSVファイル")');
-    this.csvFileUpload = page.locator('input[type="file"]');
+    this.csvTab = page.getByTestId('csv-tab');
+    this.csvFileUpload = page.getByTestId('file-upload');
     
-    this.submitButton = page.locator('button:has-text("レポート作成を開始")');
+    this.submitButton = page.getByTestId('submit-button');
+    
+    if (!process.env.USE_TEST_IDS) {
+      this.pageTitle = page.locator('h2:has-text("新しいレポートを作成する"), .chakra-heading:has-text("新しいレポートを作成する")');
+      
+      this.titleField = page.locator('label:has-text("タイトル") + div input, .chakra-field label:has-text("タイトル") ~ input');
+      this.introField = page.locator('label:has-text("調査概要") + div input, .chakra-field label:has-text("調査概要") ~ input');
+      this.idField = page.locator('label:has-text("ID") + div input, .chakra-field label:has-text("ID") ~ input');
+      
+      this.csvTab = page.locator('button:has-text("CSVファイル"), [role="tab"]:has-text("CSVファイル")');
+      this.csvFileUpload = page.locator('input[type="file"]');
+      
+      this.submitButton = page.locator('button:has-text("レポート作成を開始")');
+    }
   }
 
   async goto() {
