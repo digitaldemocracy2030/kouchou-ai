@@ -1,7 +1,7 @@
 import logging
 import os
 import threading
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import openai
 from dotenv import load_dotenv
@@ -14,16 +14,12 @@ load_dotenv(DOTENV_PATH)
 
 LLM_PROVIDERS = ["openai", "azure", "openrouter", "localllm"]
 
-llm_provider = os.getenv("LLM_PROVIDER", "openai").lower()
-if llm_provider not in LLM_PROVIDERS:
-    logging.warning(f"Invalid LLM provider: {llm_provider}, falling back to openai")
-    llm_provider = "openai"
+DEFAULT_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
+if DEFAULT_PROVIDER not in LLM_PROVIDERS:
+    logging.warning(f"Invalid default LLM provider: {DEFAULT_PROVIDER}, falling back to openai")
+    DEFAULT_PROVIDER = "openai"
 
-use_azure = os.getenv("USE_AZURE", "false").lower()
-if use_azure == "true" and llm_provider == "openai":
-    llm_provider = "azure"
-
-if llm_provider == "azure":
+if DEFAULT_PROVIDER == "azure":
     if not os.getenv("AZURE_CHATCOMPLETION_ENDPOINT"):
         raise RuntimeError("AZURE_CHATCOMPLETION_ENDPOINT environment variable is not set")
     if not os.getenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME"):
@@ -40,21 +36,20 @@ if llm_provider == "azure":
         raise RuntimeError("AZURE_EMBEDDING_VERSION environment variable is not set")
     if not os.getenv("AZURE_EMBEDDING_DEPLOYMENT_NAME"):
         raise RuntimeError("AZURE_EMBEDDING_DEPLOYMENT_NAME environment variable is not set")
-elif llm_provider == "openrouter":
+elif DEFAULT_PROVIDER == "openrouter":
     if not os.getenv("OPENROUTER_API_KEY"):
         raise RuntimeError("OPENROUTER_API_KEY environment variable is not set")
-elif llm_provider == "localllm":
+elif DEFAULT_PROVIDER == "localllm":
     if not os.getenv("LOCALLLM_API_BASE"):
         logging.warning("LOCALLLM_API_BASE not set, using default: http://localhost:1234/v1")
 
 
-def get_client(provider: Optional[str] = None) -> OpenAI:
+def get_client(provider: str | None = None) -> OpenAI:
     """プロバイダーに基づいてOpenAI APIクライアントを作成する関数"""
-    current_provider = provider or os.getenv("LLM_PROVIDER", "openai").lower()
-    
-    use_azure = os.getenv("USE_AZURE", "false").lower()
-    if use_azure == "true" and current_provider == "openai":
-        current_provider = "azure"
+    current_provider = provider or DEFAULT_PROVIDER
+    if current_provider not in LLM_PROVIDERS:
+        logging.warning(f"Invalid provider: {current_provider}, falling back to default")
+        current_provider = DEFAULT_PROVIDER
     
     if current_provider == "azure":
         azure_endpoint = os.getenv("AZURE_CHATCOMPLETION_ENDPOINT")
@@ -99,17 +94,17 @@ def get_model_for_provider(provider: str, model: str) -> str:
     reraise=True,
 )
 def request_to_chat_openai(
-    messages: List[Dict[str, str]],
+    messages: list[dict[str, str]],
     model: str = "gpt-4o",
     is_json: bool = False,
-    json_schema: Optional[Union[Dict[str, Any], type[BaseModel]]] = None,
+    json_schema: dict[str, Any] | type[BaseModel] | None = None,
+    provider: str | None = None,
 ) -> Any:
     """統合されたチャット完了リクエスト関数"""
-    current_provider = os.getenv("LLM_PROVIDER", "openai").lower()
-    
-    use_azure = os.getenv("USE_AZURE", "false").lower()
-    if use_azure == "true" and current_provider == "openai":
-        current_provider = "azure"
+    current_provider = provider or DEFAULT_PROVIDER
+    if current_provider not in LLM_PROVIDERS:
+        logging.warning(f"Invalid provider: {current_provider}, falling back to default")
+        current_provider = DEFAULT_PROVIDER
     
     client = get_client(current_provider)
     actual_model = get_model_for_provider(current_provider, model)
@@ -213,13 +208,12 @@ def get_embedding_model_for_provider(provider: str, model: str) -> str:
     return model
 
 
-def get_embedding_client(provider: Optional[str] = None) -> OpenAI:
+def get_embedding_client(provider: str | None = None) -> OpenAI:
     """プロバイダーに基づいて埋め込み用のOpenAI APIクライアントを作成する関数"""
-    current_provider = provider or os.getenv("LLM_PROVIDER", "openai").lower()
-    
-    use_azure = os.getenv("USE_AZURE", "false").lower()
-    if use_azure == "true" and current_provider == "openai":
-        current_provider = "azure"
+    current_provider = provider or DEFAULT_PROVIDER
+    if current_provider not in LLM_PROVIDERS:
+        logging.warning(f"Invalid provider: {current_provider}, falling back to default")
+        current_provider = DEFAULT_PROVIDER
     
     if current_provider == "azure":
         azure_endpoint = os.getenv("AZURE_EMBEDDING_ENDPOINT")
@@ -250,16 +244,15 @@ def get_embedding_client(provider: Optional[str] = None) -> OpenAI:
         return OpenAI()
 
 
-def request_to_embed(args, model, is_embedded_at_local=False):
+def request_to_embed(args, model, is_embedded_at_local=False, provider: str | None = None):
     """統合された埋め込みリクエスト関数"""
     if is_embedded_at_local:
         return request_to_local_embed(args)
 
-    current_provider = os.getenv("LLM_PROVIDER", "openai").lower()
-    
-    use_azure = os.getenv("USE_AZURE", "false").lower()
-    if use_azure == "true" and current_provider == "openai":
-        current_provider = "azure"
+    current_provider = provider or DEFAULT_PROVIDER
+    if current_provider not in LLM_PROVIDERS:
+        logging.warning(f"Invalid provider: {current_provider}, falling back to default")
+        current_provider = DEFAULT_PROVIDER
     
     if current_provider != "openai":
         _validate_model(model)
@@ -271,14 +264,19 @@ def request_to_embed(args, model, is_embedded_at_local=False):
     return [item.embedding for item in response.data]
 
 
-def get_available_models(provider="openai"):
+def get_available_models(provider=None):
     """指定されたプロバイダーで利用可能なモデルを取得し、サポートするモデルとマッチングする関数"""
+    current_provider = provider or DEFAULT_PROVIDER
+    if current_provider not in LLM_PROVIDERS:
+        logging.warning(f"Invalid provider: {current_provider}, falling back to default")
+        current_provider = DEFAULT_PROVIDER
+        
     try:
-        client = get_client(provider)
+        client = get_client(current_provider)
         models = client.models.list()
         available_models = [model.id for model in models]
         
-        supported_models = SUPPORTED_MODELS.get(provider, [])
+        supported_models = SUPPORTED_MODELS.get(current_provider, [])
         matched_models = [model for model in available_models if model in supported_models]
         
         return {
@@ -286,7 +284,7 @@ def get_available_models(provider="openai"):
             "supported": matched_models
         }
     except Exception as e:
-        logging.error(f"Error getting models for provider {provider}: {str(e)}")
+        logging.error(f"Error getting models for provider {current_provider}: {str(e)}")
         return {
             "available": [],
             "supported": []

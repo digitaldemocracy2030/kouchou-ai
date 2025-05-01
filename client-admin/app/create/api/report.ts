@@ -12,6 +12,7 @@ export async function createReport({
   comments,
   cluster,
   model,
+  provider,
   workers,
   prompt,
   is_pubcom,
@@ -24,6 +25,7 @@ export async function createReport({
   comments: CsvData[];
   cluster: [number, number];
   model: string;
+  provider: string;
   workers: number;
   prompt: PromptSettings;
   is_pubcom: boolean;
@@ -46,6 +48,7 @@ export async function createReport({
           comments,
           cluster,
           model,
+          provider,
           workers,
           prompt,
           is_pubcom,

@@ -171,12 +171,9 @@ async def verify_llm_provider(provider: str | None = None, api_key: str = Depend
         dict: 検証結果、利用可能なモデル、エラーメッセージなど
     """
     try:
-        current_provider = os.getenv("LLM_PROVIDER", "openai").lower()
+        from broadlistening.pipeline.services.llm import DEFAULT_PROVIDER
         
-        use_azure = os.getenv("USE_AZURE", "false").lower()
-        if use_azure == "true" and current_provider == "openai":
-            current_provider = "azure"
-            
+        current_provider = DEFAULT_PROVIDER
         provider_to_check = provider or current_provider
         
         if provider_to_check not in LLM_PROVIDERS:
@@ -202,7 +199,7 @@ async def verify_llm_provider(provider: str | None = None, api_key: str = Depend
         return {
             "success": False,
             "message": f"Authentication failed: {str(e)}",
-            "current_provider": provider or os.getenv("LLM_PROVIDER", "openai").lower(),
+            "current_provider": provider or DEFAULT_PROVIDER,
             "available_models": [],
             "supported_models": []
         }
@@ -213,14 +210,14 @@ async def verify_llm_provider(provider: str | None = None, api_key: str = Depend
                 "success": False,
                 "message": f"Error: {str(e)}",
                 "error_type": "insufficient_quota",
-                "current_provider": provider or os.getenv("LLM_PROVIDER", "openai").lower(),
+                "current_provider": provider or DEFAULT_PROVIDER,
                 "available_models": [],
                 "supported_models": []
             }
         return {
             "success": False,
             "message": f"Rate limit exceeded: {str(e)}",
-            "current_provider": provider or os.getenv("LLM_PROVIDER", "openai").lower(),
+            "current_provider": provider or DEFAULT_PROVIDER,
             "available_models": [],
             "supported_models": []
         }
@@ -228,7 +225,7 @@ async def verify_llm_provider(provider: str | None = None, api_key: str = Depend
         return {
             "success": False,
             "message": f"Error: {str(e)}",
-            "current_provider": provider or os.getenv("LLM_PROVIDER", "openai").lower(),
+            "current_provider": provider or DEFAULT_PROVIDER,
             "available_models": [],
             "supported_models": []
         }
