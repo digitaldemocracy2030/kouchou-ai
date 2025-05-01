@@ -1,3 +1,4 @@
+import React from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Button,
@@ -69,7 +70,7 @@ export function AISettingsSection({
       <Field.Root>
         <Checkbox
           checked={isPubcomMode}
-          onCheckedChange={(details) => {
+          onCheckedChange={(details: { checked: boolean | "indeterminate" }) => {
             const { checked } = details;
             onPubcomModeChange(checked);
           }}

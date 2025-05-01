@@ -2,11 +2,10 @@ import json
 import os
 
 import openai
+from broadlistening.pipeline.services.llm import get_available_models, LLM_PROVIDERS
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.security.api_key import APIKeyHeader
-from openai import AzureOpenAI, OpenAI
-
 from src.config import settings
 from src.schemas.admin_report import ReportInput, ReportMetadataUpdate
 from src.schemas.report import Report, ReportStatus
@@ -18,7 +17,6 @@ from src.services.report_status import (
     update_report_metadata,
 )
 from src.utils.logger import setup_logger
-from broadlistening.pipeline.services.llm import get_available_models, LLM_PROVIDERS
 
 slogger = setup_logger()
 router = APIRouter()
@@ -147,8 +145,8 @@ async def update_report_metadata_endpoint(
     try:
         updated_report = update_report_metadata(
             slug=slug,
-            title=metadata.title,
-            description=metadata.description,
+            title=metadata.title or "",
+            description=metadata.description or "",
         )
         return {
             "success": True,
@@ -162,7 +160,7 @@ async def update_report_metadata_endpoint(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.get("/admin/environment/verify-llm-provider")
-async def verify_llm_provider(provider: str = None, api_key: str = Depends(verify_admin_api_key)):
+async def verify_llm_provider(provider: str | None = None, api_key: str = Depends(verify_admin_api_key)):
     """LLM プロバイダーの接続を検証するエンドポイント
     
     Args:
