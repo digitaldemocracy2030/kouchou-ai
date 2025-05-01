@@ -25,6 +25,7 @@ export function BasicInfoSection({
       <Field.Root>
         <Field.Label>タイトル</Field.Label>
         <Input
+          data-testid="title-field"
           value={question}
           onChange={onQuestionChange}
           placeholder="例：人類が人工知能を開発・展開する上で、最優先すべき課題は何でしょうか？"
@@ -35,6 +36,7 @@ export function BasicInfoSection({
       <Field.Root>
         <Field.Label>調査概要</Field.Label>
         <Input
+          data-testid="intro-field"
           value={intro}
           onChange={onIntroChange}
           placeholder="例：このAI生成レポートは、パブリックコメントにおいて寄せられた意見に基づいています。"
@@ -47,6 +49,7 @@ export function BasicInfoSection({
       <Field.Root>
         <Field.Label>ID</Field.Label>
         <Input
+          data-testid="id-field"
           w={"40%"}
           value={input}
           onChange={onIdChange}

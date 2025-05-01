@@ -69,6 +69,7 @@ export function CsvFileTab({
             pointerEvents={csv ? "none" : "auto"}
           >
             <FileUploadDropzone
+              data-testid="file-upload"
               label="分析するコメントファイルを選択してください"
               description=".csv"
             />

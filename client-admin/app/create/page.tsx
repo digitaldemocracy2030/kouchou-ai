@@ -164,7 +164,7 @@ export default function Page() {
     <div className={"container"}>
       <Header />
       <Box mx={"auto"} maxW={"800px"}>
-        <Heading textAlign={"center"} my={10}>
+        <Heading data-testid="create-report-title" textAlign={"center"} my={10}>
           新しいレポートを作成する
         </Heading>
         <VStack gap={5}>
@@ -190,7 +190,7 @@ export default function Page() {
               width="100%"
             >
               <Tabs.List>
-                <Tabs.Trigger value="file">CSVファイル</Tabs.Trigger>
+                <Tabs.Trigger data-testid="csv-tab" value="file">CSVファイル</Tabs.Trigger>
                 <Tabs.Trigger value="spreadsheet">
                   Googleスプレッドシート
                 </Tabs.Trigger>
@@ -267,6 +267,7 @@ export default function Page() {
 
           {/* 送信ボタン */}
           <Button
+            data-testid="submit-button"
             mt={10}
             className={"gradientBg shadow"}
             size={"2xl"}
