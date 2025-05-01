@@ -1,66 +1,35 @@
-# Kouchou AI E2Eテスト
+# E2E テスト
 
-このディレクトリにはPlaywrightを使用したKouchou AIアプリケーションのエンドツーエンドテストが含まれています。
+このディレクトリには管理画面のE2Eテストが含まれています。
+
+## 前提条件
+
+- Node.js 18以上
+- Playwright のインストール
 
 ## セットアップ
 
-1. 依存関係のインストール:
-   ```
-   npm install
-   ```
+```bash
+# Playwrightをインストール
+npm init playwright@latest
 
-2. Playwrightブラウザのインストール:
-   ```
-   npx playwright install
-   ```
-
-3. 環境変数の設定:
-   ```
-   cp .env.example .env
-   ```
-   その後、`.env`ファイルを編集してテスト用の認証情報を追加します。
+# 依存関係をインストール
+npm install
+```
 
 ## テストの実行
 
-すべてのテストを実行:
-```
-npm test
-```
+```bash
+# すべてのテストを実行
+npx playwright test
 
-UIモードでテストを実行:
-```
-npm run test:ui
-```
+# 特定のテストを実行
+npx playwright test tests/admin/create-report.spec.ts
 
-デバッグモードでテストを実行:
-```
-npm run test:debug
+# UIモードでテストを実行
+npx playwright test --ui
 ```
 
-テストレポートを表示:
-```
-npm run report
-```
+## テスト内容
 
-## ディレクトリ構造
-
-- `tests/`: テストファイル
-  - `admin/`: 管理機能のテスト
-  - `client/`: クライアント機能のテスト
-- `pages/`: ページオブジェクトモデル
-- `fixtures/`: テストフィクスチャ
-- `utils/`: テストユーティリティ
-
-## 新しいテストの追加
-
-1. 必要に応じて`pages/`に新しいページオブジェクトを作成
-2. `tests/`にテストファイルを追加
-3. メンテナンス性向上のためにページオブジェクトパターンを使用
-
-## CI連携
-
-テストは以下のタイミングで自動的に実行されます:
-- 毎日0時(UTC)
-- `e2e-test-required`ラベルが付いたPR
-
-テスト結果はGitHub Actionsのアーティファクトとして利用できます。
+- `tests/admin/create-report.spec.ts`: レポート作成機能のテスト

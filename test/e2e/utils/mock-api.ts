@@ -23,20 +23,3 @@ export async function mockReportCreation(page: Page) {
     { success: true, slug: 'test-report' }
   );
 }
-
-/**
- * スプレッドシート取得APIをモックする
- */
-export async function mockSpreadsheetImport(page: Page) {
-  await mockApiEndpoint(
-    page,
-    '**/admin/spreadsheet/import*',
-    {
-      data: [
-        { id: 'row-1', comment: 'Test comment 1' },
-        { id: 'row-2', comment: 'Test comment 2' },
-      ],
-      columns: ['id', 'comment']
-    }
-  );
-}
