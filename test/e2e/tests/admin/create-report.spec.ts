@@ -11,23 +11,37 @@ test.describe('レポート作成ページ', () => {
     await mockReportCreation(page);
     
     const createReportPage = new CreateReportPage(page);
+    
+    console.log('Navigating to create page...');
     await createReportPage.goto();
     
-    await expect(createReportPage.pageTitle).toBeVisible();
+    console.log('Waiting for page to load...');
+    await page.waitForLoadState('networkidle');
+    
+    const html = await page.content();
+    console.log('Page HTML contains create-report-title:', html.includes('data-testid="create-report-title"'));
+    
+    console.log('Checking if page title is visible...');
+    await expect(page.locator('h2')).toBeVisible({ timeout: 10000 });
+    await expect(createReportPage.pageTitle).toBeVisible({ timeout: 10000 });
     
     const reportId = `test-report-${Date.now()}`;
     const question = 'これはテスト質問です';
     const intro = 'これはテスト説明です';
     
+    console.log('Filling form fields...');
     await createReportPage.fillTitleField(question);
     await createReportPage.fillIntroField(intro);
     await createReportPage.fillIdField(reportId);
     
+    console.log('Uploading CSV file...');
     const csvPath = path.resolve(__dirname, '../../fixtures/sample.csv');
     await createReportPage.uploadCsvFile(csvPath);
     
+    console.log('Submitting form...');
     await createReportPage.submitForm();
     
+    console.log('Waiting for redirect...');
     await page.waitForURL('**/');
   });
 });
