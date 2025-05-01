@@ -1,8 +1,11 @@
 import json
+import os
 
+import openai
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.security.api_key import APIKeyHeader
+from openai import AzureOpenAI, OpenAI
 
 from src.config import settings
 from src.schemas.admin_report import ReportInput, ReportMetadataUpdate
@@ -15,6 +18,7 @@ from src.services.report_status import (
     update_report_metadata,
 )
 from src.utils.logger import setup_logger
+from broadlistening.pipeline.services.llm import get_available_models, LLM_PROVIDERS
 
 slogger = setup_logger()
 router = APIRouter()
@@ -156,3 +160,76 @@ async def update_report_metadata_endpoint(
     except Exception as e:
         slogger.error(f"Exception: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
+
+@router.get("/admin/environment/verify-llm-provider")
+async def verify_llm_provider(provider: str = None, api_key: str = Depends(verify_admin_api_key)):
+    """LLM プロバイダーの接続を検証するエンドポイント
+    
+    Args:
+        provider: 検証するプロバイダー（指定がない場合は現在の設定を使用）
+        
+    Returns:
+        dict: 検証結果、利用可能なモデル、エラーメッセージなど
+    """
+    try:
+        current_provider = os.getenv("LLM_PROVIDER", "openai").lower()
+        
+        use_azure = os.getenv("USE_AZURE", "false").lower()
+        if use_azure == "true" and current_provider == "openai":
+            current_provider = "azure"
+            
+        provider_to_check = provider or current_provider
+        
+        if provider_to_check not in LLM_PROVIDERS:
+            return {
+                "success": False,
+                "message": f"Invalid provider: {provider_to_check}",
+                "current_provider": current_provider,
+                "available_models": [],
+                "supported_models": []
+            }
+        
+        models = get_available_models(provider_to_check)
+        
+        return {
+            "success": True,
+            "message": f"{provider_to_check.capitalize()} connection verified successfully",
+            "current_provider": current_provider,
+            "available_models": models["available"],
+            "supported_models": models["supported"]
+        }
+        
+    except openai.AuthenticationError as e:
+        return {
+            "success": False,
+            "message": f"Authentication failed: {str(e)}",
+            "current_provider": provider or os.getenv("LLM_PROVIDER", "openai").lower(),
+            "available_models": [],
+            "supported_models": []
+        }
+    except openai.RateLimitError as e:
+        error_str = str(e).lower()
+        if "insufficient_quota" in error_str or "quota exceeded" in error_str:
+            return {
+                "success": False,
+                "message": f"Error: {str(e)}",
+                "error_type": "insufficient_quota",
+                "current_provider": provider or os.getenv("LLM_PROVIDER", "openai").lower(),
+                "available_models": [],
+                "supported_models": []
+            }
+        return {
+            "success": False,
+            "message": f"Rate limit exceeded: {str(e)}",
+            "current_provider": provider or os.getenv("LLM_PROVIDER", "openai").lower(),
+            "available_models": [],
+            "supported_models": []
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error: {str(e)}",
+            "current_provider": provider or os.getenv("LLM_PROVIDER", "openai").lower(),
+            "available_models": [],
+            "supported_models": []
+        }

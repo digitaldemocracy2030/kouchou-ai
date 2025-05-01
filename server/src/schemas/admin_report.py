@@ -26,6 +26,7 @@ class ReportInput(SchemaBaseModel):
     intro: str  # レポートの調査概要
     cluster: list[int]  # 層ごとのクラスタ数定義
     model: str  # 利用するLLMの名称
+    provider: str = "openai"  # 利用するLLMプロバイダー (openai, azure, openrouter, localllm)
     workers: int  # LLM APIの並列実行数
     prompt: Prompt  # プロンプト
     comments: list[Comment]  # コメントのリスト

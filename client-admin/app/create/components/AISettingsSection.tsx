@@ -6,34 +6,49 @@ import {
   Input,
   NativeSelect,
   Textarea,
-  VStack
+  VStack,
+  Text,
+  Spinner
 } from "@chakra-ui/react";
+import { LLMProvider } from "../hooks/useAISettings";
 
 /**
  * AI設定セクションコンポーネント
  */
 export function AISettingsSection({
+  provider,
   model,
   workers,
   isPubcomMode,
+  availableModels,
+  isVerifyingProvider,
+  providerError,
+  onProviderChange,
   onModelChange,
   onWorkersChange,
   onIncreaseWorkers,
   onDecreaseWorkers,
   onPubcomModeChange,
+  onVerifyProvider,
   getModelDescription,
   promptSettings,
   isEmbeddedAtLocal,
   onEmbeddedAtLocalChange,
 }: {
+  provider: LLMProvider;
   model: string;
   workers: number;
   isPubcomMode: boolean;
+  availableModels: string[];
+  isVerifyingProvider: boolean;
+  providerError: string | null;
+  onProviderChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onModelChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onWorkersChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onIncreaseWorkers: () => void;
   onDecreaseWorkers: () => void;
   onPubcomModeChange: (checked: boolean | "indeterminate") => void;
+  onVerifyProvider: () => void;
   getModelDescription: () => string;
   promptSettings: {
     extraction: string;
@@ -90,8 +105,41 @@ export function AISettingsSection({
           </Button>
         </HStack>
         <Field.HelperText>
-          OpenAI
-          APIの並列実行数です。値を大きくすることでレポート出力が速くなりますが、OpenAIアカウントのTierによってはレートリミットの上限に到達し、レポート出力が失敗する可能性があります。
+          LLM APIの並列実行数です。値を大きくすることでレポート出力が速くなりますが、APIプロバイダーのTierによってはレートリミットの上限に到達し、レポート出力が失敗する可能性があります。
+        </Field.HelperText>
+      </Field.Root>
+
+      <Field.Root>
+        <Field.Label>LLMプロバイダー</Field.Label>
+        <HStack>
+          <NativeSelect.Root w={"40%"}>
+            <NativeSelect.Field
+              value={provider}
+              onChange={onProviderChange}
+            >
+              <option value={"openai"}>OpenAI</option>
+              <option value={"azure"}>Azure OpenAI</option>
+              <option value={"openrouter"}>Open Router</option>
+              <option value={"localllm"}>LocalLLM (LM Studio/ollama)</option>
+            </NativeSelect.Field>
+            <NativeSelect.Indicator />
+          </NativeSelect.Root>
+          <Button
+            onClick={onVerifyProvider}
+            isLoading={isVerifyingProvider}
+            loadingText="検証中"
+            variant="outline"
+          >
+            接続検証
+          </Button>
+        </HStack>
+        {providerError && (
+          <Text color="red.500" fontSize="sm" mt={1}>
+            エラー: {providerError}
+          </Text>
+        )}
+        <Field.HelperText>
+          使用するLLMプロバイダーを選択し、「接続検証」ボタンをクリックして利用可能なモデルを取得してください。
         </Field.HelperText>
       </Field.Root>
 
@@ -102,12 +150,25 @@ export function AISettingsSection({
             value={model}
             onChange={onModelChange}
           >
-            <option value={"gpt-4o-mini"}>OpenAI GPT-4o mini</option>
-            <option value={"gpt-4o"}>OpenAI GPT-4o</option>
-            <option value={"o3-mini"}>OpenAI o3-mini</option>
+            {availableModels.length > 0 ? (
+              availableModels.map((modelName) => (
+                <option key={modelName} value={modelName}>
+                  {modelName}
+                </option>
+              ))
+            ) : provider === "openai" ? (
+              <>
+                <option value={"gpt-4o-mini"}>OpenAI GPT-4o mini</option>
+                <option value={"gpt-4o"}>OpenAI GPT-4o</option>
+                <option value={"o3-mini"}>OpenAI o3-mini</option>
+              </>
+            ) : (
+              <option value={model}>{model}</option>
+            )}
           </NativeSelect.Field>
           <NativeSelect.Indicator />
         </NativeSelect.Root>
+        {isVerifyingProvider && <Spinner size="sm" ml={2} />}
         <Field.HelperText>
           {getModelDescription()}
         </Field.HelperText>

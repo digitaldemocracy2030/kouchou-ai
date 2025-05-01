@@ -138,6 +138,7 @@ export default function Page() {
         comments,
         cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
         model: aiSettings.model,
+        provider: aiSettings.provider,
         workers: aiSettings.workers,
         prompt: promptData,
         is_pubcom: aiSettings.isPubcomMode,
@@ -239,10 +240,15 @@ export default function Page() {
           {/* AI詳細設定セクション */}
           <Presence present={open} w={"full"}>
             <AISettingsSection
+              provider={aiSettings.provider}
               model={aiSettings.model}
               workers={aiSettings.workers}
               isPubcomMode={aiSettings.isPubcomMode}
               isEmbeddedAtLocal={aiSettings.isEmbeddedAtLocal}
+              availableModels={aiSettings.availableModels}
+              isVerifyingProvider={aiSettings.isVerifyingProvider}
+              providerError={aiSettings.providerError}
+              onProviderChange={aiSettings.handleProviderChange}
               onModelChange={aiSettings.handleModelChange}
               onWorkersChange={(e) => {
                 const v = Number(e.target.value);
@@ -253,6 +259,7 @@ export default function Page() {
               onIncreaseWorkers={aiSettings.increaseWorkers}
               onDecreaseWorkers={aiSettings.decreaseWorkers}
               onPubcomModeChange={aiSettings.handlePubcomModeChange}
+              onVerifyProvider={aiSettings.verifyProvider}
               onEmbeddedAtLocalChange={(checked) => {
                 if (checked === "indeterminate") return;
                 aiSettings.setIsEmbeddedAtLocal(checked);
