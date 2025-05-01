@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+from typing import Any, Dict, List, Optional, Union
 
 import openai
 from dotenv import load_dotenv
@@ -47,279 +48,130 @@ elif llm_provider == "localllm":
         logging.warning("LOCALLLM_API_BASE not set, using default: http://localhost:1234/v1")
 
 
-@retry(
-    retry=retry_if_exception_type(openai.RateLimitError),
-    wait=wait_exponential(multiplier=3, min=3, max=20),
-    stop=stop_after_attempt(3),
-    reraise=True,
-)
-def request_to_openai(
-    messages: list[dict],
-    model: str = "gpt-4",
-    is_json: bool = False,
-    json_schema: dict | type[BaseModel] = None,
-) -> dict:
-    openai.api_type = "openai"
-
-    try:
-        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
-            # Use beta.chat.completions.create for Pydantic BaseModel
-            response = openai.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=json_schema,
-                timeout=30,
-            )
-            return response.choices[0].message.content
-
-        else:
-            response_format = None
-            if is_json:
-                response_format = {"type": "json_object"}
-            if json_schema:  # 両方有効化されていたら、json_schemaを優先
-                response_format = json_schema
-
-            response = openai.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=response_format,
-                timeout=30,
-            )
-
-            return response.choices[0].message.content
-    except openai.RateLimitError as e:
-        logging.warning(f"OpenAI API rate limit hit: {e}")
-        raise
-    except openai.AuthenticationError as e:
-        logging.error(f"OpenAI API authentication error: {str(e)}")
-        raise
-    except openai.BadRequestError as e:
-        logging.error(f"OpenAI API bad request error: {str(e)}")
-        raise
-
-
-@retry(
-    retry=retry_if_exception_type(openai.RateLimitError),
-    wait=wait_exponential(multiplier=1, min=2, max=20),
-    stop=stop_after_attempt(3),
-    reraise=True,
-)
-def request_to_azure_chatcompletion(
-    messages: list[dict],
-    is_json: bool = False,
-    json_schema: dict | type[BaseModel] = None,
-) -> dict:
-    azure_endpoint = os.getenv("AZURE_CHATCOMPLETION_ENDPOINT")
-    deployment = os.getenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME")
-    api_key = os.getenv("AZURE_CHATCOMPLETION_API_KEY")
-    api_version = os.getenv("AZURE_CHATCOMPLETION_VERSION")
-
-    client = AzureOpenAI(
-        api_version=api_version,
-        azure_endpoint=azure_endpoint,
-        api_key=api_key,
-    )
-    # Set response format based on parameters
-
-    try:
-        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
-            # Use beta.chat.completions.create for Pydantic BaseModel (Azure)
-            response = client.beta.chat.completions.parse(
-                model=deployment,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_model=json_schema,
-                timeout=30,
-            )
-            return response
-        else:
-            response_format = None
-            if is_json:
-                response_format = {"type": "json_object"}
-            if json_schema:  # 両方有効化されていたら、json_schemaを優先
-                response_format = json_schema
-
-            response = client.chat.completions.create(
-                model=deployment,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=response_format,
-                timeout=30,
-            )
-            return response.choices[0].message.content
-    except openai.RateLimitError as e:
-        logging.warning(f"OpenAI API rate limit hit: {e}")
-        raise
-    except openai.AuthenticationError as e:
-        logging.error(f"OpenAI API authentication error: {str(e)}")
-        raise
-    except openai.BadRequestError as e:
-        logging.error(f"OpenAI API bad request error: {str(e)}")
-        raise
-
-
-@retry(
-    retry=retry_if_exception_type(openai.RateLimitError),
-    wait=wait_exponential(multiplier=3, min=3, max=20),
-    stop=stop_after_attempt(3),
-    reraise=True,
-)
-def request_to_openrouter(
-    messages: list[dict],
-    model: str = "openai/gpt-4o",
-    is_json: bool = False,
-    json_schema: dict | type[BaseModel] = None,
-) -> dict:
-    """Open Router API を使用してチャット完了リクエストを送信する関数"""
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    api_base = os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
-    
-    client = OpenAI(
-        api_key=api_key,
-        base_url=api_base
-    )
-    
-    try:
-        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
-            # Use beta.chat.completions.create for Pydantic BaseModel
-            response = client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=json_schema,
-                timeout=30,
-            )
-            return response.choices[0].message.content
-        
-        else:
-            response_format = None
-            if is_json:
-                response_format = {"type": "json_object"}
-            if json_schema:  # 両方有効化されていたら、json_schemaを優先
-                response_format = json_schema
-                
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=response_format,
-                timeout=30,
-            )
-            
-            return response.choices[0].message.content
-    except openai.RateLimitError as e:
-        logging.warning(f"Open Router API rate limit hit: {e}")
-        raise
-    except openai.AuthenticationError as e:
-        logging.error(f"Open Router API authentication error: {str(e)}")
-        raise
-    except openai.BadRequestError as e:
-        logging.error(f"Open Router API bad request error: {str(e)}")
-        raise
-    except Exception as e:
-        logging.error(f"Open Router API error: {str(e)}")
-        raise
-
-@retry(
-    retry=retry_if_exception_type(openai.RateLimitError),
-    wait=wait_exponential(multiplier=3, min=3, max=20),
-    stop=stop_after_attempt(3),
-    reraise=True,
-)
-def request_to_localllm(
-    messages: list[dict],
-    model: str = "local-model",
-    is_json: bool = False,
-    json_schema: dict | type[BaseModel] = None,
-) -> dict:
-    """LocalLLM (LM Studio, ollama) を使用してチャット完了リクエストを送信する関数"""
-    api_base = os.getenv("LOCALLLM_API_BASE", "http://localhost:1234/v1")
-    
-    client = OpenAI(
-        api_key="not-needed",  # LM Studio/ollama は API キーを必要としない
-        base_url=api_base
-    )
-    
-    try:
-        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
-            # Use beta.chat.completions.create for Pydantic BaseModel
-            response = client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=json_schema,
-                timeout=30,
-            )
-            return response.choices[0].message.content
-        
-        else:
-            response_format = None
-            if is_json:
-                response_format = {"type": "json_object"}
-            if json_schema:  # 両方有効化されていたら、json_schemaを優先
-                response_format = json_schema
-                
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=response_format,
-                timeout=30,
-            )
-            
-            return response.choices[0].message.content
-    except openai.RateLimitError as e:
-        logging.warning(f"LocalLLM API rate limit hit: {e}")
-        raise
-    except openai.AuthenticationError as e:
-        logging.error(f"LocalLLM API authentication error: {str(e)}")
-        raise
-    except openai.BadRequestError as e:
-        logging.error(f"LocalLLM API bad request error: {str(e)}")
-        raise
-    except Exception as e:
-        logging.error(f"LocalLLM API error: {str(e)}")
-        raise
-
-def request_to_chat_openai(
-    messages: list[dict],
-    model: str = "gpt-4o",
-    is_json: bool = False,
-    json_schema: dict | type[BaseModel] = None,
-) -> dict:
-    """LLM プロバイダーに基づいてチャット完了リクエストをルーティングする関数"""
-    current_provider = os.getenv("LLM_PROVIDER", "openai").lower()
+def get_client(provider: Optional[str] = None) -> OpenAI:
+    """プロバイダーに基づいてOpenAI APIクライアントを作成する関数"""
+    current_provider = provider or os.getenv("LLM_PROVIDER", "openai").lower()
     
     use_azure = os.getenv("USE_AZURE", "false").lower()
     if use_azure == "true" and current_provider == "openai":
         current_provider = "azure"
     
     if current_provider == "azure":
-        return request_to_azure_chatcompletion(messages, is_json, json_schema)
+        azure_endpoint = os.getenv("AZURE_CHATCOMPLETION_ENDPOINT")
+        api_key = os.getenv("AZURE_CHATCOMPLETION_API_KEY")
+        api_version = os.getenv("AZURE_CHATCOMPLETION_VERSION")
+        
+        return AzureOpenAI(
+            api_version=api_version,
+            azure_endpoint=azure_endpoint,
+            api_key=api_key,
+        )
     elif current_provider == "openrouter":
-        return request_to_openrouter(messages, model, is_json, json_schema)
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        api_base = os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
+        
+        return OpenAI(
+            api_key=api_key,
+            base_url=api_base
+        )
     elif current_provider == "localllm":
-        return request_to_localllm(messages, model, is_json, json_schema)
+        api_base = os.getenv("LOCALLLM_API_BASE", "http://localhost:1234/v1")
+        
+        return OpenAI(
+            api_key="not-needed",  # LM Studio/ollama は API キーを必要としない
+            base_url=api_base
+        )
     else:  # default to openai
-        return request_to_openai(messages, model, is_json, json_schema)
+        return OpenAI()
+
+
+def get_model_for_provider(provider: str, model: str) -> str:
+    """プロバイダーに基づいて適切なモデル名を返す関数"""
+    if provider == "azure":
+        return os.getenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME") or model
+    return model
+
+
+@retry(
+    retry=retry_if_exception_type(openai.RateLimitError),
+    wait=wait_exponential(multiplier=3, min=3, max=20),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
+def request_to_chat_openai(
+    messages: List[Dict[str, str]],
+    model: str = "gpt-4o",
+    is_json: bool = False,
+    json_schema: Optional[Union[Dict[str, Any], type[BaseModel]]] = None,
+) -> Any:
+    """統合されたチャット完了リクエスト関数"""
+    current_provider = os.getenv("LLM_PROVIDER", "openai").lower()
+    
+    use_azure = os.getenv("USE_AZURE", "false").lower()
+    if use_azure == "true" and current_provider == "openai":
+        current_provider = "azure"
+    
+    client = get_client(current_provider)
+    actual_model = get_model_for_provider(current_provider, model)
+    
+    provider_name = current_provider.capitalize()
+    
+    try:
+        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
+            # Use beta.chat.completions.parse for Pydantic BaseModel
+            if current_provider == "azure":
+                response = client.beta.chat.completions.parse(
+                    model=actual_model,
+                    messages=messages,
+                    temperature=0,
+                    n=1,
+                    seed=0,
+                    response_model=json_schema,
+                    timeout=30,
+                )
+                return response
+            else:
+                response = client.beta.chat.completions.parse(
+                    model=actual_model,
+                    messages=messages,
+                    temperature=0,
+                    n=1,
+                    seed=0,
+                    response_format=json_schema,
+                    timeout=30,
+                )
+                return response.choices[0].message.content
+        
+        else:
+            response_format = None
+            if is_json:
+                response_format = {"type": "json_object"}
+            if json_schema:  # 両方有効化されていたら、json_schemaを優先
+                response_format = json_schema
+                
+            response = client.chat.completions.create(
+                model=actual_model,
+                messages=messages,
+                temperature=0,
+                n=1,
+                seed=0,
+                response_format=response_format,
+                timeout=30,
+            )
+            
+            return response.choices[0].message.content
+    except openai.RateLimitError as e:
+        logging.warning(f"{provider_name} API rate limit hit: {e}")
+        raise
+    except openai.AuthenticationError as e:
+        logging.error(f"{provider_name} API authentication error: {str(e)}")
+        raise
+    except openai.BadRequestError as e:
+        logging.error(f"{provider_name} API bad request error: {str(e)}")
+        raise
+    except Exception as e:
+        logging.error(f"{provider_name} API error: {str(e)}")
+        raise
 
 
 SUPPORTED_MODELS = {
@@ -354,35 +206,52 @@ def _validate_model(model):
         raise RuntimeError(f"Invalid embedding model: {model}, available models: {EMBEDDING_MODELS}")
 
 
-def request_to_openrouter_embed(args, model):
-    """Open Router API を使用して埋め込みリクエストを送信する関数"""
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    api_base = os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
-    
-    client = OpenAI(
-        api_key=api_key,
-        base_url=api_base
-    )
-    
-    response = client.embeddings.create(input=args, model=model)
-    return [item.embedding for item in response.data]
+def get_embedding_model_for_provider(provider: str, model: str) -> str:
+    """プロバイダーに基づいて適切な埋め込みモデル名を返す関数"""
+    if provider == "azure":
+        return os.getenv("AZURE_EMBEDDING_DEPLOYMENT_NAME") or model
+    return model
 
 
-def request_to_localllm_embed(args, model):
-    """LocalLLM を使用して埋め込みリクエストを送信する関数"""
-    api_base = os.getenv("LOCALLLM_API_BASE", "http://localhost:1234/v1")
+def get_embedding_client(provider: Optional[str] = None) -> OpenAI:
+    """プロバイダーに基づいて埋め込み用のOpenAI APIクライアントを作成する関数"""
+    current_provider = provider or os.getenv("LLM_PROVIDER", "openai").lower()
     
-    client = OpenAI(
-        api_key="not-needed",
-        base_url=api_base
-    )
+    use_azure = os.getenv("USE_AZURE", "false").lower()
+    if use_azure == "true" and current_provider == "openai":
+        current_provider = "azure"
     
-    response = client.embeddings.create(input=args, model=model)
-    return [item.embedding for item in response.data]
+    if current_provider == "azure":
+        azure_endpoint = os.getenv("AZURE_EMBEDDING_ENDPOINT")
+        api_key = os.getenv("AZURE_EMBEDDING_API_KEY")
+        api_version = os.getenv("AZURE_EMBEDDING_VERSION")
+        
+        return AzureOpenAI(
+            api_version=api_version,
+            azure_endpoint=azure_endpoint,
+            api_key=api_key,
+        )
+    elif current_provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        api_base = os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
+        
+        return OpenAI(
+            api_key=api_key,
+            base_url=api_base
+        )
+    elif current_provider == "localllm":
+        api_base = os.getenv("LOCALLLM_API_BASE", "http://localhost:1234/v1")
+        
+        return OpenAI(
+            api_key="not-needed",
+            base_url=api_base
+        )
+    else:  # default to openai
+        return OpenAI()
 
 
 def request_to_embed(args, model, is_embedded_at_local=False):
-    """LLM プロバイダーに基づいて埋め込みリクエストをルーティングする関数"""
+    """統合された埋め込みリクエスト関数"""
     if is_embedded_at_local:
         return request_to_local_embed(args)
 
@@ -392,63 +261,22 @@ def request_to_embed(args, model, is_embedded_at_local=False):
     if use_azure == "true" and current_provider == "openai":
         current_provider = "azure"
     
-    if current_provider == "azure":
-        return request_to_azure_embed(args, model)
-    elif current_provider == "openrouter":
-        return request_to_openrouter_embed(args, model)
-    elif current_provider == "localllm":
-        return request_to_localllm_embed(args, model)
-    else:  # default to openai
+    if current_provider != "openai":
         _validate_model(model)
-        client = OpenAI()
-        response = client.embeddings.create(input=args, model=model)
-        embeds = [item.embedding for item in response.data]
-        return embeds
+    
+    client = get_embedding_client(current_provider)
+    actual_model = get_embedding_model_for_provider(current_provider, model)
+    
+    response = client.embeddings.create(input=args, model=actual_model)
+    return [item.embedding for item in response.data]
 
 
 def get_available_models(provider="openai"):
     """指定されたプロバイダーで利用可能なモデルを取得し、サポートするモデルとマッチングする関数"""
     try:
-        available_models = []
-        
-        if provider == "azure":
-            azure_endpoint = os.getenv("AZURE_CHATCOMPLETION_ENDPOINT")
-            api_key = os.getenv("AZURE_CHATCOMPLETION_API_KEY")
-            api_version = os.getenv("AZURE_CHATCOMPLETION_VERSION")
-            
-            client = AzureOpenAI(
-                api_version=api_version,
-                azure_endpoint=azure_endpoint,
-                api_key=api_key,
-            )
-            models = client.models.list()
-            available_models = [model.id for model in models]
-            
-        elif provider == "openrouter":
-            api_key = os.getenv("OPENROUTER_API_KEY")
-            api_base = os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
-            
-            client = OpenAI(
-                api_key=api_key,
-                base_url=api_base
-            )
-            models = client.models.list()
-            available_models = [model.id for model in models]
-            
-        elif provider == "localllm":
-            api_base = os.getenv("LOCALLLM_API_BASE", "http://localhost:1234/v1")
-            
-            client = OpenAI(
-                api_key="not-needed",
-                base_url=api_base
-            )
-            models = client.models.list()
-            available_models = [model.id for model in models]
-            
-        else:  # openai
-            client = OpenAI()
-            models = client.models.list()
-            available_models = [model.id for model in models]
+        client = get_client(provider)
+        models = client.models.list()
+        available_models = [model.id for model in models]
         
         supported_models = SUPPORTED_MODELS.get(provider, [])
         matched_models = [model for model in available_models if model in supported_models]
@@ -463,22 +291,6 @@ def get_available_models(provider="openai"):
             "available": [],
             "supported": []
         }
-
-
-def request_to_azure_embed(args, model):
-    azure_endpoint = os.getenv("AZURE_EMBEDDING_ENDPOINT")
-    api_key = os.getenv("AZURE_EMBEDDING_API_KEY")
-    api_version = os.getenv("AZURE_EMBEDDING_VERSION")
-    deployment = os.getenv("AZURE_EMBEDDING_DEPLOYMENT_NAME")
-
-    client = AzureOpenAI(
-        api_version=api_version,
-        azure_endpoint=azure_endpoint,
-        api_key=api_key,
-    )
-
-    response = client.embeddings.create(input=args, model=deployment)
-    return [item.embedding for item in response.data]
 
 
 __local_emb_model = None
@@ -508,8 +320,7 @@ def _test():
     # ]
     # response = request_to_chat_openai(messages=messages, model="gpt-4o", is_json=False)
     # print(response)
-    # print(request_to_embed("Hello", "text-embedding-3-large"))
-    print(request_to_azure_embed("Hello", "text-embedding-3-large"))
+    print(request_to_embed("Hello", "text-embedding-3-large", is_embedded_at_local=False))
 
 
 def _local_emb_test():
