@@ -5,8 +5,6 @@ import { mockReportCreation } from '../../utils/mock-api';
 import * as path from 'path';
 
 test.describe('レポート作成ページ', () => {
-  const useTestIds = process.env.USE_TEST_IDS !== 'false';
-  
   test('CSVファイルをアップロードしてレポートを作成する', async ({ page }) => {
     await setupBasicAuth(page);
     
