@@ -1,4 +1,3 @@
-import React from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Button,
@@ -12,6 +11,7 @@ import {
   Spinner
 } from "@chakra-ui/react";
 import { LLMProvider } from "../hooks/useAISettings";
+import type { ChangeEvent } from "react";
 
 /**
  * AI設定セクションコンポーネント
@@ -43,9 +43,9 @@ export function AISettingsSection({
   availableModels: string[];
   isVerifyingProvider: boolean;
   providerError: string | null;
-  onProviderChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  onModelChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  onWorkersChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onProviderChange: (e: ChangeEvent<HTMLSelectElement>) => void;
+  onModelChange: (e: ChangeEvent<HTMLSelectElement>) => void;
+  onWorkersChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onIncreaseWorkers: () => void;
   onDecreaseWorkers: () => void;
   onPubcomModeChange: (checked: boolean | "indeterminate") => void;
@@ -127,7 +127,7 @@ export function AISettingsSection({
           </NativeSelect.Root>
           <Button
             onClick={onVerifyProvider}
-            isLoading={isVerifyingProvider}
+            loading={isVerifyingProvider}
             loadingText="検証中"
             variant="outline"
           >
