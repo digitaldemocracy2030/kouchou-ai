@@ -23,6 +23,13 @@ class Config:
         else:
             print("GITHUB_TOKENからトークンを正常に取得しました。")
         
+        self.project_token = os.getenv("PROJECT_TOKEN")
+        if self.project_token is None:
+            print("PROJECT_TOKENが見つかりません ...")
+            return
+        else:
+            print("PROJECT_TOKENからトークンを正常に取得しました。")
+        
         self.github_repo = os.getenv("GITHUB_REPOSITORY")
         print("GITHUB_REPOSITORYの状態:", "取得済み" if self.github_repo else "見つかりません")
         
@@ -56,7 +63,7 @@ class GithubHandler:
     def get_issue_status(self):
         """GraphQL APIを使用してIssueの現在のステータスを取得する"""
         headers = {
-            "Authorization": f"Bearer {self.config.github_token}",
+            "Authorization": f"Bearer {self.config.project_token}",
             "Content-Type": "application/json"
         }
         
@@ -144,7 +151,7 @@ class GithubHandler:
     def update_issue_status(self, status: str):
         """GraphQL APIを使用してIssueのステータスを更新する"""
         headers = {
-            "Authorization": f"Bearer {self.config.github_token}",
+            "Authorization": f"Bearer {self.config.project_token}",
             "Content-Type": "application/json"
         }
         
@@ -294,7 +301,7 @@ class GithubHandler:
     def add_issue_to_project(self, issue_node_id):
         """GraphQL APIを使用してIssueをプロジェクトに追加する"""
         headers = {
-            "Authorization": f"Bearer {self.config.github_token}",
+            "Authorization": f"Bearer {self.config.project_token}",
             "Content-Type": "application/json"
         }
         
