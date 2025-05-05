@@ -15,7 +15,7 @@
 - プロジェクトについてのやりとりは、原則[デジタル民主主義2030のSlackの「開発_広聴AI」チャンネル](https://w1740803485-clv347541.slack.com/archives/C08F7JZPD63)までお願いします。
 - コントリビュートにあたっては、本リポジトリのrootディレクトリにあるCLA.md（コントリビューターライセンス）へ同意が必要です。
   - 同意する手順は、Pull Requestのテンプレートに記載があります。
-
+- タスク管理はgithub projectsを利用しています。詳細は[こちら](./PROJECTS.md)を参照してください。
 
 ### Issue管理とPull Requestについて
 レビュアー向けのガイドラインは[こちら](./CODE_REVIEW_GUIDELINES.md)
