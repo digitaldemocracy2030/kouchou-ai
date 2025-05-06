@@ -23,12 +23,26 @@ async def get_metadata() -> Metadata:
     """
     レポート作成者情報などのメタデータを返す。
     custom/meta/metadata.jsonがあればそれを、なければdefault/meta/metadata.jsonを返す。
+    デフォルト環境の場合は、画像やリンクの値は返さない。
     """
     try:
         metadata_path = load_metadata_file_path("metadata.json")
         with open(metadata_path) as f:
             metadata = json.load(f)
 
+        # カスタムのメタデータかどうかを判定
+        is_default = "default" in str(metadata_path)
+
+        # デフォルト環境の場合は、画像やリンクの値は返さない
+        if is_default:
+            return Metadata(
+                reporter=metadata.get("reporter"),
+                message=metadata.get("message"),
+                brandColor=metadata.get("brandColor"),
+                isDefault=True,
+            )
+
+        # カスタム環境の場合は、すべての値を返す
         return Metadata(
             reporter=metadata.get("reporter"),
             message=metadata.get("message"),
@@ -36,6 +50,7 @@ async def get_metadata() -> Metadata:
             privacyLink=metadata.get("privacyLink"),
             termsLink=metadata.get("termsLink"),
             brandColor=metadata.get("brandColor"),
+            isDefault=False,
         )
     except FileNotFoundError:
         # メタデータファイルが存在しない場合は空のメタデータを返す
@@ -69,5 +84,41 @@ async def get_ogp():
 
 
 @router.get("/meta/metadata.json")
-async def get_metadata_json():
-    return FileResponse(load_metadata_file_path("metadata.json"))
+async def get_metadata_json() -> Metadata:
+    """
+    レポート作成者情報などのメタデータを返す。
+    custom/meta/metadata.jsonがあればそれを、なければdefault/meta/metadata.jsonを返す。
+    デフォルト環境の場合は、画像やリンクの値は返さない。
+    """
+    try:
+        metadata_path = load_metadata_file_path("metadata.json")
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+
+        # カスタムのメタデータかどうかを判定
+        is_default = "default" in str(metadata_path)
+
+        # デフォルト環境の場合は、画像やリンクの値は返さない
+        if is_default:
+            return Metadata(
+                reporter=metadata.get("reporter"),
+                message=metadata.get("message"),
+                brandColor=metadata.get("brandColor"),
+                isDefault=True,
+            )
+
+        # カスタム環境の場合は、すべての値を返す
+        return Metadata(
+            reporter=metadata.get("reporter"),
+            message=metadata.get("message"),
+            webLink=metadata.get("webLink"),
+            privacyLink=metadata.get("privacyLink"),
+            termsLink=metadata.get("termsLink"),
+            brandColor=metadata.get("brandColor"),
+            isDefault=False,
+        )
+    except FileNotFoundError:
+        # メタデータファイルが存在しない場合は空のメタデータを返す
+        return Metadata()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e

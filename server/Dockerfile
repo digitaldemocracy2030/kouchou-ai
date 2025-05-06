@@ -3,6 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 ARG ENVIRONMENT
+ARG WITH_GPU=false
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -13,16 +14,22 @@ RUN apt-get update \
 
 RUN pip install uv
 
-COPY pyproject.toml requirements.lock requirements-dev.lock README.md ./
+COPY pyproject.toml requirements.lock requirements-dev.lock requirements-torch.txt README.md ./
 
-RUN if [ "$ENVIRONMENT" = "development" ]; then \
-        echo "Installing development dependencies from requirements-dev.lock" && \
-        uv pip install --no-cache --system -r requirements-dev.lock; \
-    else \
-        echo "Installing production dependencies from requirements.lock" && \
-        uv pip install --no-cache --system -r requirements.lock; \
+# WITH_GPU=false の場合は、不要なパッケージがインストールされないように CPU版の PyTorch を先にインストール
+RUN if [ "$WITH_GPU" = "false" ]; then \
+    echo "Installing PyTorch (CPU version)" && \
+    uv pip install --no-cache --system -r requirements-torch.txt --index-url https://download.pytorch.org/whl/cpu; \
     fi
 
+# 依存関係をインストール
+RUN if [ "$ENVIRONMENT" = "development" ]; then \
+    echo "Installing development dependencies" && \
+    uv pip install --no-cache --system -r requirements-dev.lock; \
+    else \
+    echo "Installing production dependencies" && \
+    uv pip install --no-cache --system -r requirements.lock; \
+    fi
 
 COPY . .
 # アプリケーションの実行

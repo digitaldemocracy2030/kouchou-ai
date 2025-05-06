@@ -1,8 +1,8 @@
 {
   "reporter": "テスト環境",
-  "message": "これは動作確認のためのテスト用のメタデータです。レポートの作成者に関する情報等を、public/meta/default/metadata.jsonに記載することで、レポート上で情報を表示することができます。",
-  "webLink": "https://example.com/",
-  "privacyLink": "https://example.com/privacy",
-  "termsLink": "https://example.com/terms",
+  "message": "これは動作確認のためのテスト用のメタデータです。レポートの作成者に関する情報等を、public/meta/custom/metadata.jsonに記載することで、レポート上で情報を表示することができます。",
+  "webLink": "/",
+  "privacyLink": "/",
+  "termsLink": "/",
   "brandColor": "#2577B1"
 }

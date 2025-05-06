@@ -1,4 +1,5 @@
 export type Meta = {
+  isDefault: boolean; // デフォルトのメタデータかどうか
   reporter: string; // レポート作成者名
   message: string; // レポート作成者からのメッセージ
   webLink?: string; // レポート作成者URL

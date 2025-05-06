@@ -24,6 +24,7 @@ services:
       dockerfile: Dockerfile
       args:
         - ENVIRONMENT=${ENVIRONMENT}
+        - WITH_GPU=${WITH_GPU:-false}
     ports:
       - "8000:8000"
     volumes:

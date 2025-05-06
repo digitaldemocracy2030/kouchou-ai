@@ -4,6 +4,7 @@ import { DownloadIcon } from "lucide-react";
 import Link from "next/link";
 import { useClusterSettings } from "../hooks/useClusterSettings";
 import { parseCsv } from "../parseCsv";
+import { getBestCommentColumn } from "../utils/columnScorer";
 import { ClusterSettingsSection } from "./ClusterSettingsSection";
 import { CommentColumnSelector } from "./CommentColumnSelector";
 
@@ -56,9 +57,12 @@ export function CsvFileTab({
               if (parsed.length > 0) {
                 const columns = Object.keys(parsed[0]);
                 setCsvColumns(columns);
-                if (columns.includes("comment")) {
-                  setSelectedCommentColumn("comment");
-                }
+
+                // 最適なカラムを自動選択
+                const bestColumn = getBestCommentColumn(parsed);
+                if (bestColumn) {
+                  setSelectedCommentColumn(bestColumn);
+                }              
                 clusterSettings.setRecommended(parsed.length);
               }
             }

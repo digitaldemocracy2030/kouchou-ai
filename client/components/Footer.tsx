@@ -30,7 +30,7 @@ export function Footer({ meta }: Props) {
           <Text fontWeight={"bold"} fontSize={"lg"}>
             {meta.reporter}
           </Text>
-          {meta.privacyLink && (
+          {!meta.isDefault && meta.privacyLink && (
             <Link
               href={meta.privacyLink}
               target={"_blank"}
@@ -41,7 +41,7 @@ export function Footer({ meta }: Props) {
               </Text>
             </Link>
           )}
-          {meta.termsLink && (
+          {!meta.isDefault && meta.termsLink && (
             <Link
               href={meta.termsLink}
               target={"_blank"}
