@@ -1,13 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { Button, Icon, Menu, MenuButton, MenuItem, MenuList, Tooltip } from "@chakra-ui/react";
+import React, { useState } from "react";
+import { Button, Icon, Tooltip } from "@chakra-ui/react";
 import { CloudIcon } from "lucide-react";
 import { toaster } from "@/components/ui/toaster";
+import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "@/components/ui/menu";
 
-export function DeployButton({ slug }: { slug: string }) {
+export function DeployButton({ slug, report }: { slug: string; report?: { status: string } }) {
   const [isLoading, setIsLoading] = useState(false);
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
+  const [config, setConfig] = useState<{
+    netlifyEnabled: boolean;
+    vercelEnabled: boolean;
+    externalHostingEnabled: boolean;
+  }>({
+    netlifyEnabled: false,
+    vercelEnabled: false,
+    externalHostingEnabled: false
+  });
+
+  React.useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch('/api/deploy/config');
+        if (res.ok) {
+          const data = await res.json();
+          setConfig(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch deploy config:', error);
+      }
+    };
+    
+    fetchConfig();
+  }, []);
   
   const handleDeploy = async (service: "netlify" | "vercel") => {
     setIsLoading(true);
@@ -41,40 +67,49 @@ export function DeployButton({ slug }: { slug: string }) {
     }
   };
   
+  if (!config.externalHostingEnabled || report.status !== "ready") {
+    return null;
+  }
+
   return (
     <>
-      <Menu>
-        <MenuButton
-          as={Button}
-          variant="ghost"
-          isLoading={isLoading}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Tooltip
-            content="外部サービスに公開"
-            openDelay={0}
-            closeDelay={0}
+      <MenuRoot>
+        <MenuTrigger asChild>
+          <Button
+            variant="ghost"
+            isLoading={isLoading}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
-            <Icon>
-              <CloudIcon />
-            </Icon>
-          </Tooltip>
-        </MenuButton>
-        <MenuList>
-          <MenuItem onClick={() => handleDeploy("netlify")}>
-            Netlifyに公開
-          </MenuItem>
-          <MenuItem onClick={() => handleDeploy("vercel")}>
-            Vercelに公開
-          </MenuItem>
-        </MenuList>
-      </Menu>
+            <Tooltip
+              content="外部サービスに公開"
+              openDelay={0}
+              closeDelay={0}
+            >
+              <Icon>
+                <CloudIcon />
+              </Icon>
+            </Tooltip>
+          </Button>
+        </MenuTrigger>
+        <MenuContent>
+          {config.netlifyEnabled && (
+            <MenuItem onClick={() => handleDeploy("netlify")}>
+              Netlifyに公開
+            </MenuItem>
+          )}
+          {config.vercelEnabled && (
+            <MenuItem onClick={() => handleDeploy("vercel")}>
+              Vercelに公開
+            </MenuItem>
+          )}
+        </MenuContent>
+      </MenuRoot>
       
       {deployUrl && (
         <Button
           variant="link"
           colorScheme="blue"
-          onClick={(e) => {
+          onClick={(e: React.MouseEvent) => {
             e.stopPropagation();
             window.open(deployUrl, "_blank");
           }}

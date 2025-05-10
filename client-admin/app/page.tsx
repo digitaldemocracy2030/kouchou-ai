@@ -412,8 +412,9 @@ function ReportCard({
               </Button>
             )}
             
+            {/* 外部ホスティング機能は環境変数が設定されている場合のみ表示 */}
             {report.status === "ready" && (
-              <DeployButton slug={report.slug} />
+              <DeployButton slug={report.slug} report={report} />
             )}
             
             {report.status === "ready" && report.isPubcom && (
