@@ -91,10 +91,10 @@ def save_input_file(report_input: ReportInput) -> Path:
 def _should_auto_generate_static_files(slug: str) -> bool:
     """
     入力データのサイズに基づいて、静的ファイルを自動生成すべきかを判断する
-    
+
     Args:
         slug: レポートのスラッグ
-        
+
     Returns:
         bool: 入力データが10,000以下の場合はTrue、それ以上の場合はFalse
     """
@@ -103,12 +103,12 @@ def _should_auto_generate_static_files(slug: str) -> bool:
         if not input_file_path.exists():
             logger.warning(f"入力ファイルが存在しません: {input_file_path}")
             return False
-            
+
         df = pd.read_csv(input_file_path)
         comment_count = len(df)
-        
+
         logger.info(f"レポート {slug} の入力データ数: {comment_count}")
-        
+
         return comment_count <= 10000
     except Exception as e:
         logger.error(f"入力データサイズの確認中にエラーが発生しました: {e}")
@@ -118,7 +118,7 @@ def _should_auto_generate_static_files(slug: str) -> bool:
 def _generate_static_files(slug: str) -> None:
     """
     特定のレポートの静的ファイルを生成する
-    
+
     Args:
         slug: レポートのスラッグ
     """
@@ -128,16 +128,16 @@ def _generate_static_files(slug: str) -> None:
             client_static_build_url,
             timeout=300,  # 大きなレポートの場合、生成に時間がかかる可能性があるため長めのタイムアウト
         )
-        
+
         if response.status_code == 200:
             static_dir = settings.REPORT_DIR / slug / "static"
             static_dir.mkdir(exist_ok=True)
-            
+
             with open(static_dir / "static.zip", "wb") as f:
                 f.write(response.content)
-                
+
             logger.info(f"レポート {slug} の静的ファイルを生成しました")
-            
+
             # 静的ファイルをストレージに同期
             report_sync_service = ReportSyncService()
             report_sync_service.sync_static_files_to_storage(slug)
@@ -170,7 +170,7 @@ def _monitor_process(process: subprocess.Popen, slug: str) -> None:
         report_sync_service.sync_config_file_to_storage(slug)
         # ステータスファイルをストレージに同期
         report_sync_service.sync_status_file_to_storage()
-        
+
         if _should_auto_generate_static_files(slug):
             logger.info(f"レポート {slug} の静的ファイルを自動生成します")
             threading.Thread(target=_generate_static_files, args=(slug,), daemon=True).start()
