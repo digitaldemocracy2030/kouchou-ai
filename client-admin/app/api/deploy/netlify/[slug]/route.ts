@@ -14,7 +14,6 @@ export async function POST(
     });
   }
 
-  const { params } = context;
   const { slug } = params;
   
   try {
