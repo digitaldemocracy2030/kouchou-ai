@@ -2,6 +2,7 @@
 
 import { getApiBaseUrl } from "@/app/utils/api";
 import { Header } from "@/components/Header";
+import { DeployButton } from "@/app/components/DeployButton";
 import {
   MenuContent,
   MenuItem,
@@ -391,6 +392,30 @@ function ReportCard({
             </Box>
           )}
           <HStack position="relative" zIndex="20">
+            {report.status === "ready" && (
+              <Button
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`/api/download/${report.slug}`, "_blank");
+                }}
+              >
+                <Tooltip
+                  content="静的ファイルをダウンロード"
+                  openDelay={0}
+                  closeDelay={0}
+                >
+                  <Icon>
+                    <DownloadIcon />
+                  </Icon>
+                </Tooltip>
+              </Button>
+            )}
+            
+            {report.status === "ready" && (
+              <DeployButton slug={report.slug} />
+            )}
+            
             {report.status === "ready" && report.isPubcom && (
               <Popover.Root>
                   <Popover.Trigger asChild>
