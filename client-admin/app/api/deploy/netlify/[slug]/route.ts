@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 
 export async function POST(
   req: NextRequest,
-  context: { params: { slug: string } }
+  { params }: { params: { slug: string } }
 ) {
   if (!process.env.NETLIFY_AUTH_TOKEN) {
     return new Response(JSON.stringify({
