@@ -8,6 +8,7 @@ type Props = {
   targetLevel: number;
   onHover?: () => void;
   showClusterLabels?: boolean;
+  maxLabelWidth?: number;  // ラベルの最大横幅を指定するプロパティを追加
 };
 
 export function ScatterChart({
@@ -15,7 +16,8 @@ export function ScatterChart({
   argumentList,
   targetLevel,
   onHover,
-  showClusterLabels
+  showClusterLabels,
+  maxLabelWidth = 10  // デフォルト値として10文字を設定
 }: Props) {
   const targetClusters = clusterList.filter(
     (cluster) => cluster.level === targetLevel,
@@ -69,6 +71,19 @@ export function ScatterChart({
     },
     {} as Record<string, string>,
   );
+
+  // ラベルテキストを指定された幅で改行するヘルパー関数
+  const wrapLabelText = (text: string, maxWidth: number): string => {
+    if (!text || text.length <= maxWidth) return text;
+    
+    // HTML方式: span要素で幅を制限して自動改行させる
+    // return `<span style="display:inline-block;max-width:${maxWidth * 10}px;word-wrap:break-word;">${text}</span>`;
+    
+    // テキスト分割方式: 指定の文字数ごとに改行を挿入
+    const regex = new RegExp(`.{1,${maxWidth}}`, 'g');
+    const lines = text.match(regex);
+    return lines ? lines.join('<br>') : text;
+  };
 
   const clusterData = targetClusters.map((cluster) => {
     const clusterArguments = argumentList.filter((arg) =>
@@ -134,7 +149,7 @@ export function ScatterChart({
         annotations: showClusterLabels ? clusterData.map((data) => ({
           x: data.centerX,
           y: data.centerY,
-          text: data.cluster.label,
+          text: wrapLabelText(data.cluster.label, maxLabelWidth), // ラベルを折り返し処理
           showarrow: false,
           font: {
             color: "white",
@@ -146,6 +161,8 @@ export function ScatterChart({
           bordercolor: clusterColorMap[data.cluster.id],
           borderpad: 4,
           borderwidth: 1,
+          width: maxLabelWidth * 14 + 5, // ラベルのフォントサイズに合わせる
+          align: 'center', // テキストを中央揃えに
         })) : [],
         showlegend: false,
       }}
