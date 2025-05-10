@@ -9,13 +9,29 @@ export const size = {
 };
 export const contentType = "image/png";
 
+// フォントキャッシュ
+const fontCache: Record<number, Promise<ArrayBuffer> | null> = {};
+
 async function fetchFont(weight: number) {
-  const fontData = await fetch(
-    `https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@${weight}`,
-  ).then((res) => res.text());
-  const fontUrl = fontData.match(/url\((.*?)\)/)?.[1];
-  if (!fontUrl) throw new Error("Failed to load font");
-  return fetch(fontUrl).then((res) => res.arrayBuffer());
+  // キャッシュにフォントがあれば再利用
+  if (fontCache[weight]) {
+    return fontCache[weight];
+  }
+  
+  // キャッシュにない場合は取得してキャッシュに保存
+  const fontPromise = (async () => {
+    const fontData = await fetch(
+      `https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@${weight}`,
+    ).then((res) => res.text());
+    const fontUrl = fontData.match(/url\((.*?)\)/)?.[1];
+    if (!fontUrl) throw new Error("Failed to load font");
+    return fetch(fontUrl).then((res) => res.arrayBuffer());
+  })();
+  
+  // キャッシュに保存
+  fontCache[weight] = fontPromise;
+  
+  return fontPromise;
 }
 
 // 多数のAPIリクエストをリトライする関数
