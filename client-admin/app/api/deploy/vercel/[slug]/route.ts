@@ -2,8 +2,19 @@ import type { NextRequest } from "next/server";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: { slug: string } }
 ) {
+  if (!process.env.VERCEL_AUTH_TOKEN) {
+    return new Response(JSON.stringify({
+      success: false,
+      message: "Vercel API トークンが設定されていません。環境変数 VERCEL_AUTH_TOKEN を設定してください。",
+    }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { params } = context;
   const { slug } = params;
   
   try {

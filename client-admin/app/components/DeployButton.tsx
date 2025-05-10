@@ -67,7 +67,7 @@ export function DeployButton({ slug, report }: { slug: string; report?: { status
     }
   };
   
-  if (!config.externalHostingEnabled || report.status !== "ready") {
+  if (!config.externalHostingEnabled || !report || report.status !== "ready") {
     return null;
   }
 
