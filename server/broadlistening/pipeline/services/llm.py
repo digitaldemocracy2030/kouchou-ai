@@ -13,7 +13,10 @@ load_dotenv(DOTENV_PATH)
 
 # サポートされているLLMプロバイダーのリスト
 DEFAULT_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
-LLM_PROVIDERS = os.getenv("LLM_PROVIDERS", "openai,azure,openrouter,local").split(",")
+LLM_PROVIDERS = [p.strip() for p in os.getenv(
+    "LLM_PROVIDERS",
+    "openai,azure,openrouter,local"
+).split(",")]
 
 # check env
 use_azure = os.getenv("USE_AZURE", "false").lower()
@@ -597,26 +600,42 @@ OPENROUTER_ALLOWED_MODELS = [
 ]
 
 
-def get_available_models(provider: str, address: str | None = None) -> list[dict[str, str]]:
+def get_available_models(provider: str, address: str | None = None) -> dict[str, list[dict[str, str]]]:
     """
     指定されたプロバイダーで利用可能なモデルのリストを取得する関数。
-    返却値は必ず {"value": str, "label": str} のリスト。
+    返却値は必ず {"available": [...], "supported": [...]} の辞書。
+    available: 実際に利用可能なモデルリスト
+    supported: サポート対象モデルリスト（通常はavailableと同じ）
     """
     if provider not in LLM_PROVIDERS:
         raise ValueError(f"Unknown provider: {provider}")
 
     if provider == "openai":
-        return [
-            {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
-            {"value": "gpt-4o", "label": "GPT-4o"},
-            {"value": "o3-mini", "label": "o3-mini"},
-        ]
+        return {
+            "available": [
+                {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
+                {"value": "gpt-4o", "label": "GPT-4o"},
+                {"value": "o3-mini", "label": "o3-mini"},
+            ],
+            "supported": [
+                {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
+                {"value": "gpt-4o", "label": "GPT-4o"},
+                {"value": "o3-mini", "label": "o3-mini"},
+            ]
+        }
     elif provider == "azure":
-        return [
-            {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
-            {"value": "gpt-4o", "label": "GPT-4o"},
-            {"value": "o3-mini", "label": "o3-mini"},
-        ]
+        return {
+            "available": [
+                {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
+                {"value": "gpt-4o", "label": "GPT-4o"},
+                {"value": "o3-mini", "label": "o3-mini"},
+            ],
+            "supported": [
+                {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
+                {"value": "gpt-4o", "label": "GPT-4o"},
+                {"value": "o3-mini", "label": "o3-mini"},
+            ]
+        }
     elif provider == "openrouter":
         try:
             api_key = os.getenv("OPENROUTER_API_KEY")
@@ -633,21 +652,34 @@ def get_available_models(provider: str, address: str | None = None) -> list[dict
             )
 
             response = client.models.list()
-            return [
-                {
-                    "value": model.id,
-                    "label": (
-                        model.id
-                        if not getattr(model, "name", None) or str(model.name).lower() == "unknown"
-                        else f"{model.name} ({model.id})"
-                    ),
-                }
-                for model in response.data
-                if model.id in OPENROUTER_ALLOWED_MODELS
-            ]
+            return {
+                "available": [
+                    {
+                        "value": model.id,
+                        "label": (
+                            model.id
+                            if not getattr(model, "name", None) or str(model.name).lower() == "unknown"
+                            else f"{model.name} ({model.id})"
+                        ),
+                    }
+                    for model in response.data
+                    if model.id in OPENROUTER_ALLOWED_MODELS
+                ],
+                "supported": [
+                    {
+                        "value": model.id,
+                        "label": (
+                            model.id
+                            if not getattr(model, "name", None) or str(model.name).lower() == "unknown"
+                            else f"{model.name} ({model.id})"
+                        ),
+                    }
+                    for model in response.data
+                ]
+            }
         except Exception as e:
             logging.error(f"Failed to fetch OpenRouter models: {e}")
-            return []
+            return {"available": [], "supported": []}
     elif provider == "local":
         try:
             if not address:
@@ -668,20 +700,33 @@ def get_available_models(provider: str, address: str | None = None) -> list[dict
             )
 
             response = client.models.list()
-            return [
-                {
-                    "value": model.id,
-                    "label": (
-                        f"{model.name} ({model.id})"
-                        if getattr(model, "name", None) and str(model.name).lower() != "unknown"
-                        else model.id
-                    ),
-                }
-                for model in response.data
-            ]
+            return {
+                "available": [
+                    {
+                        "value": model.id,
+                        "label": (
+                            f"{model.name} ({model.id})"
+                            if getattr(model, "name", None) and str(model.name).lower() != "unknown"
+                            else model.id
+                        ),
+                    }
+                    for model in response.data
+                ],
+                "supported": [
+                    {
+                        "value": model.id,
+                        "label": (
+                            f"{model.name} ({model.id})"
+                            if getattr(model, "name", None) and str(model.name).lower() != "unknown"
+                            else model.id
+                        ),
+                    }
+                    for model in response.data
+                ]
+            }
         except Exception as e:
             logging.error(f"Failed to fetch LocalLLM models: {e}")
-            return []
+            return {"available": [], "supported": []}
     else:
         raise ValueError(f"Unknown provider: {provider}")
 

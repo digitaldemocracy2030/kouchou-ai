@@ -18,6 +18,9 @@ COMMA_AND_SPACE_AND_RIGHT_BRACKET = re.compile(r",\s*(\])")
 class ExtractionResponse(BaseModel):
     extractedOpinionList: list[str] = Field(..., description="抽出した意見のリスト")
 
+    class Config:
+        extra = "forbid"
+
 
 def _validate_property_columns(property_columns: list[str], comments: pd.DataFrame) -> None:
     if not all(property in comments.columns for property in property_columns):

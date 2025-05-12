@@ -179,8 +179,8 @@ async def get_models(
         モデルリスト（value, labelのリスト）
     """
     try:
-        models = await get_models_by_provider(provider, address)
-        return models
+        models_dict = get_available_models(provider, address)
+        return models_dict["available"]
     except ValueError as e:
         slogger.error(f"ValueError: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e)) from e
