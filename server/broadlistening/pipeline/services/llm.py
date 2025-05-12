@@ -237,6 +237,12 @@ def request_to_local_llm(
         raise
 
 
+@retry(
+    retry=retry_if_exception_type(openai.RateLimitError),
+    wait=wait_exponential(multiplier=3, min=3, max=20),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 def request_to_openrouter(
     messages: list[dict],
     model: str,
@@ -390,6 +396,12 @@ def request_to_local_llm_embed(args, model, address="localhost:11434"):
         return request_to_local_embed(args)
 
 
+@retry(
+    retry=retry_if_exception_type(openai.RateLimitError),
+    wait=wait_exponential(multiplier=3, min=3, max=20),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 def request_to_openrouter_embed(args, model):
     """OpenRouterを使用して埋め込みを取得する関数
 
@@ -676,7 +688,11 @@ def get_available_models(provider: str, address: str | None = None) -> dict[str,
             }
         except Exception as e:
             logging.error(f"Failed to fetch OpenRouter models: {e}")
-            return {"available": [], "supported": []}
+            return {
+                "available": [],
+                "supported": [],
+                "error": f"OpenRouterからモデル一覧を取得できませんでした: {e}"
+            }
     elif provider == "local":
         try:
             if not address:
@@ -723,7 +739,11 @@ def get_available_models(provider: str, address: str | None = None) -> dict[str,
             }
         except Exception as e:
             logging.error(f"Failed to fetch LocalLLM models: {e}")
-            return {"available": [], "supported": []}
+            return {
+                "available": [],
+                "supported": [],
+                "error": f"LocalLLMからモデル一覧を取得できませんでした: {e}"
+            }
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
