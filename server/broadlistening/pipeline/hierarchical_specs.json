@@ -54,7 +54,7 @@
     {
         "step": "hierarchical_generate_axis",
         "filename": "axis_labels.json",
-        "dependencies": {"params": [], "steps": ["extraction"]},
+        "dependencies": {"params": [], "steps": ["hierarchical_clustering"]},
         "options": {},
         "use_llm": true
     },
@@ -68,7 +68,8 @@
                 "hierarchical_clustering",
                 "hierarchical_initial_labelling",
                 "hierarchical_merge_labelling",
-                "hierarchical_overview"
+                "hierarchical_overview",
+                "hierarchical_generate_axis"
             ]
         },
         "options": {
