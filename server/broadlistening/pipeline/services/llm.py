@@ -52,7 +52,6 @@ def request_to_openai(
 
     try:
         if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
-            # Use beta.chat.completions.create for Pydantic BaseModel
             response = openai.beta.chat.completions.parse(
                 model=model,
                 messages=messages,
@@ -63,14 +62,12 @@ def request_to_openai(
                 timeout=30,
             )
             return response.choices[0].message.content
-
         else:
             response_format = None
             if is_json:
                 response_format = {"type": "json_object"}
-            if json_schema:  # 両方有効化されていたら、json_schemaを優先
+            if json_schema:
                 response_format = json_schema
-
             payload = {
                 "model": model,
                 "messages": messages,
@@ -81,18 +78,16 @@ def request_to_openai(
             }
             if response_format:
                 payload["response_format"] = response_format
-
             response = openai.chat.completions.create(**payload)
-
             return response.choices[0].message.content
     except openai.RateLimitError as e:
-        logging.warning(f"OpenAI API rate limit hit: {e}")
+        logging.warning(f"[OpenAI][RateLimit] model={model}, error={e}, messages={messages}")
         raise
     except openai.AuthenticationError as e:
-        logging.error(f"OpenAI API authentication error: {str(e)}")
+        logging.error(f"[OpenAI][AuthError] model={model}, error={str(e)}, messages={messages}")
         raise
     except openai.BadRequestError as e:
-        logging.error(f"OpenAI API bad request error: {str(e)}")
+        logging.error(f"[OpenAI][BadRequest] model={model}, error={str(e)}, messages={messages}")
         raise
 
 
@@ -237,7 +232,7 @@ def request_to_local_llm(
         return response.choices[0].message.content
     except Exception as e:
         logging.error(
-            f"LocalLLM API error: {e}, model:{model}, address:{address}, is_json:{is_json}, json_schema:{json_schema}, response_format:{response_format}"
+            f"[LocalLLM][APIError] model={model}, address={address}, error={e}, messages={messages}, response_format={response_format}"
         )
         raise
 
@@ -273,68 +268,72 @@ def request_to_openrouter(
     )
 
     try:
-        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
-            # Pydantic BaseModelの場合はbeta.chat.completions.parseを使う
-            response = client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=json_schema,
-                timeout=30,
-            )
-            return response.choices[0].message.content
-        else:
-            response_format = None
-            if is_json:
-                response_format = {"type": "json_object"}
-            if json_schema:  # 両方有効化されていたら、json_schemaを優先
+        response_format = None
+        if is_json:
+            response_format = {"type": "json_object"}
+        if json_schema:
+            # BaseModelの場合はdict化して渡す
+            if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
+                response_format = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": json_schema.__name__,
+                        "strict": True,
+                        "schema": json_schema.schema(),
+                    },
+                }
+            else:
                 response_format = json_schema
 
-            payload = {
-                "model": model,
-                "messages": messages,
-                "temperature": 0,
-                "n": 1,
-                "seed": 0,
-                "timeout": 30,
-            }
-            if response_format:
-                payload["response_format"] = response_format
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0,
+            "n": 1,
+            "seed": 0,
+            "timeout": 30,
+        }
+        if response_format:
+            payload["response_format"] = response_format
 
-            response = client.chat.completions.create(**payload)
-            return response.choices[0].message.content
+        response = client.chat.completions.create(**payload)
+        if not response or not hasattr(response, "choices") or not response.choices:
+            logging.error(f"[OpenRouter][ResponseError] model={model}, response={response}, payload={payload}")
+            raise RuntimeError("OpenRouter API returned no choices or invalid response.")
+        return response.choices[0].message.content
     except openai.RateLimitError as e:
-        logging.warning(f"OpenRouter API rate limit hit: {e}")
+        logging.warning(f"[OpenRouter][RateLimit] model={model}, error={e}, messages={messages}")
         raise
     except openai.AuthenticationError as e:
-        logging.error(f"OpenRouter API authentication error: {str(e)}")
+        logging.error(f"[OpenRouter][AuthError] model={model}, error={str(e)}, messages={messages}")
         raise
     except openai.BadRequestError as e:
-        logging.error(f"OpenRouter API bad request error: {str(e)}")
+        logging.error(f"[OpenRouter][BadRequest] model={model}, error={str(e)}, messages={messages}")
         raise
 
 
-def request_to_chat_openai(
-    messages: list[dict],
-    model: str = "gpt-4o",
-    is_json: bool = False,
-    json_schema: dict | type[BaseModel] | None = None,
-    provider: str = "openai",
-    local_llm_address: str | None = None,
-) -> str:
-    if provider == "azure":
-        return request_to_azure_chatcompletion(messages, is_json, json_schema)
-    elif provider == "openai":
-        return request_to_openai(messages, model, is_json, json_schema)
-    elif provider == "openrouter":
-        return request_to_openrouter(messages, model, is_json, json_schema)
-    elif provider == "local":
-        address = local_llm_address or "localhost:11434"
-        return request_to_local_llm(messages, model, is_json, json_schema, address)
-    else:
-        raise ValueError(f"Unknown provider: {provider}")
+class ProviderService:
+    """LLMプロバイダーごとのAPI呼び出しを一元管理するサービスクラス"""
+    def chat(
+        self,
+        messages: list[dict],
+        model: str = "gpt-4o",
+        is_json: bool = False,
+        json_schema: dict | type[BaseModel] | None = None,
+        provider: str = "openai",
+        local_llm_address: str | None = None,
+    ) -> str:
+        if provider == "azure":
+            return request_to_azure_chatcompletion(messages, is_json, json_schema)
+        elif provider == "openai":
+            return request_to_openai(messages, model, is_json, json_schema)
+        elif provider == "openrouter":
+            return request_to_openrouter(messages, model, is_json, json_schema)
+        elif provider == "local":
+            address = local_llm_address or "localhost:11434"
+            return request_to_local_llm(messages, model, is_json, json_schema, address)
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
 
 
 EMBDDING_MODELS = [
@@ -586,15 +585,10 @@ def _local_llm_test():
     print(response)
 
 
-def get_available_models(provider: str, address: str | None = None) -> list[dict]:
-    """指定されたプロバイダーで利用可能なモデルのリストを取得する関数
-
-    Args:
-        provider: プロバイダー名（openai, azure, openrouter, local）
-        address: LocalLLM用アドレス（localプロバイダーの場合のみ）
-
-    Returns:
-        利用可能なモデルのリスト（{value, label}形式）
+def get_available_models(provider: str, address: str | None = None) -> list[dict[str, str]]:
+    """
+    指定されたプロバイダーで利用可能なモデルのリストを取得する関数。
+    返却値は必ず {"value": str, "label": str} のリスト。
     """
     if provider not in LLM_PROVIDERS:
         raise ValueError(f"Unknown provider: {provider}")
@@ -630,7 +624,11 @@ def get_available_models(provider: str, address: str | None = None) -> list[dict
             return [
                 {
                     "value": model.id,
-                    "label": f"{getattr(model, 'name', model.id)} ({model.id})" if getattr(model, 'name', None) else model.id
+                    "label": (
+                        f"{model.name} ({model.id})"
+                        if getattr(model, "name", None) and str(model.name).lower() != "unknown"
+                        else model.id
+                    ),
                 }
                 for model in response.data
             ]
@@ -660,7 +658,11 @@ def get_available_models(provider: str, address: str | None = None) -> list[dict
             return [
                 {
                     "value": model.id,
-                    "label": f"{getattr(model, 'name', model.id)} ({model.id})" if getattr(model, 'name', None) else model.id
+                    "label": (
+                        f"{model.name} ({model.id})"
+                        if getattr(model, "name", None) and str(model.name).lower() != "unknown"
+                        else model.id
+                    ),
                 }
                 for model in response.data
             ]
@@ -669,6 +671,28 @@ def get_available_models(provider: str, address: str | None = None) -> list[dict
             return []
     else:
         raise ValueError(f"Unknown provider: {provider}")
+
+
+def request_to_chat_openai(
+    messages: list[dict],
+    model: str = "gpt-4o",
+    is_json: bool = False,
+    json_schema: dict | type[BaseModel] | None = None,
+    provider: str = "openai",
+    local_llm_address: str | None = None,
+) -> str:
+    """
+    指定されたLLMプロバイダーに対してチャットリクエストを送信する。
+    ProviderServiceクラスのラッパー。
+    """
+    return ProviderService().chat(
+        messages=messages,
+        model=model,
+        is_json=is_json,
+        json_schema=json_schema,
+        provider=provider,
+        local_llm_address=local_llm_address,
+    )
 
 
 if __name__ == "__main__":

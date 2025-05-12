@@ -88,11 +88,14 @@ export function AISettingsSection({
       </Field.Root>
 
       <Field.Root>
-        <Field.Label>AIプロバイダー</Field.Label>
+        <Field.Label htmlFor="ai-provider-select">AIプロバイダー</Field.Label>
         <NativeSelect.Root w={"40%"}>
           <NativeSelect.Field
+            id="ai-provider-select"
             value={provider}
             onChange={onProviderChange}
+            title="AIプロバイダーを選択"
+            aria-label="AIプロバイダー"
           >
             <option value={"openai"}>OpenAI</option>
             <option value={"azure"}>Azure</option>
@@ -160,11 +163,14 @@ export function AISettingsSection({
       </Field.Root>
 
       <Field.Root>
-        <Field.Label>AIモデル</Field.Label>
+        <Field.Label htmlFor="ai-model-select">AIモデル</Field.Label>
         <NativeSelect.Root w={"40%"}>
           <NativeSelect.Field
+            id="ai-model-select"
             value={model}
             onChange={onModelChange}
+            title="AIモデルを選択"
+            aria-label="AIモデル"
           >
             {modelOptions.map((option) => (
               <option key={option.value} value={option.value}>
