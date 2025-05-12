@@ -245,8 +245,8 @@ export function ScatterChart({
             y: 0,
             xref: 'paper' as 'paper',
             yref: 'paper' as 'paper',
-            xanchor: 'left',
-            yanchor: 'top',
+            xanchor: 'left' as 'left',
+            yanchor: 'top' as 'top',
             showarrow: false,
             font: {
               size: 12,
@@ -262,8 +262,8 @@ export function ScatterChart({
             y: 0,
             xref: 'paper' as 'paper',
             yref: 'paper' as 'paper',
-            xanchor: 'right',
-            yanchor: 'top',
+            xanchor: 'right' as 'right',
+            yanchor: 'top' as 'top',
             showarrow: false,
             font: {
               size: 12,
@@ -279,8 +279,8 @@ export function ScatterChart({
             y: 0.02,
             xref: 'paper' as 'paper',
             yref: 'paper' as 'paper',
-            xanchor: 'left',
-            yanchor: 'bottom',
+            xanchor: 'left' as 'left',
+            yanchor: 'bottom' as 'bottom',
             showarrow: false,
             font: {
               size: 12,
@@ -296,8 +296,8 @@ export function ScatterChart({
             y: 0.98,
             xref: 'paper' as 'paper',
             yref: 'paper' as 'paper',
-            xanchor: 'left',
-            yanchor: 'top',
+            xanchor: 'left' as 'left',
+            yanchor: 'top' as 'top',
             showarrow: false,
             font: {
               size: 12,
