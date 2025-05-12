@@ -9,7 +9,7 @@ from typing import Any, TypedDict
 import pandas as pd
 from pydantic import BaseModel, Field
 
-from services.llm import request_to_chat_openai
+from broadlistening.pipeline.services.llm import request_to_chat_openai
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +77,9 @@ def generate_axis_labels(
             range_max = axis_min + (i + 1) * axis_step if i < 10 else axis_max + 0.0001
 
             items = [item for item in arguments if range_min <= item[axis1] < range_max]
-            axis2_ave = sum(item[axis2] for item in items) / len(items)
-
+            
             if items:
+                axis2_ave = sum(item[axis2] for item in items) / len(items)
                 items = sorted(items, key=lambda item: abs(item[axis2] - axis2_ave))
                 labels.append(items[0]["argument"])
 
