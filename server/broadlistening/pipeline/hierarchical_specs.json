@@ -55,8 +55,7 @@
         "step": "hierarchical_generate_axis",
         "filename": "axis_labels.json",
         "dependencies": {"params": [], "steps": ["hierarchical_clustering"]},
-        "options": {},
-        "use_llm": true
+        "options": {}
     },
     {
         "step": "hierarchical_aggregation",

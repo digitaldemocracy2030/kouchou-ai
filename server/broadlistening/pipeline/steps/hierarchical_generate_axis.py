@@ -9,7 +9,7 @@ from typing import Any, TypedDict
 import pandas as pd
 from pydantic import BaseModel, Field
 
-from broadlistening.pipeline.services.llm import request_to_chat_openai
+from services.llm import request_to_chat_openai
 
 logger = logging.getLogger(__name__)
 
@@ -71,13 +71,13 @@ def generate_axis_labels(
         axis_step = axis_range / 10
         labels = []
 
-        axis2_ave = sum(item[axis2] for item in arguments) / len(arguments)
 
         for i in range(11):
             range_min = axis_min + i * axis_step
             range_max = axis_min + (i + 1) * axis_step if i < 10 else axis_max + 0.0001
 
             items = [item for item in arguments if range_min <= item[axis1] < range_max]
+            axis2_ave = sum(item[axis2] for item in items) / len(items)
 
             if items:
                 items = sorted(items, key=lambda item: abs(item[axis2] - axis2_ave))
@@ -87,6 +87,7 @@ def generate_axis_labels(
             logger.warning(f"No labels generated for {'X' if is_x_axis else 'Y'} axis")
             return default_response
 
+        # TODO: フロントからプロンプトが与えられるようにする
         system_prompt = """
 あなたは、トップコンサルタントである。 1から10番のある特性に応じたソートが行われた文章が与えられます。
 あなたはどのような軸でソートされたデータなのかの全体像を考えなさい。
@@ -155,19 +156,8 @@ def hierarchical_generate_axis(config: dict[str, Any]) -> None:
         model = config.get("hierarchical_generate_axis", {}).get("model", "gpt-4o-mini")
         provider = config.get("provider", "openai")
         local_llm_address = config.get("local_llm_address")
-        
+
         logger.info(f"Using LLM provider: {provider}, model: {model}")
-        
-        if provider == "openai" and not os.environ.get("OPENAI_API_KEY"):
-            logger.warning("OPENAI_API_KEY not set, using default axis labels")
-            output_path = f"outputs/{config['output_dir']}/axis_labels.json"
-            with open(output_path, mode="w") as f:
-                json.dump({
-                    "x_axis": {"axis_name": "X軸", "min_label": "小", "max_label": "大"},
-                    "y_axis": {"axis_name": "Y軸", "min_label": "小", "max_label": "大"}
-                }, f, indent=2, ensure_ascii=False)
-            logger.info(f"Default axis labels saved to {output_path}")
-            return
 
         x_axis = generate_axis_labels(
             arguments, is_x_axis=True, model=model, provider=provider, local_llm_address=local_llm_address
