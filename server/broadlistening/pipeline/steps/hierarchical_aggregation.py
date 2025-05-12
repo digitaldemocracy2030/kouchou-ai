@@ -97,7 +97,9 @@ def create_custom_intro(config):
 
     intro = config["intro"]
     provider = config.get("provider", "OpenAI").capitalize()
-    custom_intro = base_custom_intro.format(intro=intro, processed_num=processed_num, args_count=args_count, provider=provider)
+    custom_intro = base_custom_intro.format(
+        intro=intro, processed_num=processed_num, args_count=args_count, provider=provider
+    )
 
     with open(result_path) as f:
         result = json.load(f)

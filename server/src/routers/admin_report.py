@@ -256,13 +256,14 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
             "use_azure": use_azure,
         }
 
+
 @router.get("/admin/environment/verify-llm-provider")
 async def verify_llm_provider(provider: str | None = None, api_key: str = Depends(verify_admin_api_key)):
     """LLM プロバイダーの接続を検証するエンドポイント
-    
+
     Args:
         provider: 検証するプロバイダー（指定がない場合は現在の設定を使用）
-        
+
     Returns:
         dict: 検証結果、利用可能なモデル、エラーメッセージなど
     """
@@ -278,17 +279,17 @@ async def verify_llm_provider(provider: str | None = None, api_key: str = Depend
                 "message": f"Invalid provider: {provider_to_check}",
                 "current_provider": current_provider,
                 "available_models": [],
-                "supported_models": []
+                "supported_models": [],
             }
 
         models = get_available_models(provider_to_check)
 
         return {
             "success": True,
-        "message": f"{provider_to_check.capitalize()} connection verified successfully",
+            "message": f"{provider_to_check.capitalize()} connection verified successfully",
             "current_provider": current_provider,
             "available_models": models["available"],
-            "supported_models": models["supported"]
+            "supported_models": models["supported"],
         }
 
     except openai.AuthenticationError as e:
@@ -297,7 +298,7 @@ async def verify_llm_provider(provider: str | None = None, api_key: str = Depend
             "message": f"Authentication failed: {str(e)}",
             "current_provider": provider or DEFAULT_PROVIDER,
             "available_models": [],
-            "supported_models": []
+            "supported_models": [],
         }
     except openai.RateLimitError as e:
         error_str = str(e).lower()
@@ -308,14 +309,14 @@ async def verify_llm_provider(provider: str | None = None, api_key: str = Depend
                 "error_type": "insufficient_quota",
                 "current_provider": provider or DEFAULT_PROVIDER,
                 "available_models": [],
-                "supported_models": []
+                "supported_models": [],
             }
         return {
             "success": False,
             "message": f"Rate limit exceeded: {str(e)}",
             "current_provider": provider or DEFAULT_PROVIDER,
             "available_models": [],
-            "supported_models": []
+            "supported_models": [],
         }
     except Exception as e:
         return {
@@ -323,5 +324,5 @@ async def verify_llm_provider(provider: str | None = None, api_key: str = Depend
             "message": f"Error: {str(e)}",
             "current_provider": provider or DEFAULT_PROVIDER,
             "available_models": [],
-            "supported_models": []
+            "supported_models": [],
         }

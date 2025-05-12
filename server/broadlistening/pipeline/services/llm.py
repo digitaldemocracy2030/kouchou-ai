@@ -314,6 +314,7 @@ def request_to_openrouter(
 
 class ProviderService:
     """LLMプロバイダーごとのAPI呼び出しを一元管理するサービスクラス"""
+
     def chat(
         self,
         messages: list[dict],
@@ -427,7 +428,9 @@ def request_to_openrouter_embed(args, model):
         raise
 
 
-def request_to_embed(args, model, is_embedded_at_local=False, provider: str | None = None, local_llm_address: str | None = None):
+def request_to_embed(
+    args, model, is_embedded_at_local=False, provider: str | None = None, local_llm_address: str | None = None
+):
     if is_embedded_at_local:
         return request_to_local_embed(args)
 
@@ -634,7 +637,8 @@ def get_available_models(provider: str, address: str | None = None) -> list[dict
                 {
                     "value": model.id,
                     "label": (
-                        model.id if not getattr(model, "name", None) or str(model.name).lower() == "unknown"
+                        model.id
+                        if not getattr(model, "name", None) or str(model.name).lower() == "unknown"
                         else f"{model.name} ({model.id})"
                     ),
                 }
