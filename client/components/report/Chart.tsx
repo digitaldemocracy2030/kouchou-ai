@@ -26,6 +26,35 @@ export function Chart({
   treemapLevel,
   onTreeZoom,
 }: ReportProps) {
+
+  let axisInfo: {
+    x: {
+      name: string;
+      min: string;
+      max: string;
+    };
+    y: {
+      name: string;
+      min: string;
+      max: string;
+    };
+  } | undefined = undefined;
+  console.log(result.x_axis, result.y_axis);
+  if ("x_axis" in result && "y_axis" in result) {
+    axisInfo = {
+      x: {
+        name: result.x_axis.axis_name,
+        min: result.x_axis.min_label,
+        max: result.x_axis.max_label,
+      },
+      y: {
+        name: result.y_axis.axis_name,
+        min: result.y_axis.min_label,
+        max: result.y_axis.max_label,
+      },
+    };
+  }
+
   if (isFullscreen) {
     return (
       <Box
@@ -66,6 +95,7 @@ export function Chart({
             }
             onHover={() => setTimeout(avoidHoverTextCoveringShrinkButton, 500)}
             showClusterLabels={showClusterLabels}
+            axisInfo={axisInfo}
           />
         )}
         {selectedChart === "treemap" && (
@@ -105,6 +135,7 @@ export function Chart({
                 : Math.max(...result.clusters.map((c) => c.level))
             }
             showClusterLabels={showClusterLabels}
+            axisInfo={axisInfo}
           />
         )}
       </Box>
