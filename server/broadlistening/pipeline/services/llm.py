@@ -688,11 +688,7 @@ def get_available_models(provider: str, address: str | None = None) -> dict[str,
             }
         except Exception as e:
             logging.error(f"Failed to fetch OpenRouter models: {e}")
-            return {
-                "available": [],
-                "supported": [],
-                "error": f"OpenRouterからモデル一覧を取得できませんでした: {e}"
-            }
+            return {"available": [], "supported": [], "error": f"OpenRouterからモデル一覧を取得できませんでした: {e}"}
     elif provider == "local":
         try:
             if not address:
@@ -739,11 +735,7 @@ def get_available_models(provider: str, address: str | None = None) -> dict[str,
             }
         except Exception as e:
             logging.error(f"Failed to fetch LocalLLM models: {e}")
-            return {
-                "available": [],
-                "supported": [],
-                "error": f"LocalLLMからモデル一覧を取得できませんでした: {e}"
-            }
+            return {"available": [], "supported": [], "error": f"LocalLLMからモデル一覧を取得できませんでした: {e}"}
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
