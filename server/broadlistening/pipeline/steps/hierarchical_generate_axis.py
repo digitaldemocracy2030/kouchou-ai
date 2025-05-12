@@ -9,7 +9,7 @@ from typing import Any, TypedDict
 import pandas as pd
 from pydantic import BaseModel, Field
 
-from broadlistening.pipeline.services.llm import request_to_chat_openai
+from services.llm import request_to_chat_openai
 
 logger = logging.getLogger(__name__)
 
