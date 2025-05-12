@@ -21,6 +21,7 @@ export function ClientContainer({ result }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDenseGroupEnabled, setIsDenseGroupEnabled] = useState(true);
   const [showClusterLabels, setShowClusterLabels] = useState(true);
+  const [showAxisLabels, setShowAxisLabels] = useState(true);
   const [treemapLevel, setTreemapLevel] = useState("0");
 
   // maxDensityやminValueが変化するたびに密度フィルターの結果をチェック
@@ -71,6 +72,11 @@ export function ClientContainer({ result }: Props) {
           onChangeFilter={onChangeDensityFilter}
           showClusterLabels={showClusterLabels}
           onToggleClusterLabels={setShowClusterLabels}
+          showAxisLabels={showAxisLabels}
+          onToggleAxisLabels={setShowAxisLabels}
+          hasAxisData={!!(filteredResult.x_axis && filteredResult.y_axis && 
+            Object.keys(filteredResult.x_axis).length > 0 && 
+            Object.keys(filteredResult.y_axis).length > 0)}
         />
       )}
       <SelectChartButton
@@ -101,6 +107,8 @@ export function ClientContainer({ result }: Props) {
         }}
         showClusterLabels={showClusterLabels}
         onToggleClusterLabels={setShowClusterLabels}
+        showAxisLabels={showAxisLabels}
+        onToggleAxisLabels={setShowAxisLabels}
         treemapLevel={treemapLevel}
         onTreeZoom={setTreemapLevel}
       />

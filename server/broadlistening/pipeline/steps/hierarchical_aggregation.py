@@ -3,7 +3,7 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, Dict, Any
 
 import pandas as pd
 
@@ -72,13 +72,20 @@ def hierarchical_aggregation(config):
     print(overview)
     results["overview"] = overview
 
-    x_result = generate_axis_labels(results["arguments"], is_x_axis=True)
-    y_result = generate_axis_labels(results["arguments"], is_x_axis=False)
-    print("x_result", x_result)
-    print("y_result", y_result)
-
-    results["x_axis"] = x_result
-    results["y_axis"] = y_result
+    axis_labels_path = f"outputs/{config['output_dir']}/axis_labels.json"
+    try:
+        if Path(axis_labels_path).exists():
+            with open(axis_labels_path, "r") as f:
+                axis_labels = json.load(f)
+                results["x_axis"] = axis_labels.get("x_axis", {})
+                results["y_axis"] = axis_labels.get("y_axis", {})
+                print("Loaded axis labels from file")
+        else:
+            print("No axis labels file found, using empty values")
+    except Exception as e:
+        print(f"Error loading axis labels: {e}")
+        results["x_axis"] = {}
+        results["y_axis"] = {}
     
     with open(path, "w") as file:
         json.dump(results, file, indent=2, ensure_ascii=False)
@@ -88,72 +95,6 @@ def hierarchical_aggregation(config):
     if config["is_pubcom"]:
         add_original_comments(labels, arguments, relation_df, clusters, config)
 
-def generate_axis_labels(arguments:list[Argument], is_x_axis: bool = True):
-    # xのmaxとminを取得し、10等分する
-    # その中で最もyが平均値に近いコメントを選ぶ
-
-    axis1 = "x" if is_x_axis else "y"
-    axis2 = "y" if is_x_axis else "x"
-
-    axis_min = min(item[axis1] for item in arguments)
-    axis_max = max(item[axis1] for item in arguments)
-    axis_range = axis_max - axis_min
-    axis_step = axis_range / 10
-    labels = []
-    axis2_ave = sum(item[axis2] for item in arguments) / len(arguments)
-    for i in range(11):
-        range_min = axis_min + i * axis_step
-        range_max = axis_min + (i + 1) * axis_step
-        # xの範囲に該当するコメントを抽出
-        items = [item for item in arguments if range_min <= item[axis1] < range_max]
-
-        if len(items) > 0:
-            # yが平均値に近いものを選ぶ
-            items = sorted(items, key=lambda item: abs(item[axis2] - axis2_ave))
-            labels.append(items[0]["argument"])
-        else:
-            pass
-    
-    # ラベルを生成
-    system_prompt = """
-あなたは、トップコンサルタントである。 1から10番のある特性に応じたソートが行われた文章が与えられます。
-あなたはどのような軸でソートされたデータなのかの全体像を考えなさい。
-そして、値が小さい方はどのような傾向があるのか、また、値が大きい方はどのような傾向があるのかを考えなさい。
-
-以下のような形式で出力せよ。
-{
-    "axis_name": "どのような特性の軸か",
-    "min_label": "小さな値にはどのような傾向があるか",
-    "max_label": "大きな値にはどのような傾向があるか"
-}
-"""
-
-    user_prompt = ""
-    for i, label in enumerate(labels):
-        user_prompt += f"#{i} : {label}\n"
-
-    from services.llm import request_to_chat_openai
-    from pydantic import BaseModel, Field
-    class AxisLabelResponse(BaseModel):
-        axis_name: str = Field(..., description="どのような特性の軸か")
-        min_label: str = Field(..., description="小さな値にはどのような傾向があるか")
-        max_label: str = Field(..., description="大きな値にはどのような傾向があるか")
- 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
-    ]
-    print("messages", messages)
-
-    raw_response = request_to_chat_openai(
-        messages=messages,
-        model="gpt-4o-mini",
-        provider="openai",
-        json_schema=AxisLabelResponse,
-    )
-
-    response = json.loads(raw_response)
-    return response
 
 def create_custom_intro(config):
     dataset = config["output_dir"]

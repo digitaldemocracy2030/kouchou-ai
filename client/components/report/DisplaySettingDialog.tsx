@@ -17,6 +17,9 @@ type Props = {
   currentMinValue: number;
   showClusterLabels?: boolean;
   onToggleClusterLabels?: (show: boolean) => void;
+  showAxisLabels?: boolean;
+  onToggleAxisLabels?: (show: boolean) => void;
+  hasAxisData?: boolean;
 };
 
 export function DisplaySettingDialog({
@@ -26,6 +29,9 @@ export function DisplaySettingDialog({
   currentMinValue,
   showClusterLabels = false,
   onToggleClusterLabels,
+  showAxisLabels = false,
+  onToggleAxisLabels,
+  hasAxisData = false,
 }: Props) {
   const [maxDensity, setMaxDensity] = useState(currentMaxDensity);
   const [minValue, setMinValue] = useState(currentMinValue);
@@ -61,6 +67,19 @@ export function DisplaySettingDialog({
                   size="sm"
                 />
               </HStack>
+              
+              {/* 軸ラベルの表示切り替え - 軸データがある場合のみ表示 */}
+              {hasAxisData && (
+                <HStack gap={2} alignItems="center" mt={2}>
+                  <Text fontSize="sm">LLMが推定した軸を表示</Text>
+                  <Spacer />
+                  <Switch 
+                    checked={showAxisLabels} 
+                    onChange={() => onToggleAxisLabels?.(!showAxisLabels)}
+                    size="sm"
+                  />
+                </HStack>
+              )}
             </Box>
           </Box>
 

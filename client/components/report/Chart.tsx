@@ -12,6 +12,8 @@ type ReportProps = {
   onExitFullscreen: () => void;
   showClusterLabels: boolean;
   onToggleClusterLabels: (show: boolean) => void;
+  showAxisLabels?: boolean;
+  onToggleAxisLabels?: (show: boolean) => void;
   treemapLevel: string;
   onTreeZoom: (level: string) => void;
 };
@@ -23,6 +25,8 @@ export function Chart({
   onExitFullscreen,
   showClusterLabels,
   onToggleClusterLabels,
+  showAxisLabels = true,
+  onToggleAxisLabels,
   treemapLevel,
   onTreeZoom,
 }: ReportProps) {

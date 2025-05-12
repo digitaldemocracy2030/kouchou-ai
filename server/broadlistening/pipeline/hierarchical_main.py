@@ -6,6 +6,7 @@ from steps.embedding import embedding
 from steps.extraction import extraction
 from steps.hierarchical_aggregation import hierarchical_aggregation
 from steps.hierarchical_clustering import hierarchical_clustering
+from steps.hierarchical_generate_axis import hierarchical_generate_axis
 from steps.hierarchical_initial_labelling import hierarchical_initial_labelling
 from steps.hierarchical_merge_labelling import hierarchical_merge_labelling
 from steps.hierarchical_overview import hierarchical_overview
@@ -64,6 +65,7 @@ def main():
         run_step("hierarchical_initial_labelling", hierarchical_initial_labelling, config)
         run_step("hierarchical_merge_labelling", hierarchical_merge_labelling, config)
         run_step("hierarchical_overview", hierarchical_overview, config)
+        run_step("hierarchical_generate_axis", hierarchical_generate_axis, config)
         run_step("hierarchical_aggregation", hierarchical_aggregation, config)
         run_step("hierarchical_visualization", hierarchical_visualization, config)
 

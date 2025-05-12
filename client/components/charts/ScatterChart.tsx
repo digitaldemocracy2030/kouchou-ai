@@ -8,6 +8,7 @@ type Props = {
   targetLevel: number;
   onHover?: () => void;
   showClusterLabels?: boolean;
+  showAxisLabels?: boolean;
   axisInfo?: {
     x: {
       name: string;
@@ -28,6 +29,7 @@ export function ScatterChart({
   targetLevel,
   onHover,
   showClusterLabels,
+  showAxisLabels = true,
   axisInfo,
 }: Props) {
   const targetClusters = clusterList.filter(
@@ -206,19 +208,19 @@ export function ScatterChart({
         margin: { l: 50, r: 50, b: 50, t: 50 }, // マージンを増やして軸ラベルのスペースを確保
         xaxis: {
           zeroline: false,
-          showticklabels: true, // 目盛りラベルを表示
-          title: {
+          showticklabels: showAxisLabels, // 目盛りラベルを表示するかどうか
+          title: showAxisLabels ? {
             text: axisInfo ? axisInfo.x.name : "X軸",
             font: {
               size: 14,
               color: '#333',
             },
-          },
+          } : {},
         },
         yaxis: {
           zeroline: false,
-          showticklabels: true, // 目盛りラベルを表示
-          title: {
+          showticklabels: showAxisLabels, // 目盛りラベルを表示するかどうか
+          title: showAxisLabels ? {
             text: axisInfo ? axisInfo.y.name : "Y軸",
             font: {
               size: 14,
@@ -227,13 +229,13 @@ export function ScatterChart({
             standoff: 0, // タイトルと軸の間隔を調整
             // @ts-ignore - Plotlyの型定義にangleがないが実際は機能する
             angle: -90, // 90度回転（左に倒す）
-          } as any,
+          } as any : {},
         },
         hovermode: "closest",
         dragmode: "pan", // ドラッグによる移動（パン）を有効化
         annotations: [
           // X軸の小さい側のラベル
-          {
+          ...(showAxisLabels ? [{
             text: axisInfo ? axisInfo.x.min : "小",
             x: 0,
             y: 0,
@@ -248,9 +250,9 @@ export function ScatterChart({
             },
             xshift: 5,
             yshift: -15,
-          },
+          }] : []),
           // X軸の大きい側のラベル
-          {
+          ...(showAxisLabels ? [{
             text: axisInfo ? axisInfo.x.max : "大",
             x: 1,
             y: 0,
@@ -265,9 +267,9 @@ export function ScatterChart({
             },
             xshift: -5,
             yshift: -15,
-          },
+          }] : []),
           // Y軸の小さい側のラベル
-          {
+          ...(showAxisLabels ? [{
             text: axisInfo ? axisInfo.y.min : "小",
             x: 0.02, // グラフ内に配置
             y: 0.02,
@@ -282,9 +284,9 @@ export function ScatterChart({
             },
             bgcolor: 'rgba(255, 255, 255, 0.8)', // 半透明の背景
             borderpad: 2,
-          },
+          }] : []),
           // Y軸の大きい側のラベル
-          {
+          ...(showAxisLabels ? [{
             text: axisInfo ? axisInfo.y.max : "大",
             x: 0.02, // グラフ内に配置
             y: 0.98,
@@ -299,7 +301,7 @@ export function ScatterChart({
             },
             bgcolor: 'rgba(255, 255, 255, 0.8)', // 半透明の背景
             borderpad: 2,
-          },
+          }] : []),
           // クラスターのラベル
           ...(showClusterLabels ? clusterData.map((data) => ({
             x: data.centerX,
