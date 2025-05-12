@@ -30,11 +30,11 @@ class AxisLabelResponse(BaseModel):
 
 
 def generate_axis_labels(
-    arguments: list[Argument], 
-    is_x_axis: bool = True, 
-    model: str = "gpt-4o-mini", 
+    arguments: list[Argument],
+    is_x_axis: bool = True,
+    model: str = "gpt-4o-mini",
     provider: str = "openai",
-    local_llm_address: str | None = None
+    local_llm_address: str | None = None,
 ) -> dict[str, str]:
     """
     Generate axis labels for UMAP-reduced data.
@@ -154,20 +154,12 @@ def hierarchical_generate_axis(config: dict[str, Any]) -> None:
         model = config.get("hierarchical_generate_axis", {}).get("model", "gpt-4o-mini")
         provider = config.get("provider", "openai")
         local_llm_address = config.get("local_llm_address")
-        
+
         x_axis = generate_axis_labels(
-            arguments, 
-            is_x_axis=True,
-            model=model,
-            provider=provider,
-            local_llm_address=local_llm_address
+            arguments, is_x_axis=True, model=model, provider=provider, local_llm_address=local_llm_address
         )
         y_axis = generate_axis_labels(
-            arguments, 
-            is_x_axis=False,
-            model=model,
-            provider=provider,
-            local_llm_address=local_llm_address
+            arguments, is_x_axis=False, model=model, provider=provider, local_llm_address=local_llm_address
         )
 
         output_path = f"outputs/{config['output_dir']}/axis_labels.json"
