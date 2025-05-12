@@ -32,6 +32,26 @@ const OPENAI_MODELS: ModelOption[] = [
   { value: "o3-mini", label: "o3-mini" }
 ];
 
+// OpenRouter用ホワイトリストとラベルマップ
+const OPENROUTER_ALLOWED_MODELS = [
+  "openai/gpt-4o",
+  "openai/gpt-4o-mini",
+  "openai/gpt-4-1106-preview",
+  "google/gemini-1.5-pro-latest",
+  "google/gemini-1.5-flash-latest",
+  "google/gemini-1.5-pro-preview",
+  "google/gemini-2.5-pro-preview",
+];
+const OPENROUTER_MODEL_LABELS: Record<string, string> = {
+  "openai/gpt-4o": "OpenRouter gpt-4o",
+  "openai/gpt-4o-mini": "OpenRouter gpt-4o-mini",
+  "openai/gpt-4-1106-preview": "OpenRouter gpt-4 1106 Preview",
+  "google/gemini-1.5-pro-latest": "Gemini 1.5 Pro (OpenRouter)",
+  "google/gemini-1.5-flash-latest": "Gemini 1.5 Flash (OpenRouter)",
+  "google/gemini-1.5-pro-preview": "Gemini 1.5 Pro Preview (OpenRouter)",
+  "google/gemini-2.5-pro-preview": "Gemini 2.5 Pro Preview (OpenRouter)",
+};
+
 /**
  * サーバーからモデルリストを取得する関数
  * @param provider プロバイダー名
@@ -293,6 +313,14 @@ export function useAISettings() {
    * 現在のプロバイダーのモデルリストを取得
    */
   const getCurrentModels = () => {
+    if (provider === "openrouter") {
+      return openRouterModels
+        .filter((m) => OPENROUTER_ALLOWED_MODELS.includes(m.value))
+        .map((m) => ({
+          value: m.value,
+          label: OPENROUTER_MODEL_LABELS[m.value] || m.value,
+        }));
+    }
     return providerConfigs[provider as Provider].models;
   };
   

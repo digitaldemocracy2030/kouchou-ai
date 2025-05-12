@@ -585,6 +585,15 @@ def _local_llm_test():
     print(response)
 
 
+# OpenRouterで許可するモデルIDリスト
+OPENROUTER_ALLOWED_MODELS = [
+    "openai/gpt-4o",
+    "openai/gpt-4o-mini",
+    "openai/gpt-4-1106-preview",
+    "google/gemini-2.5-pro-preview",
+]
+
+
 def get_available_models(provider: str, address: str | None = None) -> list[dict[str, str]]:
     """
     指定されたプロバイダーで利用可能なモデルのリストを取得する関数。
@@ -625,12 +634,12 @@ def get_available_models(provider: str, address: str | None = None) -> list[dict
                 {
                     "value": model.id,
                     "label": (
-                        f"{model.name} ({model.id})"
-                        if getattr(model, "name", None) and str(model.name).lower() != "unknown"
-                        else model.id
+                        model.id if not getattr(model, "name", None) or str(model.name).lower() == "unknown"
+                        else f"{model.name} ({model.id})"
                     ),
                 }
                 for model in response.data
+                if model.id in OPENROUTER_ALLOWED_MODELS
             ]
         except Exception as e:
             logging.error(f"Failed to fetch OpenRouter models: {e}")
