@@ -74,9 +74,9 @@ export function ClientContainer({ result }: Props) {
           onToggleClusterLabels={setShowClusterLabels}
           showAxisLabels={showAxisLabels}
           onToggleAxisLabels={setShowAxisLabels}
-          hasAxisData={!!(filteredResult.x_axis && filteredResult.y_axis && 
-            Object.keys(filteredResult.x_axis).length > 0 && 
-            Object.keys(filteredResult.y_axis).length > 0)}
+          hasAxisData={!!(result.x_axis && result.y_axis && 
+            Object.keys(result.x_axis).length > 0 && 
+            Object.keys(result.y_axis).length > 0)}
         />
       )}
       <SelectChartButton
