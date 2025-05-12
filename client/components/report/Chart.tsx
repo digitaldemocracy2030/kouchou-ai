@@ -99,6 +99,7 @@ export function Chart({
             }
             onHover={() => setTimeout(avoidHoverTextCoveringShrinkButton, 500)}
             showClusterLabels={showClusterLabels}
+            showAxisLabels={showAxisLabels}
             axisInfo={axisInfo}
           />
         )}
@@ -139,6 +140,7 @@ export function Chart({
                 : Math.max(...result.clusters.map((c) => c.level))
             }
             showClusterLabels={showClusterLabels}
+            showAxisLabels={showAxisLabels}
             axisInfo={axisInfo}
           />
         )}
