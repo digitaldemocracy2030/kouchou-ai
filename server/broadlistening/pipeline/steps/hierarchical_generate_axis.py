@@ -3,12 +3,12 @@
 import json
 import logging
 from pathlib import Path
-from typing import TypedDict, Any
+from typing import Any, TypedDict
 
 import pandas as pd
+from pydantic import BaseModel, Field
 
 from services.llm import request_to_chat_openai
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 

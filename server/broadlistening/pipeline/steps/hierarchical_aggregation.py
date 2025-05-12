@@ -3,7 +3,7 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import TypedDict, Dict, Any
+from typing import TypedDict
 
 import pandas as pd
 
@@ -75,7 +75,7 @@ def hierarchical_aggregation(config):
     axis_labels_path = f"outputs/{config['output_dir']}/axis_labels.json"
     try:
         if Path(axis_labels_path).exists():
-            with open(axis_labels_path, "r") as f:
+            with open(axis_labels_path) as f:
                 axis_labels = json.load(f)
                 results["x_axis"] = axis_labels.get("x_axis", {})
                 results["y_axis"] = axis_labels.get("y_axis", {})
@@ -177,6 +177,7 @@ def _build_arguments(clusters: pd.DataFrame) -> list[Argument]:
         argument: Argument = {
             "arg_id": row["arg-id"],
             "argument": row["argument"],
+            "comment_id": row.get("comment-id", ""),
             "x": row["x"],
             "y": row["y"],
             "p": 0,  # NOTE: 一旦全部0でいれる
