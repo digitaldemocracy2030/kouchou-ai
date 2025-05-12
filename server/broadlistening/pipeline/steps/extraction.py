@@ -52,7 +52,7 @@ def extraction(config):
     for i in tqdm(range(0, len(comment_ids), workers)):
         batch = comment_ids[i : i + workers]
         batch_inputs = [comments.loc[id]["comment-body"] for id in batch]
-        batch_results = extract_batch(batch_inputs, prompt, model, workers, provider, config.get("local_llm_address"))
+        batch_results = extract_batch(batch_inputs, prompt, model, workers, provider, config)
 
         for comment_id, extracted_args in zip(batch, batch_results, strict=False):
             for j, arg in enumerate(extracted_args):
@@ -94,10 +94,10 @@ def extraction(config):
 logging.basicConfig(level=logging.ERROR)
 
 
-def extract_batch(batch, prompt, model, workers, config, local_llm_address=None):
+def extract_batch(batch, prompt, model, workers, provider, local_llm_address=None):
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures_with_index = [
-            (i, executor.submit(extract_arguments, input, prompt, model, config.get("provider", "openai"), local_llm_address))
+            (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address))
             for i, input in enumerate(batch)
         ]
 
@@ -119,7 +119,7 @@ def extract_batch(batch, prompt, model, workers, config, local_llm_address=None)
         return results
 
 
-def extract_arguments(input, prompt, model, config, local_llm_address=None):
+def extract_arguments(input, prompt, model, provider, local_llm_address=None):
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
@@ -130,7 +130,7 @@ def extract_arguments(input, prompt, model, config, local_llm_address=None):
             model=model,
             is_json=False,
             json_schema=ExtractionResponse,
-            provider=config.get("provider", "openai"),
+            provider=provider,
             local_llm_address=local_llm_address,
         )
         items = parse_extraction_response(response)

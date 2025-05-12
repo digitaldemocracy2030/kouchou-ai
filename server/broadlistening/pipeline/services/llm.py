@@ -312,7 +312,7 @@ def request_to_local_llm_embed(args, model, address="localhost:11434"):
         return request_to_local_embed(args)
 
 
-def request_to_embed(args, model, is_embedded_at_local=False, provider="openai", local_llm_address: str | None = None):
+def request_to_embed(args, model, is_embedded_at_local=False, provider: str | None = None, local_llm_address: str | None = None):
     if is_embedded_at_local:
         return request_to_local_embed(args)
 
