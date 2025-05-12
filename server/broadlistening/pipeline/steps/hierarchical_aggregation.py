@@ -86,7 +86,7 @@ def hierarchical_aggregation(config):
         print(f"Error loading axis labels: {e}")
         results["x_axis"] = {}
         results["y_axis"] = {}
-    
+
     with open(path, "w") as file:
         json.dump(results, file, indent=2, ensure_ascii=False)
     # TODO: サンプリングロジックを実装したいが、現状は全件抽出
