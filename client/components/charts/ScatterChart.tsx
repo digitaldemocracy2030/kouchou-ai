@@ -194,10 +194,12 @@ export function ScatterChart({
         xaxis: {
           zeroline: false,
           showticklabels: false,
+          showgrid: false,
         },
         yaxis: {
           zeroline: false,
           showticklabels: false,
+          showgrid: false,
         },
         hovermode: "closest",
         dragmode: "pan", // ドラッグによる移動（パン）を有効化
