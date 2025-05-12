@@ -4,7 +4,7 @@ import json
 import pandas as pd
 from tqdm import tqdm
 
-from services.llm import request_to_openai
+from services.llm import request_to_chat_openai
 
 BASE_CLASSIFICATION_PROMPT = """与えられた意見群をカテゴリに分類してください
 
@@ -116,7 +116,7 @@ def classify_batch_args(batch_args: pd.DataFrame, categories: dict, model: str) 
     category_string = _build_categories_string(categories)
     batch_args_string = _build_batch_args_string(batch_args)
     prompt = BASE_CLASSIFICATION_PROMPT.format(categories_string=category_string, args_string=batch_args_string)
-    result = request_to_openai(
+    result = request_to_chat_openai(
         messages=[
             {"role": "system", "content": prompt},
         ],

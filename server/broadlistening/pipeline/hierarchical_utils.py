@@ -12,7 +12,7 @@ def validate_config(config):
         raise Exception("Missing required field 'input' in config")
     if "question" not in config:
         raise Exception("Missing required field 'question' in config")
-    valid_fields = ["input", "question", "model", "name", "intro", "is_pubcom", "is_embedded_at_local"]
+    valid_fields = ["input", "question", "model", "name", "intro", "is_pubcom", "is_embedded_at_local", "provider"]
     step_names = [x["step"] for x in specs]
     for key in config:
         if key not in valid_fields and key not in step_names:

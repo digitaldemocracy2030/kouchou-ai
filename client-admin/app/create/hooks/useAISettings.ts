@@ -77,7 +77,7 @@ export function useAISettings() {
     setProviderError(null);
     
     try {
-      const response = await fetch(`/api/admin/environment/verify-llm-provider?provider=${provider}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASEPATH}/admin/environment/verify-llm-provider?provider=${provider}`, {
         headers: {
           "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
         },

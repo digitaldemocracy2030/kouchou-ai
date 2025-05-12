@@ -180,9 +180,12 @@ SUPPORTED_MODELS = {
     ],
     "openrouter": [
         "openai/gpt-4o",
+        "openai/gpt-4o-mini",
         "anthropic/claude-3-opus",
         "anthropic/claude-3-sonnet",
         "google/gemini-pro",
+        "google/gemini-2.5-pro",
+        "google/gemini-2.5-flash",
         "mistral/mistral-large",
         "meta/llama-3-70b",
     ],
@@ -246,13 +249,14 @@ def get_embedding_client(provider: str | None = None) -> OpenAI:
 
 def request_to_embed(args, model, is_embedded_at_local=False, provider: str | None = None):
     """統合された埋め込みリクエスト関数"""
-    if is_embedded_at_local:
-        return request_to_local_embed(args)
-
     current_provider = provider or DEFAULT_PROVIDER
     if current_provider not in LLM_PROVIDERS:
         logging.warning(f"Invalid provider: {current_provider}, falling back to default")
         current_provider = DEFAULT_PROVIDER
+    
+    # OpenRouterは埋め込みAPIをサポートしていないため、ローカル埋め込みを使用
+    if current_provider == "openrouter" or is_embedded_at_local:
+        return request_to_local_embed(args)
     
     if current_provider != "openai":
         _validate_model(model)
