@@ -94,10 +94,10 @@ def extraction(config):
 logging.basicConfig(level=logging.ERROR)
 
 
-def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_address=None):
+def extract_batch(batch, prompt, model, workers, config, local_llm_address=None):
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures_with_index = [
-            (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address))
+            (i, executor.submit(extract_arguments, input, prompt, model, config.get("provider", "openai"), local_llm_address))
             for i, input in enumerate(batch)
         ]
 
@@ -119,7 +119,7 @@ def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_ad
         return results
 
 
-def extract_arguments(input, prompt, model, provider="openai", local_llm_address=None):
+def extract_arguments(input, prompt, model, config, local_llm_address=None):
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
@@ -130,7 +130,7 @@ def extract_arguments(input, prompt, model, provider="openai", local_llm_address
             model=model,
             is_json=False,
             json_schema=ExtractionResponse,
-            provider=provider,
+            provider=config.get("provider", "openai"),
             local_llm_address=local_llm_address,
         )
         items = parse_extraction_response(response)

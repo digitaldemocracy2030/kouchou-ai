@@ -74,7 +74,7 @@ def initial_labelling(
     model: str,
     workers: int,
     provider: str = "openai",
-    local_llm_address: str = None,
+    config: dict = None,
 ) -> pd.DataFrame:
     """各クラスタに対して初期ラベリングを実行する
 
@@ -84,6 +84,7 @@ def initial_labelling(
         sampling_num: 各クラスタからサンプリングする意見の数
         model: 使用するLLMモデル名
         workers: 並列処理のワーカー数
+        config: 設定情報を含む辞書
 
     Returns:
         各クラスタのラベリング結果を含むDataFrame
@@ -99,7 +100,7 @@ def initial_labelling(
         target_column=initial_cluster_column,
         model=model,
         provider=provider,
-        local_llm_address=local_llm_address,
+        config=config,
     )
     with ThreadPoolExecutor(max_workers=workers) as executor:
         results = list(executor.map(process_func, cluster_ids))
@@ -120,8 +121,7 @@ def process_initial_labelling(
     sampling_num: int,
     target_column: str,
     model: str,
-    provider: str = "openai",
-    local_llm_address: str = None,
+    config: dict,
 ) -> LabellingResult:
     """個別のクラスタに対してラベリングを実行する
 
@@ -132,6 +132,7 @@ def process_initial_labelling(
         sampling_num: サンプリングする意見の数
         target_column: クラスタIDが格納されている列名
         model: 使用するLLMモデル名
+        config: 設定情報を含む辞書
 
     Returns:
         クラスタのラベリング結果
@@ -148,9 +149,9 @@ def process_initial_labelling(
         response = request_to_chat_openai(
             messages=messages,
             model=model,
-            provider=provider,
+            provider=config.get("provider", "openai"),
             json_schema=LabellingFromat,
-            local_llm_address=local_llm_address,
+            local_llm_address=config.get("local_llm_address"),
         )
         response_json = json.loads(response) if isinstance(response, str) else response
         return LabellingResult(
