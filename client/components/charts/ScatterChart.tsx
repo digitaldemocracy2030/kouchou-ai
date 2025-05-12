@@ -205,7 +205,9 @@ export function ScatterChart({
         },
       }))}
       layout={{
-        margin: { l: 50, r: 50, b: 50, t: 50 }, // マージンを増やして軸ラベルのスペースを確保
+        margin: showAxisLabels 
+          ? { l: 50, r: 50, b: 50, t: 50 } // 軸ラベル表示時はマージンを確保
+          : { l: 10, r: 10, b: 10, t: 10 }, // 軸ラベル非表示時は最小マージン
         xaxis: {
           zeroline: false,
           showticklabels: false, // 目盛りラベルを常に非表示
