@@ -11,6 +11,10 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 DOTENV_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../.env"))
 load_dotenv(DOTENV_PATH)
 
+# サポートされているLLMプロバイダーのリスト
+DEFAULT_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
+LLM_PROVIDERS = os.getenv("LLM_PROVIDERS", "openai,azure,openrouter,local").split(",")
+
 # check env
 use_azure = os.getenv("USE_AZURE", "false").lower()
 if use_azure == "true":
@@ -238,6 +242,80 @@ def request_to_local_llm(
         raise
 
 
+def request_to_openrouter(
+    messages: list[dict],
+    model: str,
+    is_json: bool = False,
+    json_schema: dict | type[BaseModel] | None = None,
+) -> str:
+    """OpenRouterにリクエストを送信する関数
+
+    Args:
+        messages: チャットメッセージのリスト
+        model: 使用するモデル名
+        is_json: JSONレスポンスを要求するかどうか
+        json_schema: JSONスキーマ（Pydanticモデルまたは辞書）
+
+    Returns:
+        LLMからのレスポンス
+    """
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY environment variable is not set")
+
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key,
+        default_headers={
+            "HTTP-Referer": os.getenv("NEXT_PUBLIC_SITE_URL", "http://localhost:3000"),
+            "X-Title": "Kouchou AI",
+        },
+    )
+
+    try:
+        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
+            # Pydantic BaseModelの場合はbeta.chat.completions.parseを使う
+            response = client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                temperature=0,
+                n=1,
+                seed=0,
+                response_format=json_schema,
+                timeout=30,
+            )
+            return response.choices[0].message.content
+        else:
+            response_format = None
+            if is_json:
+                response_format = {"type": "json_object"}
+            if json_schema:  # 両方有効化されていたら、json_schemaを優先
+                response_format = json_schema
+
+            payload = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0,
+                "n": 1,
+                "seed": 0,
+                "timeout": 30,
+            }
+            if response_format:
+                payload["response_format"] = response_format
+
+            response = client.chat.completions.create(**payload)
+            return response.choices[0].message.content
+    except openai.RateLimitError as e:
+        logging.warning(f"OpenRouter API rate limit hit: {e}")
+        raise
+    except openai.AuthenticationError as e:
+        logging.error(f"OpenRouter API authentication error: {str(e)}")
+        raise
+    except openai.BadRequestError as e:
+        logging.error(f"OpenRouter API bad request error: {str(e)}")
+        raise
+
+
 def request_to_chat_openai(
     messages: list[dict],
     model: str = "gpt-4o",
@@ -251,7 +329,7 @@ def request_to_chat_openai(
     elif provider == "openai":
         return request_to_openai(messages, model, is_json, json_schema)
     elif provider == "openrouter":
-        raise NotImplementedError("OpenRouter support is not implemented yet")
+        return request_to_openrouter(messages, model, is_json, json_schema)
     elif provider == "local":
         address = local_llm_address or "localhost:11434"
         return request_to_local_llm(messages, model, is_json, json_schema, address)
@@ -312,6 +390,44 @@ def request_to_local_llm_embed(args, model, address="localhost:11434"):
         return request_to_local_embed(args)
 
 
+def request_to_openrouter_embed(args, model):
+    """OpenRouterを使用して埋め込みを取得する関数
+
+    Args:
+        args: 埋め込みを取得するテキスト
+        model: 使用するモデル名
+
+    Returns:
+        埋め込みベクトルのリスト
+    """
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY environment variable is not set")
+
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key,
+        default_headers={
+            "HTTP-Referer": os.getenv("NEXT_PUBLIC_SITE_URL", "http://localhost:3000"),
+            "X-Title": "Kouchou AI",
+        },
+    )
+
+    try:
+        response = client.embeddings.create(input=args, model=model)
+        embeds = [item.embedding for item in response.data]
+        return embeds
+    except openai.RateLimitError as e:
+        logging.warning(f"OpenRouter API rate limit hit: {e}")
+        raise
+    except openai.AuthenticationError as e:
+        logging.error(f"OpenRouter API authentication error: {str(e)}")
+        raise
+    except openai.BadRequestError as e:
+        logging.error(f"OpenRouter API bad request error: {str(e)}")
+        raise
+
+
 def request_to_embed(args, model, is_embedded_at_local=False, provider: str | None = None, local_llm_address: str | None = None):
     if is_embedded_at_local:
         return request_to_local_embed(args)
@@ -325,7 +441,7 @@ def request_to_embed(args, model, is_embedded_at_local=False, provider: str | No
         embeds = [item.embedding for item in response.data]
         return embeds
     elif provider == "openrouter":
-        raise NotImplementedError("OpenRouter embedding support is not implemented yet")
+        return request_to_openrouter_embed(args, model)
     elif provider == "local":
         address = local_llm_address or "localhost:11434"
         return request_to_local_llm_embed(args, model, address)
@@ -468,6 +584,91 @@ def _local_llm_test():
     response = request_to_local_llm(messages=messages, model="llama-3-elyza-jp-8b", address="localhost:1234")
     print("Local LLM response example:")
     print(response)
+
+
+def get_available_models(provider: str, address: str | None = None) -> list[dict]:
+    """指定されたプロバイダーで利用可能なモデルのリストを取得する関数
+
+    Args:
+        provider: プロバイダー名（openai, azure, openrouter, local）
+        address: LocalLLM用アドレス（localプロバイダーの場合のみ）
+
+    Returns:
+        利用可能なモデルのリスト（{value, label}形式）
+    """
+    if provider not in LLM_PROVIDERS:
+        raise ValueError(f"Unknown provider: {provider}")
+
+    if provider == "openai":
+        return [
+            {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
+            {"value": "gpt-4o", "label": "GPT-4o"},
+            {"value": "o3-mini", "label": "o3-mini"},
+        ]
+    elif provider == "azure":
+        return [
+            {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
+            {"value": "gpt-4o", "label": "GPT-4o"},
+            {"value": "o3-mini", "label": "o3-mini"},
+        ]
+    elif provider == "openrouter":
+        try:
+            api_key = os.getenv("OPENROUTER_API_KEY")
+            if not api_key:
+                raise ValueError("OPENROUTER_API_KEY environment variable is not set")
+
+            client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=api_key,
+                default_headers={
+                    "HTTP-Referer": os.getenv("NEXT_PUBLIC_SITE_URL", "http://localhost:3000"),
+                    "X-Title": "Kouchou AI",
+                },
+            )
+
+            response = client.models.list()
+            return [
+                {
+                    "value": model.id,
+                    "label": f"{getattr(model, 'name', model.id)} ({model.id})" if getattr(model, 'name', None) else model.id
+                }
+                for model in response.data
+            ]
+        except Exception as e:
+            logging.error(f"Failed to fetch OpenRouter models: {e}")
+            return []
+    elif provider == "local":
+        try:
+            if not address:
+                address = "localhost:11434"
+
+            if ":" in address:
+                host, port_str = address.split(":")
+                port = int(port_str)
+            else:
+                host = address
+                port = 11434
+
+            base_url = f"http://{host}:{port}/v1"
+
+            client = OpenAI(
+                base_url=base_url,
+                api_key="not-needed",  # OllamaとLM Studioは認証不要
+            )
+
+            response = client.models.list()
+            return [
+                {
+                    "value": model.id,
+                    "label": f"{getattr(model, 'name', model.id)} ({model.id})" if getattr(model, 'name', None) else model.id
+                }
+                for model in response.data
+            ]
+        except Exception as e:
+            logging.error(f"Failed to fetch LocalLLM models: {e}")
+            return []
+    else:
+        raise ValueError(f"Unknown provider: {provider}")
 
 
 if __name__ == "__main__":

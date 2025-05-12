@@ -121,7 +121,8 @@ def process_initial_labelling(
     sampling_num: int,
     target_column: str,
     model: str,
-    config: dict,
+    provider: str = "openai",
+    config: dict = None,
 ) -> LabellingResult:
     """個別のクラスタに対してラベリングを実行する
 
@@ -132,6 +133,7 @@ def process_initial_labelling(
         sampling_num: サンプリングする意見の数
         target_column: クラスタIDが格納されている列名
         model: 使用するLLMモデル名
+        provider: LLMプロバイダー
         config: 設定情報を含む辞書
 
     Returns:
@@ -149,9 +151,9 @@ def process_initial_labelling(
         response = request_to_chat_openai(
             messages=messages,
             model=model,
-            provider=config.get("provider", "openai"),
+            provider=provider,
             json_schema=LabellingFromat,
-            local_llm_address=config.get("local_llm_address"),
+            local_llm_address=config.get("local_llm_address") if config else None,
         )
         response_json = json.loads(response) if isinstance(response, str) else response
         return LabellingResult(

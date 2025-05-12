@@ -209,11 +209,11 @@ export function useAISettings() {
     },
     openrouter: {
       models: openRouterModels,
-      description: "OpenRouterを使用して複数のモデルにアクセスします。（将来対応予定）"
+      description: "OpenRouterを使用して複数のモデルにアクセスします。OpenRouterのAPIキーが必要です。"
     },
     local: {
       models: localLLMModels,
-      description: "ローカルで実行されているLLMサーバーに接続します。（将来対応予定）",
+      description: "ローカルで実行されているLLMサーバーに接続します。",
       requiresConnection: true
     }
   };
