@@ -45,6 +45,7 @@ def hierarchical_initial_labelling(config: dict) -> None:
         sampling_num,
         model,
         workers,
+        config,
     )
     print("start initial labelling")
     initial_clusters_argument_df = clusters_argument_df.merge(
@@ -68,6 +69,7 @@ def initial_labelling(
     sampling_num: int,
     model: str,
     workers: int,
+    config: dict,
 ) -> pd.DataFrame:
     """各クラスタに対して初期ラベリングを実行する
 
@@ -77,6 +79,7 @@ def initial_labelling(
         sampling_num: 各クラスタからサンプリングする意見の数
         model: 使用するLLMモデル名
         workers: 並列処理のワーカー数
+        config: 設定情報を含む辞書
 
     Returns:
         各クラスタのラベリング結果を含むDataFrame
@@ -91,6 +94,7 @@ def initial_labelling(
         sampling_num=sampling_num,
         target_column=initial_cluster_column,
         model=model,
+        config=config,
     )
     with ThreadPoolExecutor(max_workers=workers) as executor:
         results = list(executor.map(process_func, cluster_ids))
@@ -104,6 +108,7 @@ def process_initial_labelling(
     sampling_num: int,
     target_column: str,
     model: str,
+    config: dict,
 ) -> LabellingResult:
     """個別のクラスタに対してラベリングを実行する
 
@@ -114,6 +119,7 @@ def process_initial_labelling(
         sampling_num: サンプリングする意見の数
         target_column: クラスタIDが格納されている列名
         model: 使用するLLMモデル名
+        config: 設定情報を含む辞書
 
     Returns:
         クラスタのラベリング結果
