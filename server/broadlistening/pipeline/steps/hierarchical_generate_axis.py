@@ -2,13 +2,14 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, TypedDict
 
 import pandas as pd
 from pydantic import BaseModel, Field
 
-from services.llm import request_to_chat_openai
+from broadlistening.pipeline.services.llm import request_to_chat_openai
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +155,19 @@ def hierarchical_generate_axis(config: dict[str, Any]) -> None:
         model = config.get("hierarchical_generate_axis", {}).get("model", "gpt-4o-mini")
         provider = config.get("provider", "openai")
         local_llm_address = config.get("local_llm_address")
+        
+        logger.info(f"Using LLM provider: {provider}, model: {model}")
+        
+        if provider == "openai" and not os.environ.get("OPENAI_API_KEY"):
+            logger.warning("OPENAI_API_KEY not set, using default axis labels")
+            output_path = f"outputs/{config['output_dir']}/axis_labels.json"
+            with open(output_path, mode="w") as f:
+                json.dump({
+                    "x_axis": {"axis_name": "X軸", "min_label": "小", "max_label": "大"},
+                    "y_axis": {"axis_name": "Y軸", "min_label": "小", "max_label": "大"}
+                }, f, indent=2, ensure_ascii=False)
+            logger.info(f"Default axis labels saved to {output_path}")
+            return
 
         x_axis = generate_axis_labels(
             arguments, is_x_axis=True, model=model, provider=provider, local_llm_address=local_llm_address
