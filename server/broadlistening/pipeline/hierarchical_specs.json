@@ -52,6 +52,13 @@
         "use_llm": true
     },
     {
+        "step": "hierarchical_generate_axis",
+        "filename": "axis_labels.json",
+        "dependencies": {"params": [], "steps": ["extraction"]},
+        "options": {},
+        "use_llm": true
+    },
+    {
         "step": "hierarchical_aggregation",
         "filename": "hierarchical_result.json",
         "dependencies": {
