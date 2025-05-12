@@ -12,6 +12,9 @@ from services.llm import request_to_chat_openai
 class OverviewResponse(BaseModel):
     summary: str = Field(..., description="クラスターの全体的な要約")
 
+    class Config:
+        extra = "forbid"
+
 
 def hierarchical_overview(config):
     dataset = config["output_dir"]

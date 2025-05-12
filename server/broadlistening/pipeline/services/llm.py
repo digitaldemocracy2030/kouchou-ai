@@ -149,13 +149,13 @@ def request_to_azure_chatcompletion(
 
             return response.choices[0].message.content
     except openai.RateLimitError as e:
-        logging.warning(f"OpenAI API rate limit hit: {e}")
+        logging.warning(f"[Azure][RateLimit] model={deployment}, error={e}, messages={messages}")
         raise
     except openai.AuthenticationError as e:
-        logging.error(f"OpenAI API authentication error: {str(e)}")
+        logging.error(f"[Azure][AuthError] model={deployment}, error={str(e)}, messages={messages}")
         raise
     except openai.BadRequestError as e:
-        logging.error(f"OpenAI API bad request error: {str(e)}")
+        logging.error(f"[Azure][BadRequest] model={deployment}, error={str(e)}, messages={messages}")
         raise
 
 

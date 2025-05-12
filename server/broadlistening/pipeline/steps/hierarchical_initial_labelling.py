@@ -113,6 +113,9 @@ class LabellingFromat(BaseModel):
     label: str = Field(..., description="クラスタのラベル名")
     description: str = Field(..., description="クラスタの説明文")
 
+    class Config:
+        extra = "forbid"
+
 
 def process_initial_labelling(
     cluster_id: str,
