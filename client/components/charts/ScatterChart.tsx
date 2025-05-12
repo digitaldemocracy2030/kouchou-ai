@@ -8,6 +8,18 @@ type Props = {
   targetLevel: number;
   onHover?: () => void;
   showClusterLabels?: boolean;
+  axisInfo?: {
+    x: {
+      name: string;
+      min: string;
+      max: string;
+    };
+    y: {
+      name: string;
+      min: string;
+      max: string;
+    };
+  };
 };
 
 export function ScatterChart({
@@ -16,6 +28,7 @@ export function ScatterChart({
   targetLevel,
   onHover,
   showClusterLabels,
+  axisInfo,
 }: Props) {
   const targetClusters = clusterList.filter(
     (cluster) => cluster.level === targetLevel,
@@ -190,32 +203,120 @@ export function ScatterChart({
         },
       }))}
       layout={{
-        margin: { l: 0, r: 0, b: 0, t: 0 },
+        margin: { l: 50, r: 50, b: 50, t: 50 }, // マージンを増やして軸ラベルのスペースを確保
         xaxis: {
           zeroline: false,
-          showticklabels: false,
+          showticklabels: true, // 目盛りラベルを表示
+          title: {
+            text: axisInfo ? axisInfo.x.name : "X軸",
+            font: {
+              size: 14,
+              color: '#333',
+            },
+          },
         },
         yaxis: {
           zeroline: false,
-          showticklabels: false,
+          showticklabels: true, // 目盛りラベルを表示
+          title: {
+            text: axisInfo ? axisInfo.y.name : "Y軸",
+            font: {
+              size: 14,
+              color: '#333',
+            },
+            standoff: 0, // タイトルと軸の間隔を調整
+            // @ts-ignore - Plotlyの型定義にangleがないが実際は機能する
+            angle: -90, // 90度回転（左に倒す）
+          } as any,
         },
         hovermode: "closest",
         dragmode: "pan", // ドラッグによる移動（パン）を有効化
-        annotations: showClusterLabels ? clusterData.map((data) => ({
-          x: data.centerX,
-          y: data.centerY,
-          text: wrapLabelText(data.cluster.label), // ラベルを折り返し処理
-          showarrow: false,
-          font: {
-            color: "white",
-            size: annotationFontsize,
-            weight: 700,
+        annotations: [
+          // X軸の小さい側のラベル
+          {
+            text: axisInfo ? axisInfo.x.min : "小",
+            x: 0,
+            y: 0,
+            xref: 'paper',
+            yref: 'paper',
+            xanchor: 'left',
+            yanchor: 'top',
+            showarrow: false,
+            font: {
+              size: 12,
+              color: '#555',
+            },
+            xshift: 5,
+            yshift: -15,
           },
-          bgcolor: clusterColorMapA[data.cluster.id], // 背景はアルファ付き
-          borderpad: 10,
-          width: annotationLabelWidth,
-          align: 'left',
-        })) : [],
+          // X軸の大きい側のラベル
+          {
+            text: axisInfo ? axisInfo.x.max : "大",
+            x: 1,
+            y: 0,
+            xref: 'paper',
+            yref: 'paper',
+            xanchor: 'right',
+            yanchor: 'top',
+            showarrow: false,
+            font: {
+              size: 12,
+              color: '#555',
+            },
+            xshift: -5,
+            yshift: -15,
+          },
+          // Y軸の小さい側のラベル
+          {
+            text: axisInfo ? axisInfo.y.min : "小",
+            x: 0.02, // グラフ内に配置
+            y: 0.02,
+            xref: 'paper',
+            yref: 'paper',
+            xanchor: 'left',
+            yanchor: 'bottom',
+            showarrow: false,
+            font: {
+              size: 12,
+              color: '#555',
+            },
+            bgcolor: 'rgba(255, 255, 255, 0.8)', // 半透明の背景
+            borderpad: 2,
+          },
+          // Y軸の大きい側のラベル
+          {
+            text: axisInfo ? axisInfo.y.max : "大",
+            x: 0.02, // グラフ内に配置
+            y: 0.98,
+            xref: 'paper',
+            yref: 'paper',
+            xanchor: 'left',
+            yanchor: 'top',
+            showarrow: false,
+            font: {
+              size: 12,
+              color: '#555',
+            },
+            bgcolor: 'rgba(255, 255, 255, 0.8)', // 半透明の背景
+            borderpad: 2,
+          },
+          // クラスターのラベル
+          ...(showClusterLabels ? clusterData.map((data) => ({
+            x: data.centerX,
+            y: data.centerY,
+            text: wrapLabelText(data.cluster.label), // ラベルを折り返し処理
+            showarrow: false,
+            font: {
+              color: "white",
+              size: annotationFontsize,
+              weight: 700,
+            },
+            bgcolor: clusterColorMapA[data.cluster.id], // 背景はアルファ付き
+            borderpad: 10,
+            width: annotationLabelWidth,
+            align: "left" as "left",
+          })) : [])
+        ],
         showlegend: false,
       }}
       useResizeHandler={true}

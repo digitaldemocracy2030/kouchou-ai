@@ -28,6 +28,16 @@ export type Result = {
   overview: string; // 解析概要
   config: Config; // 設定情報
   comment_num: number; // コメント数
+  x_axis: {
+    axis_name: string; // X 軸の名前
+    min_label: string; // X 軸の小さい側のラベル
+    max_label: string; // X 軸の大きい側のラベル
+  };
+  y_axis: {
+    axis_name: string; // Y 軸の名前
+    min_label: string; // Y 軸の小さい側のラベル
+    max_label: string; // Y 軸の大きい側のラベル
+  };
 };
 
 type Argument = {
