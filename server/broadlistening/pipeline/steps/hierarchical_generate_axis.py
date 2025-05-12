@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, TypedDict, Any
+from typing import TypedDict, Any
 
 import pandas as pd
 
@@ -26,7 +26,7 @@ class AxisLabelResponse(BaseModel):
     min_label: str = Field(..., description="小さな値にはどのような傾向があるか")
     max_label: str = Field(..., description="大きな値にはどのような傾向があるか")
 
-def generate_axis_labels(arguments: List[Argument], is_x_axis: bool = True) -> Dict[str, str]:
+def generate_axis_labels(arguments: list[Argument], is_x_axis: bool = True) -> dict[str, str]:
     """
     Generate axis labels for UMAP-reduced data.
     
@@ -113,7 +113,7 @@ def generate_axis_labels(arguments: List[Argument], is_x_axis: bool = True) -> D
         logger.error(f"Error generating {'X' if is_x_axis else 'Y'} axis labels: {str(e)}")
         return default_response
 
-def hierarchical_generate_axis(config: Dict[str, Any]) -> None:
+def hierarchical_generate_axis(config: dict[str, Any]) -> None:
     """
     Generate axis labels for UMAP-reduced data and save to a JSON file.
     

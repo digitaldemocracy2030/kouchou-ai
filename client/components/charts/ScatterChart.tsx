@@ -208,7 +208,8 @@ export function ScatterChart({
         margin: { l: 50, r: 50, b: 50, t: 50 }, // マージンを増やして軸ラベルのスペースを確保
         xaxis: {
           zeroline: false,
-          showticklabels: showAxisLabels, // 目盛りラベルを表示するかどうか
+          showticklabels: false, // 目盛りラベルを常に非表示
+          showgrid: false, // グリッド線を非表示
           title: showAxisLabels ? {
             text: axisInfo ? axisInfo.x.name : "X軸",
             font: {
@@ -219,7 +220,8 @@ export function ScatterChart({
         },
         yaxis: {
           zeroline: false,
-          showticklabels: showAxisLabels, // 目盛りラベルを表示するかどうか
+          showticklabels: false, // 目盛りラベルを常に非表示
+          showgrid: false, // グリッド線を非表示
           title: showAxisLabels ? {
             text: axisInfo ? axisInfo.y.name : "Y軸",
             font: {
@@ -239,8 +241,8 @@ export function ScatterChart({
             text: axisInfo ? axisInfo.x.min : "小",
             x: 0,
             y: 0,
-            xref: 'paper',
-            yref: 'paper',
+            xref: 'paper' as 'paper',
+            yref: 'paper' as 'paper',
             xanchor: 'left',
             yanchor: 'top',
             showarrow: false,
@@ -256,8 +258,8 @@ export function ScatterChart({
             text: axisInfo ? axisInfo.x.max : "大",
             x: 1,
             y: 0,
-            xref: 'paper',
-            yref: 'paper',
+            xref: 'paper' as 'paper',
+            yref: 'paper' as 'paper',
             xanchor: 'right',
             yanchor: 'top',
             showarrow: false,
@@ -273,8 +275,8 @@ export function ScatterChart({
             text: axisInfo ? axisInfo.y.min : "小",
             x: 0.02, // グラフ内に配置
             y: 0.02,
-            xref: 'paper',
-            yref: 'paper',
+            xref: 'paper' as 'paper',
+            yref: 'paper' as 'paper',
             xanchor: 'left',
             yanchor: 'bottom',
             showarrow: false,
@@ -290,8 +292,8 @@ export function ScatterChart({
             text: axisInfo ? axisInfo.y.max : "大",
             x: 0.02, // グラフ内に配置
             y: 0.98,
-            xref: 'paper',
-            yref: 'paper',
+            xref: 'paper' as 'paper',
+            yref: 'paper' as 'paper',
             xanchor: 'left',
             yanchor: 'top',
             showarrow: false,
