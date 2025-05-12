@@ -13,10 +13,7 @@ load_dotenv(DOTENV_PATH)
 
 # サポートされているLLMプロバイダーのリスト
 DEFAULT_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
-LLM_PROVIDERS = [p.strip() for p in os.getenv(
-    "LLM_PROVIDERS",
-    "openai,azure,openrouter,local"
-).split(",")]
+LLM_PROVIDERS = [p.strip() for p in os.getenv("LLM_PROVIDERS", "openai,azure,openrouter,local").split(",")]
 
 # check env
 use_azure = os.getenv("USE_AZURE", "false").lower()
@@ -621,7 +618,7 @@ def get_available_models(provider: str, address: str | None = None) -> dict[str,
                 {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
                 {"value": "gpt-4o", "label": "GPT-4o"},
                 {"value": "o3-mini", "label": "o3-mini"},
-            ]
+            ],
         }
     elif provider == "azure":
         return {
@@ -634,7 +631,7 @@ def get_available_models(provider: str, address: str | None = None) -> dict[str,
                 {"value": "gpt-4o-mini", "label": "GPT-4o mini"},
                 {"value": "gpt-4o", "label": "GPT-4o"},
                 {"value": "o3-mini", "label": "o3-mini"},
-            ]
+            ],
         }
     elif provider == "openrouter":
         try:
@@ -675,7 +672,7 @@ def get_available_models(provider: str, address: str | None = None) -> dict[str,
                         ),
                     }
                     for model in response.data
-                ]
+                ],
             }
         except Exception as e:
             logging.error(f"Failed to fetch OpenRouter models: {e}")
@@ -722,7 +719,7 @@ def get_available_models(provider: str, address: str | None = None) -> dict[str,
                         ),
                     }
                     for model in response.data
-                ]
+                ],
             }
         except Exception as e:
             logging.error(f"Failed to fetch LocalLLM models: {e}")
