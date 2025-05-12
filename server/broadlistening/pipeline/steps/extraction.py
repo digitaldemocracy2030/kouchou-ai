@@ -51,7 +51,7 @@ def extraction(config):
     for i in tqdm(range(0, len(comment_ids), workers)):
         batch = comment_ids[i : i + workers]
         batch_inputs = [comments.loc[id]["comment-body"] for id in batch]
-        batch_results = extract_batch(batch_inputs, prompt, model, workers)
+        batch_results = extract_batch(batch_inputs, prompt, model, workers, config)
 
         for comment_id, extracted_args in zip(batch, batch_results, strict=False):
             for j, arg in enumerate(extracted_args):
@@ -93,10 +93,10 @@ def extraction(config):
 logging.basicConfig(level=logging.ERROR)
 
 
-def extract_batch(batch, prompt, model, workers):
+def extract_batch(batch, prompt, model, workers, config):
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures_with_index = [
-            (i, executor.submit(extract_arguments, input, prompt, model)) for i, input in enumerate(batch)
+            (i, executor.submit(extract_arguments, input, prompt, model, config)) for i, input in enumerate(batch)
         ]
 
         done, not_done = concurrent.futures.wait([f for _, f in futures_with_index], timeout=30)
@@ -117,13 +117,13 @@ def extract_batch(batch, prompt, model, workers):
         return results
 
 
-def extract_arguments(input, prompt, model):
+def extract_arguments(input, prompt, model, config):
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
     ]
     try:
-        response = request_to_chat_openai(messages=messages, model=model, is_json=False, json_schema=ExtractionResponse)
+        response = request_to_chat_openai(messages=messages, model=model, is_json=False, json_schema=ExtractionResponse, provider=config.get("provider"))
         items = parse_extraction_response(response)
         items = filter(None, items)  # omit empty strings
         return items

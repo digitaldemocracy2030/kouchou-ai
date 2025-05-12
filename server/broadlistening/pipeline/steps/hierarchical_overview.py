@@ -28,7 +28,7 @@ def hierarchical_overview(config):
         input += descriptions[i] + "\n\n"
 
     messages = [{"role": "user", "content": prompt}, {"role": "user", "content": input}]
-    response = request_to_chat_openai(messages=messages, model=model)
+    response = request_to_chat_openai(messages=messages, model=model, provider=config.get("provider"))
 
     with open(path, "w") as file:
         file.write(response)

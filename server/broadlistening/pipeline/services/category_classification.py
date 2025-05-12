@@ -112,7 +112,7 @@ def _parse_arg_result(classification_results: dict, arg_id: str, categories: lis
     return parsed_result
 
 
-def classify_batch_args(batch_args: pd.DataFrame, categories: dict, model: str) -> dict:
+def classify_batch_args(batch_args: pd.DataFrame, categories: dict, model: str, config: dict) -> dict:
     category_string = _build_categories_string(categories)
     batch_args_string = _build_batch_args_string(batch_args)
     prompt = BASE_CLASSIFICATION_PROMPT.format(categories_string=category_string, args_string=batch_args_string)
@@ -121,6 +121,7 @@ def classify_batch_args(batch_args: pd.DataFrame, categories: dict, model: str) 
             {"role": "system", "content": prompt},
         ],
         model=model,
+        provider=config.get("provider"),
         is_json=True,
     )
     try:
@@ -141,6 +142,7 @@ def classify_args(args: pd.DataFrame, config, workers: int) -> pd.DataFrame:
                 args.loc[batch_idx : batch_idx + batch_size],
                 config["extraction"]["categories"],
                 config["extraction"]["model"],
+                config,
             ): batch_idx
             for batch_idx in batch_start_indices
         }

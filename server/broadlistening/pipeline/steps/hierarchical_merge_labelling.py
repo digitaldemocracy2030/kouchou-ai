@@ -264,6 +264,7 @@ def process_merge_labelling(
         response = request_to_chat_openai(
             messages=messages,
             model=config["hierarchical_merge_labelling"]["model"],
+            provider=config.get("provider"),
             is_json=True,
         )
         response_json = json.loads(response)

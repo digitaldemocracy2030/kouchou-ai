@@ -17,7 +17,7 @@ def embedding(config):
     batch_size = 1000
     for i in tqdm(range(0, len(arguments), batch_size)):
         args = arguments["argument"].tolist()[i : i + batch_size]
-        embeds = request_to_embed(args, model, is_embedded_at_local)
+        embeds = request_to_embed(args, model, is_embedded_at_local, provider=config.get("provider"))
         embeddings.extend(embeds)
     df = pd.DataFrame([{"arg-id": arguments.iloc[i]["arg-id"], "embedding": e} for i, e in enumerate(embeddings)])
     df.to_pickle(path)

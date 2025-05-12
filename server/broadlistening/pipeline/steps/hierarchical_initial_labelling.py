@@ -127,7 +127,7 @@ def process_initial_labelling(
         {"role": "user", "content": input},
     ]
     try:
-        response = request_to_chat_openai(messages=messages, model=model, is_json=True)
+        response = request_to_chat_openai(messages=messages, model=model, is_json=True, provider=config.get("provider"))
         response_json = json.loads(response)
         return LabellingResult(
             cluster_id=cluster_id,
