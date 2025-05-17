@@ -32,6 +32,13 @@ const OPENAI_MODELS: ModelOption[] = [
   { value: "o3-mini", label: "o3-mini" },
 ];
 
+// OpenRouterで利用可能なモデル
+const OPENROUTER_MODELS: ModelOption[] = [
+  { value: "openai/gpt-4o-2024-08-06", label: "GPT-4o (OpenRouter)" },
+  { value: "openai/gpt-4o-mini-2024-07-18", label: "GPT-4o mini (OpenRouter)" },
+  { value: "google/gemini-2.5-pro-preview", label: "Gemini 2.5 Pro" },
+];
+
 /**
  * サーバーからモデルリストを取得する関数
  * @param provider プロバイダー名
@@ -136,12 +143,10 @@ export function useAISettings() {
 
   useEffect(() => {
     if (provider === "openrouter") {
-      fetchModelsFromServer("openrouter").then((models) => {
-        setOpenRouterModels(models);
-        if (models.length > 0) {
-          setModel(models[0].value);
-        }
-      });
+      setOpenRouterModels(OPENROUTER_MODELS);
+      if (OPENROUTER_MODELS.length > 0) {
+        setModel(OPENROUTER_MODELS[0].value);
+      }
     }
 
     if (provider === "local") {
@@ -195,8 +200,8 @@ export function useAISettings() {
       description: "Azure OpenAI Serviceを使用します。Azureの設定が必要です。",
     },
     openrouter: {
-      models: openRouterModels,
-      description: "OpenRouterを使用して複数のモデルにアクセスします。（将来対応予定）",
+      models: OPENROUTER_MODELS,
+      description: "OpenRouterを使用して複数のモデルにアクセスします。",
     },
     local: {
       models: localLLMModels,

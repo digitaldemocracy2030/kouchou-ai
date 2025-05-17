@@ -13,6 +13,7 @@ load_dotenv(DOTENV_PATH)
 
 # check env
 use_azure = os.getenv("USE_AZURE", "false").lower()
+
 if use_azure == "true":
     if not os.getenv("AZURE_CHATCOMPLETION_ENDPOINT"):
         raise RuntimeError("AZURE_CHATCOMPLETION_ENDPOINT environment variable is not set")
@@ -238,7 +239,7 @@ def request_to_local_llm(
         raise
 
 
-def request_to_chat_openai(
+def request_to_chat_ai(
     messages: list[dict],
     model: str = "gpt-4o",
     is_json: bool = False,
@@ -246,15 +247,35 @@ def request_to_chat_openai(
     provider: str = "openai",
     local_llm_address: str | None = None,
 ) -> str:
+    """AIプロバイダーにチャットリクエストを送信する関数
+
+    Args:
+        messages: チャットメッセージのリスト
+        model: 使用するモデル名
+        is_json: JSONレスポンスを要求するかどうか
+        json_schema: JSONスキーマ（Pydanticモデルまたは辞書）
+        provider: 使用するプロバイダー（"openai", "azure", "local", "openrouter"）
+        local_llm_address: ローカルLLMのアドレス（provider="local"の場合のみ使用）
+
+    Returns:
+        AIからのレスポンス
+
+    Note:
+        - provider="openai": OpenAI APIを使用
+        - provider="azure": Azure OpenAI APIを使用
+        - provider="local": ローカルLLM（OllamaやLM Studio）を使用
+        - provider="openrouter": OpenRouter APIを使用（OpenAIやGeminiのモデルにアクセス可能）
+    """
     if provider == "azure":
         return request_to_azure_chatcompletion(messages, is_json, json_schema)
     elif provider == "openai":
         return request_to_openai(messages, model, is_json, json_schema)
-    elif provider == "openrouter":
-        raise NotImplementedError("OpenRouter support is not implemented yet")
     elif provider == "local":
         address = local_llm_address or "localhost:11434"
         return request_to_local_llm(messages, model, is_json, json_schema, address)
+    elif provider == "openrouter":
+        # OpenRouterのモデル名を直接使用
+        return request_to_openrouter_chatcompletion(messages, model, is_json, json_schema)
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
@@ -434,7 +455,7 @@ def _jsonschema_test():
         {"role": "user", "content": "これは素晴らしい日です。"},
     ]
 
-    response = request_to_chat_openai(messages=messages, model="gpt-4o", json_schema=response_format)
+    response = request_to_chat_ai(messages=messages, model="gpt-4o", json_schema=response_format)
     print("JSON Schema response example:")
     print(response)
 
@@ -453,7 +474,7 @@ def _basemodel_test():
         {"role": "user", "content": "Alice and Bob are going to a science fair on Friday."},
     ]
 
-    response = request_to_chat_openai(messages=messages, model="gpt-4o", json_schema=CalendarEvent)
+    response = request_to_chat_ai(messages=messages, model="gpt-4o", json_schema=CalendarEvent)
 
     print("Pydantic(BaseModel) schema response example:")
     print(response)
@@ -468,6 +489,67 @@ def _local_llm_test():
     response = request_to_local_llm(messages=messages, model="llama-3-elyza-jp-8b", address="localhost:1234")
     print("Local LLM response example:")
     print(response)
+
+
+@retry(
+    retry=retry_if_exception_type(openai.RateLimitError),
+    wait=wait_exponential(multiplier=3, min=3, max=20),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
+def request_to_openrouter_chatcompletion(
+    messages: list[dict],
+    model: str,
+    is_json: bool = False,
+    json_schema: dict | type[BaseModel] = None,
+) -> dict:
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENROUTER_API_KEY environment variable is not set")
+
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key,
+    )
+
+    try:
+        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
+            response = client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                temperature=0,
+                n=1,
+                seed=0,
+                response_format=json_schema,
+                timeout=30,
+            )
+            return response.choices[0].message.content
+        else:
+            payload = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0,
+                "n": 1,
+                "seed": 0,
+                "timeout": 30,
+            }
+
+            if is_json:
+                payload["response_format"] = {"type": "json_object"}
+            elif json_schema:
+                payload["response_format"] = json_schema
+
+            response = client.chat.completions.create(**payload)
+            return response.choices[0].message.content
+    except openai.RateLimitError as e:
+        logging.warning(f"OpenRouter API rate limit hit: {e}")
+        raise
+    except openai.AuthenticationError as e:
+        logging.error(f"OpenRouter API authentication error: {str(e)}")
+        raise
+    except openai.BadRequestError as e:
+        logging.error(f"OpenRouter API bad request error: {str(e)}")
+        raise
 
 
 if __name__ == "__main__":

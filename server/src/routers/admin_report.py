@@ -200,7 +200,7 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
     Returns:
         dict: Status of the verification and any error messages in Japanese
     """
-    from broadlistening.pipeline.services.llm import request_to_chat_openai
+    from broadlistening.pipeline.services.llm import request_to_chat_ai
 
     try:
         use_azure = os.getenv("USE_AZURE", "false").lower() == "true"
@@ -210,7 +210,7 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
             {"role": "user", "content": "Hello"},
         ]
 
-        _ = request_to_chat_openai(
+        _ = request_to_chat_ai(
             messages=test_messages,
             model="gpt-4o-mini",
         )

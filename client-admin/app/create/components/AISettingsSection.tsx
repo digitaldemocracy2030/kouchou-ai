@@ -83,9 +83,7 @@ export function AISettingsSection({
           <NativeSelect.Field value={provider} onChange={onProviderChange}>
             <option value={"openai"}>OpenAI</option>
             <option value={"azure"}>Azure</option>
-            <option value={"openrouter"} disabled>
-              OpenRouter (将来対応予定)
-            </option>
+            <option value={"openrouter"}>OpenRouter</option>
             <option value={"local"}>LocalLLM</option>
           </NativeSelect.Field>
           <NativeSelect.Indicator />
