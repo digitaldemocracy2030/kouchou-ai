@@ -8,9 +8,18 @@ type Props = {
   targetLevel: number;
   onHover?: () => void;
   showClusterLabels?: boolean;
+  // フィルター適用後の引数IDのリストを受け取り、フィルターに該当しないポイントの表示を変更する
+  filteredArgumentIds?: string[];
 };
 
-export function ScatterChart({ clusterList, argumentList, targetLevel, onHover, showClusterLabels }: Props) {
+export function ScatterChart({
+  clusterList,
+  argumentList,
+  targetLevel,
+  onHover,
+  showClusterLabels,
+  filteredArgumentIds,
+}: Props) {
   const targetClusters = clusterList.filter((cluster) => cluster.level === targetLevel);
   const softColors = [
     "#7ac943",
@@ -138,14 +147,36 @@ export function ScatterChart({ clusterList, argumentList, targetLevel, onHover, 
     // プロット操作用アイコンのエリアを「全画面終了」ボタンの下に移動する
     avoidModBarCoveringShrinkButton();
   };
-
   const clusterData = targetClusters.map((cluster) => {
     const clusterArguments = argumentList.filter((arg) => arg.cluster_ids.includes(cluster.id));
+
+    // フィルターに該当するかどうかを判定
+    const markerColors = clusterArguments.map((arg) => {
+      // フィルターが適用されていて、フィルター結果に含まれない場合はグレーにする
+      const isFiltered = filteredArgumentIds && !filteredArgumentIds.includes(arg.arg_id);
+      return isFiltered ? "#cccccc" : clusterColorMap[cluster.id];
+    });
+
     const xValues = clusterArguments.map((arg) => arg.x);
     const yValues = clusterArguments.map((arg) => arg.y);
-    const texts = clusterArguments.map(
-      (arg) => `<b>${cluster.label}</b><br>${arg.argument.replace(/(.{30})/g, "$1<br />")}`,
-    );
+
+    // フィルターされたポイントはホバーテキストを空にする
+    const texts = clusterArguments.map((arg) => {
+      const isFiltered = filteredArgumentIds && !filteredArgumentIds.includes(arg.arg_id);
+      return isFiltered ? "" : `<b>${cluster.label}</b><br>${arg.argument.replace(/(.{30})/g, "$1<br />")}`;
+    });
+
+    // フィルター結果のフラグ配列 - hoverinfo は "text" または "skip" を設定
+    const hoverInfoArray = clusterArguments.map((arg) => {
+      const isFiltered = filteredArgumentIds && !filteredArgumentIds.includes(arg.arg_id);
+      return isFiltered ? "skip" : "text"; // skipはホバー表示を無効にする
+    });
+
+    // 透明度の設定 - フィルター適用時に非マッチのデータポイントは半透明にする
+    const opacityArray = clusterArguments.map((arg) => {
+      const isFiltered = filteredArgumentIds && !filteredArgumentIds.includes(arg.arg_id);
+      return isFiltered ? 0.5 : 1; // フィルターされているポイントは半透明に
+    });
 
     const centerX = xValues.reduce((sum, val) => sum + val, 0) / xValues.length;
     const centerY = yValues.reduce((sum, val) => sum + val, 0) / yValues.length;
@@ -157,6 +188,9 @@ export function ScatterChart({ clusterList, argumentList, targetLevel, onHover, 
       texts,
       centerX,
       centerY,
+      markerColors,
+      hoverInfoArray,
+      opacityArray,
     };
   });
 
@@ -164,27 +198,59 @@ export function ScatterChart({ clusterList, argumentList, targetLevel, onHover, 
     <Box width="100%" height="100%" display="flex" flexDirection="column">
       <Box position="relative" flex="1">
         <ChartCore
-          data={clusterData.map((data) => ({
-            x: data.xValues,
-            y: data.yValues,
-            mode: "markers",
-            marker: {
-              size: 7,
-              color: clusterColorMap[data.cluster.id],
-            },
-            type: "scatter",
-            text: data.texts,
-            hoverinfo: "text",
-            hoverlabel: {
-              align: "left",
-              bgcolor: "white",
-              bordercolor: clusterColorMap[data.cluster.id],
-              font: {
-                size: 12,
-                color: "#333",
+          data={clusterData.map((data) => {
+            // filteredArgumentIds が設定されている場合、データポイントごとに個別の設定を適用する
+            if (filteredArgumentIds) {
+              return {
+                x: data.xValues,
+                y: data.yValues,
+                mode: "markers",
+                marker: {
+                  size: 7,
+                  color: data.markerColors,
+                  opacity: data.opacityArray, // 各ポイントごとに透明度を設定
+                },
+                type: "scatter",
+                text: data.texts,
+                // hoverinfo はデータセット全体に一括して適用する必要がある
+                hoverinfo: "text",
+                customdata: data.hoverInfoArray, // カスタムデータとしてフィルター状態を保存
+                // custom制御用の設定
+                hovertemplate: "%{text}<extra></extra>",
+                hoverlabel: {
+                  align: "left",
+                  bgcolor: "white",
+                  bordercolor: clusterColorMap[data.cluster.id],
+                  font: {
+                    size: 12,
+                    color: "#333",
+                  },
+                },
+              };
+            }
+            // 通常の表示設定
+            return {
+              x: data.xValues,
+              y: data.yValues,
+              mode: "markers",
+              marker: {
+                size: 7,
+                color: clusterColorMap[data.cluster.id],
               },
-            },
-          }))}
+              type: "scatter",
+              text: data.texts,
+              hoverinfo: "text",
+              hoverlabel: {
+                align: "left",
+                bgcolor: "white",
+                bordercolor: clusterColorMap[data.cluster.id],
+                font: {
+                  size: 12,
+                  color: "#333",
+                },
+              },
+            };
+          })}
           layout={{
             margin: { l: 0, r: 0, b: 0, t: 0 },
             xaxis: {

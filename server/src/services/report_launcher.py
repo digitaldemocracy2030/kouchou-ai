@@ -72,15 +72,24 @@ def save_input_file(report_input: ReportInput) -> Path:
     Returns:
         Path: 保存されたCSVファイルのパス
     """
-    comments = [
-        {
+    comments = []
+    for comment in report_input.comments:
+        # 基本フィールドの設定
+        comment_data = {
             "comment-id": comment.id,
             "comment-body": comment.comment,
             "source": comment.source,
             "url": comment.url,
         }
-        for comment in report_input.comments
-    ]
+        
+        # 追加の属性フィールドを含める
+        for key, value in comment.dict(exclude={"id", "comment", "source", "url"}).items():
+            if value is not None:
+                # すでに"attribute_"プレフィックスがついているかチェック
+                comment_data[key] = value
+                
+        comments.append(comment_data)
+        
     input_path = settings.INPUT_DIR / f"{report_input.input}.csv"
     df = pd.DataFrame(comments)
     df.to_csv(input_path, index=False)

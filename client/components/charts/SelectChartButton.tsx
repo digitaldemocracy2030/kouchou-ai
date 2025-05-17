@@ -10,6 +10,7 @@ type Props = {
   onClickDensitySetting: () => void;
   onClickFullscreen: () => void;
   isDenseGroupEnabled: boolean;
+  attributeFilterButton?: React.ReactNode;
 };
 
 export function SelectChartButton({
@@ -18,6 +19,7 @@ export function SelectChartButton({
   onClickDensitySetting,
   onClickFullscreen,
   isDenseGroupEnabled,
+  attributeFilterButton,
 }: Props) {
   return (
     <HStack w={"100%"} maxW={"1200px"} mx={"auto"} justify={"space-between"} align={"center"} mb={2}>
@@ -72,6 +74,7 @@ export function SelectChartButton({
         </HStack>
       </RadioCardRoot>
       <HStack>
+        {attributeFilterButton}
         <Tooltip content={"表示設定"} openDelay={0} closeDelay={0}>
           <Button onClick={onClickDensitySetting} variant={"outline"} h={"50px"}>
             <Icon>

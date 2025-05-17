@@ -26,6 +26,7 @@ export function validateFormValues({
   spreadsheetImported,
   selectedCommentColumn,
   csvColumns,
+  selectedAttributeColumns,
   provider,
   modelOptions,
 }: {
@@ -41,6 +42,7 @@ export function validateFormValues({
   spreadsheetImported: boolean;
   selectedCommentColumn: string;
   csvColumns: string[];
+  selectedAttributeColumns?: string[];
   provider?: string;
   modelOptions?: { value: string; label: string }[];
 }): { isValid: boolean; errorMessage?: string } {

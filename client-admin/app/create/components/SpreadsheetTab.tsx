@@ -1,6 +1,7 @@
 import { Button, Field, HStack, Input, Tabs, Text, VStack } from "@chakra-ui/react";
 import type { useClusterSettings } from "../hooks/useClusterSettings";
 import type { SpreadsheetComment } from "../types";
+import { AttributeColumnsSelector } from "./AttributeColumnsSelector";
 import { ClusterSettingsSection } from "./ClusterSettingsSection";
 import { CommentColumnSelector } from "./CommentColumnSelector";
 
@@ -16,6 +17,8 @@ export function SpreadsheetTab({
   csvColumns,
   selectedCommentColumn,
   setSelectedCommentColumn,
+  selectedAttributeColumns,
+  setSelectedAttributeColumns,
   clusterSettings,
   onImport,
   onClearData,
@@ -30,6 +33,8 @@ export function SpreadsheetTab({
   csvColumns: string[];
   selectedCommentColumn: string;
   setSelectedCommentColumn: (column: string) => void;
+  selectedAttributeColumns: string[];
+  setSelectedAttributeColumns: (columns: string[]) => void;
   clusterSettings: ReturnType<typeof useClusterSettings>;
   onImport: () => Promise<void>;
   onClearData: () => Promise<void>;
@@ -71,6 +76,13 @@ export function SpreadsheetTab({
             columns={csvColumns}
             selectedColumn={selectedCommentColumn}
             onColumnChange={setSelectedCommentColumn}
+          />
+
+          <AttributeColumnsSelector 
+            columns={csvColumns}
+            selectedColumn={selectedCommentColumn}
+            selectedAttributes={selectedAttributeColumns}
+            onAttributeChange={setSelectedAttributeColumns}
           />
 
           <ClusterSettingsSection

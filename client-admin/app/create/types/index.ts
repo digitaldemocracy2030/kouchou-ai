@@ -4,6 +4,7 @@ export interface SpreadsheetComment {
   comment: string;
   source?: string | null;
   url?: string | null;
+  [key: string]: string | null | undefined;
 }
 
 export interface ClusterSettings {

@@ -35,6 +35,7 @@ export type Result = {
   overview: string; // 解析概要
   config: Config; // 設定情報
   comment_num: number; // コメント数
+  filteredArgumentIds?: string[]; // フィルターに一致した引数IDのリスト（グレーアウト表示の制御に使用）
 };
 
 type Argument = {
@@ -45,6 +46,7 @@ type Argument = {
   y: number; // Y 座標（データの位置情報）
   p: number; // 追加情報（数値）
   cluster_ids: string[]; // 属するクラスタの ID リスト
+  attributes?: Record<string, string | number>; // 属性情報
 };
 
 export type Cluster = {

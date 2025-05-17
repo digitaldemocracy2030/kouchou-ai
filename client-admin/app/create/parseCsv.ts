@@ -8,6 +8,8 @@ export interface CsvData {
   comment: string;
   source?: string | null;
   url?: string | null;
+  // Allow for dynamic attribute fields
+  [key: string]: string | null | undefined;
 }
 
 export async function parseCsv(csvFile: File): Promise<CsvData[]> {

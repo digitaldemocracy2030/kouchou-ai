@@ -26,6 +26,7 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
   // カラム関連の状態
   const [csvColumns, setCsvColumns] = useState<string[]>([]);
   const [selectedCommentColumn, setSelectedCommentColumn] = useState<string>("");
+  const [selectedAttributeColumns, setSelectedAttributeColumns] = useState<string[]>([]);
 
   /**
    * 最適なカラムを選択する関数
@@ -65,6 +66,7 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
       } else {
         setCsvColumns([]);
         setSelectedCommentColumn("");
+        setSelectedAttributeColumns([]);
       }
     },
     [selectBestColumn],
@@ -138,6 +140,7 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
       setImportedId("");
       setSpreadsheetUrl("");
       setSelectedCommentColumn("");
+      setSelectedAttributeColumns([]);
       setCsvColumns([]);
     }
   }, [importedId]);
@@ -163,6 +166,7 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
         // データがない場合はカラムリセット
         setCsvColumns([]);
         setSelectedCommentColumn("");
+        setSelectedAttributeColumns([]);
       }
     },
     [csv, spreadsheetData, selectBestColumn],
@@ -183,11 +187,13 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
     importedId,
     csvColumns,
     selectedCommentColumn,
+    selectedAttributeColumns, 
     canImport,
     setInputType: handleInputTypeChange,
     setCsv: handleCsvChange,
     setSpreadsheetUrl,
     setSelectedCommentColumn,
+    setSelectedAttributeColumns,
     setCsvColumns,
     importSpreadsheet: handleImportSpreadsheet,
     clearSpreadsheetData: handleClearSpreadsheetData,
