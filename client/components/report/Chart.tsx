@@ -36,7 +36,7 @@ export function Chart({
   filterState, // 追加: フィルター状態
 }: ReportProps & { filterState?: FilterState }) {
   // フィルター済み引数IDリストを計算
-  const filteredArgumentIds = useMemo(() => {
+  const filteredArgumentIds = useMemo<string[] | undefined>(() => {
     if (!filterState) return undefined;
     const { attributeFilters, numericRanges, enabledRanges, includeEmptyValues } = filterState;
 

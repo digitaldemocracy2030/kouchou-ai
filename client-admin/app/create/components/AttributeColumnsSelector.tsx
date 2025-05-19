@@ -1,25 +1,28 @@
-import { Box, Text, VStack } from "@chakra-ui/react";
+import { Box, Checkbox, Text, VStack } from "@chakra-ui/react";
+import { ChangeEvent } from "react";
 
 /**
  * 属性カラム選択コンポーネント
  * このコンポーネントはCSVファイルから選択した属性カラムを管理します
  */
+export interface AttributeColumnsSelectorProps {
+  columns: string[];
+  selectedColumn: string; // コメントカラム
+  selectedAttributes: string[]; // 選択された属性カラム
+  onAttributeChange: (attributes: string[]) => void; // 属性選択変更時のコールバック
+}
+
 export function AttributeColumnsSelector({
   columns,
   selectedColumn,
   selectedAttributes,
   onAttributeChange,
-}: {
-  columns: string[];
-  selectedColumn: string; // コメントカラム
-  selectedAttributes: string[]; // 選択された属性カラム
-  onAttributeChange: (attributes: string[]) => void; // 属性選択変更時のコールバック
-}) {
+}: AttributeColumnsSelectorProps) {
   // 選択可能な属性カラム (コメントカラム、IDは除外)
   const availableAttributes = columns.filter((col) => col !== selectedColumn && col !== "id");
 
   // チェックボックスの変更ハンドラー
-  const handleCheckboxChange = (attribute: string, isChecked: boolean) => {
+  const handleCheckboxChange = (attribute: string, isChecked: boolean): void => {
     if (isChecked) {
       // 属性を追加
       onAttributeChange([...selectedAttributes, attribute]);
@@ -41,14 +44,14 @@ export function AttributeColumnsSelector({
       <VStack align="flex-start" gap={2}>
         {availableAttributes.map((attribute) => (
           <Box key={attribute} display="flex" alignItems="center">
-            <input
-              type="checkbox"
+            <Checkbox
               id={`attribute-${attribute}`}
-              checked={selectedAttributes.includes(attribute)}
-              onChange={(e) => handleCheckboxChange(attribute, e.target.checked)}
-              style={{ marginRight: "8px" }}
-            />
-            <label htmlFor={`attribute-${attribute}`}>{attribute}</label>
+              isChecked={selectedAttributes.includes(attribute)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => handleCheckboxChange(attribute, e.target.checked)}
+              mr={2}
+            >
+              {attribute}
+            </Checkbox>
           </Box>
         ))}
       </VStack>

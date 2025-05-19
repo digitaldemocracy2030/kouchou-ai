@@ -86,7 +86,8 @@ def save_input_file(report_input: ReportInput) -> Path:
         for key, value in comment.dict(exclude={"id", "comment", "source", "url"}).items():
             if value is not None:
                 # すでに"attribute_"プレフィックスがついているかチェック
-                comment_data[key] = value
+                attribute_key = key if key.startswith("attribute_") else f"attribute_{key}"
+                comment_data[attribute_key] = value
 
         comments.append(comment_data)
 

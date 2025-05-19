@@ -1,7 +1,5 @@
 // 属性フィルター条件に従って標本配列をフィルタリングするユーティリティ
-import type { AttributeFilters } from "./AttributeFilterDialog";
-
-export type NumericRangeFilters = Record<string, [number, number]>;
+import type { AttributeFilters, NumericRangeFilters } from "./AttributeFilterDialog";
 
 /**
  * 標本配列をフィルター条件に従ってフィルタリングする
@@ -22,7 +20,8 @@ export function filterSamples(
     // カテゴリ属性
     for (const [attr, values] of Object.entries(filters)) {
       if (values.length > 0 && values[0] !== undefined) {
-        if (!values.includes(sample[attr] ?? "")) {
+        const sampleValue = sample[attr] ?? "";
+        if (!values.includes(sampleValue)) {
           return false;
         }
       }

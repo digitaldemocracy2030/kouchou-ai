@@ -1,13 +1,14 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { DialogBody, DialogContent, DialogFooter, DialogRoot } from "@/components/ui/dialog";
-import { Box, Button, Flex, Heading, Input, Text, Wrap, WrapItem } from "@chakra-ui/react";
-import { useCallback, useMemo, useState } from "react";
+import { Box, Button, Flex, Heading, Text, Wrap, WrapItem } from "@chakra-ui/react";
+import { ChangeEvent, useCallback, useMemo, useState } from "react";
+import { NumericRangeFilterItem } from "./NumericRangeFilterItem";
 
 export type AttributeFilters = Record<string, string[]>;
-type NumericRangeFilters = Record<string, [number, number]>;
+export type NumericRangeFilters = Record<string, [number, number]>;
 type AttributeTypes = Record<string, "numeric" | "categorical">;
 
-type Props = {
+interface AttributeFilterDialogProps {
   onClose: () => void;
   onApplyFilters: (
     filters: AttributeFilters,
@@ -21,7 +22,7 @@ type Props = {
   initialNumericRanges?: NumericRangeFilters;
   initialEnabledRanges?: Record<string, boolean>;
   initialIncludeEmptyValues?: Record<string, boolean>;
-};
+}
 
 export function AttributeFilterDialog({
   onClose,
@@ -31,7 +32,7 @@ export function AttributeFilterDialog({
   initialNumericRanges = {},
   initialEnabledRanges = {},
   initialIncludeEmptyValues = {},
-}: Props) {
+}: AttributeFilterDialogProps) {
   // 属性名リスト
   const attributeNames = useMemo(() => {
     if (samples.length === 0) return [];
@@ -44,8 +45,8 @@ export function AttributeFilterDialog({
     for (const attr of attributeNames) {
       // 空文字を除外し、値を昇順ソート
       result[attr] = Array.from(new Set(samples.map((s) => s[attr] ?? "")))
-        .filter((v) => v !== "")
-        .sort((a, b) => a.localeCompare(b, "ja"));
+        .filter((v: string) => v !== "")
+        .sort((a: string, b: string) => a.localeCompare(b, "ja"));
     }
     return result;
   }, [samples, attributeNames]);
@@ -56,7 +57,7 @@ export function AttributeFilterDialog({
     for (const attr of attributeNames) {
       const values = availableAttributes[attr];
       // 空文字は除外して型判定
-      const isNumeric = values.filter((v) => v.trim() !== "").every((v) => !Number.isNaN(Number(v)));
+      const isNumeric = values.filter((v: string) => v.trim() !== "").every((v: string) => !Number.isNaN(Number(v)));
       typeMap[attr] = isNumeric && values.length > 0 ? "numeric" : "categorical";
     }
     return typeMap;
@@ -68,7 +69,7 @@ export function AttributeFilterDialog({
     for (const attr of attributeNames) {
       if (attributeTypes[attr] === "numeric") {
         // 空文字を除外して数値化
-        const nums = availableAttributes[attr].filter((v) => v.trim() !== "").map(Number);
+        const nums = availableAttributes[attr].filter((v: string) => v.trim() !== "").map(Number);
         if (nums.length > 0) {
           ranges[attr] = [Math.min(...nums), Math.max(...nums)];
         } else {
@@ -93,10 +94,10 @@ export function AttributeFilterDialog({
 
   // --- ハンドラ ---
   const handleCheckboxChange = useCallback((attr: string, value: string) => {
-    setCategoricalFilters((prev) => {
+    setCategoricalFilters((prev: AttributeFilters) => {
       const arr = prev[attr] ?? [];
       if (arr.includes(value)) {
-        const filtered = arr.filter((v) => v !== value);
+        const filtered = arr.filter((v: string) => v !== value);
         const next = { ...prev };
         if (filtered.length === 0) delete next[attr];
         else next[attr] = filtered;
@@ -106,28 +107,22 @@ export function AttributeFilterDialog({
     });
   }, []);
 
-  const handleMinRangeChange = useCallback(
-    (attr: string, minValue: number) => {
-      setNumericRanges((prev) => {
-        const max = prev[attr]?.[1] ?? numericRangesAll[attr]?.[1] ?? 0;
-        return { ...prev, [attr]: [Math.min(minValue, max), max] };
-      });
+  const handleRangeChange = useCallback(
+    (attr: string, range: [number, number]) => {
+      setNumericRanges((prev: NumericRangeFilters) => ({
+        ...prev,
+        [attr]: range,
+      }));
     },
-    [numericRangesAll],
-  );
-
-  const handleMaxRangeChange = useCallback(
-    (attr: string, maxValue: number) => {
-      setNumericRanges((prev) => {
-        const min = prev[attr]?.[0] ?? numericRangesAll[attr]?.[0] ?? 0;
-        return { ...prev, [attr]: [min, Math.max(maxValue, min)] };
-      });
-    },
-    [numericRangesAll],
+    []
   );
 
   const toggleRangeFilter = useCallback((attr: string, isEnabled: boolean) => {
-    setEnabledRanges((prev) => ({ ...prev, [attr]: isEnabled }));
+    setEnabledRanges((prev: Record<string, boolean>) => ({ ...prev, [attr]: isEnabled }));
+  }, []);
+
+  const handleToggleIncludeEmpty = useCallback((attr: string, include: boolean) => {
+    setIncludeEmptyValues((prev: Record<string, boolean>) => ({ ...prev, [attr]: include }));
   }, []);
 
   const handleClearFilters = useCallback(() => {
@@ -171,7 +166,7 @@ export function AttributeFilterDialog({
                       </Heading>
                       {isNumeric && values.length > 0 && (
                         <Checkbox
-                          checked={!!enabledRanges[attr]}
+                          isChecked={!!enabledRanges[attr]}
                           onChange={() => toggleRangeFilter(attr, !enabledRanges[attr])}
                         >
                           フィルター有効化
@@ -179,41 +174,16 @@ export function AttributeFilterDialog({
                       )}
                     </Flex>
                     {isNumeric && values.length > 0 ? (
-                      <Box pl={2} pr={4} borderWidth={1} borderRadius="md" p={2}>
-                        <Flex align="center">
-                          <Checkbox
-                            checked={includeEmptyValues[attr] || false}
-                            onChange={() => setIncludeEmptyValues((prev) => ({ ...prev, [attr]: !prev[attr] }))}
-                            disabled={!enabledRanges[attr]}
-                            mr={4}
-                          >
-                            空の値を含める
-                          </Checkbox>
-                          <Text fontSize="xs" width="60px" textAlign="right" mr={2}>
-                            最小: {numericRangesAll[attr]?.[0] ?? "-"}
-                          </Text>
-                          <Input
-                            type="number"
-                            value={numericRanges[attr]?.[0] ?? ""}
-                            onChange={(e) => handleMinRangeChange(attr, Number(e.target.value))}
-                            size="sm"
-                            width="100px"
-                            disabled={!enabledRanges[attr]}
-                          />
-                          <Text mx={2}>～</Text>
-                          <Input
-                            type="number"
-                            value={numericRanges[attr]?.[1] ?? ""}
-                            onChange={(e) => handleMaxRangeChange(attr, Number(e.target.value))}
-                            size="sm"
-                            width="100px"
-                            disabled={!enabledRanges[attr]}
-                          />
-                          <Text fontSize="xs" width="60px" textAlign="left" ml={2}>
-                            最大: {numericRangesAll[attr]?.[1] ?? "-"}
-                          </Text>
-                        </Flex>
-                      </Box>
+                      <NumericRangeFilterItem
+                        attr={attr}
+                        range={numericRanges[attr] || numericRangesAll[attr]}
+                        fullRange={numericRangesAll[attr]}
+                        isEnabled={!!enabledRanges[attr]}
+                        includeEmpty={!!includeEmptyValues[attr]}
+                        onRangeChange={handleRangeChange}
+                        onToggleEnabled={toggleRangeFilter}
+                        onToggleIncludeEmpty={handleToggleIncludeEmpty}
+                      />
                     ) : (
                       <Box pl={2}>
                         <Wrap style={{ gap: "8px" }}>
@@ -230,7 +200,7 @@ export function AttributeFilterDialog({
                                 onClick={() => handleCheckboxChange(attr, value)}
                               >
                                 <Checkbox
-                                  checked={categoricalFilters[attr]?.includes(value) || false}
+                                  isChecked={categoricalFilters[attr]?.includes(value) || false}
                                   onChange={() => handleCheckboxChange(attr, value)}
                                 >
                                   {value || "(空)"}

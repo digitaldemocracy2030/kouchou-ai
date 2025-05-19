@@ -3,7 +3,7 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, List, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -41,12 +41,12 @@ def json_serialize_numpy(obj: Any) -> Any:
 class Argument(TypedDict):
     arg_id: str
     argument: str
-    comment_id: str
     x: float
     y: float
-    p: float
+    p: int  # NOTE: 一旦全部0でいれる
     cluster_ids: list[str]
-    attributes: dict[str, str] | None
+    attributes: dict[str, str | float | int | list[Any] | None] | None
+    comment_id: str | None  # Make optional
 
 
 class Cluster(TypedDict):
@@ -232,6 +232,7 @@ def _build_arguments(clusters: pd.DataFrame, comments: pd.DataFrame, relation_df
             "p": 0,  # NOTE: 一旦全部0でいれる
             "cluster_ids": cluster_ids,
             "attributes": None,
+            "comment_id": arg_comment_map.get(row["arg-id"]) if row["arg-id"] in arg_comment_map else None,
         }
 
         # Add attributes if available
