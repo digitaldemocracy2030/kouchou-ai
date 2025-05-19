@@ -49,44 +49,48 @@ export function CsvFileTab({
           <DownloadIcon size={14} />
           サンプルCSVをダウンロード
         </Link>
-        <FileUploadRoot
-          w={"full"}
-          alignItems="stretch"
-          accept={["text/csv"]}
-          inputProps={{ multiple: false }}
-          onFileChange={async (e: { acceptedFiles: File[] }) => {
-            const file = e.acceptedFiles[0];
-            setCsv(file);
-            if (file) {
-              const parsed = await parseCsv(file);
-              if (parsed.length > 0) {
-                const columns = Object.keys(parsed[0]);
-                setCsvColumns(columns);
+        {/* Wrap only the FileUpload specific components in a Box to isolate them */}
+        <Box>
+          <FileUploadRoot
+            w={"full"}
+            alignItems="stretch"
+            accept={["text/csv"]}
+            inputProps={{ multiple: false }}
+            onFileChange={async (e: { acceptedFiles: File[] }) => {
+              const file = e.acceptedFiles[0];
+              setCsv(file);
+              if (file) {
+                const parsed = await parseCsv(file);
+                if (parsed.length > 0) {
+                  const columns = Object.keys(parsed[0]);
+                  setCsvColumns(columns);
 
-                // 最適なカラムを自動選択
-                const bestColumn = getBestCommentColumn(parsed as unknown as Record<string, unknown>[]);
-                if (bestColumn) {
-                  setSelectedCommentColumn(bestColumn);
+                  // 最適なカラムを自動選択
+                  const bestColumn = getBestCommentColumn(parsed as unknown as Record<string, unknown>[]);
+                  if (bestColumn) {
+                    setSelectedCommentColumn(bestColumn);
+                  }
+                  clusterSettings.setRecommended(parsed.length);
                 }
-                clusterSettings.setRecommended(parsed.length);
               }
-            }
-          }}
-        >
-          <Box opacity={csv ? 0.5 : 1} pointerEvents={csv ? "none" : "auto"}>
-            <FileUploadDropzone label="分析するコメントファイルを選択してください" description=".csv" />
-          </Box>
-          <FileUploadList
-            clearable={true}
-            onRemove={() => {
-              setCsv(null);
-              setCsvColumns([]);
-              setSelectedCommentColumn("");
-              clusterSettings.resetClusterSettings();
             }}
-          />
-        </FileUploadRoot>
+          >
+            <Box opacity={csv ? 0.5 : 1} pointerEvents={csv ? "none" : "auto"}>
+              <FileUploadDropzone label="分析するコメントファイルを選択してください" description=".csv" />
+            </Box>
+            <FileUploadList
+              clearable={true}
+              onRemove={() => {
+                setCsv(null);
+                setCsvColumns([]);
+                setSelectedCommentColumn("");
+                clusterSettings.resetClusterSettings();
+              }}
+            />
+          </FileUploadRoot>
+        </Box>
 
+        {/* These components are now outside the FileUploadRoot */}
         <CommentColumnSelector
           columns={csvColumns}
           selectedColumn={selectedCommentColumn}
