@@ -1,6 +1,7 @@
-import { Box, Checkbox, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text } from "@chakra-ui/react";
 import { useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type NumericRangeFilterItemProps = {
   attr: string;
@@ -51,7 +52,7 @@ export function NumericRangeFilterItem({
             max={fullRange[1]}
             step={1}
             value={[range[0], range[1]]}
-            onValueChange={(value: number | number[]) => handleRangeChange(Array.isArray(value) ? value : [value, value])}
+            onValueChange={(details) => handleRangeChange(Array.isArray(details.value) ? details.value : [details.value, details.value])}
             disabled={!isEnabled}
             marks={[
               { value: fullRange[0], label: `${fullRange[0]}` },

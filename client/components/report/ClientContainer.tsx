@@ -1,7 +1,7 @@
 "use client";
 
 import { SelectChartButton } from "@/components/charts/SelectChartButton";
-import { AttributeFilterDialog, type AttributeFilters } from "@/components/report/AttributeFilterDialog";
+import { AttributeFilterDialog, type AttributeFilters, type NumericRangeFilters } from "@/components/report/AttributeFilterDialog";
 import { Chart } from "@/components/report/Chart";
 import { ClusterOverview } from "@/components/report/ClusterOverview";
 import { DisplaySettingDialog } from "@/components/report/DisplaySettingDialog";
@@ -10,7 +10,7 @@ import type { Cluster, Result } from "@/type";
 import { Box, Button, Icon } from "@chakra-ui/react";
 import { Filter } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { type NumericRangeFilters, filterSamples } from "./attributeFilterUtils";
+import { filterSamples } from "./attributeFilterUtils";
 
 type Props = {
   result: Result;
@@ -84,12 +84,12 @@ export function ClientContainer({ result }: Props) {
 
     Object.entries(availableAttributes).forEach(([attribute, values]) => {
       // 全ての値が数値に変換可能かチェック
-      const isNumeric = values.every((value) => {
+      const isNumeric = (values as string[]).every((value: string) => {
         const trimmedValue = value.trim();
         return trimmedValue === "" || !Number.isNaN(Number(trimmedValue));
       });
 
-      typeMap[attribute] = isNumeric && values.length > 0 ? "numeric" : "categorical";
+      typeMap[attribute] = isNumeric && (values as string[]).length > 0 ? "numeric" : "categorical";
     });
 
     return typeMap;
@@ -102,9 +102,9 @@ export function ClientContainer({ result }: Props) {
     Object.entries(availableAttributes).forEach(([attribute, values]) => {
       if (attributeTypes[attribute] === "numeric") {
         // 数値に変換
-        const numericValues = values
-          .map((v) => (v.trim() === "" ? Number.NaN : Number(v)))
-          .filter((v) => !Number.isNaN(v));
+        const numericValues = (values as string[])
+          .map((v: string) => (v.trim() === "" ? Number.NaN : Number(v)))
+          .filter((v: number) => !Number.isNaN(v));
         // 数値が存在しない場合はスキップ
         if (numericValues.length === 0) return;
 
@@ -176,7 +176,8 @@ export function ClientContainer({ result }: Props) {
 
             // 数値範囲チェック
             const numValue = Number(attrValue);
-            return !Number.isNaN(numValue) && numValue >= range[0] && numValue <= range[1];
+            const typedRange = range as [number, number];
+            return !Number.isNaN(numValue) && numValue >= typedRange[0] && numValue <= typedRange[1];
           });
 
           return passesAttributeFilters && passesNumericRanges;
@@ -252,8 +253,8 @@ export function ClientContainer({ result }: Props) {
   // 表示するクラスタを選択
   const clustersToDisplay =
     selectedChart === "scatterDensity"
-      ? filteredResult.clusters.filter((c) => c.level === Math.max(...filteredResult.clusters.map((c) => c.level)))
-      : result.clusters.filter((c) => c.level === 1);
+      ? filteredResult.clusters.filter((c: Cluster) => c.level === Math.max(...filteredResult.clusters.map((c: Cluster) => c.level)))
+      : result.clusters.filter((c: Cluster) => c.level === 1);
 
   const handleCloseDisplaySetting = () => {
     setOpenDensityFilterSetting(false);
@@ -303,7 +304,7 @@ export function ClientContainer({ result }: Props) {
   };
 
   return (
-    <div>
+    <Box as="div">
       {openDensityFilterSetting && (
         <DisplaySettingDialog
           currentMaxDensity={maxDensity}
@@ -384,10 +385,10 @@ export function ClientContainer({ result }: Props) {
         }}
       />
 
-      {clustersToDisplay.map((c) => (
+      {clustersToDisplay.map((c: Cluster) => (
         <ClusterOverview key={c.id} cluster={c} />
       ))}
-    </div>
+    </Box>
   );
 }
 
