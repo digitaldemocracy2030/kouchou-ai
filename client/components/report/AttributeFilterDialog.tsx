@@ -155,7 +155,7 @@ export function AttributeFilterDialog({
                 利用できる属性情報がありません。CSVファイルをアップロードする際に、属性列を選択してください。
               </Text>
             ) : (
-              attributeNames.map((attr) => {
+              attributeNames.map((attr: string) => {
                 const values = availableAttributes[attr];
                 const isNumeric = attributeTypes[attr] === "numeric";
                 return (
@@ -166,8 +166,10 @@ export function AttributeFilterDialog({
                       </Heading>
                       {isNumeric && values.length > 0 && (
                         <Checkbox
-                          isChecked={!!enabledRanges[attr]}
-                          onChange={() => toggleRangeFilter(attr, !enabledRanges[attr])}
+                          inputProps={{
+                            checked: !!enabledRanges[attr],
+                            onChange: () => toggleRangeFilter(attr, !enabledRanges[attr])
+                          }}
                         >
                           フィルター有効化
                         </Checkbox>
@@ -187,7 +189,7 @@ export function AttributeFilterDialog({
                     ) : (
                       <Box pl={2}>
                         <Wrap style={{ gap: "8px" }}>
-                          {values.map((value) => (
+                          {values.map((value: string) => (
                             <WrapItem key={`${attr}-${value}`} mb={2} mr={3}>
                               <Box
                                 p={1}
@@ -200,8 +202,10 @@ export function AttributeFilterDialog({
                                 onClick={() => handleCheckboxChange(attr, value)}
                               >
                                 <Checkbox
-                                  isChecked={categoricalFilters[attr]?.includes(value) || false}
-                                  onChange={() => handleCheckboxChange(attr, value)}
+                                  inputProps={{
+                                    checked: categoricalFilters[attr]?.includes(value) || false,
+                                    onChange: () => handleCheckboxChange(attr, value)
+                                  }}
                                 >
                                   {value || "(空)"}
                                 </Checkbox>
