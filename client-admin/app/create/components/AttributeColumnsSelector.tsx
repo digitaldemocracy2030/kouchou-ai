@@ -49,9 +49,15 @@ export function AttributeColumnsSelector({
               inputProps={{
                 id: `attribute-${attribute}`,
                 checked: selectedAttributes.includes(attribute),
-                onChange: () => handleCheckboxChange(attribute, !selectedAttributes.includes(attribute))
+                onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                  e.stopPropagation();
+                  handleCheckboxChange(attribute, !selectedAttributes.includes(attribute));
+                }
               }}
               mr={2}
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+              }}
             >
               {attribute}
             </Checkbox>
