@@ -1,4 +1,5 @@
-import { Box, Checkbox, Text, VStack } from "@chakra-ui/react";
+import { Box, Text, VStack } from "@chakra-ui/react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChangeEvent } from "react";
 
 /**
@@ -45,9 +46,11 @@ export function AttributeColumnsSelector({
         {availableAttributes.map((attribute) => (
           <Box key={attribute} display="flex" alignItems="center">
             <Checkbox
-              id={`attribute-${attribute}`}
-              isChecked={selectedAttributes.includes(attribute)}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => handleCheckboxChange(attribute, e.target.checked)}
+              inputProps={{
+                id: `attribute-${attribute}`,
+                checked: selectedAttributes.includes(attribute),
+                onChange: () => handleCheckboxChange(attribute, !selectedAttributes.includes(attribute))
+              }}
               mr={2}
             >
               {attribute}

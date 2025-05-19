@@ -1,5 +1,6 @@
-import { Box, Checkbox, Flex, Input, Text } from "@chakra-ui/react";
-import { ChangeEvent, useCallback } from "react";
+import { Box, Checkbox, Flex, Text } from "@chakra-ui/react";
+import { useCallback } from "react";
+import { Slider } from "@/components/ui/slider";
 
 type NumericRangeFilterItemProps = {
   attr: string;
@@ -22,54 +23,46 @@ export function NumericRangeFilterItem({
   onToggleEnabled,
   onToggleIncludeEmpty,
 }: NumericRangeFilterItemProps) {
-  const handleMinChange = useCallback(
-    (value: number) => {
-      onRangeChange(attr, [Math.min(value, range[1]), range[1]]);
+  const handleRangeChange = useCallback(
+    (value: number[]) => {
+      if (value.length === 2) {
+        onRangeChange(attr, [value[0], value[1]]);
+      }
     },
-    [attr, range, onRangeChange]
-  );
-
-  const handleMaxChange = useCallback(
-    (value: number) => {
-      onRangeChange(attr, [range[0], Math.max(value, range[0])]);
-    },
-    [attr, range, onRangeChange]
+    [attr, onRangeChange]
   );
 
   return (
     <Box pl={2} pr={4} borderWidth={1} borderRadius="md" p={2}>
-      <Flex align="center">
+      <Flex direction="column">
         <Checkbox
-          isChecked={includeEmpty}
-          onChange={() => onToggleIncludeEmpty(attr, !includeEmpty)}
-          disabled={!isEnabled}
-          mr={4}
+          inputProps={{
+            checked: includeEmpty,
+            disabled: !isEnabled,
+            onChange: () => onToggleIncludeEmpty(attr, !includeEmpty)
+          }}
+          mb={2}
         >
           空の値を含める
         </Checkbox>
-        <Text fontSize="xs" width="60px" textAlign="right" mr={2}>
-          最小: {fullRange[0] ?? "-"}
-        </Text>
-        <Input
-          type="number"
-          value={range[0] ?? ""}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => handleMinChange(Number(e.target.value))}
-          size="sm"
-          width="100px"
-          disabled={!isEnabled}
-        />
-        <Text mx={2}>～</Text>
-        <Input
-          type="number"
-          value={range[1] ?? ""}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => handleMaxChange(Number(e.target.value))}
-          size="sm"
-          width="100px"
-          disabled={!isEnabled}
-        />
-        <Text fontSize="xs" width="60px" textAlign="left" ml={2}>
-          最大: {fullRange[1] ?? "-"}
-        </Text>
+        <Flex direction="column">
+          <Slider
+            min={fullRange[0]}
+            max={fullRange[1]}
+            step={1}
+            value={[range[0], range[1]]}
+            onValueChange={(value: number | number[]) => handleRangeChange(Array.isArray(value) ? value : [value, value])}
+            disabled={!isEnabled}
+            marks={[
+              { value: fullRange[0], label: `${fullRange[0]}` },
+              { value: fullRange[1], label: `${fullRange[1]}` }
+            ]}
+          />
+          <Flex justify="space-between" mt={1}>
+            <Text fontSize="xs">{range[0]}</Text>
+            <Text fontSize="xs">{range[1]}</Text>
+          </Flex>
+        </Flex>
       </Flex>
     </Box>
   );

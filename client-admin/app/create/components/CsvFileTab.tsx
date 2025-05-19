@@ -54,7 +54,7 @@ export function CsvFileTab({
           alignItems="stretch"
           accept={["text/csv"]}
           inputProps={{ multiple: false }}
-          onFileChange={async (e) => {
+          onFileChange={async (e: { acceptedFiles: File[] }) => {
             const file = e.acceptedFiles[0];
             setCsv(file);
             if (file) {

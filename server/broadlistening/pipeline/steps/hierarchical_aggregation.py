@@ -3,7 +3,7 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, List, TypedDict
+from typing import Any, TypedDict
 
 import numpy as np
 import pandas as pd
