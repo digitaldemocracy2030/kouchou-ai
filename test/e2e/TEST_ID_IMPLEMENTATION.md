@@ -10,6 +10,8 @@
 - 明示的：テスト対象の要素が明確に識別される
 - メンテナンス性：テストコードが読みやすく、保守しやすい
 
+テストを実装する際、テスト対象の側にTest IDを付与して壊れにくいテストにすることが推奨されます。
+
 ## 実装方法
 
 ### 1. コンポーネントにdata-testid属性を追加
@@ -57,7 +59,3 @@ this.titleField = page.getByTestId('title-field');
 // テストでの使用例
 await expect(page.getByTestId('create-report-title')).toBeVisible();
 ```
-
-## 移行期間の対応
-
-テストIDが実装されるまでの間は、環境変数 `USE_TEST_IDS=false` を設定することで、従来のセレクタを使用することができます。
