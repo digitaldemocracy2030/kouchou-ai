@@ -33,7 +33,7 @@ export function CsvFileTab({
 }) {
   return (
     <Tabs.Content value="file">
-      <VStack alignItems="stretch" w="full">
+      <VStack align="stretch" w="full" gap={4}>
         <Link
           href="/sample_comments.csv"
           download
@@ -50,8 +50,8 @@ export function CsvFileTab({
           サンプルCSVをダウンロード
         </Link>
         
-        {/* Wrap only the FileUpload specific components in a Box to isolate them */}
-        <Box>
+        {/* File upload section completely isolated in its own Box with position relative */}
+        <Box position="relative" zIndex={1} mb={4}>
           <FileUploadRoot
             w={"full"}
             alignItems="stretch"
@@ -91,28 +91,32 @@ export function CsvFileTab({
           </FileUploadRoot>
         </Box>
 
-        {/* These components are now outside the FileUploadRoot */}
-        <CommentColumnSelector
-          columns={csvColumns}
-          selectedColumn={selectedCommentColumn}
-          onColumnChange={setSelectedCommentColumn}
-        />
+        {/* Form components section with higher z-index to ensure they're above the file upload */}
+        <Box position="relative" zIndex={2}>
+          <VStack align="stretch" w="full" gap={4}>
+            <CommentColumnSelector
+              columns={csvColumns}
+              selectedColumn={selectedCommentColumn}
+              onColumnChange={setSelectedCommentColumn}
+            />
 
-        <AttributeColumnsSelector
-          columns={csvColumns}
-          selectedColumn={selectedCommentColumn}
-          selectedAttributes={selectedAttributeColumns}
-          onAttributeChange={setSelectedAttributeColumns}
-        />
+            <AttributeColumnsSelector
+              columns={csvColumns}
+              selectedColumn={selectedCommentColumn}
+              selectedAttributes={selectedAttributeColumns}
+              onAttributeChange={setSelectedAttributeColumns}
+            />
 
-        <ClusterSettingsSection
-          clusterLv1={clusterSettings.clusterLv1}
-          clusterLv2={clusterSettings.clusterLv2}
-          recommendedClusters={clusterSettings.recommendedClusters}
-          autoAdjusted={clusterSettings.autoAdjusted}
-          onLv1Change={clusterSettings.handleLv1Change}
-          onLv2Change={clusterSettings.handleLv2Change}
-        />
+            <ClusterSettingsSection
+              clusterLv1={clusterSettings.clusterLv1}
+              clusterLv2={clusterSettings.clusterLv2}
+              recommendedClusters={clusterSettings.recommendedClusters}
+              autoAdjusted={clusterSettings.autoAdjusted}
+              onLv1Change={clusterSettings.handleLv1Change}
+              onLv2Change={clusterSettings.handleLv2Change}
+            />
+          </VStack>
+        </Box>
       </VStack>
     </Tabs.Content>
   );
