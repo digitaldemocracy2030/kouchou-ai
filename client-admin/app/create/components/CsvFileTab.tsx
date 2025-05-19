@@ -8,6 +8,7 @@ import { getBestCommentColumn } from "../utils/columnScorer";
 import { AttributeColumnsSelector } from "./AttributeColumnsSelector";
 import { ClusterSettingsSection } from "./ClusterSettingsSection";
 import { CommentColumnSelector } from "./CommentColumnSelector";
+import { useState, useEffect } from "react";
 
 // CSVファイルタブコンポーネント
 export function CsvFileTab({
@@ -31,6 +32,19 @@ export function CsvFileTab({
   setSelectedAttributeColumns: (columns: string[]) => void;
   clusterSettings: ReturnType<typeof useClusterSettings>;
 }) {
+  const [showFileUpload, setShowFileUpload] = useState<boolean>(true);
+  
+  // CSVファイルがアップロードされたら、ファイルアップロード部分を非表示にする
+  useEffect(() => {
+    if (csv) {
+      setShowFileUpload(false);
+    }
+  }, [csv]);
+  
+  const handleShowFileUpload = () => {
+    setShowFileUpload(true);
+  };
+
   return (
     <Tabs.Content value="file">
       <VStack align="stretch" w="full" gap={4}>
@@ -50,73 +64,99 @@ export function CsvFileTab({
           サンプルCSVをダウンロード
         </Link>
         
-        {/* File upload section completely isolated in its own Box with position relative */}
-        <Box position="relative" zIndex={1} mb={4}>
-          <FileUploadRoot
-            w={"full"}
-            alignItems="stretch"
-            accept={["text/csv"]}
-            inputProps={{ multiple: false }}
-            onFileChange={async (e: { acceptedFiles: File[] }) => {
-              const file = e.acceptedFiles[0];
-              setCsv(file);
-              if (file) {
-                const parsed = await parseCsv(file);
-                if (parsed.length > 0) {
-                  const columns = Object.keys(parsed[0]);
-                  setCsvColumns(columns);
+        {/* ファイルアップロード部分 - 条件付きレンダリング */}
+        {showFileUpload ? (
+          <Box position="relative" mb={4}>
+            <FileUploadRoot
+              w={"full"}
+              alignItems="stretch"
+              accept={["text/csv"]}
+              inputProps={{ multiple: false }}
+              onFileChange={async (e: { acceptedFiles: File[] }) => {
+                const file = e.acceptedFiles[0];
+                setCsv(file);
+                if (file) {
+                  const parsed = await parseCsv(file);
+                  if (parsed.length > 0) {
+                    const columns = Object.keys(parsed[0]);
+                    setCsvColumns(columns);
 
-                  // 最適なカラムを自動選択
-                  const bestColumn = getBestCommentColumn(parsed as unknown as Record<string, unknown>[]);
-                  if (bestColumn) {
-                    setSelectedCommentColumn(bestColumn);
+                    // 最適なカラムを自動選択
+                    const bestColumn = getBestCommentColumn(parsed as unknown as Record<string, unknown>[]);
+                    if (bestColumn) {
+                      setSelectedCommentColumn(bestColumn);
+                    }
+                    clusterSettings.setRecommended(parsed.length);
                   }
-                  clusterSettings.setRecommended(parsed.length);
                 }
-              }
-            }}
-          >
-            <Box opacity={csv ? 0.5 : 1} pointerEvents={csv ? "none" : "auto"}>
-              <FileUploadDropzone label="分析するコメントファイルを選択してください" description=".csv" />
-            </Box>
-            <FileUploadList
-              clearable={true}
-              onRemove={() => {
-                setCsv(null);
-                setCsvColumns([]);
-                setSelectedCommentColumn("");
-                clusterSettings.resetClusterSettings();
               }}
-            />
-          </FileUploadRoot>
-        </Box>
+            >
+              <Box opacity={csv ? 0.5 : 1} pointerEvents={csv ? "none" : "auto"}>
+                <FileUploadDropzone label="分析するコメントファイルを選択してください" description=".csv" />
+              </Box>
+              <FileUploadList
+                clearable={true}
+                onRemove={() => {
+                  setCsv(null);
+                  setCsvColumns([]);
+                  setSelectedCommentColumn("");
+                  clusterSettings.resetClusterSettings();
+                  setShowFileUpload(true);
+                }}
+              />
+            </FileUploadRoot>
+          </Box>
+        ) : (
+          <Box mb={4}>
+            <Box display="flex" alignItems="center" p={2} borderWidth={1} borderRadius="md">
+              <Box flex="1">{csv?.name}</Box>
+              <Box 
+                as="button" 
+                onClick={() => {
+                  setCsv(null);
+                  setCsvColumns([]);
+                  setSelectedCommentColumn("");
+                  clusterSettings.resetClusterSettings();
+                  setShowFileUpload(true);
+                }}
+                ml={2}
+                color="red.500"
+                fontSize="sm"
+              >
+                削除
+              </Box>
+            </Box>
+          </Box>
+        )}
 
-        {/* Form components section with higher z-index to ensure they're above the file upload */}
-        <Box position="relative" zIndex={2}>
-          <VStack align="stretch" w="full" gap={4}>
-            <CommentColumnSelector
-              columns={csvColumns}
-              selectedColumn={selectedCommentColumn}
-              onColumnChange={setSelectedCommentColumn}
-            />
+        {/* ファイルがアップロードされている場合のみ、フォームコンポーネントを表示 */}
+        {csv && (
+          <Box>
+            <VStack align="stretch" w="full" gap={4}>
+              <CommentColumnSelector
+                columns={csvColumns}
+                selectedColumn={selectedCommentColumn}
+                onColumnChange={setSelectedCommentColumn}
+              />
 
-            <AttributeColumnsSelector
-              columns={csvColumns}
-              selectedColumn={selectedCommentColumn}
-              selectedAttributes={selectedAttributeColumns}
-              onAttributeChange={setSelectedAttributeColumns}
-            />
+              <AttributeColumnsSelector
+                columns={csvColumns}
+                selectedColumn={selectedCommentColumn}
+                selectedAttributes={selectedAttributeColumns}
+                onAttributeChange={setSelectedAttributeColumns}
+              />
 
-            <ClusterSettingsSection
-              clusterLv1={clusterSettings.clusterLv1}
-              clusterLv2={clusterSettings.clusterLv2}
-              recommendedClusters={clusterSettings.recommendedClusters}
-              autoAdjusted={clusterSettings.autoAdjusted}
-              onLv1Change={clusterSettings.handleLv1Change}
-              onLv2Change={clusterSettings.handleLv2Change}
-            />
-          </VStack>
-        </Box>
+              <ClusterSettingsSection
+                clusterLv1={clusterSettings.clusterLv1}
+                clusterLv2={clusterSettings.clusterLv2}
+                recommendedClusters={clusterSettings.recommendedClusters}
+                autoAdjusted={clusterSettings.autoAdjusted}
+                onLv1Change={clusterSettings.handleLv1Change}
+                onLv2Change={clusterSettings.handleLv2Change}
+              />
+            </VStack>
+          </Box>
+        )}
       </VStack>
     </Tabs.Content>
   );
