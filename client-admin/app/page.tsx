@@ -94,12 +94,14 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
   const [progress, setProgress] = useState<string>("loading");
   const [errorStep, setErrorStep] = useState<string | null>(null);
   const [lastValidStep, setLastValidStep] = useState<string>("loading");
-  const [isPolling, setIsPolling] = useState<boolean>(true);
+  // shouldSubscribe が false (レポートが ready または error) の場合は初期値も false に
+  const [isPolling, setIsPolling] = useState<boolean>(shouldSubscribe);
 
   // hasReloaded のデフォルト値を false に設定
   const [hasReloaded, setHasReloaded] = useState<boolean>(false);
 
   useEffect(() => {
+    // shouldSubscribe が false (レポートが ready または error) またはポーリング停止状態なら何もしない
     if (!shouldSubscribe || !isPolling) return;
 
     let cancelled = false;
@@ -107,9 +109,17 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
     const maxRetries = 10;
 
     async function poll() {
-      if (cancelled) return;
+      // cancelled フラグまたはポーリング停止フラグがセットされていたら終了
+      if (cancelled || !isPolling) return;
 
       try {
+        // 処理済みのレポートには不要なリクエストを送らない
+        if (progress === "completed" || progress === "error") {
+          // ポーリングを確実に停止
+          setIsPolling(false);
+          return;
+        }
+
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASEPATH}/admin/reports/${slug}/status/step-json`, {
           headers: {
             "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
@@ -175,18 +185,18 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [slug, shouldSubscribe, lastValidStep, isPolling]);
+  }, [slug, shouldSubscribe, lastValidStep, isPolling, progress]);
 
   useEffect(() => {
-    // 完了またはエラーでかつリロード済みでない場合
-    if ((progress === "completed" || progress === "error") && !hasReloaded) {
-      setHasReloaded(true);
+    // 完了またはエラーになった場合、UIを更新するだけにする（リロードはしない）
+    if (progress === "completed" || progress === "error") {
+      // ポーリングが既に停止していることを確認
+      setIsPolling(false);
 
-      const reloadTimeout = setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-
-      return () => clearTimeout(reloadTimeout);
+      // フラグを設定するだけで、リロードは行わない
+      if (!hasReloaded) {
+        setHasReloaded(true);
+      }
     }
   }, [progress, hasReloaded]);
 
@@ -204,7 +214,10 @@ function ReportCard({
   setReports?: (reports: Report[] | undefined) => void;
 }) {
   const statusDisplay = getStatusDisplay(report.status);
-  const { progress, errorStep } = useReportProgressPoll(report.slug, report.status !== "ready");
+  const { progress, errorStep } = useReportProgressPoll(
+    report.slug,
+    report.status !== "ready" && report.status !== "error",
+  );
 
   const currentStepIndex =
     progress === "completed" ? steps.length : stepKeys.indexOf(progress) === -1 ? 0 : stepKeys.indexOf(progress);
@@ -219,18 +232,20 @@ function ReportCard({
   // エラー状態の判定
   const isErrorState = progress === "error" || report.status === "error";
 
-  // progress が変更されたときにレポート状態を更新
+  // progress が変更されたときにレポート状態を更新（一度だけ）
   useEffect(() => {
-    if ((progress === "completed" || progress === "error") && progress !== lastProgress) {
+    if ((progress === "completed" || progress === "error") && progress !== lastProgress && setReports && reports) {
+      // 状態を一度だけ更新するためにフラグを設定
       setLastProgress(progress);
 
-      if (progress === "completed" && setReports) {
-        const updatedReports = reports?.map((r) => (r.slug === report.slug ? { ...r, status: "ready" } : r));
-        setReports(updatedReports);
-      } else if (progress === "error" && setReports) {
-        const updatedReports = reports?.map((r) => (r.slug === report.slug ? { ...r, status: "error" } : r));
-        setReports(updatedReports);
-      }
+      // 更新するステータスを決定
+      const newStatus = progress === "completed" ? "ready" : "error";
+
+      // レポート一覧を更新
+      const updatedReports = reports.map((r) => (r.slug === report.slug ? { ...r, status: newStatus } : r));
+
+      // レポート一覧の状態を更新
+      setReports(updatedReports);
     }
   }, [progress, lastProgress, reports, setReports, report.slug]);
   return (
