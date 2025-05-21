@@ -21,6 +21,10 @@ class TestUpdateTokenUsage:
             "token_usage_input": 0,
             "token_usage_output": 0,
         }
+        
+    def teardown_method(self):
+        """各テスト後に_report_statusをクリア"""
+        _report_status.clear()
 
     def test_update_token_usage_all_values(self):
         """トークン使用量（合計、入力、出力）を正しく更新できることをテスト"""
