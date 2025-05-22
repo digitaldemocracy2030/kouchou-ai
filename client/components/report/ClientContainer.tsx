@@ -285,13 +285,15 @@ export function ClientContainer({ result }: Props) {
         isAttentionFilterEnabled={attributeMetas.length > 0} // Assuming this is the correct condition
         showAttentionFilterBadge={
           (Object.keys(attributeFilters).length > 0 ||
-            Object.keys(enabledRanges).filter((k) => enabledRanges[k]).length > 0)
+            Object.keys(enabledRanges).filter((k) => enabledRanges[k]).length > 0 ||
+            textSearch.trim() !== "")
         }
         attentionFilterBadgeCount={(() => {
           const allFilteredAttributes = new Set([
             ...Object.keys(attributeFilters),
             ...Object.keys(enabledRanges).filter((k) => enabledRanges[k]),
           ]);
+          if (textSearch.trim() !== "") allFilteredAttributes.add("textSearch");
           return allFilteredAttributes.size;
         })()}
       />
