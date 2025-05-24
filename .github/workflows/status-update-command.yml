@@ -1,0 +1,51 @@
+name: Update issue status based on comment commands
+
+permissions:
+  issues: write
+  contents: read
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  read-comment:
+    runs-on: ubuntu-latest
+    outputs:
+      issue_number: ${{ steps.status-command.outputs.issue_number }}
+      action: ${{ steps.status-command.outputs.action }}
+      should_update: ${{ steps.status-command.outputs.should_update }}
+    steps:
+      - name: Process assignment comment only if command is used
+        if: startsWith(github.event.comment.body, '/ready') || startsWith(github.event.comment.body, '/archive')
+        uses: actions/github-script@v7
+        id: status-command
+        with:
+          script: |
+            const commentBody = context.payload.comment.body.trim();
+            const issueNumber = context.payload.issue.number;
+
+            let action = '';
+            let shouldUpdate = false;
+            if (commentBody.startsWith('/ready')) {
+              shouldUpdate = true;
+              action = 'ready';
+            } else if (commentBody.startsWith('/archive')) {
+              shouldUpdate = true;
+              action = 'archive';
+            }
+
+            core.setOutput('issue_number', issueNumber.toString());
+            core.setOutput('should_update', shouldUpdate.toString());
+            core.setOutput('action', action);
+
+  status-update-call:
+    needs: read-comment
+    if: needs.read-comment.outputs.should_update == 'true'
+    uses: ./.github/workflows/status-update-call.yml
+    with:
+      issue_number: ${{ needs.read-comment.outputs.issue_number }}
+      action: ${{ needs.read-comment.outputs.action }}
+    secrets:
+      PJ_APP_ID: ${{ secrets.PJ_APP_ID }}
+      PJ_APP_PEM: ${{ secrets.PJ_APP_PEM }}

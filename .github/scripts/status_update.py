@@ -30,12 +30,20 @@ def main():
             update_issue_status(github_handler, REPO_CONFIG["status"]["in_progress"], item_id)
         else:
             print(f"ステータスは '{current_status}' です。更新は不要です。")
+
     elif github_handler.action == "unassigned":
         if current_status == REPO_CONFIG["status"]["in_progress"]:
             print(f"担当者が外れ、ステータスが '{current_status}' のため、'{REPO_CONFIG["status"]["ready"]}' に更新します。")
             update_issue_status(github_handler, REPO_CONFIG["status"]["ready"], item_id)
         else:
             print(f"ステータスは '{current_status}' です。更新は不要です。")
+
+    elif github_handler.action == "ready":
+        update_issue_status(github_handler, REPO_CONFIG["status"]["ready"], item_id)
+
+    elif github_handler.action == "archive":
+        update_issue_status(github_handler, REPO_CONFIG["status"]["archived"], item_id)
+
     else :
         print(f"アクション '{github_handler.action}' はサポートされていません。")
         raise ValueError(f"アクション '{github_handler.action}' はサポートされていません。")
