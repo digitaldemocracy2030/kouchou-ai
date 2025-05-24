@@ -130,7 +130,7 @@ def create_custom_intro(config):
     print(f"Args count: {args_count}")
 
     base_custom_intro = """{intro}
-分析対象となったデータの件数は{processed_num}件で、これらのデータに対してOpenAI APIを用いて{args_count}件の意見（議論）を抽出し、クラスタリングを行った。
+分析対象となったデータの件数は{processed_num}件で、これらのデータから{args_count}件の意見（議論）を抽出し、グループ化を行った。
 """
 
     intro = config["intro"]

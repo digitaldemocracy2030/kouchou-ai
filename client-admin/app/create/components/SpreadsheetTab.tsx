@@ -92,6 +92,12 @@ export function SpreadsheetTab({
             autoAdjusted={clusterSettings.autoAdjusted}
             onLv1Change={clusterSettings.handleLv1Change}
             onLv2Change={clusterSettings.handleLv2Change}
+            autoClusterEnabled={clusterSettings.autoClusterEnabled}
+            clusterTopMax={clusterSettings.clusterTopMax}
+            clusterBottomMax={clusterSettings.clusterBottomMax}
+            onAutoClusterToggle={clusterSettings.handleAutoClusterToggle}
+            onTopMaxChange={clusterSettings.handleTopMaxChange}
+            onBottomMaxChange={clusterSettings.handleBottomMaxChange}
           />
         </Field.Root>
 

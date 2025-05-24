@@ -1,11 +1,14 @@
-"""Cluster the arguments using UMAP + HDBSCAN and GPT-4."""
-
+import json
+import time
+from datetime import datetime
 from importlib import import_module
 
 import numpy as np
 import pandas as pd
 import scipy.cluster.hierarchy as sch
+from hierarchical_utils import update_status  # ← 追加
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 
 def hierarchical_clustering(config):
@@ -16,15 +19,12 @@ def hierarchical_clustering(config):
     arguments_df = pd.read_csv(f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
     embeddings_df = pd.read_pickle(f"outputs/{dataset}/embeddings.pkl")
     embeddings_array = np.asarray(embeddings_df["embedding"].values.tolist())
-    cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 
     n_samples = embeddings_array.shape[0]
-    # デフォルト設定は15
     default_n_neighbors = 15
-
     # テスト等サンプルが少なすぎる場合、n_neighborsの設定値を下げる
     if n_samples <= default_n_neighbors:
-        n_neighbors = max(2, n_samples - 1)  # 最低2以上
+        n_neighbors = max(2, n_samples - 1)
     else:
         n_neighbors = default_n_neighbors
 
@@ -32,12 +32,83 @@ def hierarchical_clustering(config):
     # TODO 詳細エラーメッセージを加える
     # 以下のエラーの場合、おそらく元の意見件数が少なすぎることが原因
     # TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N. Use scipy.linalg.eigh(A.toarray()) or reduce k.
+
     umap_embeds = umap_model.fit_transform(embeddings_array)
+
+    # ✅ 自動クラスタ設定の場合
+    if config.get("auto_cluster_enabled", False):
+        start_time = time.time()
+
+        top_min = config.get("cluster_top_min", 2)
+        top_max = config.get("cluster_top_max", 10)
+        bottom_max = config.get("cluster_bottom_max", 20)
+
+        n_samples = umap_embeds.shape[0]
+        max_clusters = max(2, n_samples - 1)
+
+        # 上下限補正
+        top_max = min(top_max, max_clusters)
+        bottom_max = min(bottom_max, max_clusters)
+        top_min = max(2, min(top_min, top_max))
+
+        silhouette_results = []
+        best_top_score, best_top = -1.0, None
+        best_bottom_score, best_bottom = -1.0, None
+
+        for k in range(top_min, top_max + 1):
+            try:
+                labels = KMeans(n_clusters=k, random_state=42).fit_predict(umap_embeds)
+                score = silhouette_score(umap_embeds, labels)
+                silhouette_results.append((f"top-{k}", float(score)))
+                if score > best_top_score:
+                    best_top_score, best_top = float(score), int(k)
+            except ValueError as e:
+                print(f"[auto-cluster] silhouette_score error for top-{k}: {e}")
+
+        for k in range(top_max + 1, bottom_max + 1):
+            try:
+                labels = KMeans(n_clusters=k, random_state=42).fit_predict(umap_embeds)
+                score = silhouette_score(umap_embeds, labels)
+                silhouette_results.append((f"bottom-{k}", float(score)))
+                if score > best_bottom_score:
+                    best_bottom_score, best_bottom = float(score), int(k)
+            except ValueError as e:
+                print(f"[auto-cluster] silhouette_score error for bottom-{k}: {e}")
+
+        # JSON出力（型変換含む）
+        auto_result = {
+            "timestamp": datetime.now().isoformat(),
+            "top_range": [int(top_min), int(top_max)],
+            "bottom_range": [int(top_max + 1), int(bottom_max)],
+            "best": {
+                "top": {
+                    "k": int(best_top) if best_top is not None else None,
+                    "score": float(best_top_score) if best_top_score >= 0 else None,
+                },
+                "bottom": {
+                    "k": int(best_bottom) if best_bottom is not None else None,
+                    "score": float(best_bottom_score) if best_bottom_score >= 0 else None,
+                },
+            },
+            "duration_sec": round(float(time.time() - start_time), 3),
+            "results": [{"label": str(label), "score": float(score)} for label, score in silhouette_results],
+        }
+
+        with open(f"outputs/{dataset}/auto_cluster_result.json", "w", encoding="utf-8") as f:
+            json.dump(auto_result, f, indent=2, ensure_ascii=False)
+
+        update_status(config, {"auto_cluster_result": auto_result})
+        cluster_nums = [best_top, best_bottom]
+
+    else:
+        # 通常モード
+        cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 
     cluster_results = hierarchical_clustering_embeddings(
         umap_embeds=umap_embeds,
         cluster_nums=cluster_nums,
     )
+
     result_df = pd.DataFrame(
         {
             "arg-id": arguments_df["arg-id"],
@@ -46,7 +117,6 @@ def hierarchical_clustering(config):
             "y": umap_embeds[:, 1],
         }
     )
-
     for cluster_level, final_labels in enumerate(cluster_results.values(), start=1):
         result_df[f"cluster-level-{cluster_level}-id"] = [f"{cluster_level}_{label}" for label in final_labels]
 

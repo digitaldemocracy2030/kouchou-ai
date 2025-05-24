@@ -38,6 +38,15 @@ def parse_arguments():
         action="store_true",
         help="Skip the html output.",
     )
+    parser.add_argument("--skip-extraction", action="store_true", help="Skip the extraction step.")
+    parser.add_argument("--skip-initial-labelling", action="store_true", help="Skip the initial labelling step.")
+    parser.add_argument("--skip-merge-labelling", action="store_true", help="Skip the merge labelling step.")
+    parser.add_argument("--skip-overview", action="store_true", help="Skip the overview step.")
+    parser.add_argument("--auto-cluster", action="store_true", help="Automatically determine cluster numbers.")
+    parser.add_argument("--cluster-top-min", type=int, help="Minimum number of top-level clusters.")
+    parser.add_argument("--cluster-top-max", type=int, help="Maximum number of top-level clusters.")
+    parser.add_argument("--cluster-bottom-max", type=int, help="Maximum number of bottom-level clusters.")
+
     return parser.parse_args()
 
 
@@ -54,6 +63,22 @@ def main():
         new_argv.append("-skip-interaction")
     if args.without_html:
         new_argv.append("--without-html")
+    if args.skip_extraction:
+        new_argv.append("--skip-extraction")
+    if args.skip_initial_labelling:
+        new_argv.append("--skip-initial-labelling")
+    if args.skip_merge_labelling:
+        new_argv.append("--skip-merge-labelling")
+    if args.skip_overview:
+        new_argv.append("--skip-overview")
+    if args.auto_cluster:
+        new_argv.append("--auto-cluster")
+    if args.cluster_top_min is not None:
+        new_argv.extend(["--cluster-top-min", str(args.cluster_top_min)])
+    if args.cluster_top_max is not None:
+        new_argv.extend(["--cluster-top-max", str(args.cluster_top_max)])
+    if args.cluster_bottom_max is not None:
+        new_argv.extend(["--cluster-bottom-max", str(args.cluster_bottom_max)])
 
     config = initialization(new_argv)
 

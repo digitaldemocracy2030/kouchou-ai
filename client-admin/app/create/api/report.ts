@@ -19,6 +19,14 @@ export async function createReport({
   inputType,
   is_embedded_at_local,
   local_llm_address,
+  skip_extraction,
+  skip_initial_labelling,
+  skip_merge_labelling,
+  skip_overview,
+  auto_cluster_enabled,
+  cluster_top_min,
+  cluster_top_max,
+  cluster_bottom_max,
 }: {
   input: string;
   question: string;
@@ -33,6 +41,14 @@ export async function createReport({
   inputType: string;
   is_embedded_at_local: boolean;
   local_llm_address?: string;
+  skip_extraction?: boolean;
+  skip_initial_labelling?: boolean;
+  skip_merge_labelling?: boolean;
+  skip_overview?: boolean;
+  auto_cluster_enabled?: boolean;
+  cluster_top_min?: number;
+  cluster_top_max?: number;
+  cluster_bottom_max?: number;
 }): Promise<void> {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASEPATH}/admin/reports`, {
@@ -55,6 +71,14 @@ export async function createReport({
         inputType,
         is_embedded_at_local,
         local_llm_address,
+        skip_extraction,
+        skip_initial_labelling,
+        skip_merge_labelling,
+        skip_overview,
+        auto_cluster_enabled,
+        cluster_top_min,
+        cluster_top_max,
+        cluster_bottom_max,
       }),
     });
 

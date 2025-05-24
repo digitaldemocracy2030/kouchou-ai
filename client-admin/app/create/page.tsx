@@ -20,6 +20,23 @@ import { type CsvData, parseCsv } from "./parseCsv";
 import { showErrorToast } from "./utils/error-handler";
 import { validateFormValues } from "./utils/validation";
 
+function generateClusterList(min: number, topMax: number, bottomMax: number): number[] {
+  const clusters: number[] = [];
+
+  let current = min;
+  while (current <= topMax) {
+    clusters.push(current);
+    current *= 2;
+  }
+
+  current = topMax + 1;
+  while (current <= bottomMax) {
+    clusters.push(current);
+    current *= 2;
+  }
+
+  return clusters;
+}
 /**
  * レポート作成ページ
  */
@@ -150,11 +167,49 @@ export default function Page() {
 
     try {
       const promptData = promptSettings.getPromptSettings();
+      // ✅ タイトルと調査概要の補完
+      const input = basicInfo.input;
+      let question = basicInfo.question.trim();
+      let intro = basicInfo.intro.trim();
 
+      //      if (question === "") {
+      //        question = "（タイトル）";
+      //      }
+      if (question === "") {
+        const providerLabel = aiSettings.provider === "none" ? "LLMなし" : `${aiSettings.provider}/${aiSettings.model}`;
+        const source =
+          inputData.inputType === "file"
+            ? (inputData.csv?.name ?? "ファイル未指定")
+            : (inputData.spreadsheetUrl.split("/")[5] ?? "シート未指定");
+        const col = inputData.selectedCommentColumn || "カラム未選択";
+        const clustering = clusterSettings.autoClusterEnabled
+          ? `自動 (${clusterSettings.clusterTopMax}+${clusterSettings.clusterBottomMax})`
+          : `手動 (${clusterSettings.clusterLv1}+${clusterSettings.clusterLv2})`;
+        const skips = [
+          aiSettings.skipExtraction && "抽出スキップ",
+          aiSettings.skipInitialLabelling && "初期ラベルスキップ",
+          aiSettings.skipMergeLabelling && "統合ラベルスキップ",
+          aiSettings.skipOverview && "要約スキップ",
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        // 並列数とローカル埋込はAIありのときだけ表示
+        const extra =
+          aiSettings.provider !== "none"
+            ? // biome-ignore lint/style/useTemplate: <explanation>
+              ` (${aiSettings.workers}並列)` + (aiSettings.isEmbeddedAtLocal ? "｜ローカル埋込" : "")
+            : "";
+
+        question = `[${source}] ${col}列｜${clustering}｜${providerLabel}${extra}${skips ? `｜${skips}` : ""}`;
+      }
+      if (intro === "") {
+        intro = "";
+      }
       await createReport({
         input: basicInfo.input,
-        question: basicInfo.question,
-        intro: basicInfo.intro,
+        question,
+        intro,
         comments,
         cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
         provider: aiSettings.provider,
@@ -165,6 +220,14 @@ export default function Page() {
         inputType: inputData.inputType,
         is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
         local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
+        skip_extraction: aiSettings.skipExtraction,
+        skip_initial_labelling: aiSettings.skipInitialLabelling,
+        skip_merge_labelling: aiSettings.skipMergeLabelling,
+        skip_overview: aiSettings.skipOverview,
+        auto_cluster_enabled: clusterSettings.autoClusterEnabled,
+        cluster_top_min: 2,
+        cluster_top_max: clusterSettings.clusterTopMax,
+        cluster_bottom_max: clusterSettings.clusterBottomMax,
       });
 
       toaster.create({
@@ -292,6 +355,15 @@ export default function Page() {
               requiresConnectionSettings={aiSettings.requiresConnectionSettings}
               isEmbeddedAtLocalDisabled={aiSettings.isEmbeddedAtLocalDisabled}
               promptSettings={promptSettings}
+              // ✅ スキップ系の追加
+              skipExtraction={aiSettings.skipExtraction}
+              setSkipExtraction={aiSettings.setSkipExtraction}
+              skipInitialLabelling={aiSettings.skipInitialLabelling}
+              setSkipInitialLabelling={aiSettings.setSkipInitialLabelling}
+              skipMergeLabelling={aiSettings.skipMergeLabelling}
+              setSkipMergeLabelling={aiSettings.setSkipMergeLabelling}
+              skipOverview={aiSettings.skipOverview}
+              setSkipOverview={aiSettings.setSkipOverview}
             />
           </Presence>
 

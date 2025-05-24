@@ -7,6 +7,9 @@ export function useClusterSettings(initialLv1 = 5, initialLv2 = 50) {
   const [clusterLv2, setClusterLv2] = useState<number>(initialLv2);
   const [recommendedClusters, setRecommendedClusters] = useState<ClusterSettings | null>(null);
   const [autoAdjusted, setAutoAdjusted] = useState<boolean>(false);
+  const [autoClusterEnabled, setAutoClusterEnabled] = useState(false);
+  const [clusterTopMax, setClusterTopMax] = useState<number>(initialLv1 * 2); // 上位層の最大
+  const [clusterBottomMax, setClusterBottomMax] = useState<number>(initialLv2 * 2); // 下位層の最大（上限の2倍初期値）
 
   // コメント数から意見グループ数を計算
   const calculateRecommendedClusters = useCallback((commentCount: number) => {
@@ -78,7 +81,30 @@ export function useClusterSettings(initialLv1 = 5, initialLv2 = 50) {
     },
     [clusterLv1, recommendedClusters],
   );
+  const handleAutoClusterToggle = (enabled: boolean) => {
+    setAutoClusterEnabled(enabled);
 
+    if (enabled) {
+      // ✅ 上層（Lv1）の2倍を topMax に設定
+      const newTopMax = clusterLv1 * 2;
+      setClusterTopMax(newTopMax);
+
+      // ✅ 下層（Lv2）の2倍を bottomMax に設定
+      const newBottomMax = Math.max(newTopMax + 1, clusterLv2 * 2); // 必ず topMax より大きく
+      setClusterBottomMax(newBottomMax);
+    }
+  };
+
+  const handleTopMaxChange = (value: number) => {
+    setClusterTopMax(value);
+    if (value >= clusterBottomMax) {
+      setClusterBottomMax(value + 1);
+    }
+  };
+
+  const handleBottomMaxChange = (value: number) => {
+    setClusterBottomMax(value);
+  };
   // リセット
   const resetClusterSettings = useCallback(() => {
     setClusterLv1(initialLv1);
@@ -97,5 +123,11 @@ export function useClusterSettings(initialLv1 = 5, initialLv2 = 50) {
     handleLv1Change,
     handleLv2Change,
     resetClusterSettings,
+    autoClusterEnabled,
+    clusterTopMax,
+    clusterBottomMax,
+    handleAutoClusterToggle,
+    handleTopMaxChange,
+    handleBottomMaxChange,
   };
 }

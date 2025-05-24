@@ -74,6 +74,18 @@ export type JaLocaleType = {
   };
 };
 
+export type AutoClusterResult = {
+  timestamp: string;
+  top_range: [number, number];
+  bottom_range: [number, number];
+  results: { label: string; score: number }[];
+  best: {
+    top: { k: number; score: number };
+    bottom: { k: number; score: number };
+  };
+  duration_sec: number;
+};
+
 type Comments = Record<string, { comment: string }>; // コメントIDをキーに持つオブジェクト
 
 type Config = {
@@ -85,6 +97,16 @@ type Config = {
   output_dir: string; // 結果の出力ディレクトリ名
   previous?: Config; // 過去の設定情報
   is_embedded_at_local: boolean; // ローカルで埋め込みを生成するかどうか
+  skip_extraction?: boolean; // 意見抽出ステップのスキップ
+  skip_initial_labelling?: boolean; // 初期ラベリングステップのスキップ
+  skip_merge_labelling?: boolean; // 統合ラベリングステップのスキップ
+  skip_overview?: boolean; // 要約ステップのスキップ
+
+  auto_cluster_enabled?: boolean; // 意見グループ数の自動決定を有効化
+  cluster_top_min?: number; // 上位クラスタ数の自動決定範囲（最小）
+  cluster_top_max?: number; // 上位クラスタ数の自動決定範囲（最大）
+  cluster_bottom_max?: number; // 下位クラスタ数の自動決定範囲（最大）
+  auto_cluster_result?: AutoClusterResult; //自動クラスタ数の指向結果
   extraction: {
     workers: number; // 並列処理数
     limit: number; // データ抽出の上限数

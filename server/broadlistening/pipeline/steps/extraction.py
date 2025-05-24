@@ -32,7 +32,7 @@ def extraction(config):
     workers = config["extraction"]["workers"]
     limit = config["extraction"]["limit"]
     property_columns = config["extraction"]["properties"]
-
+    skip_extraction = config.get("skip_extraction", False)
     if "provider" not in config:
         raise RuntimeError("provider is not set")
     provider = config["provider"]
@@ -52,33 +52,50 @@ def extraction(config):
     argument_map = {}
     relation_rows = []
 
-    for i in tqdm(range(0, len(comment_ids), workers)):
-        batch = comment_ids[i : i + workers]
-        batch_inputs = [comments.loc[id]["comment-body"] for id in batch]
-        batch_results = extract_batch(
-            batch_inputs, prompt, model, workers, provider, config.get("local_llm_address"), config
-        )
-
-        for comment_id, extracted_args in zip(batch, batch_results, strict=False):
-            for j, arg in enumerate(extracted_args):
-                if arg not in argument_map:
-                    # argumentテーブルに追加
-                    arg_id = f"A{comment_id}_{j}"
-                    argument_map[arg] = {
-                        "arg-id": arg_id,
-                        "argument": arg,
-                    }
-                else:
-                    arg_id = argument_map[arg]["arg-id"]
-
-                # relationテーブルにcommentとargの関係を追加
-                relation_row = {
+    if skip_extraction:
+        print("⏩ 抽出ステップをスキップします（skip_extraction が有効）")
+        for _, comment_id in enumerate(comment_ids):
+            comment_body = comments.loc[comment_id]["comment-body"]
+            arg_id = f"A{comment_id}_0"
+            argument_map[comment_body] = {
+                "arg-id": arg_id,
+                "argument": comment_body,
+            }
+            relation_rows.append(
+                {
                     "arg-id": arg_id,
                     "comment-id": comment_id,
                 }
-                relation_rows.append(relation_row)
+            )
+            update_progress(config, incr=1)
+    else:
+        for i in tqdm(range(0, len(comment_ids), workers)):
+            batch = comment_ids[i : i + workers]
+            batch_inputs = [comments.loc[id]["comment-body"] for id in batch]
+            batch_results = extract_batch(
+                batch_inputs, prompt, model, workers, provider, config.get("local_llm_address"), config
+            )
 
-        update_progress(config, incr=len(batch))
+            for comment_id, extracted_args in zip(batch, batch_results, strict=False):
+                for j, arg in enumerate(extracted_args):
+                    if arg not in argument_map:
+                        # argumentテーブルに追加
+                        arg_id = f"A{comment_id}_{j}"
+                        argument_map[arg] = {
+                            "arg-id": arg_id,
+                            "argument": arg,
+                        }
+                    else:
+                        arg_id = argument_map[arg]["arg-id"]
+
+                    # relationテーブルにcommentとargの関係を追加
+                    relation_row = {
+                        "arg-id": arg_id,
+                        "comment-id": comment_id,
+                    }
+                    relation_rows.append(relation_row)
+
+            update_progress(config, incr=len(batch))
 
     # DataFrame化
     results = pd.DataFrame(argument_map.values())

@@ -36,6 +36,11 @@ def hierarchical_initial_labelling(config: dict) -> None:
 
     cluster_id_columns = [col for col in clusters_argument_df.columns if col.startswith("cluster-level-")]
     initial_cluster_id_column = cluster_id_columns[-1]
+    # ✅ スキップ対応
+    if config.get("skip_initial_labelling", False):
+        print("⏩ 初期ラベリングをスキップします。")
+
+    # スキップしない通常処理
     sampling_num = config["hierarchical_initial_labelling"]["sampling_num"]
     initial_labelling_prompt = config["hierarchical_initial_labelling"]["prompt"]
     model = config["hierarchical_initial_labelling"]["model"]
@@ -148,6 +153,13 @@ def process_initial_labelling(
     Returns:
         クラスタのラベリング結果
     """
+    # ✅ スキップ対応
+    if config.get("skip_initial_labelling", False):
+        print(f"⏩ 初期ラベリングをスキップします。{cluster_id}")
+        return LabellingResult(
+            cluster_id=cluster_id, label=f"クラスタ {cluster_id}", description="（説明は省略されています）"
+        )
+
     cluster_data = df[df[target_column] == cluster_id]
     sampling_num = min(sampling_num, len(cluster_data))
     cluster = cluster_data.sample(sampling_num)
