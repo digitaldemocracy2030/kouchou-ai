@@ -8,6 +8,7 @@ import requests
 from src.config import settings
 from src.schemas.admin_report import ReportInput
 from src.schemas.report import Report, ReportStatus, ReportVisibility
+from src.services.llm_pricing import LLMPricing
 
 # ロガーの設定
 logger = logging.getLogger("uvicorn")
@@ -85,6 +86,9 @@ def add_new_report_to_status(report_input: ReportInput) -> None:
             "token_usage": 0,  # トークン使用量を初期化
             "token_usage_input": 0,  # 入力トークン使用量を初期化
             "token_usage_output": 0,  # 出力トークン使用量を初期化
+            "estimated_cost": 0.0,  # 推定コストを初期化
+            "provider": None,  # LLMプロバイダーを初期化
+            "model": None,  # LLMモデルを初期化
         }
         save_status()
 
@@ -141,15 +145,22 @@ def update_report_visibility_state(slug: str, new_visibility: ReportVisibility) 
 
 
 def update_token_usage(
-    slug: str, token_usage: int, token_usage_input: int = None, token_usage_output: int = None
+    slug: str,
+    token_usage: int,
+    token_usage_input: int | None = None,
+    token_usage_output: int | None = None,
+    provider: str | None = None,
+    model: str | None = None,
 ) -> None:
-    """レポートのトークン使用量を更新する
+    """レポートのトークン使用量と推定コストを更新する
 
     Args:
         slug: レポートのスラッグ
         token_usage: トークン使用量（合計）
         token_usage_input: 入力トークン使用量（オプション）
         token_usage_output: 出力トークン使用量（オプション）
+        provider: LLMプロバイダー名（オプション）
+        model: モデル名（オプション）
 
     Raises:
         ValueError: 指定されたスラッグのレポートが存在しない場合
@@ -167,13 +178,31 @@ def update_token_usage(
         if token_usage_output is not None:
             _report_status[slug]["token_usage_output"] = token_usage_output
 
+        if provider is not None:
+            _report_status[slug]["provider"] = provider
+            logger.info(f"Updated provider for {slug}: {provider}")
+
+        if model is not None:
+            _report_status[slug]["model"] = model
+            logger.info(f"Updated model for {slug}: {model}")
+
+        if (
+            token_usage_input is not None
+            and token_usage_output is not None
+            and provider is not None
+            and model is not None
+        ):
+            estimated_cost = LLMPricing.calculate_cost(provider, model, token_usage_input, token_usage_output)
+            _report_status[slug]["estimated_cost"] = estimated_cost
+            logger.info(f"Updated estimated cost for {slug}: ${estimated_cost:.4f}")
+
         logger.info(
             f"Updated token usage for {slug} in report status: total={token_usage}, input={token_usage_input}, output={token_usage_output}"
         )
         save_status()
 
 
-def update_report_metadata(slug: str, title: str = None, description: str = None) -> dict:
+def update_report_metadata(slug: str, title: str | None = None, description: str | None = None) -> dict:
     """レポートのメタデータ（タイトル、説明）を更新する
 
     Args:

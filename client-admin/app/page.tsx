@@ -99,6 +99,60 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
   const [tokenUsage, setTokenUsage] = useState<number>(0);
   const [tokenUsageInput, setTokenUsageInput] = useState<number>(0);
   const [tokenUsageOutput, setTokenUsageOutput] = useState<number>(0);
+  const [estimatedCost, setEstimatedCost] = useState<number>(0);
+  const [provider, setProvider] = useState<string | null>(null);
+  const [model, setModel] = useState<string | null>(null);
+  const [pricingData, setPricingData] = useState<Record<string, Record<string, { input: number; output: number }>>>({});
+  const [isPricingLoaded, setIsPricingLoaded] = useState<boolean>(false);
+
+  // LLM価格情報を取得する
+  useEffect(() => {
+    async function fetchPricingData() {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASEPATH}/admin/llm-pricing`, {
+          headers: {
+            "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setPricingData(data);
+        } else {
+          console.error("Failed to fetch LLM pricing data");
+          // APIから取得できない場合は空のオブジェクトを設定（情報なし）
+          setPricingData({});
+        }
+        setIsPricingLoaded(true);
+      } catch (error) {
+        console.error("Error fetching LLM pricing data:", error);
+        setIsPricingLoaded(true);
+      }
+    }
+
+    fetchPricingData();
+  }, []);
+
+
+  // トークン使用量から推定コストを計算する関数
+  const calculateCost = (
+    provider: string | null,
+    model: string | null,
+    tokenUsageInput: number,
+    tokenUsageOutput: number
+  ): number => {
+    if (!provider || !model || !isPricingLoaded) return 0;
+    
+    const price = pricingData[provider]?.[model];
+    if (!price) return 0; // 不明なモデルの場合は 0 を返す
+    
+    const inputCost = (tokenUsageInput / 1_000_000) * price.input;
+    const outputCost = (tokenUsageOutput / 1_000_000) * price.output;
+    return inputCost + outputCost;
+  };
 
   // hasReloaded のデフォルト値を false に設定
   const [hasReloaded, setHasReloaded] = useState<boolean>(false);
@@ -135,6 +189,32 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
           }
           if (data.token_usage_output !== undefined) {
             setTokenUsageOutput(data.token_usage_output);
+          }
+          if (data.estimated_cost !== undefined) {
+            setEstimatedCost(data.estimated_cost);
+          }
+          if (data.provider !== undefined) {
+            setProvider(data.provider);
+          }
+          if (data.model !== undefined) {
+            setModel(data.model);
+          }
+          
+          // トークン使用量が更新されたら、推定コストも計算して更新
+          if (
+            (data.token_usage_input !== undefined || data.token_usage_output !== undefined) &&
+            data.provider !== undefined &&
+            data.model !== undefined
+          ) {
+            const newTokenUsageInput = data.token_usage_input !== undefined ? data.token_usage_input : tokenUsageInput;
+            const newTokenUsageOutput = data.token_usage_output !== undefined ? data.token_usage_output : tokenUsageOutput;
+            const newEstimatedCost = calculateCost(
+              data.provider,
+              data.model,
+              newTokenUsageInput,
+              newTokenUsageOutput
+            );
+            setEstimatedCost(newEstimatedCost);
           }
 
           if (!data.current_step || data.current_step === "loading") {
@@ -204,7 +284,7 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
     }
   }, [progress, hasReloaded]);
 
-  return { progress, errorStep, tokenUsage, tokenUsageInput, tokenUsageOutput };
+  return { progress, errorStep, tokenUsage, tokenUsageInput, tokenUsageOutput, estimatedCost, provider, model };
 }
 
 // 個々のレポートカードコンポーネント
@@ -218,7 +298,7 @@ function ReportCard({
   setReports?: (reports: Report[] | undefined) => void;
 }) {
   const statusDisplay = getStatusDisplay(report.status);
-  const { progress, errorStep, tokenUsage, tokenUsageInput, tokenUsageOutput } = useReportProgressPoll(
+  const { progress, errorStep, tokenUsage, tokenUsageInput, tokenUsageOutput, estimatedCost, provider, model } = useReportProgressPoll(
     report.slug,
     report.status !== "ready",
   );
@@ -238,7 +318,10 @@ function ReportCard({
 
   const displayTokenUsageInput = report.status === "processing" ? tokenUsageInput : report.tokenUsageInput;
   const displayTokenUsageOutput = report.status === "processing" ? tokenUsageOutput : report.tokenUsageOutput;
+  const displayEstimatedCost = report.status === "processing" ? estimatedCost : report.estimatedCost;
   const displayTokenUsage = report.status === "processing" ? tokenUsage : report.tokenUsage;
+  const displayProvider = report.status === "processing" ? provider : report.provider;
+  const displayModel = report.status === "processing" ? model : report.model;
 
   // progress が変更されたときにレポート状態を更新
   useEffect(() => {
@@ -273,7 +356,7 @@ function ReportCard({
         setReports(updatedReports);
       }
     }
-  }, [progress, lastProgress, reports, setReports, report.slug, tokenUsage, tokenUsageInput, tokenUsageOutput]);
+  }, [progress, lastProgress, reports, setReports, report.slug, tokenUsage, tokenUsageInput, tokenUsageOutput, estimatedCost, provider, model]);
   return (
     <LinkBox
       as={Card.Root}

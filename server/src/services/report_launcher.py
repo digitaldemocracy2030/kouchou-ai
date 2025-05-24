@@ -119,10 +119,22 @@ def _monitor_process(process: subprocess.Popen, slug: str) -> None:
                     total_token_usage = status_data.get("total_token_usage", 0)
                     token_usage_input = status_data.get("token_usage_input", 0)
                     token_usage_output = status_data.get("token_usage_output", 0)
+
+                    config_file = settings.CONFIG_DIR / f"{slug}.json"
+                    provider = None
+                    model = None
+                    if config_file.exists():
+                        with open(config_file) as f:
+                            config_data = json.load(f)
+                            provider = config_data.get("provider")
+                            model = config_data.get("model")
+
                     logger.info(
-                        f"Found token usage in status file for {slug}: total={total_token_usage}, input={token_usage_input}, output={token_usage_output}"
+                        f"Found token usage in status file for {slug}: total={total_token_usage}, input={token_usage_input}, output={token_usage_output}, provider={provider}, model={model}"
                     )
-                    update_token_usage(slug, total_token_usage, token_usage_input, token_usage_output)
+                    update_token_usage(
+                        slug, total_token_usage, token_usage_input, token_usage_output, provider or None, model or None
+                    )
         except Exception as e:
             logger.error(f"Error updating token usage for {slug}: {e}")
 

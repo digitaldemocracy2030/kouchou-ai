@@ -10,6 +10,7 @@ from src.config import settings
 from src.schemas.admin_report import ReportInput, ReportMetadataUpdate, ReportVisibilityUpdate
 from src.schemas.report import Report, ReportStatus
 from src.services.llm_models import get_models_by_provider
+from src.services.llm_pricing import LLMPricing
 from src.services.report_launcher import launch_report_generation
 from src.services.report_status import (
     load_status_as_reports,
@@ -79,6 +80,9 @@ async def get_current_step(slug: str) -> dict:
             "token_usage": status.get("total_token_usage", 0),
             "token_usage_input": status.get("token_usage_input", 0),
             "token_usage_output": status.get("token_usage_output", 0),
+            "estimated_cost": status.get("estimated_cost", 0.0),
+            "provider": status.get("provider"),
+            "model": status.get("model"),
         }
 
         # error キーが存在する場合はエラーとみなす
@@ -104,7 +108,15 @@ async def get_current_step(slug: str) -> dict:
         return response
     except Exception as e:
         slogger.error(f"Error in get_current_step: {e}")
-        return {"current_step": "error", "token_usage": 0, "token_usage_input": 0, "token_usage_output": 0}
+        return {
+            "current_step": "error",
+            "token_usage": 0,
+            "token_usage_input": 0,
+            "token_usage_output": 0,
+            "estimated_cost": 0.0,
+            "provider": None,
+            "model": None,
+        }
 
 
 @router.delete("/admin/reports/{slug}")
@@ -267,3 +279,17 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
             "error_type": "unknown_error",
             "use_azure": use_azure,
         }
+
+
+@router.get("/admin/llm-pricing")
+async def get_llm_pricing(api_key: str = Depends(verify_admin_api_key)) -> dict:
+    """LLMの価格情報を取得するエンドポイント
+
+    Returns:
+        dict: プロバイダーとモデルごとの価格情報
+    """
+    try:
+        return LLMPricing.PRICING
+    except Exception as e:
+        slogger.error(f"Exception in get_llm_pricing: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
