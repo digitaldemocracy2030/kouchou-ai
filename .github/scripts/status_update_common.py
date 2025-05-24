@@ -45,6 +45,7 @@ class GithubHandler:
     def __init__(self, config: Config):
         self.config = config
         try:
+          self.action = config.action
           self.github = Github(config.github_token)
           self.repo = self.github.get_repo(config.github_repo)
           self.issue_number = config.issue_number
