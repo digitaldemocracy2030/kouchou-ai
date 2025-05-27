@@ -39,7 +39,7 @@ import {
   ExternalLinkIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // ステップの定義
 const stepKeys = [
@@ -137,23 +137,20 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
     fetchPricingData();
   }, []);
 
-
   // トークン使用量から推定コストを計算する関数
-  const calculateCost = (
-    provider: string | null,
-    model: string | null,
-    tokenUsageInput: number,
-    tokenUsageOutput: number
-  ): number => {
-    if (!provider || !model || !isPricingLoaded) return 0;
-    
-    const price = pricingData[provider]?.[model];
-    if (!price) return 0; // 不明なモデルの場合は 0 を返す
-    
-    const inputCost = (tokenUsageInput / 1_000_000) * price.input;
-    const outputCost = (tokenUsageOutput / 1_000_000) * price.output;
-    return inputCost + outputCost;
-  };
+  const calculateCost = useCallback(
+    (provider: string | null, model: string | null, tokenUsageInput: number, tokenUsageOutput: number): number => {
+      if (!provider || !model || !isPricingLoaded) return 0;
+
+      const price = pricingData[provider]?.[model];
+      if (!price) return 0; // 不明なモデルの場合は 0 を返す
+
+      const inputCost = (tokenUsageInput / 1_000_000) * price.input;
+      const outputCost = (tokenUsageOutput / 1_000_000) * price.output;
+      return inputCost + outputCost;
+    },
+    [pricingData, isPricingLoaded],
+  );
 
   // hasReloaded のデフォルト値を false に設定
   const [hasReloaded, setHasReloaded] = useState<boolean>(false);
@@ -200,7 +197,7 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
           if (data.model !== undefined) {
             setModel(data.model);
           }
-          
+
           // トークン使用量が更新されたら、推定コストも計算して更新
           if (
             (data.token_usage_input !== undefined || data.token_usage_output !== undefined) &&
@@ -208,13 +205,9 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
             data.model !== undefined
           ) {
             const newTokenUsageInput = data.token_usage_input !== undefined ? data.token_usage_input : tokenUsageInput;
-            const newTokenUsageOutput = data.token_usage_output !== undefined ? data.token_usage_output : tokenUsageOutput;
-            const newEstimatedCost = calculateCost(
-              data.provider,
-              data.model,
-              newTokenUsageInput,
-              newTokenUsageOutput
-            );
+            const newTokenUsageOutput =
+              data.token_usage_output !== undefined ? data.token_usage_output : tokenUsageOutput;
+            const newEstimatedCost = calculateCost(data.provider, data.model, newTokenUsageInput, newTokenUsageOutput);
             setEstimatedCost(newEstimatedCost);
           }
 
@@ -270,7 +263,7 @@ function useReportProgressPoll(slug: string, shouldSubscribe: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [slug, shouldSubscribe, lastValidStep, isPolling]);
+  }, [slug, shouldSubscribe, lastValidStep, isPolling, calculateCost, tokenUsageInput, tokenUsageOutput]);
 
   useEffect(() => {
     // 完了またはエラーでかつリロード済みでない場合
@@ -299,10 +292,8 @@ function ReportCard({
   setReports?: (reports: Report[] | undefined) => void;
 }) {
   const statusDisplay = getStatusDisplay(report.status);
-  const { progress, errorStep, tokenUsage, tokenUsageInput, tokenUsageOutput, estimatedCost, provider, model } = useReportProgressPoll(
-    report.slug,
-    report.status !== "ready",
-  );
+  const { progress, errorStep, tokenUsage, tokenUsageInput, tokenUsageOutput, estimatedCost, provider, model } =
+    useReportProgressPoll(report.slug, report.status !== "ready");
 
   const currentStepIndex =
     progress === "completed" ? steps.length : stepKeys.indexOf(progress) === -1 ? 0 : stepKeys.indexOf(progress);
@@ -371,7 +362,19 @@ function ReportCard({
         setReports(updatedReports);
       }
     }
-  }, [progress, lastProgress, reports, setReports, report.slug, tokenUsage, tokenUsageInput, tokenUsageOutput, estimatedCost, provider, model]);
+  }, [
+    progress,
+    lastProgress,
+    reports,
+    setReports,
+    report.slug,
+    tokenUsage,
+    tokenUsageInput,
+    tokenUsageOutput,
+    estimatedCost,
+    provider,
+    model,
+  ]);
   return (
     <LinkBox
       as={Card.Root}

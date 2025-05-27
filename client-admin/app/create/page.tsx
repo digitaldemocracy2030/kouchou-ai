@@ -18,8 +18,8 @@ import { useInputData } from "./hooks/useInputData";
 import { usePromptSettings } from "./hooks/usePromptSettings";
 import { type CsvData, parseCsv } from "./parseCsv";
 import { showErrorToast } from "./utils/error-handler";
-import { validateFormValues } from "./utils/validation";
 import { generateDefaultQuestionTitle } from "./utils/generateTitle";
+import { validateFormValues } from "./utils/validation";
 
 function generateClusterList(min: number, topMax: number, bottomMax: number): number[] {
   const clusters: number[] = [];

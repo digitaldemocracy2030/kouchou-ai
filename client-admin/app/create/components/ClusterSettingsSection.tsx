@@ -50,7 +50,7 @@ export function ClusterSettingsSection({
       <HStack justify="space-between" w="100%" align="center">
         <Field.Label>意見グループ数設定</Field.Label>
         <Checkbox checked={autoClusterEnabled} onCheckedChange={({ checked }) => onAutoClusterToggle(checked === true)}>
-          グループ数を自動で決定する
+          グループ数を自動で決定する（ベータ版機能）
         </Checkbox>
       </HStack>
 
