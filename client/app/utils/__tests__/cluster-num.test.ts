@@ -72,6 +72,7 @@ describe("getClusterNum", () => {
         model: "",
         intro: "",
         output_dir: "",
+        is_embedded_at_local: false,
         extraction: {
           workers: 0,
           limit: 0,
@@ -145,6 +146,7 @@ describe("getClusterNum", () => {
         model: "",
         intro: "",
         output_dir: "",
+        is_embedded_at_local: false,
         extraction: {
           workers: 0,
           limit: 0,

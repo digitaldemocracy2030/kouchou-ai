@@ -6,6 +6,7 @@ import { BackButton } from "@/components/report/BackButton";
 import { ClientContainer } from "@/components/report/ClientContainer";
 import { Overview } from "@/components/report/Overview";
 import type { Meta, Report, Result } from "@/type";
+import { ReportVisibility } from "@/type";
 import { Separator } from "@chakra-ui/react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -64,6 +65,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: `${result.config.question} - ${meta.reporter}`,
       description: `${result.overview}`,
     };
+
+    // visibilityが"unlisted"の場合、noindexを設定
+    if (result.visibility === ReportVisibility.UNLISTED) {
+      metaData.robots = {
+        index: false,
+        follow: false,
+      };
+    }
 
     // 静的エクスポート時はmetadataBaseを設定しない（相対パスを使用するため）
     if (process.env.NEXT_PUBLIC_OUTPUT_MODE !== "export") {
