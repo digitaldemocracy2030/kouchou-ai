@@ -1,12 +1,12 @@
-import { About } from "@/components/About";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { Reporter } from "@/components/Reporter";
 import { Analysis } from "@/components/report/Analysis";
 import { BackButton } from "@/components/report/BackButton";
 import { ClientContainer } from "@/components/report/ClientContainer";
 import { Overview } from "@/components/report/Overview";
 import type { Meta, Report, Result } from "@/type";
-import { Separator } from "@chakra-ui/react";
+import { Box, Separator } from "@chakra-ui/react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getApiBaseUrl } from "../utils/api";
@@ -113,7 +113,9 @@ export default async function Page({ params }: PageProps) {
         <Analysis result={result} />
         <BackButton />
         <Separator my={12} maxW={"750px"} mx={"auto"} />
-        <About meta={meta} />
+        <Box maxW={"750px"} mx={"auto"} mb={24}>
+          <Reporter meta={meta} />
+        </Box>
       </div>
       <Footer meta={meta} />
     </>
