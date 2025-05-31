@@ -1,4 +1,5 @@
 # 広聴 AI / kouchou-ai
+ちゃんとプッシュできているかテスト
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/digitaldemocracy2030/kouchou-ai)
 
