@@ -181,7 +181,7 @@ export const Chart = React.memo(function Chart({
         </Box>
         <Box pos="absolute" top={0} left={0} right={0} bottom={0}
           bg="#CFD8DC" opacity={overlayState.opacity}
-          transition="opacity 500ms ease" zIndex={10}
+          transition="opacity 1000ms ease" zIndex={10}
           pointerEvents={overlayState.isBlocking ? "auto" : "none"}
           onTouchMove={e => overlayState.isBlocking && e.preventDefault()}
         />
