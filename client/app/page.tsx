@@ -1,6 +1,6 @@
-import { About } from "@/components/About";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { Reporter } from "@/components/reporter/Reporter";
 import type { Meta, Report } from "@/type";
 import { Box, Card, HStack, Heading, Image, Text, VStack } from "@chakra-ui/react";
 import type { Metadata } from "next";
@@ -54,8 +54,11 @@ export default async function Page() {
     return (
       <>
         <div className={"container"}>
-          {meta && <Header meta={meta} />}
-          <Box mx={"auto"} maxW={"900px"} mb={10}>
+          <Header />
+          <Box mx={"auto"} maxW={"1024px"} mb={10}>
+            <Box mb="12">
+              <Reporter meta={meta} />
+            </Box>
             <Heading textAlign={"left"} fontSize={"xl"} mb={8}>
               レポート一覧
             </Heading>
@@ -95,9 +98,8 @@ export default async function Page() {
               ))
             )}
           </Box>
-          {meta && <About meta={meta} />}
         </div>
-        {meta && <Footer meta={meta} />}
+        <Footer meta={meta} />
       </>
     );
   } catch (_e) {

@@ -2,12 +2,11 @@ body {
   font-family: "Roboto", "Noto Sans JP", sans-serif;
   margin: 0;
   border: 0;
-  background: linear-gradient(to right, #f9c8a0, #f7c5da);
-  padding: 1rem 0;
   min-height: 100vh;
-  text-align: justify;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  flex-direction: column;
 }
 
 .code {
@@ -15,18 +14,9 @@ body {
 }
 
 .container {
-  padding: 1.2rem 1.5rem 3rem;
-  border-radius: 2rem;
-  background-color: #ffffff;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  padding: 0 1.5rem 3rem;
   color: #555;
-}
-
-footer {
-  text-align: center;
-  margin: 2rem 0 1rem;
-  color: #555;
-  font-size: 0.8rem;
 }
 
 .gradientBg {

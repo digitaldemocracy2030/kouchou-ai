@@ -36,6 +36,7 @@ export type Result = {
   config: Config; // 設定情報
   comment_num: number; // コメント数
   filteredArgumentIds?: string[]; // フィルターに一致した引数IDのリスト（グレーアウト表示の制御に使用）
+  visibility?: ReportVisibility; // レポートの可視性設定
 };
 
 export type Argument = {
@@ -75,7 +76,7 @@ export type JaLocaleType = {
   };
 };
 
-type Comments = Record<string, { comment: string }>; // コメントIDをキーに持つオブジェクト
+export type Comments = Record<string, { comment: string }>; // コメントIDをキーに持つオブジェクト
 
 export type Config = {
   name: string; // 設定の名前

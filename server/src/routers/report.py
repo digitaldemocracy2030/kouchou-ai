@@ -48,6 +48,9 @@ async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> di
     with open(report_path) as f:
         report_result = json.load(f)
 
+    # レポートにvisibilityを追加
+    report_result["visibility"] = target_report_status.visibility.value
+
     return report_result
 
 
