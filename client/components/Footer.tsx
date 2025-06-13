@@ -4,7 +4,7 @@ import type { Meta } from "@/type";
 import { Box, type ButtonProps as ChakraButtonProps, Flex, Link, Text, Button as _Button } from "@chakra-ui/react";
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
-import { forwardRef, useRef, type ReactNode } from "react";
+import { type ReactNode, forwardRef, useRef } from "react";
 import { GitHubIcon, NoteIcon, SlackIcon, XIcon } from "./icons/MediaIcons";
 import {
   DialogActionTrigger,

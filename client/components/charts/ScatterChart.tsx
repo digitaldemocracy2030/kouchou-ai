@@ -217,9 +217,10 @@ export function ScatterChart({
             hoverinfo: "skip", // ホバー表示を無効化
             showlegend: false,
             // argumentのメタデータを埋め込み
-            customdata: notMatching.length > 0 
-              ? notMatching.map((arg) => ({ arg_id: arg.arg_id, url: arg.url }))
-              : allClusterArguments.map((arg) => ({ arg_id: arg.arg_id, url: arg.url })),
+            customdata:
+              notMatching.length > 0
+                ? notMatching.map((arg) => ({ arg_id: arg.arg_id, url: arg.url }))
+                : allClusterArguments.map((arg) => ({ arg_id: arg.arg_id, url: arg.url })),
           }
         : null;
 
@@ -234,10 +235,12 @@ export function ScatterChart({
               size: 10, // 統一サイズでシンプルに
               color: Array(matching.length).fill(clusterColorMap[cluster.id]),
               opacity: Array(matching.length).fill(1), // 不透明
-              line: config?.enable_source_link ? {
-                width: 2,
-                color: '#ffffff',
-              } : undefined,
+              line: config?.enable_source_link
+                ? {
+                    width: 2,
+                    color: "#ffffff",
+                  }
+                : undefined,
             },
             text: matching.map((arg) => {
               const argumentText = arg.argument.replace(/(.{30})/g, "$1<br />");
@@ -387,22 +390,22 @@ export function ScatterChart({
           onUpdate={onUpdate}
           onClick={(data: any) => {
             if (!config?.enable_source_link) return;
-            
+
             try {
               if (data.points && data.points.length > 0) {
                 const point = data.points[0];
-                
+
                 // customdataから直接argumentの情報を取得
                 if (point.customdata) {
                   const customData = point.customdata as { arg_id: string; url?: string };
-                  
+
                   if (customData.url) {
-                    window.open(customData.url, '_blank', 'noopener,noreferrer');
+                    window.open(customData.url, "_blank", "noopener,noreferrer");
                   } else {
                     // customdataにURLがない場合、argumentListから検索
-                    const matchedArgument = argumentList.find(arg => arg.arg_id === customData.arg_id);
+                    const matchedArgument = argumentList.find((arg) => arg.arg_id === customData.arg_id);
                     if (matchedArgument?.url) {
-                      window.open(matchedArgument.url, '_blank', 'noopener,noreferrer');
+                      window.open(matchedArgument.url, "_blank", "noopener,noreferrer");
                     } else {
                       console.log("No URL found for argument:", customData.arg_id);
                     }
