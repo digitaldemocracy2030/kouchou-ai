@@ -4,6 +4,7 @@ import json
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, TypedDict
+import os
 
 import numpy as np
 import pandas as pd
@@ -130,12 +131,41 @@ def create_custom_intro(config):
     print(f"Input count: {input_count}")
     print(f"Args count: {args_count}")
 
+    # LLMプロバイダーとモデル名の判定
+    def get_llm_provider_display():
+        # configからプロバイダー情報を取得（優先）
+        provider = config.get("provider", "openai")
+        model = config.get("model", "unknown")
+        
+        # 環境変数による判定（後方互換性）
+        use_azure = os.getenv("USE_AZURE", "false").lower() == "true"
+        if use_azure and provider == "openai":
+            provider = "azure"
+        
+        # プロバイダー名をマッピング
+        provider_names = {
+            "openai": "OpenAI API",
+            "azure": "Azure OpenAI API", 
+            "openrouter": "OpenRouter API",
+            "local": "Local LLM"
+        }
+        
+        provider_name = provider_names.get(provider, f"{provider} API")
+        return f"{provider_name} ({model})"
+    
+    llm_provider = get_llm_provider_display()
+
     base_custom_intro = """{intro}
-分析対象となったデータの件数は{processed_num}件で、これらのデータに対してOpenAI APIを用いて{args_count}件の意見（議論）を抽出し、クラスタリングを行った。
+分析対象となったデータの件数は{processed_num}件で、これらのデータに対して{llm_provider}を用いて{args_count}件の意見（議論）を抽出し、クラスタリングを行った。
 """
 
     intro = config["intro"]
-    custom_intro = base_custom_intro.format(intro=intro, processed_num=processed_num, args_count=args_count)
+    custom_intro = base_custom_intro.format(
+        intro=intro,
+        processed_num=processed_num,
+        args_count=args_count,
+        llm_provider=llm_provider
+    )
 
     with open(result_path) as f:
         result = json.load(f)
