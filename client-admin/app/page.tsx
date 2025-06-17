@@ -511,7 +511,7 @@ function ReportCard({
             </Box>
           )}
           <HStack position="relative" zIndex="20">
-            {report.status === "ready" && (report.isPubcom === true || report.isPubcom === undefined) && (
+            {report.status === "ready" && report.isPubcom && (
               <Popover.Root>
                 <Popover.Trigger asChild>
                   <Button
@@ -560,11 +560,6 @@ function ReportCard({
                                 window.URL.revokeObjectURL(url);
                               } catch (error) {
                                 console.error(error);
-                                toaster.create({
-                                  type: "error",
-                                  title: "CSVダウンロードエラー",
-                                  description: error instanceof Error ? error.message : "CSVファイルのダウンロードに失敗しました",
-                                });
                               }
                             }}
                           >
@@ -603,11 +598,6 @@ function ReportCard({
                                 window.URL.revokeObjectURL(url);
                               } catch (error) {
                                 console.error(error);
-                                toaster.create({
-                                  type: "error",
-                                  title: "CSVダウンロードエラー",
-                                  description: error instanceof Error ? error.message : "CSVファイルのダウンロードに失敗しました",
-                                });
                               }
                             }}
                           >

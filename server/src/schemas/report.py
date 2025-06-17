@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Literal
 
 from src.schemas.base import SchemaBaseModel
 
@@ -23,7 +22,7 @@ class Report(SchemaBaseModel):
     description: str
     status: ReportStatus
     visibility: ReportVisibility
-    is_pubcom: Literal[True] = True  # 常にCSV出力する（変更不可）
+    is_pubcom: bool = False
     created_at: str | None = None  # 作成日時
     token_usage: int | None = None  # トークン使用量（合計）
     token_usage_input: int | None = None  # 入力トークン使用量

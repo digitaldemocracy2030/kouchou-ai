@@ -110,6 +110,7 @@ export function useAISettings() {
   const [provider, setProvider] = useState<Provider>(() => getFromStorage<Provider>(STORAGE_KEYS.PROVIDER, "openai"));
   const [model, setModel] = useState<string>(() => getFromStorage<string>(STORAGE_KEYS.MODEL, "gpt-4o-mini"));
   const [workers, setWorkers] = useState<number>(() => getFromStorage<number>(STORAGE_KEYS.WORKERS, 30));
+  const [isPubcomMode, setIsPubcomMode] = useState<boolean>(true);
   const [isEmbeddedAtLocal, setIsEmbeddedAtLocal] = useState<boolean>(() =>
     getFromStorage<boolean>(STORAGE_KEYS.IS_EMBEDDED_AT_LOCAL, false),
   );
@@ -257,6 +258,13 @@ export function useAISettings() {
     setModel(e.target.value);
   };
 
+  /**
+   * パブコムモード変更時のハンドラー
+   */
+  const handlePubcomModeChange = (checked: boolean | "indeterminate") => {
+    if (checked === "indeterminate") return;
+    setIsPubcomMode(checked);
+  };
 
   /**
    * ソースリンク設定変更時のハンドラー
@@ -320,6 +328,7 @@ export function useAISettings() {
     setProvider("openai");
     setModel("gpt-4o-mini");
     setWorkers(30);
+    setIsPubcomMode(true);
     setIsEmbeddedAtLocal(false);
     setEnableSourceLink(false);
     setLocalLLMAddress(DEFAULT_LOCAL_LLM_ADDRESS);
@@ -338,6 +347,7 @@ export function useAISettings() {
     provider,
     model,
     workers,
+    isPubcomMode,
     isEmbeddedAtLocal,
     enableSourceLink,
     localLLMAddress,
@@ -346,6 +356,7 @@ export function useAISettings() {
     handleWorkersChange,
     increaseWorkers,
     decreaseWorkers,
+    handlePubcomModeChange,
     handleEnableSourceLinkChange,
     setLocalLLMAddress,
     getModelDescription,

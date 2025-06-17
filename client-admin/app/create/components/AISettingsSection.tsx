@@ -8,12 +8,14 @@ export function AISettingsSection({
   provider,
   model,
   workers,
+  isPubcomMode,
   enableSourceLink,
   onProviderChange,
   onModelChange,
   onWorkersChange,
   onIncreaseWorkers,
   onDecreaseWorkers,
+  onPubcomModeChange,
   onEnableSourceLinkChange,
   getModelDescription,
   getProviderDescription,
@@ -30,12 +32,14 @@ export function AISettingsSection({
   provider: string;
   model: string;
   workers: number;
+  isPubcomMode: boolean;
   enableSourceLink: boolean;
   onProviderChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onModelChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onWorkersChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onIncreaseWorkers: () => void;
   onDecreaseWorkers: () => void;
+  onPubcomModeChange: (checked: boolean | "indeterminate") => void;
   onEnableSourceLinkChange: (checked: boolean | "indeterminate") => void;
   getModelDescription: () => string;
   getProviderDescription: () => string;
@@ -62,6 +66,21 @@ export function AISettingsSection({
 
   return (
     <VStack gap={10}>
+      <Field.Root>
+        <Checkbox
+          checked={isPubcomMode}
+          onCheckedChange={(details) => {
+            const { checked } = details;
+            onPubcomModeChange(checked);
+          }}
+        >
+          csv出力モード
+        </Checkbox>
+        <Field.HelperText>
+          元のコメントと要約された意見をCSV形式で出力します。完成したCSVファイルはレポート一覧ページからダウンロードできます。
+        </Field.HelperText>
+      </Field.Root>
+
       <Field.Root>
         <Field.Label>AIプロバイダー</Field.Label>
         <NativeSelect.Root w={"40%"}>
