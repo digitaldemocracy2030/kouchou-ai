@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
 
+import fpsample
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field
@@ -259,7 +260,19 @@ def process_merge_labelling(
         config["hierarchical_merge_labelling"]["sampling_num"],
         len(current_cluster_data),
     )
-    sampled_data = current_cluster_data.sample(sampling_num)
+    
+    if sampling_num >= len(current_cluster_data):
+        sampled_data = current_cluster_data
+    elif 'x' in current_cluster_data.columns and 'y' in current_cluster_data.columns and len(current_cluster_data) > 1:
+        try:
+            points = current_cluster_data[['x', 'y']].values
+            fps_indices = fpsample.fps_sampling(points, sampling_num)
+            sampled_data = current_cluster_data.iloc[fps_indices]
+        except Exception as e:
+            print(f"FPS sampling failed, falling back to random sampling: {e}")
+            sampled_data = current_cluster_data.sample(sampling_num)
+    else:
+        sampled_data = current_cluster_data.sample(sampling_num)
     sampled_argument_text = "\n".join(sampled_data["argument"].values)
     cluster_text = "\n".join([value.to_prompt_text() for value in previous_values])
     messages = [
