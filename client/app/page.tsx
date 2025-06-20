@@ -80,7 +80,7 @@ export default async function Page() {
                       <HStack>
                         <Box>
                           <Card.Title>
-                            <Text fontSize={"lg"} color={"#2577b1"} mb={1}>
+                            <Text fontSize={"lg"} color={"#2577b1"} mb={1} lineClamp="2">
                               {report.title}
                             </Text>
                           </Card.Title>
@@ -89,7 +89,7 @@ export default async function Page() {
                               作成日時: {new Date(report.createdAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
                             </Text>
                           )}
-                          <Card.Description>{report.description || ""}</Card.Description>
+                          <Card.Description lineClamp={{ base: 3, md: 2 }}>{report.description || ""}</Card.Description>
                         </Box>
                       </HStack>
                     </Card.Body>
