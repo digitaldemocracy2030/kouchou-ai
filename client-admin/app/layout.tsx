@@ -1,3 +1,4 @@
+import { Footer } from "@/components/Footer/Footer";
 import { Toaster } from "@/components/ui/toaster";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import type { Metadata } from "next";
@@ -27,8 +28,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ClientProvider>
           {children}
           <Toaster />
+          <Footer />
         </ClientProvider>
-        <footer>デジタル民主主義2030プロジェクト</footer>
       </body>
     </html>
   );

@@ -35,3 +35,6 @@ jobs:
 
       - name: Run build
         run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASEPATH: 'http://localhost:8000'
+          NEXT_PUBLIC_PUBLIC_API_KEY: 'xxxxxxxxxx'

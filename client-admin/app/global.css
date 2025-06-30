@@ -2,7 +2,6 @@ body {
   font-family: "Roboto", "Noto Sans JP", sans-serif;
   margin: 0;
   border: 0;
-  background: linear-gradient(to right, #1e1e1e, #3c3c3c);
   min-height: 100vh;
   text-align: justify;
   -webkit-font-smoothing: antialiased;
@@ -15,13 +14,6 @@ body {
   flex: 1;
   background-color: #ffffff;
   color: #555;
-}
-
-footer {
-  text-align: center;
-  margin: 2rem 0 1rem;
-  color: #fff;
-  font-size: 0.8rem;
 }
 
 .gradientBg {
