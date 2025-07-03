@@ -476,7 +476,13 @@ azure-update-deployment:
 	@echo ">>> レポートのバックアップを取得..."
 	$(eval API_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name api --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
 	@echo ">>> API_DOMAIN: $(API_DOMAIN)"
-	@cd $(shell pwd) && python3 scripts/fetch_reports.py --api-url https://$(API_DOMAIN)
+	@docker run --rm \
+		--env-file .env \
+		-v $(shell pwd):/workspace \
+		-w /workspace \
+		python:3.11-slim /bin/bash -c "\
+		pip install requests python-dotenv > /dev/null 2>&1 && \
+		python scripts/fetch_reports.py --api-url https://$(API_DOMAIN)"
 
 	@echo ">>> コンテナイメージのビルド..."
 	@$(MAKE) azure-build
