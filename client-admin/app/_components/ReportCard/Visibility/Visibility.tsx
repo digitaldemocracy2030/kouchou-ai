@@ -1,13 +1,13 @@
 import { MenuContent, MenuItem, MenuRoot, MenuTrigger } from "@/components/ui/menu";
+import { toaster } from "@/components/ui/toaster";
 import type { Report, ReportVisibility } from "@/type";
 import { IconButton, Portal } from "@chakra-ui/react";
 import { Eye, EyeClosedIcon, LockKeyhole } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
-import { visibilityUpdate } from "./visibilityUpdate";
+import { updateReportVisibility } from "./actions";
 
 type Props = {
   report: Report;
-  reports: Report[];
   setReports: Dispatch<SetStateAction<Report[]>>;
 };
 
@@ -35,18 +35,27 @@ const iconStyles = {
   },
 };
 
-export function Visibility({ report, reports, setReports }: Props) {
+export function Visibility({ report, setReports }: Props) {
   return (
     <MenuRoot
       onSelect={async (e) => {
         if (e.value === report.visibility) return;
 
-        await visibilityUpdate({
-          slug: report.slug,
-          visibility: e.value as ReportVisibility,
-          reports,
-          setReports,
-        });
+        const result = await updateReportVisibility(report.slug, e.value as ReportVisibility);
+
+        if (result.success) {
+          setReports((prevReports) =>
+            prevReports.map((r) =>
+              r.slug === report.slug ? { ...r, visibility: result.visibility } : r,
+            ),
+          );
+        } else {
+          toaster.create({
+            type: "error",
+            title: "更新エラー",
+            description: result.error,
+          });
+        }
       }}
     >
       <MenuTrigger asChild>

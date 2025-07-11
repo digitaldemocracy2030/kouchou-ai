@@ -65,7 +65,7 @@ function ReportDataAndActions({ report, reports, setReports }: Props) {
               />
             </GridItem>
             <GridItem>
-              <Visibility report={report} reports={reports} setReports={setReports} />
+              <Visibility report={report} setReports={setReports} />
             </GridItem>
             <ReportEditDialog
               isEditDialogOpen={isEditDialogOpen}
