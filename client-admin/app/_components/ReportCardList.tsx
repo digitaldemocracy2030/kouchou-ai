@@ -1,17 +1,13 @@
-"use client";
-
 import type { Report } from "@/type";
 import { Grid, GridItem } from "@chakra-ui/react";
-import { useState } from "react";
 import { ReportCard } from "./ReportCard/ReportCard";
 
 type Props = {
   reports: Report[];
+  setReports: React.Dispatch<React.SetStateAction<Report[]>>;
 };
 
-export function ReportCardList({ reports: _reports }: Props) {
-  const [reports, setReports] = useState<Report[]>(_reports);
-
+export function ReportCardList({ reports, setReports }: Props) {
   return (
     <Grid gridTemplateColumns="170px minmax(300px, 1fr) 52px repeat(3, 83px) repeat(3, min-content)" rowGap="2">
       <Grid gridTemplateColumns="subgrid" gridColumn="span 9" textStyle="body/sm">
