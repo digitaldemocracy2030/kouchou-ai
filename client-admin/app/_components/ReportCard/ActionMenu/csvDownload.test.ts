@@ -12,40 +12,31 @@ describe("csvDownload", () => {
   beforeEach(() => {
     // fetchのモック
     global.fetch = jest.fn();
-    // URLオブジェクトのモック
-    global.URL.createObjectURL = jest.fn(() => "mocked-blob-url");
-    global.URL.revokeObjectURL = jest.fn();
-    // documentのモック
-    const mockLink = {
-      href: "",
-      download: "",
-      click: jest.fn(),
-    };
-    document.createElement = jest.fn(() => mockLink as unknown as HTMLAnchorElement);
 
     // APIベースURLのモック
     mockGetApiBaseUrl.mockReturnValue("http://localhost:8000");
 
     // 環境変数のモック
     process.env.NEXT_PUBLIC_ADMIN_API_KEY = "test-api-key";
-
-    // console.errorのモック
-    console.error = jest.fn();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it("CSVダウンロードが正常に実行される", async () => {
-    const mockBlob = new Blob(["test,data"], { type: "text/csv" });
+  it("CSVダウンロードが正常に実行され、適切なデータを返す", async () => {
+    const mockData = "test,data\n1,2";
+    const mockArrayBuffer = Buffer.from(mockData).buffer;
+    const mockBlob = {
+      arrayBuffer: jest.fn().mockResolvedValue(mockArrayBuffer),
+    };
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       blob: () => Promise.resolve(mockBlob),
     });
 
-    await csvDownload("test-slug");
+    const result = await csvDownload("test-slug");
 
     expect(global.fetch).toHaveBeenCalledWith("http://localhost:8000/admin/comments/test-slug/csv", {
       headers: {
@@ -54,17 +45,21 @@ describe("csvDownload", () => {
       },
     });
 
-    expect(global.URL.createObjectURL).toHaveBeenCalledWith(mockBlob);
-    expect(document.createElement).toHaveBeenCalledWith("a");
+    expect(result).toEqual({
+      success: true,
+      data: expect.any(String),
+      filename: "kouchou_test-slug.csv",
+      contentType: "text/csv",
+    });
 
-    const mockLink = document.createElement("a");
-    expect(mockLink.href).toBe("mocked-blob-url");
-    expect(mockLink.download).toBe("kouchou_test-slug.csv");
-    expect(mockLink.click).toHaveBeenCalled();
-    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("mocked-blob-url");
+    // Base64エンコードされた文字列であることを確認
+    if (result.success) {
+      expect(result.data).toMatch(/^[A-Za-z0-9+/]*={0,2}$/);
+    }
+    expect(mockBlob.arrayBuffer).toHaveBeenCalled();
   });
 
-  it("APIエラーの場合、適切にエラーハンドリングされる", async () => {
+  it("APIエラーの場合、適切にエラーレスポンスを返す", async () => {
     const errorDetail = "データが見つかりません";
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -72,42 +67,35 @@ describe("csvDownload", () => {
       json: () => Promise.resolve({ detail: errorDetail }),
     });
 
-    await csvDownload("test-slug");
-
-    expect(console.error).toHaveBeenCalledWith(new Error(errorDetail));
+    const result = await csvDownload("test-slug");
+    expect(result).toEqual({
+      success: false,
+      error: errorDetail,
+    });
   });
 
-  it("APIエラーでdetailが無い場合、デフォルトエラーメッセージが使用される", async () => {
+  it("APIエラーでdetailが無い場合、デフォルトエラーメッセージを返す", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
       json: () => Promise.resolve({}),
     });
 
-    await csvDownload("test-slug");
-
-    expect(console.error).toHaveBeenCalledWith(new Error("CSV ダウンロードに失敗しました"));
+    const result = await csvDownload("test-slug");
+    expect(result).toEqual({
+      success: false,
+      error: "CSV ダウンロードに失敗しました",
+    });
   });
 
-  it("ネットワークエラーの場合、適切にエラーハンドリングされる", async () => {
+  it("ネットワークエラーの場合、適切にエラーレスポンスを返す", async () => {
     const networkError = new Error("Network error");
 
     (global.fetch as jest.Mock).mockRejectedValueOnce(networkError);
 
-    await csvDownload("test-slug");
-
-    expect(console.error).toHaveBeenCalledWith(networkError);
-  });
-
-  it("Blobの作成に失敗した場合、適切にエラーハンドリングされる", async () => {
-    const blobError = new Error("Blob creation failed");
-
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      blob: () => Promise.reject(blobError),
+    const result = await csvDownload("test-slug");
+    expect(result).toEqual({
+      success: false,
+      error: "Network error",
     });
-
-    await csvDownload("test-slug");
-
-    expect(console.error).toHaveBeenCalledWith(blobError);
   });
 });

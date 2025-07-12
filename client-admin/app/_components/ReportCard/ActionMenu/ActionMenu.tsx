@@ -1,4 +1,6 @@
+import { downloadFile } from "@/app/utils/downloadFile";
 import { MenuContent, MenuItem, MenuPositioner, MenuRoot, MenuTrigger, MenuTriggerItem } from "@/components/ui/menu";
+import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
 import { IconButton, Portal } from "@chakra-ui/react";
 import { Ellipsis, FileSpreadsheet, Pencil, TextIcon, Trash2 } from "lucide-react";
@@ -73,7 +75,16 @@ export function ActionMenu({ report, setIsEditDialogOpen, setIsClusterEditDialog
                       value="csv-download"
                       textStyle="body/md/bold"
                       onClick={async () => {
-                        await csvDownload(report.slug);
+                        const result = await csvDownload(report.slug);
+                        if (result.success) {
+                          downloadFile(result);
+                        } else {
+                          toaster.create({
+                            title: "エラー",
+                            type: "error",
+                            description: result.error,
+                          });
+                        }
                       }}
                     >
                       CSVダウンロード
@@ -82,7 +93,16 @@ export function ActionMenu({ report, setIsEditDialogOpen, setIsClusterEditDialog
                       value="csv-download-for-windows"
                       textStyle="body/md/bold"
                       onClick={async () => {
-                        await csvDownloadForWindows(report.slug);
+                        const result = await csvDownloadForWindows(report.slug);
+                        if (result.success) {
+                          downloadFile(result);
+                        } else {
+                          toaster.create({
+                            title: "エラー",
+                            type: "error",
+                            description: result.error,
+                          });
+                        }
                       }}
                     >
                       CSV for Excelダウンロード
