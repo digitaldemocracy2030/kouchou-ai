@@ -1,113 +1,115 @@
 import { getApiBaseUrl } from "../../../utils/api";
 import { reportDelete } from "./reportDelete";
 
-// モック設定
-jest.mock("../../../utils/api");
-const mockGetApiBaseUrl = getApiBaseUrl as jest.MockedFunction<typeof getApiBaseUrl>;
+// APIユーティリティ関数をモック化
+jest.mock("../../../utils/api", () => ({
+  getApiBaseUrl: jest.fn(),
+}));
 
-// グローバルオブジェクトのモック
-const mockConfirm = jest.spyOn(window, "confirm");
-const mockAlert = jest.spyOn(window, "alert");
-const mockConsoleError = jest.spyOn(console, "error");
+// fetchをモック化
+global.fetch = jest.fn();
 
-// window.location.reloadのモック
+// window.location.reloadをモック化
+const mockReload = jest.fn();
 Object.defineProperty(window, "location", {
-  value: {
-    reload: jest.fn(),
-  },
+  value: { reload: mockReload },
   writable: true,
 });
 
-// fetchのモック
-global.fetch = jest.fn();
-const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
+// console.errorをモック化してスパイ
+const mockConsoleError = jest.spyOn(console, "error").mockImplementation(() => {});
 
 describe("reportDelete", () => {
+  const mockSlug = "test-report-slug";
+  const mockApiBaseUrl = "https://api.example.com";
+  const mockApiKey = "test-api-key";
+
   beforeEach(() => {
+    // 各テスト前にモックをリセット
     jest.clearAllMocks();
-    mockGetApiBaseUrl.mockReturnValue("http://localhost:8000");
-    mockConfirm.mockImplementation(() => true);
-    mockAlert.mockImplementation(() => {});
-    mockConsoleError.mockImplementation(() => {});
-    (window.location.reload as jest.Mock).mockImplementation(() => {});
-    process.env.NEXT_PUBLIC_ADMIN_API_KEY = "test-api-key";
+    (getApiBaseUrl as jest.Mock).mockReturnValue(mockApiBaseUrl);
+    process.env.NEXT_PUBLIC_ADMIN_API_KEY = mockApiKey;
   });
 
   afterEach(() => {
+    // 環境変数をクリア
     process.env.NEXT_PUBLIC_ADMIN_API_KEY = undefined;
   });
 
-  it("削除確認でキャンセルした場合、APIを呼び出さない", async () => {
-    mockConfirm.mockReturnValue(false);
-
-    await reportDelete("テストレポート", "test-slug");
-
-    expect(mockConfirm).toHaveBeenCalledWith("レポート「テストレポート」を削除してもよろしいですか？");
-    expect(mockFetch).not.toHaveBeenCalled();
-    expect(mockAlert).not.toHaveBeenCalled();
-    expect(window.location.reload).not.toHaveBeenCalled();
-  });
-
-  it("削除が成功した場合、成功メッセージを表示してページをリロードする", async () => {
-    mockFetch.mockResolvedValue({
+  it("成功時にDELETEリクエストを送信してページをリロードする", async () => {
+    // 成功レスポンスをモック
+    (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
-    } as Response);
+    });
 
-    await reportDelete("テストレポート", "test-slug");
+    await reportDelete(mockSlug);
 
-    expect(mockConfirm).toHaveBeenCalledWith("レポート「テストレポート」を削除してもよろしいですか？");
-    expect(mockFetch).toHaveBeenCalledWith("http://localhost:8000/admin/reports/test-slug", {
+    // 正しいパラメータでfetchが呼ばれることを確認
+    expect(fetch).toHaveBeenCalledWith(`${mockApiBaseUrl}/admin/reports/${mockSlug}`, {
       method: "DELETE",
       headers: {
-        "x-api-key": "test-api-key",
+        "x-api-key": mockApiKey,
         "Content-Type": "application/json",
       },
     });
-    expect(mockAlert).toHaveBeenCalledWith("レポートを削除しました");
-    expect(window.location.reload).toHaveBeenCalled();
+
+    // ページがリロードされることを確認
+    expect(mockReload).toHaveBeenCalledTimes(1);
     expect(mockConsoleError).not.toHaveBeenCalled();
   });
 
-  it("API呼び出しが失敗した場合、エラーメッセージありでエラーログを出力する", async () => {
-    const errorDetail = "レポートが見つかりません";
-    mockFetch.mockResolvedValue({
+  it("レスポンスがエラーの場合にエラーをログに出力する", async () => {
+    const mockErrorDetail = "レポートが見つかりません";
+
+    // エラーレスポンスをモック
+    (fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
-      json: jest.fn().mockResolvedValue({ detail: errorDetail }),
-    } as unknown as Response);
-
-    await reportDelete("テストレポート", "test-slug");
-
-    expect(mockFetch).toHaveBeenCalledWith("http://localhost:8000/admin/reports/test-slug", {
-      method: "DELETE",
-      headers: {
-        "x-api-key": "test-api-key",
-        "Content-Type": "application/json",
-      },
+      json: jest.fn().mockResolvedValueOnce({
+        detail: mockErrorDetail,
+      }),
     });
-    expect(mockAlert).not.toHaveBeenCalled();
-    expect(window.location.reload).not.toHaveBeenCalled();
-    expect(mockConsoleError).toHaveBeenCalledWith(new Error(errorDetail));
+
+    await reportDelete(mockSlug);
+
+    // エラーがログに出力されることを確認
+    expect(mockConsoleError).toHaveBeenCalledWith(new Error(mockErrorDetail));
+    expect(mockReload).not.toHaveBeenCalled();
   });
 
-  it("API呼び出しが失敗した場合、エラーメッセージなしでデフォルトエラーログを出力する", async () => {
-    mockFetch.mockResolvedValue({
+  it("エラーレスポンスにdetailがない場合にデフォルトメッセージを使用する", async () => {
+    // detailなしのエラーレスポンスをモック
+    (fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
-      json: jest.fn().mockResolvedValue({}),
-    } as unknown as Response);
+      json: jest.fn().mockResolvedValueOnce({}),
+    });
 
-    await reportDelete("テストレポート", "test-slug");
+    await reportDelete(mockSlug);
 
     expect(mockConsoleError).toHaveBeenCalledWith(new Error("レポートの削除に失敗しました"));
   });
 
-  it("ネットワークエラーが発生した場合、エラーログを出力する", async () => {
-    const networkError = new Error("Network error");
-    mockFetch.mockRejectedValue(networkError);
+  it("fetch自体が失敗した場合にエラーをログに出力する", async () => {
+    const mockError = new Error("ネットワークエラー");
 
-    await reportDelete("テストレポート", "test-slug");
+    // fetchがエラーをスローすることをモック
+    (fetch as jest.Mock).mockRejectedValueOnce(mockError);
 
-    expect(mockConsoleError).toHaveBeenCalledWith(networkError);
-    expect(mockAlert).not.toHaveBeenCalled();
-    expect(window.location.reload).not.toHaveBeenCalled();
+    await reportDelete(mockSlug);
+
+    expect(mockConsoleError).toHaveBeenCalledWith(mockError);
+    expect(mockReload).not.toHaveBeenCalled();
+  });
+
+  it("正しいAPIエンドポイントURLを構築する", async () => {
+    const customApiUrl = "https://custom-api.example.com";
+    (getApiBaseUrl as jest.Mock).mockReturnValue(customApiUrl);
+
+    (fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+    });
+
+    await reportDelete(mockSlug);
+
+    expect(fetch).toHaveBeenCalledWith(`${customApiUrl}/admin/reports/${mockSlug}`, expect.any(Object));
   });
 });

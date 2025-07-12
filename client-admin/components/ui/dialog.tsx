@@ -35,11 +35,16 @@ export const DialogCloseTrigger = React.forwardRef<HTMLButtonElement, ChakraDial
   },
 );
 
+export const DialogBackdrop = React.forwardRef<HTMLDivElement, ChakraDialog.BackdropProps>(
+  function DialogBackdrop(props, ref) {
+    return <ChakraDialog.Backdrop ref={ref} bg="bg.overlay" {...props} />;
+  },
+);
+
 export const DialogRoot = ChakraDialog.Root;
 export const DialogFooter = ChakraDialog.Footer;
 export const DialogHeader = ChakraDialog.Header;
 export const DialogBody = ChakraDialog.Body;
-export const DialogBackdrop = ChakraDialog.Backdrop;
 export const DialogTitle = ChakraDialog.Title;
 export const DialogDescription = ChakraDialog.Description;
 export const DialogTrigger = ChakraDialog.Trigger;
