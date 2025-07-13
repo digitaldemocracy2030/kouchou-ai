@@ -128,8 +128,18 @@ azure-acr-login-auto:
 azure-build:
 	$(call read-env)
 	docker build --platform linux/amd64 -t $(AZURE_ACR_NAME).azurecr.io/api:latest ./server
-	docker build --platform linux/amd64 -t $(AZURE_ACR_NAME).azurecr.io/client:latest ./client
-	docker build --platform linux/amd64 --no-cache -t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./client-admin
+	docker build --platform linux/amd64 \
+		--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
+		--build-arg NEXT_PUBLIC_PUBLIC_API_KEY="$(NEXT_PUBLIC_PUBLIC_API_KEY)" \
+		--build-arg NEXT_PUBLIC_SITE_URL="$(NEXT_PUBLIC_SITE_URL)" \
+		--build-arg API_BASEPATH="$(API_BASEPATH)" \
+		-t $(AZURE_ACR_NAME).azurecr.io/client:latest ./client
+	docker build --platform linux/amd64 --no-cache \
+		--build-arg NEXT_PUBLIC_CLIENT_BASEPATH="$(NEXT_PUBLIC_CLIENT_BASEPATH)" \
+		--build-arg NEXT_PUBLIC_ADMIN_API_KEY="$(NEXT_PUBLIC_ADMIN_API_KEY)" \
+		--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
+		--build-arg CLIENT_STATIC_BUILD_BASEPATH="$(CLIENT_STATIC_BUILD_BASEPATH)" \
+		-t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./client-admin
 	docker build --platform linux/amd64 --no-cache -t $(AZURE_ACR_NAME).azurecr.io/client-static-build:latest -f ./client-static-build/Dockerfile .
 
 # イメージをAzureにプッシュ（ローカルのDockerから）
