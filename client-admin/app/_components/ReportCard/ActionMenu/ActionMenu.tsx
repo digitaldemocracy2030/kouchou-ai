@@ -5,8 +5,9 @@ import { MenuContent, MenuItem, MenuPositioner, MenuRoot, MenuTrigger, MenuTrigg
 import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
 import { IconButton, Portal } from "@chakra-ui/react";
-import { Ellipsis, FileSpreadsheet, Pencil, TextIcon, Trash2 } from "lucide-react";
+import { Ellipsis, FileSpreadsheet, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
 import { type Dispatch, type SetStateAction, useState } from "react";
+import { useBuildDownload } from "../../BuildDownloadButton/useBuildDownload";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
 import { csvDownload } from "./csvDownload";
 import { csvDownloadForWindows } from "./csvDownloadForWindows";
@@ -19,6 +20,8 @@ type Props = {
 
 export function ActionMenu({ report, setIsEditDialogOpen, setIsClusterEditDialogOpen }: Props) {
   const [isOpen, setIsOpen] = useState(false);
+  const { exportStaticHTML } = useBuildDownload();
+  const isVisible = report.visibility === "public";
 
   return (
     <>
@@ -117,6 +120,22 @@ export function ActionMenu({ report, setIsEditDialogOpen, setIsClusterEditDialog
                 </Portal>
               </MenuRoot>
             )}
+            <MenuItem
+              value="static-export"
+              textStyle="body/md/bold"
+              onClick={() => {
+                if (!isVisible) return;
+                exportStaticHTML([report.slug]);
+              }}
+              _icon={{
+                w: 5,
+                h: 5,
+              }}
+              disabled={!isVisible}
+            >
+              <FolderDown />
+              HTML書き出し
+            </MenuItem>
             <MenuItem
               value="delete"
               color="fg.error"

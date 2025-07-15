@@ -17,6 +17,8 @@ const ZIP_FILE_NAME = "kouchou-ai.zip";
 
 const app = express();
 
+app.use(express.json());
+
 app.post("/build", async (req, res) => {
   try {
     console.log("Build request received");
@@ -26,6 +28,7 @@ app.post("/build", async (req, res) => {
         ...process.env,
         PATH: process.env.PATH ?? "",
         NODE_ENV: "production",
+        BUILD_SLUGS: req.body.slugs || ""
       },
     });
 

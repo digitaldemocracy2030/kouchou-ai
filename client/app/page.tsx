@@ -50,7 +50,12 @@ export default async function Page() {
       },
     });
     const meta: Meta = await metaResponse.json();
-    const reports: Report[] = await reportsResponse.json();
+    let reports: Report[] = await reportsResponse.json();
+
+    if (process.env.BUILD_SLUGS) {
+      reports = reports.filter((report) => process.env.BUILD_SLUGS?.split(",").includes(report.slug));
+    }
+
     return (
       <>
         <div className={"container"}>

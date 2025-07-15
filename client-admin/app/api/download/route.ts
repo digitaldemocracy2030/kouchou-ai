@@ -1,8 +1,12 @@
 import type { NextRequest } from "next/server";
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const buildRes = await fetch(`${process.env.CLIENT_STATIC_BUILD_BASEPATH}/build`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ slugs: (await req.json()).slugs }),
   });
 
   if (!buildRes.ok || !buildRes.body) {
