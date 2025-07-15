@@ -1,6 +1,7 @@
 import concurrent.futures
 import json
 import logging
+import os
 import re
 
 import pandas as pd
@@ -103,7 +104,7 @@ logging.basicConfig(level=logging.ERROR)
 def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_address=None, config=None):
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures_with_index = [
-            (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address))
+            (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address, config))
             for i, input in enumerate(batch)
         ]
 
@@ -144,7 +145,7 @@ def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_ad
         return results
 
 
-def extract_arguments(input, prompt, model, provider="openai", local_llm_address=None):
+def extract_arguments(input, prompt, model, provider="openai", local_llm_address=None, config=None):
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
@@ -157,6 +158,7 @@ def extract_arguments(input, prompt, model, provider="openai", local_llm_address
             json_schema=ExtractionResponse,
             provider=provider,
             local_llm_address=local_llm_address,
+            user_api_key=os.getenv("USER_API_KEY"),
         )
         items = parse_extraction_response(response)
         items = list(filter(None, items))  # omit empty strings

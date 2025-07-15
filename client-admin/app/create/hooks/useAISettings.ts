@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   LOCAL_LLM_ADDRESS: `${STORAGE_KEY_PREFIX}local_llm_address`,
   IS_EMBEDDED_AT_LOCAL: `${STORAGE_KEY_PREFIX}is_embedded_at_local`,
   ENABLE_SOURCE_LINK: `${STORAGE_KEY_PREFIX}enable_source_link`,
+  USER_API_KEY: `${STORAGE_KEY_PREFIX}user_api_key`,
 };
 
 // LocalLLMのデフォルトアドレスを定数化
@@ -122,6 +123,10 @@ export function useAISettings() {
     getFromStorage<string>(STORAGE_KEYS.LOCAL_LLM_ADDRESS, DEFAULT_LOCAL_LLM_ADDRESS),
   );
 
+  const [userApiKey, setUserApiKey] = useState<string>(() =>
+    getFromStorage<string>(STORAGE_KEYS.USER_API_KEY, ""),
+  );
+
   const [openRouterModels, setOpenRouterModels] = useState<ModelOption[]>([]);
   const [localLLMModels, setLocalLLMModels] = useState<ModelOption[]>([]);
 
@@ -148,6 +153,10 @@ export function useAISettings() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.ENABLE_SOURCE_LINK, enableSourceLink);
   }, [enableSourceLink]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.USER_API_KEY, userApiKey);
+  }, [userApiKey]);
 
   useEffect(() => {
     if (provider === "openrouter") {
@@ -275,6 +284,13 @@ export function useAISettings() {
   };
 
   /**
+   * ユーザーAPIキー変更時のハンドラー
+   */
+  const handleUserApiKeyChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setUserApiKey(e.target.value);
+  };
+
+  /**
    * モデル説明文を取得
    */
   const getModelDescription = () => {
@@ -332,6 +348,7 @@ export function useAISettings() {
     setIsEmbeddedAtLocal(false);
     setEnableSourceLink(false);
     setLocalLLMAddress(DEFAULT_LOCAL_LLM_ADDRESS);
+    setUserApiKey("");
     setOpenRouterModels([]);
     setLocalLLMModels([]);
 
@@ -341,6 +358,7 @@ export function useAISettings() {
     saveToStorage(STORAGE_KEYS.LOCAL_LLM_ADDRESS, DEFAULT_LOCAL_LLM_ADDRESS);
     saveToStorage(STORAGE_KEYS.IS_EMBEDDED_AT_LOCAL, false);
     saveToStorage(STORAGE_KEYS.ENABLE_SOURCE_LINK, false);
+    saveToStorage(STORAGE_KEYS.USER_API_KEY, "");
   };
 
   return {
@@ -351,6 +369,7 @@ export function useAISettings() {
     isEmbeddedAtLocal,
     enableSourceLink,
     localLLMAddress,
+    userApiKey,
     handleProviderChange,
     handleModelChange,
     handleWorkersChange,
@@ -358,6 +377,7 @@ export function useAISettings() {
     decreaseWorkers,
     handlePubcomModeChange,
     handleEnableSourceLinkChange,
+    handleUserApiKeyChange,
     setLocalLLMAddress,
     getModelDescription,
     getProviderDescription,
