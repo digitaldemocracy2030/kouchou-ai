@@ -1,37 +1,38 @@
+# ---- 1. ベースイメージ --------------------------------------------------
 FROM python:3.12-slim
-
 WORKDIR /app
-
-ARG ENVIRONMENT
-ARG WITH_GPU=false
-
+# ---- 2. ビルド引数 -------------------------------------------------------
+ARG ENVIRONMENT=production   # development / production
+ARG WITH_GPU=false           # true / false
+# ---- 3. 共通ビルドツール ------------------------------------------------
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        curl \
-        build-essential \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN pip install uv
-
+ && apt-get install -y --no-install-recommends curl build-essential \
+ && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv
+# ---- 4. Poetry / pip の依存関係 -----------------------------------------
 COPY pyproject.toml requirements.lock requirements-dev.lock requirements-torch.txt README.md ./
-
-# WITH_GPU=false の場合は、不要なパッケージがインストールされないように CPU版の PyTorch を先にインストール
-RUN if [ "$WITH_GPU" = "false" ]; then \
-    echo "Installing PyTorch (CPU version)" && \
-    uv pip install --no-cache --system -r requirements-torch.txt --index-url https://download.pytorch.org/whl/cpu; \
-    fi
-
-# 依存関係をインストール
-RUN if [ "$ENVIRONMENT" = "development" ]; then \
-    echo "Installing development dependencies" && \
-    uv pip install --no-cache --system -r requirements-dev.lock; \
+#
+# 4-A. PyTorch 系 (GPU か CPU かで分岐)
+#
+RUN if [ "${WITH_GPU}" = "false" ]; then \
+        echo ">> Installing PyTorch (CPU version)" && \
+        uv pip install --no-cache-dir --system -r requirements-torch.txt \
+            --index-url https://download.pytorch.org/whl/cpu ; \
     else \
-    echo "Installing production dependencies" && \
-    uv pip install --no-cache --system -r requirements.lock; \
+        echo ">> Installing PyTorch (GPU version)" && \
+        uv pip install --no-cache-dir --system -r requirements-torch.txt ; \
     fi
-
+#
+# 4-B. アプリ依存 (dev / prod で分岐)
+#
+RUN if [ "${ENVIRONMENT}" = "development" ]; then \
+        echo ">> Installing development dependencies" && \
+        uv pip install --no-cache-dir --system -r requirements-dev.lock ; \
+    else \
+        echo ">> Installing production dependencies" && \
+        uv pip install --no-cache-dir --system -r requirements.lock ; \
+    fi
+# ---- 5. アプリケーション本体 --------------------------------------------
 COPY . .
-# アプリケーションの実行
 EXPOSE 8000
-CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
