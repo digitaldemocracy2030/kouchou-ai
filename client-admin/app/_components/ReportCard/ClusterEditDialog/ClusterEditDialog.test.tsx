@@ -12,6 +12,12 @@ jest.mock("@/components/ui/toaster", () => ({
   },
 }));
 
+// Mock the server actions
+jest.mock("./actions", () => ({
+  fetchClusters: jest.fn(),
+  updateCluster: jest.fn(),
+}));
+
 // Mock the API utility
 jest.mock("@/app/utils/api", () => ({
   getApiBaseUrl: jest.fn(() => "http://localhost:8000"),
@@ -71,17 +77,19 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <ChakraProvider value={system}>{children}</ChakraProvider>
 );
 
-// Mock fetch
-global.fetch = jest.fn();
-
 describe("ClusterEditDialog", () => {
   const mockOnClose = jest.fn();
+  const mockFetchClusters = require("./actions").fetchClusters;
+  const mockUpdateCluster = require("./actions").updateCluster;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ clusters: mockClusters }),
+    mockFetchClusters.mockResolvedValue({
+      success: true,
+      clusters: mockClusters,
+    });
+    mockUpdateCluster.mockResolvedValue({
+      success: true,
     });
   });
 
@@ -115,11 +123,7 @@ describe("ClusterEditDialog", () => {
     );
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith("http://localhost:8000/admin/reports/test-report/cluster-labels", {
-        headers: {
-          "x-api-key": "test-api-key",
-        },
-      });
+      expect(mockFetchClusters).toHaveBeenCalledWith("test-report");
     });
   });
 
@@ -143,7 +147,8 @@ describe("ClusterEditDialog", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue("Test Cluster 1")).toBeInTheDocument();
+      const titleInput = screen.getByPlaceholderText("タイトルを入力");
+      expect(titleInput).toHaveValue("Test Cluster 1");
     });
   });
 
@@ -155,10 +160,10 @@ describe("ClusterEditDialog", () => {
     );
 
     await waitFor(() => {
-      const titleInput = screen.getByDisplayValue("Test Cluster 1");
-      const descriptionTextarea = screen.getByDisplayValue("Description for cluster 1");
-      expect(titleInput).toBeInTheDocument();
-      expect(descriptionTextarea).toBeInTheDocument();
+      const titleInput = screen.getByPlaceholderText("タイトルを入力");
+      const descriptionTextarea = screen.getByPlaceholderText("説明を入力");
+      expect(titleInput).toHaveValue("Test Cluster 1");
+      expect(descriptionTextarea).toHaveValue("Description for cluster 1");
     });
   });
 
@@ -184,11 +189,6 @@ describe("ClusterEditDialog", () => {
   });
 
   it("保存ボタンがクリックされたときに変更が送信される", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ clusters: mockClusters }),
-    });
-
     render(
       <TestWrapper>
         <ClusterEditDialog report={mockReport} isOpen={true} setIsClusterEditDialogOpen={mockOnClose} />
@@ -205,19 +205,14 @@ describe("ClusterEditDialog", () => {
     await user.click(saveButton);
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith("http://localhost:8000/admin/reports/test-report/cluster-label", {
-        method: "PATCH",
-        headers: {
-          "x-api-key": "test-api-key",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: "cluster-1",
-          label: "Updated Title",
-          description: "Description for cluster 1",
-        }),
-      });
+      expect(mockUpdateCluster).toHaveBeenCalledWith("test-report", expect.any(FormData));
     });
+
+    // Verify FormData contents
+    const formDataCall = mockUpdateCluster.mock.calls[0][1] as FormData;
+    expect(formDataCall.get("id")).toBe("cluster-1");
+    expect(formDataCall.get("label")).toBe("Updated Title");
+    expect(formDataCall.get("description")).toBe("Description for cluster 1");
   });
 
   it("キャンセルボタンがクリックされたときにダイアログが閉じる", async () => {
@@ -239,10 +234,10 @@ describe("ClusterEditDialog", () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
-  it("クラスタが選択されていないときに保存ボタンが無効化される", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ clusters: [] }),
+  it("クラスタが存在しないときはダイアログが表示されない", async () => {
+    mockFetchClusters.mockResolvedValue({
+      success: true,
+      clusters: [],
     });
 
     render(
@@ -252,14 +247,16 @@ describe("ClusterEditDialog", () => {
     );
 
     await waitFor(() => {
-      const saveButton = screen.getByText("保存");
-      expect(saveButton).toBeDisabled();
+      expect(screen.queryByText("意見グループを編集")).not.toBeInTheDocument();
     });
   });
 
   it("クラスタ取得時のAPIエラーを処理する", async () => {
     const mockToaster = require("@/components/ui/toaster").toaster;
-    (global.fetch as jest.Mock).mockRejectedValue(new Error("API Error"));
+    mockFetchClusters.mockResolvedValue({
+      success: false,
+      error: "クラスタ一覧の取得に失敗しました",
+    });
 
     render(
       <TestWrapper>
@@ -278,16 +275,10 @@ describe("ClusterEditDialog", () => {
 
   it("クラスタ更新時のAPIエラーを処理する", async () => {
     const mockToaster = require("@/components/ui/toaster").toaster;
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ clusters: mockClusters }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: () => Promise.resolve({ detail: "Invalid data" }),
-      });
+    mockUpdateCluster.mockResolvedValue({
+      success: false,
+      error: "入力データが不正です: Invalid data",
+    });
 
     render(
       <TestWrapper>
@@ -304,15 +295,15 @@ describe("ClusterEditDialog", () => {
       expect(mockToaster.create).toHaveBeenCalledWith({
         type: "error",
         title: "更新エラー",
-        description: "意見グループ情報の更新に失敗しました",
+        description: "入力データが不正です: Invalid data",
       });
     });
   });
 
   it("クラスタが選択されている場合のみ編集フォームが表示される", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ clusters: [] }),
+    mockFetchClusters.mockResolvedValue({
+      success: true,
+      clusters: [],
     });
 
     render(

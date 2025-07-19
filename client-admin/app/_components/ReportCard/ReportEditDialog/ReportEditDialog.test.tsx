@@ -45,7 +45,6 @@ afterEach(() => {
   process.env = originalEnv;
 });
 
-
 const mockReport: Report = {
   slug: "test-report",
   status: "processing",
@@ -54,7 +53,6 @@ const mockReport: Report = {
   isPubcom: false,
   visibility: ReportVisibility.PUBLIC,
 };
-
 
 const defaultProps = {
   isEditDialogOpen: true,
