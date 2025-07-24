@@ -45,7 +45,7 @@ class ClusterRepository:
                             id=row["id"],
                             label=row["label"],
                             description=row["description"],
-                            value=row["value"],
+                            value=int(row["value"]),
                             parent=row["parent"],
                             density=float(row["density"]) if row["density"] else None,
                             density_rank=int(float(row["density_rank"])) if row["density_rank"] else None,

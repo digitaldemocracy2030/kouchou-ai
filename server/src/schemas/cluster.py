@@ -6,7 +6,7 @@ class ClusterResponse(SchemaBaseModel):
     id: str
     label: str
     description: str
-    value: str
+    value: int
     parent: str | None = None
     density: float | None = None
     density_rank: int | None = None

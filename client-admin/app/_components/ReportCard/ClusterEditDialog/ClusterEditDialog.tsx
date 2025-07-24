@@ -73,11 +73,12 @@ type DialogProps = {
 };
 
 function Dialog({ clusters, report, isOpen, setIsOpen }: DialogProps) {
-  const firstCluster = clusters[0];
+  const sortedCluster = [...clusters].sort((a, b) => b.value - a.value);
+  const firstCluster = sortedCluster[0];
   const [selectedClusterId, setSelectedClusterId] = useState<string>(firstCluster.id);
   const [selectedLevel, setSelectedLevel] = useState<number>(1); // デフォルトの階層は1
 
-  const selectedCluster = clusters.find((c) => c.id === selectedClusterId) || firstCluster;
+  const selectedCluster = sortedCluster.find((c) => c.id === selectedClusterId) || firstCluster;
   const editClusterTitle = selectedCluster.label;
   const editClusterDescription = selectedCluster.description;
 
@@ -92,7 +93,7 @@ function Dialog({ clusters, report, isOpen, setIsOpen }: DialogProps) {
 
   // 選択された階層の意見グループのみをフィルタリング
   const filteredClustersCollection = createListCollection({
-    items: clusters.filter((c) => c.level === selectedLevel).map((c) => ({ label: c.label, value: c.id })),
+    items: sortedCluster.filter((c) => c.level === selectedLevel).map((c) => ({ label: c.label, value: c.id })),
   });
 
   async function handleSubmit(formData: FormData) {
