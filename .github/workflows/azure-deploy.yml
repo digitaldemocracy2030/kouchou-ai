@@ -1,0 +1,206 @@
+name: Azure Deployment
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+  AZURE_CONTAINER_ENV: ${{ vars.AZURE_CONTAINER_ENV }}
+  AZURE_BLOB_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_BLOB_STORAGE_ACCOUNT_NAME }}
+  AZURE_BLOB_STORAGE_CONTAINER_NAME: ${{ vars.AZURE_BLOB_STORAGE_CONTAINER_NAME }}
+  ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+  BASIC_AUTH_USERNAME: ${{ vars.BASIC_AUTH_USERNAME }}
+  PUBLIC_API_KEY: ${{ secrets.PUBLIC_API_KEY }}
+  ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+  BASIC_AUTH_PASSWORD: ${{ secrets.BASIC_AUTH_PASSWORD }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+
+jobs:
+  deploy:
+    if: github.repository == 'digitaldemocracy2030/kouchou-ai'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure CLI ログイン
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Docker ログイン (ACR)
+        run: |
+          az acr login --name ${{ env.AZURE_ACR_NAME }}
+
+      - name: Python環境のセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Python依存関係のインストール
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests python-dotenv
+
+      - name: 環境変数ファイルの準備
+        run: |
+          # .env.azureファイルの作成（Makefileで使用）
+          cat > .env.azure << EOF
+          AZURE_RESOURCE_GROUP=${{ env.AZURE_RESOURCE_GROUP }}
+          AZURE_LOCATION=${{ env.AZURE_LOCATION }}
+          AZURE_ACR_NAME=${{ env.AZURE_ACR_NAME }}
+          AZURE_CONTAINER_ENV=${{ env.AZURE_CONTAINER_ENV }}
+          AZURE_BLOB_STORAGE_ACCOUNT_NAME=${{ env.AZURE_BLOB_STORAGE_ACCOUNT_NAME }}
+          AZURE_BLOB_STORAGE_CONTAINER_NAME=${{ env.AZURE_BLOB_STORAGE_CONTAINER_NAME }}
+          EOF
+
+      - name: ドメイン情報の準備
+        run: |
+          # ドメイン情報を直接環境変数に設定
+          echo "API_DOMAIN=$(az containerapp show --name api \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
+          echo "CLIENT_DOMAIN=$(az containerapp show --name client \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
+          echo "CLIENT_ADMIN_DOMAIN=$(az containerapp show --name client-admin \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
+          echo "CLIENT_STATIC_BUILD_DOMAIN=$(az containerapp show --name client-static-build \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
+
+      - name: Azure環境のデプロイ
+        run: |
+          set -euo pipefail
+          # レポートのバックアップを取得
+          if [ -n "$API_DOMAIN" ]; then
+            echo "レポートのバックアップを取得中..."
+            python3 scripts/fetch_reports.py --api-url https://$API_DOMAIN
+          else
+            echo "❌ レポートのバックアップが取得できませんでした"
+            exit 1
+          fi
+
+          # 全イメージを並列ビルド
+          build_pids=()
+          docker build --platform linux/amd64 \
+            -t ${AZURE_ACR_NAME}.azurecr.io/api:latest \
+            ./server & build_pids+=("$!")
+          docker build --platform linux/amd64 \
+            --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
+            --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
+            --build-arg API_BASEPATH="https://${API_DOMAIN}" \
+            -t ${AZURE_ACR_NAME}.azurecr.io/client:latest \
+            ./client & build_pids+=("$!")
+          docker build --platform linux/amd64 \
+            --build-arg NEXT_PUBLIC_CLIENT_BASEPATH="https://${CLIENT_DOMAIN}" \
+            --build-arg NEXT_PUBLIC_ADMIN_API_KEY="${ADMIN_API_KEY}" \
+            --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
+            --build-arg CLIENT_STATIC_BUILD_BASEPATH="https://${CLIENT_STATIC_BUILD_DOMAIN}" \
+            --build-arg BASIC_AUTH_USERNAME="${BASIC_AUTH_USERNAME}" \
+            --build-arg BASIC_AUTH_PASSWORD="${BASIC_AUTH_PASSWORD}" \
+            --build-arg API_BASEPATH="https://${API_DOMAIN}" \
+            -t ${AZURE_ACR_NAME}.azurecr.io/client-admin:latest \
+            ./client-admin & build_pids+=("$!")
+          docker build --platform linux/amd64 \
+            --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
+            --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
+            --build-arg API_BASEPATH="https://${API_DOMAIN}" \
+            -f ./client-static-build/Dockerfile \
+            -t ${AZURE_ACR_NAME}.azurecr.io/client-static-build:latest \
+            . & build_pids+=("$!")
+
+          # 全ビルドの完了を待機 (失敗を確実に検知)
+          for pid in "${build_pids[@]}"; do
+            wait "$pid"
+          done
+
+          # イメージを並列プッシュ
+          push_pids=()
+          docker push ${AZURE_ACR_NAME}.azurecr.io/api:latest & push_pids+=("$!")
+          docker push ${AZURE_ACR_NAME}.azurecr.io/client:latest & push_pids+=("$!")
+          docker push ${AZURE_ACR_NAME}.azurecr.io/client-admin:latest & push_pids+=("$!")
+          docker push ${AZURE_ACR_NAME}.azurecr.io/client-static-build:latest & push_pids+=("$!")
+
+          # 全プッシュの完了を待機 (失敗を確実に検知)
+          for pid in "${push_pids[@]}"; do
+            wait "$pid"
+          done
+
+          # ヘルスプローブとポリシーの適用
+          make azure-apply-policies || echo "ポリシー適用をスキップ"
+
+      - name: API用シークレット登録
+        run: |
+          az containerapp secret set \
+            --name api --resource-group ${AZURE_RESOURCE_GROUP} \
+            --secrets \
+              openai-api-key=${OPENAI_API_KEY} \
+              public-api-key=${PUBLIC_API_KEY} \
+              admin-api-key=${ADMIN_API_KEY} \
+              revalidate-secret=${REVALIDATE_SECRET} \
+              azure-blob-storage-account-name=${AZURE_BLOB_STORAGE_ACCOUNT_NAME} \
+              azure-blob-storage-container-name=${AZURE_BLOB_STORAGE_CONTAINER_NAME}
+
+      - name: コンテナ更新
+        run: |
+          set -euo pipefail
+          # 全コンテナのイメージを更新
+          update_pids=()
+          az containerapp update --name api --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/api:latest & update_pids+=("$!")
+          az containerapp update --name client --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/client:latest & update_pids+=("$!")
+          az containerapp update --name client-admin --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/client-admin:latest & update_pids+=("$!")
+          az containerapp update --name client-static-build --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/client-static-build:latest & update_pids+=("$!")
+          for pid in "${update_pids[@]}"; do
+            wait "$pid"
+          done
+
+          # APIコンテナの環境変数設定（secretrefで参照）
+          az containerapp update --name api --resource-group ${AZURE_RESOURCE_GROUP} \
+            --set-env-vars \
+              "OPENAI_API_KEY=secretref:openai-api-key" \
+              "PUBLIC_API_KEY=secretref:public-api-key" \
+              "ADMIN_API_KEY=secretref:admin-api-key" \
+              "LOG_LEVEL=info" \
+              "AZURE_BLOB_STORAGE_ACCOUNT_NAME=secretref:azure-blob-storage-account-name" \
+              "AZURE_BLOB_STORAGE_CONTAINER_NAME=secretref:azure-blob-storage-container-name" \
+              "STORAGE_TYPE=azure_blob" \
+              "REVALIDATE_URL=https://${CLIENT_DOMAIN}/api/revalidate" \
+              "REVALIDATE_SECRET=secretref:revalidate-secret" \
+              "ENVIRONMENT=${ENVIRONMENT}"
+
+      - name: デプロイ確認
+        run: |
+          if [ -z "$API_DOMAIN" ]; then
+            echo "❌ APIドメインが取得できませんでした"
+            exit 1
+          fi
+
+          # リトライ付きヘルスチェック
+          RETRY_COUNT=6
+          RETRY_INTERVAL=20
+
+          for i in $(seq 1 $RETRY_COUNT); do
+            echo "ヘルスチェック試行 $i/$RETRY_COUNT..."
+            if curl -f "https://$API_DOMAIN/" --max-time 10 > /dev/null 2>&1; then
+              echo "✅ デプロイ成功: https://$API_DOMAIN"
+              exit 0
+            fi
+            [ $i -lt $RETRY_COUNT ] && sleep $RETRY_INTERVAL
+          done
+
+          echo "❌ ヘルスチェック失敗"
+          exit 1
