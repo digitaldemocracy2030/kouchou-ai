@@ -168,6 +168,7 @@ export default function Page() {
         is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
         enable_source_link: aiSettings.enableSourceLink,
         local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
+        userApiKey: aiSettings.userApiKey.trim() || undefined,
       });
 
       toaster.create({
@@ -272,6 +273,7 @@ export default function Page() {
               enableSourceLink={aiSettings.enableSourceLink}
               isEmbeddedAtLocal={aiSettings.isEmbeddedAtLocal}
               localLLMAddress={aiSettings.localLLMAddress}
+              userApiKey={aiSettings.userApiKey}
               onProviderChange={aiSettings.handleProviderChange}
               onModelChange={aiSettings.handleModelChange}
               fetchLocalLLMModels={aiSettings.fetchLocalLLMModels}
@@ -285,6 +287,7 @@ export default function Page() {
               onDecreaseWorkers={aiSettings.decreaseWorkers}
               onPubcomModeChange={aiSettings.handlePubcomModeChange}
               onEnableSourceLinkChange={aiSettings.handleEnableSourceLinkChange}
+              onUserApiKeyChange={aiSettings.handleUserApiKeyChange}
               onEmbeddedAtLocalChange={(checked) => {
                 if (checked === "indeterminate") return;
                 aiSettings.setIsEmbeddedAtLocal(checked);

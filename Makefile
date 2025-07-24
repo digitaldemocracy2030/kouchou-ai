@@ -50,7 +50,7 @@ lint/api-format:
 	docker compose run --rm api python -m ruff check . --fix
 
 test/api:
-	docker compose run --rm api pytest tests/
+	docker compose run --rm -e PYTHONPATH=/app/broadlistening/pipeline api pytest tests/
 
 ##############################################################################
 # Azure初期デプロイのコマンド

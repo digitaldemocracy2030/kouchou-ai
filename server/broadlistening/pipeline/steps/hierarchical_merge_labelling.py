@@ -1,4 +1,5 @@
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
@@ -276,6 +277,7 @@ def process_merge_labelling(
             json_schema=LabellingFromat,
             provider=config["provider"],
             local_llm_address=config.get("local_llm_address"),
+            user_api_key=os.getenv("USER_API_KEY"),
         )
 
         config["total_token_usage"] = config.get("total_token_usage", 0) + token_total

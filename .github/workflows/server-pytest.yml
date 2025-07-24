@@ -42,4 +42,5 @@ jobs:
         export ADMIN_API_KEY=dummy
         export PUBLIC_API_KEY=dummy
         export OPENAI_API_KEY=dummy
+        export PYTHONPATH=./broadlistening/pipeline
         pytest --cov=src --cov-report=term
