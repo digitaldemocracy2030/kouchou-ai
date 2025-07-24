@@ -2,7 +2,7 @@ import { ScatterChart } from "@/components/charts/ScatterChart";
 import { TreemapChart } from "@/components/charts/TreemapChart";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Result } from "@/type";
-import { Box, Button, HStack, Icon } from "@chakra-ui/react";
+import { Box, Button, Dialog, HStack, Icon, Portal } from "@chakra-ui/react";
 import { Minimize2 } from "lucide-react";
 import { useMemo } from "react";
 
@@ -95,49 +95,56 @@ export function Chart({
 
   if (isFullscreen) {
     return (
-      <Box
-        w={"100%"}
-        h={"100vh"}
-        position={"fixed"}
-        top={0}
-        bottom={0}
-        left={0}
-        right={0}
-        bgColor={"#fff"}
-        zIndex={1000}
-      >
-        <HStack id={"fullScreenButtons"} position={"fixed"} top={5} right={5} zIndex={1}>
-          <Tooltip content={"全画面終了"} openDelay={0} closeDelay={0}>
-            <Button onClick={onExitFullscreen} h={"50px"} borderWidth={2}>
-              <Icon>
-                <Minimize2 />
-              </Icon>
-            </Button>
-          </Tooltip>
-        </HStack>
-        {(selectedChart === "scatterAll" || selectedChart === "scatterDensity") && (
-          <ScatterChart
-            clusterList={result.clusters}
-            argumentList={result.arguments}
-            targetLevel={selectedChart === "scatterAll" ? 1 : Math.max(...result.clusters.map((c) => c.level))}
-            onHover={() => setTimeout(avoidHoverTextCoveringShrinkButton, 500)}
-            showClusterLabels={showClusterLabels}
-            filteredArgumentIds={filteredArgumentIds}
-            config={result.config}
-          />
-        )}
-        {selectedChart === "treemap" && (
-          <TreemapChart
-            key={treemapLevel}
-            clusterList={result.clusters}
-            argumentList={result.arguments}
-            onHover={avoidHoverTextCoveringShrinkButton}
-            level={treemapLevel}
-            onTreeZoom={onTreeZoom}
-            filteredArgumentIds={filteredArgumentIds}
-          />
-        )}
-      </Box>
+      <Dialog.Root size="full" open={isFullscreen} onOpenChange={onExitFullscreen}>
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content>
+              <Box
+                w="100%"
+                h="100vh"
+                display="flex"
+                flexDirection="column"
+                justifyContent="center"
+                alignItems="center"
+                bg="#fff"
+              >
+                <HStack id={"fullScreenButtons"} position={"fixed"} top={5} right={5} zIndex={1}>
+                  <Tooltip content={"全画面終了"} openDelay={0} closeDelay={0}>
+                    <Button onClick={onExitFullscreen} h={"50px"} borderWidth={2}>
+                      <Icon>
+                        <Minimize2 />
+                      </Icon>
+                    </Button>
+                  </Tooltip>
+                </HStack>
+                {(selectedChart === "scatterAll" || selectedChart === "scatterDensity") && (
+                  <ScatterChart
+                    clusterList={result.clusters}
+                    argumentList={result.arguments}
+                    targetLevel={selectedChart === "scatterAll" ? 1 : Math.max(...result.clusters.map((c) => c.level))}
+                    onHover={() => setTimeout(avoidHoverTextCoveringShrinkButton, 500)}
+                    showClusterLabels={showClusterLabels}
+                    filteredArgumentIds={filteredArgumentIds}
+                    config={result.config}
+                  />
+                )}
+                {selectedChart === "treemap" && (
+                  <TreemapChart
+                    key={treemapLevel}
+                    clusterList={result.clusters}
+                    argumentList={result.arguments}
+                    onHover={avoidHoverTextCoveringShrinkButton}
+                    level={treemapLevel}
+                    onTreeZoom={onTreeZoom}
+                    filteredArgumentIds={filteredArgumentIds}
+                  />
+                )}
+              </Box>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
     );
   }
 
