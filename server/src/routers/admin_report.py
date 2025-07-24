@@ -273,8 +273,6 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
     from broadlistening.pipeline.services.llm import request_to_chat_ai
 
     try:
-        use_azure = os.getenv("USE_AZURE", "false").lower() == "true"
-
         test_messages = [
             {"role": "system", "content": "This is a test message to verify API key."},
             {"role": "user", "content": "Hello"},
@@ -290,7 +288,6 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
             "message": "ChatGPT API キーは有効です",
             "error_detail": None,
             "error_type": None,
-            "use_azure": use_azure,
         }
 
     except openai.AuthenticationError as e:
@@ -299,7 +296,6 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
             "message": "認証エラー: APIキーが無効または期限切れです",
             "error_detail": str(e),
             "error_type": "authentication_error",
-            "use_azure": use_azure,
         }
     except openai.RateLimitError as e:
         error_str = str(e).lower()
@@ -309,14 +305,12 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
                 "message": "残高不足エラー: APIキーのデポジット残高が不足しています。残高を追加してください。",
                 "error_detail": str(e),
                 "error_type": "insufficient_quota",
-                "use_azure": use_azure,
             }
         return {
             "success": False,
             "message": "レート制限エラー: APIリクエストの制限を超えました。しばらく待ってから再試行してください。",
             "error_detail": str(e),
             "error_type": "rate_limit_error",
-            "use_azure": use_azure,
         }
     except Exception as e:
         return {
@@ -324,7 +318,6 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
             "message": f"エラーが発生しました: {str(e)}",
             "error_detail": str(e),
             "error_type": "unknown_error",
-            "use_azure": use_azure,
         }
 
 

@@ -11,27 +11,6 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 DOTENV_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../.env"))
 load_dotenv(DOTENV_PATH)
 
-# check env
-use_azure = os.getenv("USE_AZURE", "false").lower()
-
-if use_azure == "true":
-    if not os.getenv("AZURE_CHATCOMPLETION_ENDPOINT"):
-        raise RuntimeError("AZURE_CHATCOMPLETION_ENDPOINT environment variable is not set")
-    if not os.getenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME"):
-        raise RuntimeError("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME environment variable is not set")
-    if not os.getenv("AZURE_CHATCOMPLETION_API_KEY"):
-        raise RuntimeError("AZURE_CHATCOMPLETION_API_KEY environment variable is not set")
-    if not os.getenv("AZURE_CHATCOMPLETION_VERSION"):
-        raise RuntimeError("AZURE_CHATCOMPLETION_VERSION environment variable is not set")
-    if not os.getenv("AZURE_EMBEDDING_ENDPOINT"):
-        raise RuntimeError("AZURE_EMBEDDING_ENDPOINT environment variable is not set")
-    if not os.getenv("AZURE_EMBEDDING_API_KEY"):
-        raise RuntimeError("AZURE_EMBEDDING_API_KEY environment variable is not set")
-    if not os.getenv("AZURE_EMBEDDING_VERSION"):
-        raise RuntimeError("AZURE_EMBEDDING_VERSION environment variable is not set")
-    if not os.getenv("AZURE_EMBEDDING_DEPLOYMENT_NAME"):
-        raise RuntimeError("AZURE_EMBEDDING_DEPLOYMENT_NAME environment variable is not set")
-
 
 @retry(
     retry=retry_if_exception_type(openai.RateLimitError),

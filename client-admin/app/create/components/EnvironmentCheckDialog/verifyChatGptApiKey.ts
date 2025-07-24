@@ -7,7 +7,6 @@ type ErrorType = "authentication_error" | "insufficient_quota" | "rate_limit_err
 type VerificationResult = {
   success: boolean;
   message: string;
-  use_azure: boolean;
   available_models?: string[];
   error_type?: ErrorType;
   error_detail?: string;

@@ -23,7 +23,6 @@ describe("verifyChatGptApiKey", () => {
     const mockResponse = {
       success: true,
       message: "API key verified successfully",
-      use_azure: false,
       available_models: ["gpt-3.5-turbo", "gpt-4"],
     };
 

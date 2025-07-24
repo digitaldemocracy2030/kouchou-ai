@@ -81,7 +81,6 @@ describe("EnvironmentCheckDialog", () => {
       result: {
         success: true,
         message: "接続成功",
-        use_azure: false,
         available_models: ["gpt-4"],
       },
       error: false,
@@ -108,7 +107,6 @@ describe("EnvironmentCheckDialog", () => {
       result: {
         success: false,
         message: "認証エラー",
-        use_azure: false,
         error_type: "authentication_error",
         error_detail: "Invalid API key",
       },
@@ -139,7 +137,6 @@ describe("EnvironmentCheckDialog", () => {
       result: {
         success: false,
         message: "クォータ不足",
-        use_azure: false,
         error_type: "insufficient_quota",
         error_detail: "Insufficient quota",
       },
@@ -166,7 +163,6 @@ describe("EnvironmentCheckDialog", () => {
       result: {
         success: false,
         message: "レート制限",
-        use_azure: false,
         error_type: "rate_limit_error",
         error_detail: "Rate limit exceeded",
       },
@@ -195,7 +191,6 @@ describe("EnvironmentCheckDialog", () => {
       result: {
         success: false,
         message: "不明なエラー",
-        use_azure: false,
         error_type: "unknown_error",
         error_detail: "Unknown error occurred",
       },
