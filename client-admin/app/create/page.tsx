@@ -5,7 +5,7 @@ import { toaster } from "@/components/ui/toaster";
 import { Box, Button, Field, HStack, Heading, Presence, Tabs, Text, VStack, useDisclosure } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { createReport } from "./api/report";
+import { createReport } from "./api/createReport";
 import { AISettingsSection } from "./components/AISettingsSection";
 import { BasicInfoSection } from "./components/BasicInfoSection";
 import { CsvFileTab } from "./components/CsvFileTab";
@@ -18,7 +18,6 @@ import { useClusterSettings } from "./hooks/useClusterSettings";
 import { useInputData } from "./hooks/useInputData";
 import { usePromptSettings } from "./hooks/usePromptSettings";
 import { type CsvData, parseCsv } from "./parseCsv";
-import { showErrorToast } from "./utils/error-handler";
 import { validateFormValues } from "./utils/validation";
 
 /**
@@ -150,26 +149,26 @@ export default function Page() {
       return;
     }
 
-    try {
-      const promptData = promptSettings.getPromptSettings();
+    const promptData = promptSettings.getPromptSettings();
 
-      await createReport({
-        input: basicInfo.input,
-        question: basicInfo.question,
-        intro: basicInfo.intro,
-        comments,
-        cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
-        provider: aiSettings.provider,
-        model: aiSettings.model,
-        workers: aiSettings.workers,
-        prompt: promptData,
-        is_pubcom: aiSettings.isPubcomMode,
-        inputType: inputData.inputType,
-        is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
-        enable_source_link: aiSettings.enableSourceLink,
-        local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
-      });
+    const result = await createReport({
+      input: basicInfo.input,
+      question: basicInfo.question,
+      intro: basicInfo.intro,
+      comments,
+      cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
+      provider: aiSettings.provider,
+      model: aiSettings.model,
+      workers: aiSettings.workers,
+      prompt: promptData,
+      is_pubcom: aiSettings.isPubcomMode,
+      inputType: inputData.inputType,
+      is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
+      enable_source_link: aiSettings.enableSourceLink,
+      local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
+    });
 
+    if (result.success) {
       toaster.create({
         duration: 5000,
         type: "success",
@@ -177,11 +176,15 @@ export default function Page() {
       });
 
       router.replace("/");
-    } catch (e) {
-      showErrorToast(toaster, e, "レポート作成に失敗しました");
-    } finally {
-      setLoading(false);
+    } else {
+      toaster.create({
+        type: "error",
+        title: "レポート作成に失敗しました",
+        description: result.error,
+      });
     }
+
+    setLoading(false);
   };
 
   // メインコンポーネントのレンダリング
