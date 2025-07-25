@@ -1,6 +1,7 @@
 .env.azure.generated
 .env.azure
 .env
+.env-hashes
 .idea
 .next
 .DS_Store
