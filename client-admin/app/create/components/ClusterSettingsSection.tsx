@@ -1,5 +1,6 @@
 import { Button, Field, HStack, Input, Text } from "@chakra-ui/react";
 import { ChevronRightIcon } from "lucide-react";
+import React, { useState } from "react";
 import type { ClusterSettings } from "../types";
 
 export function ClusterSettingsSection({
@@ -17,6 +18,16 @@ export function ClusterSettingsSection({
   onLv1Change: (value: number) => void;
   onLv2Change: (value: number) => void;
 }) {
+  const [lv1Input, setLv1Input] = useState(clusterLv1.toString());
+  const [lv2Input, setLv2Input] = useState(clusterLv2.toString());
+
+  React.useEffect(() => {
+    setLv1Input(clusterLv1.toString());
+  }, [clusterLv1]);
+  React.useEffect(() => {
+    setLv2Input(clusterLv2.toString());
+  }, [clusterLv2]);
+
   if (!recommendedClusters) return null;
 
   return (
@@ -28,13 +39,18 @@ export function ClusterSettingsSection({
         </Button>
         <Input
           type="number"
-          value={clusterLv1.toString()}
+          value={lv1Input}
           min={2}
           max={40}
           onChange={(e) => {
+            setLv1Input(e.target.value);
+          }}
+          onBlur={(e) => {
             const v = Number(e.target.value);
             if (!Number.isNaN(v)) {
               onLv1Change(v);
+            } else {
+              setLv1Input(clusterLv1.toString());
             }
           }}
         />
@@ -47,21 +63,18 @@ export function ClusterSettingsSection({
         </Button>
         <Input
           type="number"
-          value={clusterLv2.toString()}
+          value={lv2Input}
           min={2}
           max={1000}
           onChange={(e) => {
-            const inputValue = e.target.value;
-            if (inputValue === "") return;
-            const v = Number(inputValue);
-            if (!Number.isNaN(v)) {
-              onLv2Change(v);
-            }
+            setLv2Input(e.target.value);
           }}
           onBlur={(e) => {
             const v = Number(e.target.value);
             if (!Number.isNaN(v)) {
               onLv2Change(v);
+            } else {
+              setLv2Input(clusterLv2.toString());
             }
           }}
         />
