@@ -59,8 +59,11 @@ class TestLLMService:
             **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
         )
 
-        # openai.chat.completions.createをモック化
-        with patch("openai.chat.completions.create", return_value=mock_openai_response):
+        # OpenAIクライアントをモック化
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_openai_response
+
+        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
             response, token_input, token_output, token_total = request_to_openai(messages, model="gpt-4")
 
         assert response == "This is a test response"
@@ -79,8 +82,11 @@ class TestLLMService:
             **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
         )
 
-        # openai.chat.completions.createをモック化
-        with patch("openai.chat.completions.create", return_value=mock_openai_response):
+        # OpenAIクライアントをモック化
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_openai_response
+
+        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
             response, token_input, token_output, token_total = request_to_openai(messages, model="gpt-4", is_json=True)
 
         assert response == "This is a test response"
@@ -89,9 +95,12 @@ class TestLLMService:
         assert token_total == 15
 
         # JSON形式のレスポンスを要求していることを確認
-        with patch("openai.chat.completions.create", return_value=mock_openai_response) as mock_create:
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_openai_response
+
+        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
             request_to_openai(messages, model="gpt-4", is_json=True)
-            args, kwargs = mock_create.call_args
+            args, kwargs = mock_client.chat.completions.create.call_args
             assert kwargs["response_format"] == {"type": "json_object"}
 
     def test_request_to_openai_with_json_schema(self, mock_openai_response):
@@ -120,8 +129,11 @@ class TestLLMService:
             **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
         )
 
-        # openai.chat.completions.createをモック化
-        with patch("openai.chat.completions.create", return_value=mock_openai_response) as mock_create:
+        # OpenAIクライアントをモック化
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_openai_response
+
+        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
             response, token_input, token_output, token_total = request_to_openai(
                 messages, model="gpt-4", json_schema=json_schema
             )
@@ -132,7 +144,7 @@ class TestLLMService:
         assert token_total == 15
 
         # JSON Schemaを指定していることを確認
-        args, kwargs = mock_create.call_args
+        args, kwargs = mock_client.chat.completions.create.call_args
         assert kwargs["response_format"] == json_schema
 
     def test_request_to_openai_with_pydantic_model(self, mock_openai_parse_response):
@@ -150,8 +162,11 @@ class TestLLMService:
             **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
         )
 
-        # openai.beta.chat.completions.parseをモック化
-        with patch("openai.beta.chat.completions.parse", return_value=mock_openai_parse_response) as mock_parse:
+        # OpenAIクライアントをモック化
+        mock_client = MagicMock()
+        mock_client.beta.chat.completions.parse.return_value = mock_openai_parse_response
+
+        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
             response, token_input, token_output, token_total = request_to_openai(
                 messages, model="gpt-4", json_schema=TestModel
             )
@@ -162,7 +177,7 @@ class TestLLMService:
         assert token_total == 15
 
         # Pydantic BaseModelを指定していることを確認
-        args, kwargs = mock_parse.call_args
+        args, kwargs = mock_client.beta.chat.completions.parse.call_args
         assert kwargs["response_format"] == TestModel
 
     def test_request_to_openai_rate_limit_error_retry(self):
@@ -190,7 +205,11 @@ class TestLLMService:
         # side_effectに複数の値を指定すると、呼び出しごとに順番に返される
         side_effects = [rate_limit_error, rate_limit_error, mock_response]
 
-        with patch("openai.chat.completions.create", side_effect=side_effects):
+        # OpenAIクライアントをモック化
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = side_effects
+
+        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
             # リトライ後に正常なレスポンスが返されることを確認
             response, token_input, token_output, token_total = request_to_openai(messages, model="gpt-4")
             assert response == "This is a test response after retry"
@@ -212,7 +231,11 @@ class TestLLMService:
             body=MagicMock(),
         )
 
-        with patch("openai.chat.completions.create", side_effect=[rate_limit_error] * 4):
+        # OpenAIクライアントをモック化
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = [rate_limit_error] * 4
+
+        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
             # 3回リトライしても失敗するため、最終的に例外が発生する
             with pytest.raises(openai.RateLimitError):
                 request_to_openai(messages, model="gpt-4")
@@ -224,13 +247,17 @@ class TestLLMService:
             {"role": "user", "content": "Hello, world!"},
         ]
 
-        # openai.chat.completions.createをモック化してAuthenticationErrorを発生させる
+        # OpenAIクライアントをモック化してAuthenticationErrorを発生させる
         auth_error = openai.AuthenticationError(
             message="Invalid API key",
             response=MagicMock(),
             body=MagicMock(),
         )
-        with patch("openai.chat.completions.create", side_effect=auth_error):
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = auth_error
+
+        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
             with pytest.raises(openai.AuthenticationError):
                 request_to_openai(messages, model="gpt-4")
 
@@ -241,13 +268,17 @@ class TestLLMService:
             {"role": "user", "content": "Hello, world!"},
         ]
 
-        # openai.chat.completions.createをモック化してBadRequestErrorを発生させる
+        # OpenAIクライアントをモック化してBadRequestErrorを発生させる
         bad_request_error = openai.BadRequestError(
             message="Bad request",
             response=MagicMock(),
             body=MagicMock(),
         )
-        with patch("openai.chat.completions.create", side_effect=bad_request_error):
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = bad_request_error
+
+        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
             with pytest.raises(openai.BadRequestError):
                 request_to_openai(messages, model="gpt-4")
 
@@ -557,7 +588,7 @@ class TestLLMService:
         assert token_input == 50
         assert token_output == 50
         assert token_total == 100
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, None)
+        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, None, None)
 
     def test_request_to_chat_openai_use_azure(self, mock_openai_response):
         """request_to_chat_openai: provider=azureの場合はrequest_to_azure_chatcompletionを使用する"""
@@ -579,7 +610,7 @@ class TestLLMService:
         assert token_input == 75
         assert token_output == 75
         assert token_total == 150
-        mock_request_to_azure.assert_called_once_with(messages, True, None)
+        mock_request_to_azure.assert_called_once_with(messages, True, None, None)
 
     def test_request_to_chat_openai_with_json_schema(self, mock_openai_response):
         """request_to_chat_openai: json_schemaパラメータを指定できる"""
@@ -615,7 +646,7 @@ class TestLLMService:
         assert token_input == 100
         assert token_output == 100
         assert token_total == 200
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, json_schema)
+        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, json_schema, None)
 
     def test_request_to_chat_openai_with_pydantic_model(self, mock_openai_response):
         """request_to_chat_openai: Pydantic BaseModelを指定できる"""
@@ -640,7 +671,7 @@ class TestLLMService:
         assert token_input == 125
         assert token_output == 125
         assert token_total == 250
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, TestModel)
+        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, TestModel, None)
 
     def test_validate_model_valid(self):
         """_validate_model: 有効なモデルの場合は例外を発生させない"""

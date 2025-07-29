@@ -1,6 +1,7 @@
 """Create summaries for the clusters."""
 
 import json
+import os
 import re
 
 import pandas as pd
@@ -41,6 +42,7 @@ def hierarchical_overview(config):
         model=model,
         provider=config["provider"],
         local_llm_address=config.get("local_llm_address"),
+        user_api_key=os.getenv("USER_API_KEY"),
         json_schema=OverviewResponse,
     )
 

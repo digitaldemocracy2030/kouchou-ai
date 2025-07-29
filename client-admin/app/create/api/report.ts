@@ -20,6 +20,7 @@ export async function createReport({
   is_embedded_at_local,
   enable_source_link,
   local_llm_address,
+  userApiKey,
 }: {
   input: string;
   question: string;
@@ -35,14 +36,21 @@ export async function createReport({
   is_embedded_at_local: boolean;
   enable_source_link: boolean;
   local_llm_address?: string;
+  userApiKey?: string;
 }): Promise<void> {
   try {
+    const headers: Record<string, string> = {
+      "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
+      "Content-Type": "application/json",
+    };
+
+    if (userApiKey) {
+      headers["x-user-api-key"] = userApiKey;
+    }
+
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASEPATH}/admin/reports`, {
       method: "POST",
-      headers: {
-        "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         input,
         question,

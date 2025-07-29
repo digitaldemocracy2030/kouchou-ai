@@ -122,6 +122,8 @@ export function useAISettings() {
     getFromStorage<string>(STORAGE_KEYS.LOCAL_LLM_ADDRESS, DEFAULT_LOCAL_LLM_ADDRESS),
   );
 
+  const [userApiKey, setUserApiKey] = useState<string>("");
+
   const [openRouterModels, setOpenRouterModels] = useState<ModelOption[]>([]);
   const [localLLMModels, setLocalLLMModels] = useState<ModelOption[]>([]);
 
@@ -275,6 +277,13 @@ export function useAISettings() {
   };
 
   /**
+   * ユーザーAPIキー変更時のハンドラー
+   */
+  const handleUserApiKeyChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setUserApiKey(e.target.value);
+  };
+
+  /**
    * モデル説明文を取得
    */
   const getModelDescription = () => {
@@ -332,6 +341,7 @@ export function useAISettings() {
     setIsEmbeddedAtLocal(false);
     setEnableSourceLink(false);
     setLocalLLMAddress(DEFAULT_LOCAL_LLM_ADDRESS);
+    setUserApiKey("");
     setOpenRouterModels([]);
     setLocalLLMModels([]);
 
@@ -351,6 +361,7 @@ export function useAISettings() {
     isEmbeddedAtLocal,
     enableSourceLink,
     localLLMAddress,
+    userApiKey,
     handleProviderChange,
     handleModelChange,
     handleWorkersChange,
@@ -358,6 +369,7 @@ export function useAISettings() {
     decreaseWorkers,
     handlePubcomModeChange,
     handleEnableSourceLinkChange,
+    handleUserApiKeyChange,
     setLocalLLMAddress,
     getModelDescription,
     getProviderDescription,

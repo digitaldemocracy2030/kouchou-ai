@@ -1,7 +1,7 @@
 import json
 
 import openai
-from fastapi import APIRouter, Depends, HTTPException, Query, Security
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Security
 from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.security.api_key import APIKeyHeader
 
@@ -44,9 +44,12 @@ async def get_reports(api_key: str = Depends(verify_admin_api_key)) -> list[Repo
 
 
 @router.post("/admin/reports", status_code=202)
-async def create_report(report: ReportInput, api_key: str = Depends(verify_admin_api_key)) -> ORJSONResponse:
+async def create_report(
+    report: ReportInput, request: Request, api_key: str = Depends(verify_admin_api_key)
+) -> ORJSONResponse:
     try:
-        launch_report_generation(report)
+        user_api_key = request.headers.get("x-user-api-key")
+        launch_report_generation(report, user_api_key)
         return ORJSONResponse(
             content=None,
             headers={
