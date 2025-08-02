@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { v4 } from "uuid";
 import { isValidId } from "../utils/validation";
 
 /**
@@ -7,7 +6,7 @@ import { isValidId } from "../utils/validation";
  */
 export function useBasicInfo() {
   // 基本情報の状態
-  const [input, setInput] = useState<string>(v4());
+  const [input, setInput] = useState<string>(crypto.randomUUID());
   const [question, setQuestion] = useState<string>("");
   const [intro, setIntro] = useState<string>("");
   const [isIdValid, setIsIdValid] = useState<boolean>(true);
@@ -39,7 +38,7 @@ export function useBasicInfo() {
    * 基本情報をリセット
    */
   const resetBasicInfo = () => {
-    setInput(v4());
+    setInput(crypto.randomUUID());
     setQuestion("");
     setIntro("");
     setIsIdValid(true);
