@@ -23,16 +23,19 @@ def request_to_openai(
     model: str = "gpt-4",
     is_json: bool = False,
     json_schema: dict | type[BaseModel] | None = None,
+    user_api_key: str | None = None,
 ) -> tuple[str, int, int, int]:  # 戻り値を文字列とトークン使用量(入力・出力・合計)のタプルに変更
     openai.api_type = "openai"
     token_usage_input = 0  # 入力トークン使用量を追跡する変数
     token_usage_output = 0  # 出力トークン使用量を追跡する変数
     token_usage_total = 0  # 合計トークン使用量を追跡する変数
 
+    client = OpenAI(api_key=user_api_key) if user_api_key else OpenAI()
+
     try:
         if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
             # Use beta.chat.completions.create for Pydantic BaseModel
-            response = openai.beta.chat.completions.parse(
+            response = client.beta.chat.completions.parse(
                 model=model,
                 messages=messages,
                 temperature=0,
@@ -65,7 +68,7 @@ def request_to_openai(
             if response_format:
                 payload["response_format"] = response_format
 
-            response = openai.chat.completions.create(**payload)
+            response = client.chat.completions.create(**payload)
 
             if hasattr(response, "usage") and response.usage:
                 token_usage_input = response.usage.prompt_tokens or 0
@@ -94,10 +97,11 @@ def request_to_azure_chatcompletion(
     messages: list[dict],
     is_json: bool = False,
     json_schema: dict | type[BaseModel] | None = None,
+    user_api_key: str | None = None,
 ) -> tuple[str, int, int, int]:  # 戻り値を文字列とトークン使用量(入力・出力・合計)のタプルに変更
     azure_endpoint = os.getenv("AZURE_CHATCOMPLETION_ENDPOINT")
     deployment = os.getenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME")
-    api_key = os.getenv("AZURE_CHATCOMPLETION_API_KEY")
+    api_key = user_api_key or os.getenv("AZURE_CHATCOMPLETION_API_KEY")
     api_version = os.getenv("AZURE_CHATCOMPLETION_VERSION")
     token_usage_input = 0  # 入力トークン使用量を追跡する変数
     token_usage_output = 0  # 出力トークン使用量を追跡する変数
@@ -262,6 +266,7 @@ def request_to_chat_ai(
     json_schema: dict | type[BaseModel] | None = None,
     provider: str = "openai",
     local_llm_address: str | None = None,
+    user_api_key: str | None = None,
 ) -> tuple[str, int, int, int]:  # 戻り値を文字列とトークン使用量(入力・出力・合計)のタプルに変更
     """AIプロバイダーにチャットリクエストを送信する関数
 
@@ -283,15 +288,15 @@ def request_to_chat_ai(
         - provider="openrouter": OpenRouter APIを使用（OpenAIやGeminiのモデルにアクセス可能）
     """
     if provider == "azure":
-        return request_to_azure_chatcompletion(messages, is_json, json_schema)
+        return request_to_azure_chatcompletion(messages, is_json, json_schema, user_api_key)
     elif provider == "openai":
-        return request_to_openai(messages, model, is_json, json_schema)
+        return request_to_openai(messages, model, is_json, json_schema, user_api_key)
     elif provider == "local":
         address = local_llm_address or "localhost:11434"
         return request_to_local_llm(messages, model, is_json, json_schema, address)
     elif provider == "openrouter":
         # OpenRouterのモデル名を直接使用
-        return request_to_openrouter_chatcompletion(messages, model, is_json, json_schema)
+        return request_to_openrouter_chatcompletion(messages, model, is_json, json_schema, user_api_key)
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
@@ -349,17 +354,24 @@ def request_to_local_llm_embed(args, model, address="localhost:11434"):
         return request_to_local_embed(args)
 
 
-def request_to_embed(args, model, is_embedded_at_local=False, provider="openai", local_llm_address: str | None = None):
+def request_to_embed(
+    args,
+    model,
+    is_embedded_at_local=False,
+    provider="openai",
+    local_llm_address: str | None = None,
+    user_api_key: str | None = None,
+):
     if is_embedded_at_local:
         return request_to_local_embed(args)
 
     if provider == "azure":
         logging.info("request_to_azure_embed")
-        return request_to_azure_embed(args, model)
+        return request_to_azure_embed(args, model, user_api_key)
     elif provider == "openai":
         logging.info("request_to_openai_embed")
         _validate_model(model)
-        client = OpenAI()
+        client = OpenAI(api_key=user_api_key) if user_api_key else OpenAI()
         response = client.embeddings.create(input=args, model=model)
         embeds = [item.embedding for item in response.data]
         return embeds
@@ -372,9 +384,9 @@ def request_to_embed(args, model, is_embedded_at_local=False, provider="openai",
         raise ValueError(f"Unknown provider: {provider}")
 
 
-def request_to_azure_embed(args, model):
+def request_to_azure_embed(args, model, user_api_key: str | None = None):
     azure_endpoint = os.getenv("AZURE_EMBEDDING_ENDPOINT")
-    api_key = os.getenv("AZURE_EMBEDDING_API_KEY")
+    api_key = user_api_key or os.getenv("AZURE_EMBEDDING_API_KEY")
     api_version = os.getenv("AZURE_EMBEDDING_VERSION")
     deployment = os.getenv("AZURE_EMBEDDING_DEPLOYMENT_NAME")
 
@@ -520,8 +532,9 @@ def request_to_openrouter_chatcompletion(
     model: str,
     is_json: bool = False,
     json_schema: dict | type[BaseModel] = None,
+    user_api_key: str | None = None,
 ) -> tuple[str, int, int, int]:  # 戻り値を文字列とトークン使用量(入力・出力・合計)のタプルに変更
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = user_api_key or os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY environment variable is not set")
 

@@ -1,6 +1,7 @@
 import concurrent.futures
 import json
 import logging
+import os
 import re
 
 import pandas as pd
@@ -152,6 +153,7 @@ def extract_arguments(input, prompt, model, provider="openai", local_llm_address
             json_schema=ExtractionResponse,
             provider=provider,
             local_llm_address=local_llm_address,
+            user_api_key=os.getenv("USER_API_KEY"),
         )
         items = parse_extraction_response(response)
         items = list(filter(None, items))  # omit empty strings

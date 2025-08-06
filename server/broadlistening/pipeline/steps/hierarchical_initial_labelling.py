@@ -1,4 +1,5 @@
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import TypedDict
@@ -163,6 +164,7 @@ def process_initial_labelling(
             provider=provider,
             json_schema=LabellingFromat,
             local_llm_address=local_llm_address,
+            user_api_key=os.getenv("USER_API_KEY"),
         )
 
         # トークン使用量を累積（configが渡されている場合）
