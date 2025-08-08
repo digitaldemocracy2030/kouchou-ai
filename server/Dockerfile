@@ -16,8 +16,11 @@ RUN pip install uv
 
 COPY pyproject.toml requirements.lock requirements-dev.lock requirements-torch.txt README.md ./
 
-# WITH_GPU=false の場合は、不要なパッケージがインストールされないように CPU版の PyTorch を先にインストール
-RUN if [ "$WITH_GPU" = "false" ]; then \
+# WITH_GPU=false の場合は 不要なパッケージをインストールしないようにする
+RUN if [ "$WITH_GPU" = "true" ]; then \
+    echo "Installing PyTorch (GPU version)" && \
+    uv pip install --no-cache --system -r requirements-torch.txt; \
+    else \
     echo "Installing PyTorch (CPU version)" && \
     uv pip install --no-cache --system -r requirements-torch.txt --index-url https://download.pytorch.org/whl/cpu; \
     fi
