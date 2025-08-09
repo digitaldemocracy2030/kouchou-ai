@@ -62,7 +62,7 @@ make build && make client-build-static
 
 ```bash
 # ビルド結果をコピー
-cp -r out/* /path/to/kouchou-ai-reports/
+cp -r out/. /path/to/kouchou-ai-reports/
 ```
 
 **注意**: `out`ディレクトリは毎回のビルドで削除されるため、`.git`ディレクトリも削除されてしまいます。そのため、別のディレクトリにリポジトリをクローンしておき、そこにビルド結果をコピーする方法を推奨します。
