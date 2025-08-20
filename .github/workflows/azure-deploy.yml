@@ -38,6 +38,7 @@ jobs:
 
       - name: Docker ログイン (ACR)
         run: |
+          set -euo pipefail
           az acr login --name ${{ env.AZURE_ACR_NAME }}
 
       - name: Python環境のセットアップ
@@ -139,8 +140,9 @@ jobs:
           # ヘルスプローブとポリシーの適用
           make azure-apply-policies || echo "ポリシー適用をスキップ"
 
-      - name: API用シークレット登録
+      - name: 全コンテナのシークレット登録
         run: |
+          # APIコンテナのシークレット登録
           az containerapp secret set \
             --name api --resource-group ${AZURE_RESOURCE_GROUP} \
             --secrets \
@@ -151,25 +153,36 @@ jobs:
               azure-blob-storage-account-name=${AZURE_BLOB_STORAGE_ACCOUNT_NAME} \
               azure-blob-storage-container-name=${AZURE_BLOB_STORAGE_CONTAINER_NAME}
 
-      - name: コンテナ更新
+          # Clientコンテナのシークレット登録
+          az containerapp secret set \
+            --name client --resource-group ${AZURE_RESOURCE_GROUP} \
+            --secrets \
+              public-api-key=${PUBLIC_API_KEY} \
+              revalidate-secret=${REVALIDATE_SECRET}
+
+          # Client-adminコンテナのシークレット登録
+          az containerapp secret set \
+            --name client-admin --resource-group ${AZURE_RESOURCE_GROUP} \
+            --secrets \
+              admin-api-key=${ADMIN_API_KEY} \
+              basic-auth-username=${BASIC_AUTH_USERNAME} \
+              basic-auth-password=${BASIC_AUTH_PASSWORD}
+
+          # Client-static-buildコンテナのシークレット登録
+          az containerapp secret set \
+            --name client-static-build --resource-group ${AZURE_RESOURCE_GROUP} \
+            --secrets \
+              public-api-key=${PUBLIC_API_KEY}
+
+      - name: コンテナ更新（イメージと環境変数を同時設定）
         run: |
           set -euo pipefail
-          # 全コンテナのイメージを更新
+          # 全コンテナのイメージと環境変数を同時に更新
           update_pids=()
-          az containerapp update --name api --resource-group ${AZURE_RESOURCE_GROUP} \
-            --image ${AZURE_ACR_NAME}.azurecr.io/api:latest & update_pids+=("$!")
-          az containerapp update --name client --resource-group ${AZURE_RESOURCE_GROUP} \
-            --image ${AZURE_ACR_NAME}.azurecr.io/client:latest & update_pids+=("$!")
-          az containerapp update --name client-admin --resource-group ${AZURE_RESOURCE_GROUP} \
-            --image ${AZURE_ACR_NAME}.azurecr.io/client-admin:latest & update_pids+=("$!")
-          az containerapp update --name client-static-build --resource-group ${AZURE_RESOURCE_GROUP} \
-            --image ${AZURE_ACR_NAME}.azurecr.io/client-static-build:latest & update_pids+=("$!")
-          for pid in "${update_pids[@]}"; do
-            wait "$pid"
-          done
 
-          # APIコンテナの環境変数設定（secretrefで参照）
+          # APIコンテナの更新（イメージ + 環境変数）
           az containerapp update --name api --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/api:latest \
             --set-env-vars \
               "OPENAI_API_KEY=secretref:openai-api-key" \
               "PUBLIC_API_KEY=secretref:public-api-key" \
@@ -180,7 +193,39 @@ jobs:
               "STORAGE_TYPE=azure_blob" \
               "REVALIDATE_URL=https://${CLIENT_DOMAIN}/api/revalidate" \
               "REVALIDATE_SECRET=secretref:revalidate-secret" \
-              "ENVIRONMENT=${ENVIRONMENT}"
+              "ENVIRONMENT=${ENVIRONMENT}" & update_pids+=("$!")
+
+          # Clientコンテナの更新（イメージ + 環境変数）
+          az containerapp update --name client --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/client:latest \
+            --set-env-vars \
+              "NEXT_PUBLIC_API_BASEPATH=https://${API_DOMAIN}" \
+              "API_BASEPATH=https://${API_DOMAIN}" \
+              "NEXT_PUBLIC_PUBLIC_API_KEY=secretref:public-api-key" \
+              "REVALIDATE_SECRET=secretref:revalidate-secret" & update_pids+=("$!")
+
+          # Client-adminコンテナの更新（イメージ + 環境変数）
+          az containerapp update --name client-admin --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/client-admin:latest \
+            --set-env-vars \
+              "NEXT_PUBLIC_API_BASEPATH=https://${API_DOMAIN}" \
+              "API_BASEPATH=https://${API_DOMAIN}" \
+              "NEXT_PUBLIC_ADMIN_API_KEY=secretref:admin-api-key" \
+              "CLIENT_STATIC_BUILD_BASEPATH=https://${CLIENT_STATIC_BUILD_DOMAIN}" \
+              "BASIC_AUTH_USERNAME=secretref:basic-auth-username" \
+              "BASIC_AUTH_PASSWORD=secretref:basic-auth-password" & update_pids+=("$!")
+
+          # Client-static-buildコンテナの更新（イメージ + 環境変数）
+          az containerapp update --name client-static-build --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/client-static-build:latest \
+            --set-env-vars \
+              "NEXT_PUBLIC_API_BASEPATH=https://${API_DOMAIN}" \
+              "NEXT_PUBLIC_PUBLIC_API_KEY=secretref:public-api-key" & update_pids+=("$!")
+
+          # 全更新の完了を待機
+          for pid in "${update_pids[@]}"; do
+            wait "$pid"
+          done
 
       - name: デプロイ確認
         run: |
