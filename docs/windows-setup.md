@@ -8,6 +8,7 @@
 - Windows 10/11
 - インターネット接続
 - OpenAI APIキー（[取得方法](https://platform.openai.com/api-keys)）
+- Gemini APIキー（[取得方法](https://ai.google.dev/gemini-api/docs/api-key)）
 
 ## セットアップ手順
 
@@ -23,17 +24,17 @@
 1. [広聴AI安定版リリース](https://github.com/digitaldemocracy2030/kouchou-ai/releases/latest)から最新の安定版をダウンロードします。
 2. ダウンロードしたzipファイルを任意の場所に展開します。
 
-### 3. OpenAI APIキーの準備
+### 3. APIキーの準備
 
-1. [OpenAI API](https://platform.openai.com/api-keys)にアクセスし、APIキーを取得します。
-2. アカウントに$5程度のクレジットをチャージしておくことをお勧めします。
+1. [OpenAI API](https://platform.openai.com/api-keys)にアクセスし、OpenAI APIキーを取得します（OpenAIモデルを使用する場合）。
+2. [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key)にアクセスし、Gemini APIキーを取得します（Geminiモデルを使用する場合）。
 3. APIキーをコピーして、メモ帳などに一時的に保存しておくと便利です。
 4. **重要**: APIキーは正確にコピーしてください。入力ミスがあると、後の処理でエラーが発生します。
 
 ### 4. セットアップの実行
 
 1. 展開したフォルダ内の`setup_win.bat`ファイルをダブルクリックします。
-2. プロンプトが表示されたら、OpenAI APIキーを入力します。
+2. プロンプトが表示されたら、OpenAI APIキーとGemini APIキーを入力します（どちらか一方でも可）。
    - **注意**: Ctrl+Vでの貼り付けができない場合は、右クリックして「貼り付け」を選択してください。
 3. セットアップが自動的に進行し、APIキーの有効性確認後にDockerコンテナが起動します。
 
@@ -56,12 +57,12 @@
 - アプリケーションの停止:  
   `stop_win.bat` をダブルクリックします（または Docker デスクトップから操作）
 
-#### OpenAI APIキーを変更したい場合
+#### APIキーを変更したい場合
 
-OpenAI APIキーを再設定したい場合は、再度 `setup_win.bat` を実行してください。
+OpenAI APIキーやGemini APIキーを再設定したい場合は、再度 `setup_win.bat` を実行してください。
 
 1. 既存のアプリケーションが起動中の場合は `stop_win.bat` で停止してください。  
-2. `setup_win.bat` を実行し、新しい APIキーを入力します。  
+2. `setup_win.bat` を実行し、新しい APIキーを入力します。
 3. 自動的に再ビルドと起動が行われます。
 
 > ※ `setup_win.bat` の再実行では、既存の `.env` ファイルが上書きされます。
@@ -76,10 +77,10 @@ OpenAI APIキーを再設定したい場合は、再度 `setup_win.bat` を実�
 
 Dockerをインストールした直後は、コマンドのパスが通っていない場合があります。コンピューターを再起動してから再度試してください。
 
-### OpenAI APIキーの入力に関する問題
+### APIキーの入力に関する問題
 
 - **貼り付けができない場合**: コマンドプロンプトではCtrl+Vが機能しないことがあります。右クリックして「貼り付け」を選択するか、Alt+Spaceキーを押してから「編集」→「貼り付け」を選択してください。
-- **APIキーが正しく動作しない場合**: APIキーが正確にコピーされているか確認してください。APIキーは「sk-」で始まり、その後に英数字が続きます。入力ミスがあると、後の処理でエラーが発生します。
+- **APIキーが正しく動作しない場合**: APIキーが正確にコピーされているか確認してください。OpenAI APIキーは「sk-」で始まります。入力ミスがあると、後の処理でエラーが発生します。
 
 ### WSL2の有効化が必要な場合
 

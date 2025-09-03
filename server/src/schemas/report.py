@@ -34,7 +34,7 @@ class Report(SchemaBaseModel):
     token_usage_input: int | None = None  # 入力トークン使用量
     token_usage_output: int | None = None  # 出力トークン使用量
     estimated_cost: float | None = None  # 推定コスト（USD）
-    provider: str | None = None  # LLMプロバイダー
+    provider: str | None = None  # LLMプロバイダー（openai, azure, openrouter, gemini, local）
     model: str | None = None  # LLMモデル
     analysis: AnalysisData | None = None
 

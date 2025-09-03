@@ -1,4 +1,6 @@
 import os
+import sys
+import types
 from unittest.mock import MagicMock, patch
 
 import openai
@@ -770,3 +772,120 @@ class TestLLMService:
             with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
                 with pytest.raises(openai.RateLimitError):
                     request_to_chat_ai(messages=messages, model=model, provider="openrouter")
+
+    def test_request_to_chat_ai_use_gemini(self):
+        """Geminiを使用するテストケース"""
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello!"},
+        ]
+        model = "gemini-pro"
+
+        # google.generativeai モジュールをモック化
+        genai_module = types.ModuleType("google.generativeai")
+        configure_mock = MagicMock()
+        gen_model_instance = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "Hi! How can I help you today?"
+        usage_metadata = MagicMock()
+        usage_metadata.prompt_token_count = 20
+        usage_metadata.candidates_token_count = 10
+        usage_metadata.total_token_count = 30
+        mock_response.usage_metadata = usage_metadata
+        gen_model_instance.generate_content.return_value = mock_response
+        generative_model_mock = MagicMock(return_value=gen_model_instance)
+        genai_module.configure = configure_mock
+        genai_module.GenerativeModel = generative_model_mock
+        google_module = types.ModuleType("google")
+        google_module.generativeai = genai_module
+
+        env_vars = {"GEMINI_API_KEY": "test-api-key"}
+        with patch.dict(sys.modules, {"google": google_module, "google.generativeai": genai_module}):
+            with patch.dict(os.environ, env_vars):
+                response, token_input, token_output, token_total = request_to_chat_ai(
+                    messages=messages,
+                    model=model,
+                    provider="gemini",
+                )
+
+        assert response == "Hi! How can I help you today?"
+        assert token_input == 20
+        assert token_output == 10
+        assert token_total == 30
+        configure_mock.assert_called_once_with(api_key="test-api-key")
+        expected_messages = [
+            {"role": "system", "parts": ["You are a helpful assistant."]},
+            {"role": "user", "parts": ["Hello!"]},
+        ]
+        generative_model_mock.assert_called_once_with(model)
+        gen_model_instance.generate_content.assert_called_once_with(
+            expected_messages,
+            generation_config=None,
+        )
+
+    def test_request_to_chat_ai_use_gemini_without_env(self):
+        """Geminiの環境変数が設定されていない場合のテスト"""
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello!"},
+        ]
+        model = "gemini-pro"
+
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(RuntimeError) as excinfo:
+                request_to_chat_ai(messages=messages, model=model, provider="gemini")
+            assert "GEMINI_API_KEY environment variable is not set" in str(excinfo.value)
+
+    def test_request_to_chat_ai_use_gemini_rate_limit(self):
+        """Geminiのレート制限エラーのテスト"""
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello!"},
+        ]
+        model = "gemini-pro"
+
+        genai_module = types.ModuleType("google.generativeai")
+        configure_mock = MagicMock()
+        gen_model_instance = MagicMock()
+
+        class RateLimitError(Exception):
+            pass
+
+        gen_model_instance.generate_content.side_effect = RateLimitError("Rate limit exceeded")
+        genai_module.configure = configure_mock
+        genai_module.GenerativeModel = MagicMock(return_value=gen_model_instance)
+        google_module = types.ModuleType("google")
+        google_module.generativeai = genai_module
+
+        env_vars = {"GEMINI_API_KEY": "test-api-key"}
+        with patch.dict(sys.modules, {"google": google_module, "google.generativeai": genai_module}):
+            with patch.dict(os.environ, env_vars):
+                with pytest.raises(RateLimitError):
+                    request_to_chat_ai(messages=messages, model=model, provider="gemini")
+
+    def test_request_to_embed_use_gemini(self):
+        """Geminiの埋め込みを使用するテストケース"""
+        args = ["hello", "world"]
+        model = "models/embedding-001"
+
+        genai_module = types.ModuleType("google.generativeai")
+        configure_mock = MagicMock()
+        embed_content_mock = MagicMock(
+            side_effect=[{"embedding": [0.1, 0.2]}, {"embedding": [0.3, 0.4]}]
+        )
+        genai_module.configure = configure_mock
+        genai_module.embed_content = embed_content_mock
+        google_module = types.ModuleType("google")
+        google_module.generativeai = genai_module
+
+        env_vars = {"GEMINI_API_KEY": "test-api-key"}
+        with patch.dict(sys.modules, {"google": google_module, "google.generativeai": genai_module}):
+            with patch("broadlistening.pipeline.services.llm.genai", genai_module):
+                with patch.dict(os.environ, env_vars):
+                    embeds = request_to_embed(args, model, provider="gemini")
+
+        assert embeds == [[0.1, 0.2], [0.3, 0.4]]
+        configure_mock.assert_called_once_with(api_key="test-api-key")
+        assert embed_content_mock.call_count == 2
+        embed_content_mock.assert_any_call(model=model, content="hello")
+        embed_content_mock.assert_any_call(model=model, content="world")

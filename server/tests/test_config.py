@@ -10,6 +10,7 @@ class TestSettings(Settings):
     ADMIN_API_KEY: str = "test-admin-api-key"
     PUBLIC_API_KEY: str = "test-public-api-key"
     OPENAI_API_KEY: str = "test-openai-api-key"
+    GEMINI_API_KEY: str | None = "test-gemini-api-key"
     ENVIRONMENT: Environment = "development"
 
     # テスト用の一時ディレクトリを使用

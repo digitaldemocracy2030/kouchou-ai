@@ -66,6 +66,18 @@ class TestLLMPricing:
         cost = LLMPricing.calculate_cost(provider, model, token_usage_input, token_usage_output)
         assert cost == pytest.approx(expected_cost)
 
+    def test_calculate_cost_gemini_flash(self):
+        """Geminiのgemini-1.5-flashモデルの料金計算が正しく行われる"""
+        provider = "gemini"
+        model = "gemini-1.5-flash"
+        token_usage_input = 1_000_000  # 1M tokens
+        token_usage_output = 500_000  # 0.5M tokens
+
+        expected_cost = 0.875
+
+        cost = LLMPricing.calculate_cost(provider, model, token_usage_input, token_usage_output)
+        assert cost == pytest.approx(expected_cost)
+
     def test_calculate_cost_unknown_provider(self):
         """不明なプロバイダーの場合は0"""
         provider = "unknown_provider"

@@ -22,7 +22,6 @@
   - docker
   - git
   - OpenAI API キー
-
 ## セットアップ・起動
 
 ### 前提

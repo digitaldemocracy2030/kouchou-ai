@@ -5,6 +5,7 @@ LLMモデルの価格計算サービス
 
 class LLMPricing:
     """LLMモデルの価格計算クラス"""
+    DEFAULT_PRICE = {"input": 0, "output": 0}  # 不明なモデルは 0 = 情報なし
 
     PRICING: dict[str, dict[str, dict[str, float]]] = {
         "openai": {
@@ -22,9 +23,13 @@ class LLMPricing:
             "openai/gpt-4o-2024-08-06": {"input": 2.50, "output": 10.00},
             "google/gemini-2.5-pro-preview": {"input": 1.25, "output": 10.00},
         },
+        "gemini": {
+            "gemini-1.5-flash": {"input": 0.35, "output": 1.05},
+            "gemini-1.5-pro": {"input": 3.50, "output": 10.50},
+            # 価格情報未定のためDEFAULT_PRICEを利用
+            "gemini-2.5-pro-preview": DEFAULT_PRICE,
+        },
     }
-
-    DEFAULT_PRICE = {"input": 0, "output": 0}  # 不明なモデルは 0 = 情報なし
 
     @classmethod
     def calculate_cost(cls, provider: str, model: str, token_usage_input: int, token_usage_output: int) -> float:

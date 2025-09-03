@@ -92,6 +92,7 @@ export function AISettingsSection({
             <option value={"openai"}>OpenAI</option>
             <option value={"azure"}>Azure</option>
             <option value={"openrouter"}>OpenRouter</option>
+            <option value={"gemini"}>Gemini</option>
             <option value={"local"}>LocalLLM</option>
           </NativeSelect.Field>
           <NativeSelect.Indicator />

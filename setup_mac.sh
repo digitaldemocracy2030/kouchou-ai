@@ -8,10 +8,12 @@ if ! docker info > /dev/null 2>&1; then
   exit 1
 fi
 
-read -p "Enter your OpenAI API key: " OPENAI_API_KEY
+read -p "Enter your OpenAI API key (optional): " OPENAI_API_KEY
+read -p "Enter your Gemini API key (optional): " GEMINI_API_KEY
 
 cat > .env << EOL
 OPENAI_API_KEY=${OPENAI_API_KEY}
+GEMINI_API_KEY=${GEMINI_API_KEY}
 PUBLIC_API_KEY=public
 ADMIN_API_KEY=admin
 ENVIRONMENT=development

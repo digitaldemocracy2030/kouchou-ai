@@ -8,6 +8,7 @@
 - macOS Catalina (10.15) 以降
 - インターネット接続
 - OpenAI APIキー（[取得方法](https://platform.openai.com/api-keys)）
+- Gemini APIキー（[取得方法](https://ai.google.dev/gemini-api/docs/api-key)）
 
 ## セットアップ手順
 
@@ -22,10 +23,11 @@
 1. [広聴AI安定版リリース](https://github.com/digitaldemocracy2030/kouchou-ai/releases/latest)から最新の安定版をダウンロードします。
 2. ダウンロードしたzipファイルを任意の場所に展開します。
 
-### 3. OpenAI APIキーの準備
+### 3. APIキーの準備
 
-1. [OpenAI API](https://platform.openai.com/api-keys)にアクセスし、APIキーを取得します。
-2. アカウントに$5程度のクレジットをチャージしておくことをお勧めします。
+1. [OpenAI API](https://platform.openai.com/api-keys)にアクセスし、OpenAI APIキーを取得します（OpenAIモデルを使用する場合）。
+2. [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key)にアクセスし、Gemini APIキーを取得します（Geminiモデルを使用する場合）。
+3. 各サービスの利用には課金が発生する場合があります。事前にクレジットをチャージしておくことをお勧めします。
 
 ### 4. セットアップの実行
 
@@ -33,7 +35,7 @@
 2. 展開したフォルダに移動します：`cd 展開したフォルダのパス`
 3. セットアップスクリプトに実行権限を付与します：`chmod +x setup_mac.sh`
 4. 以下のコマンドを実行してセットアップを開始します：`./setup_mac.sh`
-5. プロンプトが表示されたら、OpenAI APIキーを入力します。
+5. プロンプトが表示されたら、OpenAI APIキーとGemini APIキーを入力します（どちらか一方でも可）。
 6. セットアップが自動的に進行し、Dockerコンテナが起動します。
 
 ### 5. アプリケーションへのアクセス
@@ -55,12 +57,12 @@
 - アプリケーションの停止:  
   `./stop_mac.sh` を実行します（または Docker デスクトップから操作）
 
-#### OpenAI APIキーを変更したい場合
+#### APIキーを変更したい場合
 
-OpenAI APIキーを再設定したい場合は、再度 `./setup_mac.sh` を実行してください。
+OpenAI APIキーやGemini APIキーを再設定したい場合は、再度 `./setup_mac.sh` を実行してください。
 
 1. 既存のアプリケーションが起動中の場合は `./stop_mac.sh` で停止してください。  
-2. `./setup_mac.sh` を実行し、新しい APIキーを入力します。  
+2. `./setup_mac.sh` を実行し、新しい APIキーを入力します。
 3. 自動的に再ビルドと起動が行われます。
 
 > ※ `setup_mac.sh` の再実行では、既存の `.env` ファイルが上書きされます。
