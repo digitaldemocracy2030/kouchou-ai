@@ -388,16 +388,16 @@ export function ScatterChart({
           }}
           onHover={onHover}
           onUpdate={onUpdate}
-          onClick={(data: { points: Array<{ pointIndex: number; customdata?: { arg_id: string; url?: string } }> }) => {
+          onClick={(event) => {
             if (!config?.enable_source_link) return;
 
             try {
-              if (data.points && data.points.length > 0) {
-                const point = data.points[0];
+              if (event.points && event.points.length > 0) {
+                const point = event.points[0];
 
                 // customdataから直接argumentの情報を取得
                 if (point.customdata) {
-                  const customData = point.customdata as { arg_id: string; url?: string };
+                  const customData = point.customdata as unknown as { arg_id: string; url?: string };
 
                   if (customData.url) {
                     window.open(customData.url, "_blank", "noopener,noreferrer");
