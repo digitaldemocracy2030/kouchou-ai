@@ -244,7 +244,7 @@ export function ScatterChart({
             },
             text: matching.map((arg) => {
               const argumentText = arg.argument.replace(/(.{30})/g, "$1<br />");
-              const urlText = config?.enable_source_link && arg.url ? `<br><b>🔗 クリックしてソースを見る</b>` : "";
+              const urlText = config?.enable_source_link && arg.url ? "<br><b>🔗 クリックしてソースを見る</b>" : "";
               return `<b>${cluster.label}</b><br>${argumentText}${urlText}`;
             }),
             type: "scattergl",
@@ -388,7 +388,7 @@ export function ScatterChart({
           }}
           onHover={onHover}
           onUpdate={onUpdate}
-          onClick={(data: any) => {
+          onClick={(data: { points: Array<{ pointIndex: number; customdata?: { arg_id: string; url?: string } }> }) => {
             if (!config?.enable_source_link) return;
 
             try {
