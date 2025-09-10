@@ -7,7 +7,8 @@ export function BasicInfoSection({
   input,
   question,
   intro,
-  isIdValid,
+  isReportIdValid,
+  reportIdErrorMessage,
   onIdChange,
   onQuestionChange,
   onIntroChange,
@@ -15,7 +16,8 @@ export function BasicInfoSection({
   input: string;
   question: string;
   intro: string;
-  isIdValid: boolean;
+  isReportIdValid: boolean;
+  reportIdErrorMessage: string;
   onIdChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onQuestionChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onIntroChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -49,13 +51,13 @@ export function BasicInfoSection({
           value={input}
           onChange={onIdChange}
           placeholder="例：example"
-          aria-invalid={!isIdValid}
-          borderColor={!isIdValid ? "red.300" : undefined}
-          _hover={!isIdValid ? { borderColor: "red.400" } : undefined}
+          aria-invalid={!isReportIdValid}
+          borderColor={!isReportIdValid ? "red.300" : undefined}
+          _hover={!isReportIdValid ? { borderColor: "red.400" } : undefined}
         />
-        {!isIdValid && (
+        {!isReportIdValid && (
           <Text color="red.500" fontSize="sm" mt={1}>
-            IDは英小文字、数字、ハイフンのみ使用できます
+            {reportIdErrorMessage}
           </Text>
         )}
         <Field.HelperText>英字小文字と数字とハイフンのみ(URLで利用されます)</Field.HelperText>

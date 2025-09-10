@@ -9,6 +9,35 @@ export function isValidId(id: string): boolean {
 }
 
 /**
+ * レポートIDのバリデーション
+ * @param id バリデーション対象のレポートID
+ * @returns バリデーション結果とエラーメッセージ
+ */
+export function validateReportId(id: string): { isValid: boolean; errorMessage?: string } {
+  if (id.length === 0) {
+    return { isValid: false, errorMessage: "IDを入力してください" };
+  }
+
+  if (id.length > 255) {
+    return { isValid: false, errorMessage: "IDは255文字以内で入力してください" };
+  }
+
+  if (!/^[a-z0-9-]+$/.test(id)) {
+    return { isValid: false, errorMessage: "IDは英小文字、数字、ハイフンのみ使用できます" };
+  }
+
+  if (id.startsWith("-")) {
+    return { isValid: false, errorMessage: "IDはハイフンで始めることができません" };
+  }
+
+  if (id.endsWith("-")) {
+    return { isValid: false, errorMessage: "IDはハイフンで終わることができません" };
+  }
+
+  return { isValid: true };
+}
+
+/**
  * フォーム入力値のバリデーション
  * @param values バリデーション対象の値
  * @returns バリデーション結果と、エラーメッセージ

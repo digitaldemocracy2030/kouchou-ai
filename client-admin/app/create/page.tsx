@@ -202,7 +202,8 @@ export default function Page() {
             input={basicInfo.input}
             question={basicInfo.question}
             intro={basicInfo.intro}
-            isIdValid={basicInfo.isIdValid}
+            isReportIdValid={basicInfo.isReportIdValid}
+            reportIdErrorMessage={basicInfo.reportIdErrorMessage}
             onIdChange={basicInfo.handleIdChange}
             onQuestionChange={basicInfo.handleQuestionChange}
             onIntroChange={basicInfo.handleIntroChange}
