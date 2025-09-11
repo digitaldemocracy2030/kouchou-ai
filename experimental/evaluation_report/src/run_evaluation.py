@@ -89,13 +89,13 @@ def main():
 
             run_command(cmd, f"LLM評価（level {level}）")
 
-    print(f"\n=== ステップ3: CSV出力 ===")
+    print("\n=== ステップ3: CSV出力 ===")
     run_command(f"python {script_path('generate_csv.py')} {dataset}", "CSV出力")
-    print(f"✓ CSV出力完了:")
+    print("✓ CSV出力完了:")
     print(f" - クラスタ: {output_dir / 'cluster_evaluation.csv'}")
     print(f" - 意見:     {output_dir / 'comment_evaluation.csv'}")
 
-    print(f"\n=== ステップ4: HTMLレポート生成 ===")
+    print("\n=== ステップ4: HTMLレポート生成 ===")
     run_command(f"python {script_path('generate_html.py')} {dataset}", "HTMLレポート生成")
     print(f"✓ HTML出力完了: {output_dir / 'report.html'}")
 
