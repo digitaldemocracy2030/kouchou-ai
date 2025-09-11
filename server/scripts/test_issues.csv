@@ -1,0 +1,13 @@
+comment-id,comment-body,source,url,created_at,state,labels
+1,"機能追加: ユーザーが意見を投稿する際の入力フォームが使いにくい
+
+現在の意見投稿フォームは以下の問題があります：
+- 文字数制限が不明確  
+- リアルタイムプレビューがない
+- 投稿前の確認画面がない",GitHub Issues,https://github.com/digitaldemocracy2030/kouchou-ai/issues/1,2024-01-15T10:30:00Z,open,"enhancement,ui"
+2,"バグ報告: レポート生成時にメモリ不足エラーが発生する
+
+大量のコメントデータ（10,000件以上）でレポート生成を実行すると、メモリ不足でプロセスが停止する。",GitHub Issues,https://github.com/digitaldemocracy2030/kouchou-ai/issues/2,2024-01-16T14:20:00Z,open,"bug,performance"
+3,"ドキュメント改善: APIの使用方法が不明確
+
+開発者向けドキュメントにAPIの詳細な使用例が不足している。特に認証方法とエラーハンドリングについて。",GitHub Issues,https://github.com/digitaldemocracy2030/kouchou-ai/issues/3,2024-01-17T09:15:00Z,open,"documentation"
