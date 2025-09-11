@@ -68,72 +68,135 @@ async function fetchApiWithRetry(url: string, options: RequestInit, retries = 5,
 }
 
 export const OpImage = async (slug: string) => {
-  // Use the retry function for the API fetch
-  const [font400, font700, apiResponse] = await Promise.all([
-    fetchFont(400),
-    fetchFont(700),
-    fetchApiWithRetry(`${getApiBaseUrl()}/reports/${slug}`, {
-      headers: {
-        "x-api-key": process.env.NEXT_PUBLIC_PUBLIC_API_KEY || "",
-        "Content-Type": "application/json",
-      },
-    }),
-  ]);
+  try {
+    // Use the retry function for the API fetch
+    const [font400, font700, apiResponse] = await Promise.all([
+      fetchFont(400),
+      fetchFont(700),
+      fetchApiWithRetry(`${getApiBaseUrl()}/reports/${slug}`, {
+        headers: {
+          "x-api-key": process.env.NEXT_PUBLIC_PUBLIC_API_KEY || "",
+          "Content-Type": "application/json",
+        },
+      }),
+    ]);
 
-  // 成功したレスポンスからJSONを解析する。
-  const result: Result = await apiResponse.json();
+    // 成功したレスポンスからJSONを解析する。
+    const result: Result = await apiResponse.json();
 
-  const clusterNum = getClusterNum(result);
-  const pageTitle = result.config.question;
+    const clusterNum = getClusterNum(result);
+    const pageTitle = result.config.question;
 
-  return new ImageResponse(
-    <div
-      style={{
-        background: "linear-gradient(to right, #f9c8a0, #f7c5da)",
-        width: "100%",
-        height: "100%",
-        padding: "2rem",
-        display: "flex",
-      }}
-    >
+    return new ImageResponse(
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          height: "100%",
+          background: "linear-gradient(to right, #f9c8a0, #f7c5da)",
           width: "100%",
-          background: "white",
-          padding: "2rem 3.5rem 2.8rem",
-          borderRadius: "10px",
-          boxSizing: "border-box",
+          height: "100%",
+          padding: "2rem",
+          display: "flex",
         }}
       >
-        <Header pageTitle={pageTitle} />
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <Stats result={result} clusterNum={clusterNum} />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "100%",
+            width: "100%",
+            background: "white",
+            padding: "2rem 3.5rem 2.8rem",
+            borderRadius: "10px",
+            boxSizing: "border-box",
+          }}
+        >
+          <Header pageTitle={pageTitle} />
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <Stats result={result} clusterNum={clusterNum} />
+            <Footer />
+          </div>
+        </div>
+      </div>,
+      {
+        ...size,
+        fonts: [
+          {
+            name: "Noto Sans JP",
+            data: font400,
+            style: "normal",
+            weight: 400,
+          },
+          {
+            name: "Noto Sans JP",
+            data: font700,
+            style: "normal",
+            weight: 700,
+          },
+        ],
+      },
+    );
+  } catch (error) {
+    const [font400, font700] = await Promise.all([
+      fetchFont(400),
+      fetchFont(700),
+    ]);
+
+    return new ImageResponse(
+      <div
+        style={{
+          background: "linear-gradient(to right, #f9c8a0, #f7c5da)",
+          width: "100%",
+          height: "100%",
+          padding: "2rem",
+          display: "flex",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100%",
+            width: "100%",
+            background: "white",
+            padding: "2rem 3.5rem 2.8rem",
+            borderRadius: "10px",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 64,
+              fontWeight: "bold",
+              textAlign: "center",
+              marginBottom: "2rem",
+            }}
+          >
+            GitHub Issues 問題意識分析
+          </div>
           <Footer />
         </div>
-      </div>
-    </div>,
-    {
-      ...size,
-      fonts: [
-        {
-          name: "Noto Sans JP",
-          data: font400,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "Noto Sans JP",
-          data: font700,
-          style: "normal",
-          weight: 700,
-        },
-      ],
-    },
-  );
+      </div>,
+      {
+        ...size,
+        fonts: [
+          {
+            name: "Noto Sans JP",
+            data: font400,
+            style: "normal",
+            weight: 400,
+          },
+          {
+            name: "Noto Sans JP",
+            data: font700,
+            style: "normal",
+            weight: 700,
+          },
+        ],
+      },
+    );
+  }
 };
 
 function Header({ pageTitle }: { pageTitle: string }) {

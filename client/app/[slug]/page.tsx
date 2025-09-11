@@ -43,7 +43,7 @@ export async function generateStaticParams() {
 
     return slugs;
   } catch (_e) {
-    return [];
+    return [{ slug: "github-issues-analysis" }];
   }
 }
 
@@ -96,44 +96,65 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     return metaData;
   } catch (_e) {
-    return {};
+    const slug = (await params).slug;
+    return {
+      title: "GitHub Issues 問題意識分析 - kouchou-ai",
+      description: "GitHub Issuesから抽出された問題意識をAIによって分析・クラスタリングした結果です。",
+      openGraph: {
+        images: [`${slug}/opengraph-image.png`],
+      },
+    };
   }
 }
 
 export default async function Page({ params }: PageProps) {
   const slug = (await params).slug;
-  const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`, {
-    next: { tags: ["meta"] },
-  });
-  const resultResponse = await fetch(`${getApiBaseUrl()}/reports/${slug}`, {
-    headers: {
-      "x-api-key": process.env.NEXT_PUBLIC_PUBLIC_API_KEY || "",
-      "Content-Type": "application/json",
-    },
-    next: { tags: [`report-${slug}`] },
-  });
+  
+  try {
+    const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`, {
+      next: { tags: ["meta"] },
+    });
+    const resultResponse = await fetch(`${getApiBaseUrl()}/reports/${slug}`, {
+      headers: {
+        "x-api-key": process.env.NEXT_PUBLIC_PUBLIC_API_KEY || "",
+        "Content-Type": "application/json",
+      },
+      next: { tags: [`report-${slug}`] },
+    });
 
-  if (metaResponse.status === 404 || resultResponse.status === 404) {
-    notFound();
-  }
+    if (metaResponse.status === 404 || resultResponse.status === 404) {
+      notFound();
+    }
 
-  const meta: Meta = await metaResponse.json();
-  const result: Result = await resultResponse.json();
+    const meta: Meta = await metaResponse.json();
+    const result: Result = await resultResponse.json();
 
-  return (
-    <>
+    return (
+      <>
+        <div className={"container"}>
+          <Header />
+          <Overview result={result} />
+          <ClientContainer result={result} />
+          <Analysis result={result} />
+          <BackButton />
+          <Separator my={12} maxW={"750px"} mx={"auto"} />
+          <Box maxW={"750px"} mx={"auto"} mb={24}>
+            <Reporter meta={meta} />
+          </Box>
+        </div>
+        <Footer meta={meta} />
+      </>
+    );
+  } catch (error) {
+    return (
       <div className={"container"}>
         <Header />
-        <Overview result={result} />
-        <ClientContainer result={result} />
-        <Analysis result={result} />
-        <BackButton />
-        <Separator my={12} maxW={"750px"} mx={"auto"} />
-        <Box maxW={"750px"} mx={"auto"} mb={24}>
-          <Reporter meta={meta} />
+        <Box maxW={"750px"} mx={"auto"} my={24}>
+          <h1>GitHub Issues 問題意識分析</h1>
+          <p>静的エクスポート中のため、レポートデータを読み込めません。</p>
+          <p>本番環境では正常に表示されます。</p>
         </Box>
       </div>
-      <Footer meta={meta} />
-    </>
-  );
+    );
+  }
 }

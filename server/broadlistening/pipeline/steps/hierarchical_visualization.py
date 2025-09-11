@@ -3,8 +3,8 @@ import subprocess
 
 def hierarchical_visualization(config):
     output_dir = config["output_dir"]
-    cwd = "../report"
-    command = f"REPORT={output_dir} npm run build"
+    cwd = "../../../client"
+    command = f"REPORT={output_dir} npm run build:static"
 
     try:
         process = subprocess.Popen(

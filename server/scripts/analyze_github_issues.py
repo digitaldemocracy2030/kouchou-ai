@@ -35,8 +35,7 @@ def main():
     result = subprocess.run([
         sys.executable, "hierarchical_main.py",
         str(config_path),
-        "--skip-interaction",
-        "--without-html"
+        "--skip-interaction"
     ], cwd=pipeline_dir)
     
     if result.returncode != 0:
