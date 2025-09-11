@@ -4,11 +4,10 @@ Complete GitHub Issues analysis workflow
 Fetches issues, runs kouchou-ai pipeline, and generates analysis report
 """
 
-import os
-import sys
 import subprocess
-import shutil
+import sys
 from pathlib import Path
+
 
 def main():
     script_dir = Path(__file__).parent
@@ -47,8 +46,8 @@ def main():
     print("3. 分析完了！")
     output_dir = pipeline_dir / "outputs" / "github-issues"
     print(f"結果は {output_dir} に保存されました")
-    print(f"- hierarchical_result.json: 分析結果")
-    print(f"- final_result_with_comments.csv: コメント付きCSV")
+    print("- hierarchical_result.json: 分析結果")
+    print("- final_result_with_comments.csv: コメント付きCSV")
     
     return 0
 

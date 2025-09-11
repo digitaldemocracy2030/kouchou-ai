@@ -4,11 +4,12 @@ GitHub Issues fetcher for kouchou-ai problem awareness analysis
 Fetches issues from digitaldemocracy2030/kouchou-ai and outputs CSV for pipeline processing
 """
 
-import os
-import csv
 import argparse
-from github import Github
+import csv
+import os
+
 from dotenv import load_dotenv
+from github import Github
 
 if not os.getenv('GITHUB_ACTIONS'):
     load_dotenv()
@@ -35,7 +36,7 @@ def fetch_github_issues(repo_name="digitaldemocracy2030/kouchou-ai", output_file
         issues = repo.get_issues(state='open', sort='created', direction='desc')
         
         csv_data = []
-        for i, issue in enumerate(issues):
+        for _i, issue in enumerate(issues):
             if issue.pull_request:  # Skip pull requests
                 continue
                 
