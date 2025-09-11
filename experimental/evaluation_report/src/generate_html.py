@@ -28,7 +28,7 @@ def mean(values):
 def safe_int(v):
     try:
         return int(v)
-    except:
+    except (ValueError, TypeError):
         return None
 
 
@@ -65,7 +65,6 @@ def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Pa
                 "nearest_score": ump.get("nearest_score")
             }
         }
-    cluster_by_id = {c["id"]: c for c in result_data["clusters"]}
     cluster_children = {}
     for c in result_data["clusters"]:
         parent = c.get("parent")

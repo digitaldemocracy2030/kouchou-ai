@@ -56,7 +56,7 @@ def compute_centroid_distances(vectors: np.ndarray, labels: np.ndarray):
     centroids = {lbl: vectors[labels == lbl].mean(axis=0) for lbl in np.unique(labels)}
     centroid_dists = np.array([np.linalg.norm(v - centroids[lbl]) for v, lbl in zip(vectors, labels)])
     label_list = list(centroids.keys())
-    centroid_array = np.vstack([centroids[l] for l in label_list])
+    centroid_array = np.vstack([centroids[label] for label in label_list])
     dist_mat = pairwise_distances(vectors, centroid_array)
     nearest_dists = []
     for i, lbl in enumerate(labels):

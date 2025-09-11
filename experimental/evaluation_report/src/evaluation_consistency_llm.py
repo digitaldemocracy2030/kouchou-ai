@@ -1,18 +1,15 @@
+import argparse
+import json
 import sys
 from pathlib import Path
+
+import pandas as pd
 
 # このスクリプトから3階層上の server/ を PYTHONPATH に追加
 root_path = Path(__file__).resolve().parents[3] / "server"
 sys.path.insert(0, str(root_path))
 
-import argparse
-import json
-import random
-from pathlib import Path
-from typing import Literal
-
-import pandas as pd
-from broadlistening.pipeline.services.llm import request_to_chat_ai
+from broadlistening.pipeline.services.llm import request_to_chat_ai  # noqa: E402
 
 
 def get_criteria_clarity() -> str:
@@ -147,7 +144,6 @@ def evaluate_all_criteria_prompt_only(cluster_data: dict, output_path: Path = No
     else:
         print(prompt)
 def load_cluster_data(dataset_path: Path, level: int, max_samples: int) -> dict:
-    args_df = pd.read_csv(dataset_path / "args.csv")
     labels_df = pd.read_csv(dataset_path / "hierarchical_merge_labels.csv")
     clusters_df = pd.read_csv(dataset_path / "hierarchical_clusters.csv")
 
@@ -270,51 +266,6 @@ def save_results(results: dict, output_path: Path):
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
     print(f"✓ 結果を保存しました: {output_path}")
-
-def load_cluster_data(dataset_path: Path, level: int, max_samples: int) -> dict:
-    args_df = pd.read_csv(dataset_path / "args.csv")
-    labels_df = pd.read_csv(dataset_path / "hierarchical_merge_labels.csv")
-    clusters_df = pd.read_csv(dataset_path / "hierarchical_clusters.csv")
-
-    cluster_col = f"cluster-level-{level}-id"
-    cluster_data = {}
-
-    all_args = {}
-    for _, row in labels_df[labels_df["level"] == level].iterrows():
-        cluster_id = row["id"]
-        label = row["label"]
-        description = row["description"]
-        cluster_args = clusters_df[clusters_df[cluster_col] == cluster_id]["argument"].tolist()
-        all_args[cluster_id] = {
-            "label": label,
-            "description": description,
-            "arguments": cluster_args,
-        }
-
-    total_clusters = len(all_args)
-    total_items = sum(len(v["arguments"]) for v in all_args.values())
-
-    if max_samples < total_clusters:
-        raise ValueError(f"max-samples({max_samples}) is less than number of clusters({total_clusters})")
-
-    if total_items > max_samples:
-        print(f"⚠️ 入力データ {total_items} 件が max-samples({max_samples}) を超えているため、一部抜粋されます。")
-
-    remaining_budget = max_samples - total_clusters
-
-    for cid, data in all_args.items():
-        arg_count = len(data["arguments"])
-        ratio = arg_count / total_items if total_items else 0
-        extra = int(ratio * remaining_budget)
-        count = min(arg_count, 1 + extra)
-        cluster_data[cid] = {
-            "label": data["label"],
-            "description": data["description"],
-            "arguments": data["arguments"][:count],
-        }
-
-    return cluster_data
-
 
 def main():
     parser = argparse.ArgumentParser(description="意見グループ整合性評価（LLM使用）")
