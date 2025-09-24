@@ -12,9 +12,9 @@ type VerificationResult = {
   error_detail?: string;
 };
 
-export const verifyChatGptApiKey = async () => {
+export const verifyApiKey = async (provider: string) => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/admin/environment/verify-chatgpt`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/environment/verify?provider=${provider}`, {
       method: "GET",
       headers: {
         "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",

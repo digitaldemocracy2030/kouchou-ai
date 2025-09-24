@@ -16,10 +16,18 @@ import { SquareArrowOutUpRight } from "lucide-react";
 import { startTransition, useActionState, useState } from "react";
 import { ErrorIcon } from "./ErrorIcon";
 import { GradientCheckIcon } from "./GradientCheckIcon";
-import { verifyChatGptApiKey } from "./verifyChatGptApiKey";
+import { verifyApiKey } from "./verifyApiKey";
+import { type Provider } from "../../hooks/useAISettings";
 
-function Dialog() {
-  const [state, action, isPending] = useActionState(verifyChatGptApiKey, { result: null, error: false });
+type EnvironmentCheckDialogProps = {
+  provider: Provider;
+};
+
+function Dialog({ provider }: EnvironmentCheckDialogProps) {
+  const [state, action, isPending] = useActionState(verifyApiKey.bind(null, provider), {
+    result: null,
+    error: false,
+  });
 
   return (
     <>
@@ -136,7 +144,7 @@ function Dialog() {
   );
 }
 
-export function EnvironmentCheckDialog() {
+export function EnvironmentCheckDialog({ provider }: EnvironmentCheckDialogProps) {
   const [uuid, setUUID] = useState(crypto.randomUUID());
 
   return (
@@ -163,7 +171,7 @@ export function EnvironmentCheckDialog() {
           API接続チェック <SquareArrowOutUpRight />
         </Button>
       </DialogTrigger>
-      <Dialog />
+      <Dialog provider={provider} />
     </DialogRoot>
   );
 }

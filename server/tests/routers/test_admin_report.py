@@ -66,6 +66,19 @@ def client(app):
     return TestClient(app)
 
 
+@pytest.fixture
+def app():
+    """テスト用のFastAPIアプリケーションを作成するフィクスチャ"""
+    app = FastAPI()
+    app.include_router(router)
+
+    # 認証をバイパスするためのオーバーライド
+    async def override_verify_admin_api_key():
+        return "test-api-key"
+
+    app.dependency_overrides[verify_admin_api_key] = override_verify_admin_api_key
+    return app
+
 class TestUpdateReportVisibility:
     """update_report_visibilityエンドポイントのテスト"""
 
@@ -121,3 +134,30 @@ class TestUpdateReportVisibility:
         # レスポンスを検証
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid API key"
+
+class TestVerifyApiKey:
+    def test_verify_api_key_openai(self, client):
+        with patch("broadlistening.pipeline.services.llm.request_to_chat_ai") as mock_request:
+            mock_request.return_value = ("ok", 0, 0, 0)
+
+            response = client.get("/admin/environment/verify?provider=openai", headers={"x-api-key": "test-api-key"})
+            assert response.status_code == 200
+            assert response.json()["success"] is True
+
+            mock_request.assert_called_once()
+            _, kwargs = mock_request.call_args
+            assert kwargs["provider"] == "openai"
+            assert kwargs["model"] == "gpt-4o-mini"
+
+    def test_verify_api_key_gemini(self, client):
+        with patch("broadlistening.pipeline.services.llm.request_to_chat_ai") as mock_request:
+            mock_request.return_value = ("ok", 0, 0, 0)
+
+            response = client.get("/admin/environment/verify?provider=gemini", headers={"x-api-key": "test-api-key"})
+            assert response.status_code == 200
+            assert response.json()["success"] is True
+
+            mock_request.assert_called_once()
+            _, kwargs = mock_request.call_args
+            assert kwargs["provider"] == "gemini"
+            assert kwargs["model"] == "gemini-2.5-flash"

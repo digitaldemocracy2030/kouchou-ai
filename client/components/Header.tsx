@@ -1,12 +1,13 @@
 "use client";
 
+import { getImageFromServerSrc } from "@/app/utils/image-src";
 import { HStack, Image, useBreakpointValue } from "@chakra-ui/react";
 import { GlobalNavigation } from "./globalNavigation/GlobalNavigation";
 
 export function Header() {
   const logoSrc = useBreakpointValue({
-    base: "/images/logo-sp.svg",
-    md: "/images/logo.svg",
+    base: getImageFromServerSrc("/images/logo-sp.svg"),
+    md: getImageFromServerSrc("/images/logo.svg"),
   });
 
   return (

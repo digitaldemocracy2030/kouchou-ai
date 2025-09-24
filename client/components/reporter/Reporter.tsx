@@ -1,16 +1,9 @@
+import { getImageFromServerSrc } from "@/app/utils/image-src";
 import type { Meta } from "@/type";
 import { Image } from "@chakra-ui/react";
 import { ReporterContent } from "./ReporterContent";
 
 const imagePath = "/meta/reporter.png";
-
-function reporterImageSrc() {
-  // ビルド方法に応じて、clientから取得できる画像のパスを返す
-  if (process.env.NEXT_PUBLIC_OUTPUT_MODE === "export") {
-    return imagePath;
-  }
-  return new URL(imagePath, process.env.NEXT_PUBLIC_API_BASEPATH).toString();
-}
 
 async function hasReporterImage() {
   const url = new URL(imagePath, process.env.API_BASEPATH).toString();
@@ -28,7 +21,7 @@ async function ReporterImage({
   reporterName: string;
 }) {
   if (await hasReporterImage()) {
-    return <Image src={reporterImageSrc()} alt={reporterName} maxW="150px" />;
+    return <Image src={getImageFromServerSrc(imagePath)} alt={reporterName} maxW="150px" />;
   }
   return null;
 }

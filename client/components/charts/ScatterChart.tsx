@@ -1,7 +1,7 @@
 // filepath: c:\Users\shinta\Documents\GitHub\kouchou-ai\client\components\charts\ScatterChart.tsx
 import type { Argument, Cluster, Config } from "@/type";
 import { Box } from "@chakra-ui/react";
-import type { Annotations, Data, Layout } from "plotly.js";
+import type { Annotations, Data, Layout, PlotMouseEvent } from "plotly.js";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
@@ -244,7 +244,7 @@ export function ScatterChart({
             },
             text: matching.map((arg) => {
               const argumentText = arg.argument.replace(/(.{30})/g, "$1<br />");
-              const urlText = config?.enable_source_link && arg.url ? `<br><b>🔗 クリックしてソースを見る</b>` : "";
+              const urlText = config?.enable_source_link && arg.url ? "<br><b>🔗 クリックしてソースを見る</b>" : "";
               return `<b>${cluster.label}</b><br>${argumentText}${urlText}`;
             }),
             type: "scattergl",
@@ -388,31 +388,29 @@ export function ScatterChart({
           }}
           onHover={onHover}
           onUpdate={onUpdate}
-          onClick={(data: any) => {
+          onClick={(data: PlotMouseEvent) => {
             if (!config?.enable_source_link) return;
 
             try {
-              if (data.points && data.points.length > 0) {
-                const point = data.points[0];
+              const point = data.points?.[0];
 
-                // customdataから直接argumentの情報を取得
-                if (point.customdata) {
-                  const customData = point.customdata as { arg_id: string; url?: string };
+              // customdataから直接argumentの情報を取得
+              if (point?.customdata) {
+                const customData = point.customdata as unknown as { arg_id: string; url?: string };
 
-                  if (customData.url) {
-                    window.open(customData.url, "_blank", "noopener,noreferrer");
-                  } else {
-                    // customdataにURLがない場合、argumentListから検索
-                    const matchedArgument = argumentList.find((arg) => arg.arg_id === customData.arg_id);
-                    if (matchedArgument?.url) {
-                      window.open(matchedArgument.url, "_blank", "noopener,noreferrer");
-                    } else {
-                      console.log("No URL found for argument:", customData.arg_id);
-                    }
-                  }
+                if (customData.url) {
+                  window.open(customData.url, "_blank", "noopener,noreferrer");
                 } else {
-                  console.log("No customdata found in clicked point");
+                  // customdataにURLがない場合、argumentListから検索
+                  const matchedArgument = argumentList.find((arg) => arg.arg_id === customData.arg_id);
+                  if (matchedArgument?.url) {
+                    window.open(matchedArgument.url, "_blank", "noopener,noreferrer");
+                  } else {
+                    console.log("No URL found for argument:", customData.arg_id);
+                  }
                 }
+              } else {
+                console.log("No customdata found in clicked point");
               }
             } catch (error) {
               console.error("Error in click handler:", error);

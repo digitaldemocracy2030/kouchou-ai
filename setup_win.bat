@@ -13,9 +13,13 @@ if %errorlevel% neq 0 (
 )
 
 REM Enter OpenAI API key
-echo OpenAI APIキーを入力してください。
+echo OpenAI APIキーを入力してください。（省略可）
 echo 注意: Ctrl+Vが機能しない場合は、右クリックして「貼り付け」を選択してください。
-set /p OPENAI_API_KEY=Enter your OpenAI API key: 
+set /p OPENAI_API_KEY=Enter your OpenAI API key:
+
+REM Enter Gemini API key
+echo Gemini APIキーを入力してください。（省略可）
+set /p GEMINI_API_KEY=Enter your Gemini API key:
 
 REM Validate OpenAI API key format
 echo APIキーの形式を確認しています...
@@ -32,9 +36,18 @@ if %errorlevel% neq 0 (
   )
 )
 
+REM Validate Gemini API key format
+if not "%GEMINI_API_KEY%"=="" (
+  echo %GEMINI_API_KEY% | findstr /r "^AIza" > nul
+  if %errorlevel% neq 0 (
+    echo 警告: 入力されたGemini APIキーの形式が正しくない可能性があります。（通常は「AIza」で始まります）
+  )
+)
+
 REM Generate .env file
 echo # Auto-generated .env file > .env
 echo OPENAI_API_KEY=%OPENAI_API_KEY% >> .env
+echo GEMINI_API_KEY=%GEMINI_API_KEY% >> .env
 echo PUBLIC_API_KEY=public >> .env
 echo ADMIN_API_KEY=admin >> .env
 echo ENVIRONMENT=development >> .env

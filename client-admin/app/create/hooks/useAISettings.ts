@@ -1,7 +1,7 @@
 import { toaster } from "@/components/ui/toaster";
 import { type ChangeEvent, useEffect, useState } from "react";
 
-export type Provider = "openai" | "azure" | "openrouter" | "local";
+export type Provider = "openai" | "azure" | "openrouter" | "gemini" | "local";
 
 export interface ModelOption {
   value: string;
@@ -38,6 +38,12 @@ const OPENROUTER_MODELS: ModelOption[] = [
   { value: "openai/gpt-4o-2024-08-06", label: "GPT-4o (OpenRouter)" },
   { value: "openai/gpt-4o-mini-2024-07-18", label: "GPT-4o mini (OpenRouter)" },
   { value: "google/gemini-2.5-pro-preview", label: "Gemini 2.5 Pro" },
+];
+
+const GEMINI_MODELS: ModelOption[] = [
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
 ];
 
 /**
@@ -213,6 +219,10 @@ export function useAISettings() {
       models: OPENROUTER_MODELS,
       description: "OpenRouterを使用して複数のモデルにアクセスします。",
     },
+    gemini: {
+      models: GEMINI_MODELS,
+      description: "Google Gemini APIを使用します。GoogleのAPIキーが必要です。",
+    },
     local: {
       models: localLLMModels,
       description: "ローカルで実行されているLLMサーバーに接続します。",
@@ -296,6 +306,17 @@ export function useAISettings() {
       }
       if (model === "o3-mini") {
         return "o3-mini：gpt-4oよりも高度な推論能力を備えたモデルです。性能はより高くなりますが、gpt-4oと比較してOpenAI APIの料金は高くなります。";
+      }
+    }
+    if (provider === "gemini") {
+      if (model === "gemini-2.5-flash") {
+        return "Gemini 1.5 Flash：高速かつコスト効率の高いモデルです。価格の詳細はGoogleが公開しているAPI料金のページをご参照ください。";
+      }
+      if (model === "gemini-1.5-flash") {
+        return "Gemini 1.5 Flash：旧モデルです。価格の詳細はGoogleが公開しているAPI料金のページをご参照ください。";
+      }
+      if (model === "gemini-1.5-pro") {
+        return "Gemini 1.5 Pro：Gemini 1.5 Flashよりも高度な推論能力を備えたモデルです。性能はより高くなりますが、Gemini 1.5 Flashと比較してAPIの料金は高くなります。";
       }
     }
     return "";

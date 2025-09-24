@@ -310,7 +310,7 @@ export default function Page() {
           <WarningSection />
 
           <VStack mt="11" gap="6">
-            <EnvironmentCheckDialog />
+            <EnvironmentCheckDialog provider={aiSettings.provider} />
             {/* 送信ボタン */}
             <Button className={"gradientBg shadow"} size={"2xl"} w={"300px"} onClick={onSubmit} loading={loading}>
               レポート作成を開始

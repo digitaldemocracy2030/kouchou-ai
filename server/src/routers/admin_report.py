@@ -1,6 +1,11 @@
 import json
 
 import openai
+try:  # pragma: no cover - optional dependency
+    from google.api_core import exceptions as google_exceptions
+except Exception:  # pragma: no cover
+    google_exceptions = None
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Security
 from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.security.api_key import APIKeyHeader
@@ -237,14 +242,16 @@ async def update_cluster_label(
 
 @router.get("/admin/models")
 async def get_models(
-    provider: str = Query(..., description="LLMプロバイダー名"),
+    provider: str = Query(
+        ..., description="LLMプロバイダー名 (openai, azure, openrouter, gemini, local)"
+    ),
     address: str | None = Query(None, description="LocalLLM用アドレス（例: 127.0.0.1:1234）"),
     api_key: str = Depends(verify_admin_api_key),
 ) -> list[dict[str, str]]:
     """指定されたプロバイダーのモデルリストを取得するエンドポイント
 
     Args:
-        provider: LLMプロバイダー名（openai, azure, openrouter, local）
+        provider: LLMプロバイダー名（openai, azure, openrouter, gemini, local）
         address: LocalLLM用アドレス（localプロバイダーの場合のみ使用、例: 127.0.0.1:1234）
         api_key: 管理者APIキー
 
@@ -262,16 +269,13 @@ async def get_models(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.get("/admin/environment/verify-chatgpt")
-async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -> dict:
-    """Verify the ChatGPT API key configuration by making a simple chat request.
+@router.get("/admin/environment/verify")
+async def verify_api_key(
+    provider: str = Query("openai"),
+    api_key: str = Depends(verify_admin_api_key),
+) -> dict:
+    """Verify the API key for the specified provider by making a simple chat request."""
 
-    Checks both OpenAI and Azure OpenAI configurations based on the USE_AZURE setting.
-    Makes a simple chat request to verify the API key is valid and properly configured.
-
-    Returns:
-        dict: Status of the verification and any error messages in Japanese
-    """
     from broadlistening.pipeline.services.llm import request_to_chat_ai
 
     try:
@@ -280,14 +284,23 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
             {"role": "user", "content": "Hello"},
         ]
 
+        model_map = {
+            "openai": "gpt-4o-mini",
+            "azure": "gpt-4o-mini",
+            "openrouter": "openai/gpt-4o-mini-2024-07-18",
+            "gemini": "gemini-2.5-flash",
+        }
+        model = model_map.get(provider, "gpt-4o-mini")
+
         _ = request_to_chat_ai(
             messages=test_messages,
-            model="gpt-4o-mini",
+            model=model,
+            provider=provider,
         )
 
         return {
             "success": True,
-            "message": "ChatGPT API キーは有効です",
+            "message": "APIキーは有効です",
             "error_detail": None,
             "error_type": None,
         }
@@ -314,7 +327,21 @@ async def verify_chatgpt_api_key(api_key: str = Depends(verify_admin_api_key)) -
             "error_detail": str(e),
             "error_type": "rate_limit_error",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: PIE786
+        if google_exceptions is not None and isinstance(e, google_exceptions.Unauthenticated):
+            return {
+                "success": False,
+                "message": "認証エラー: APIキーが無効または期限切れです",
+                "error_detail": str(e),
+                "error_type": "authentication_error",
+            }
+        if google_exceptions is not None and isinstance(e, google_exceptions.ResourceExhausted):
+            return {
+                "success": False,
+                "message": "レート制限エラー: APIリクエストの制限を超えました。しばらく待ってから再試行してください。",
+                "error_detail": str(e),
+                "error_type": "rate_limit_error",
+            }
         return {
             "success": False,
             "message": f"エラーが発生しました: {str(e)}",

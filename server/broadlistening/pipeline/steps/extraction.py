@@ -93,7 +93,7 @@ def extraction(config):
     relation_df.to_csv(f"outputs/{dataset}/relations.csv", index=False)
 
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.DEBUG)
 
 
 def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_address=None, config=None):

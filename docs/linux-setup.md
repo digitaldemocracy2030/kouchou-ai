@@ -8,6 +8,7 @@
 - Ubuntu 20.04 LTS 以降（または同等のLinuxディストリビューション）
 - インターネット接続
 - OpenAI APIキー（[取得方法](https://platform.openai.com/api-keys)）
+- Gemini APIキー（[取得方法](https://ai.google.dev/gemini-api/docs/api-key)）
 
 ## セットアップ手順
 
@@ -32,10 +33,11 @@ sudo usermod -aG docker $USER
 unzip ダウンロードしたzipファイル -d 展開先のパス
 ```
 
-### 3. OpenAI APIキーの準備
+### 3. APIキーの準備
 
-1. [OpenAI API](https://platform.openai.com/api-keys)にアクセスし、APIキーを取得します。
-2. アカウントに$5程度のクレジットをチャージしておくことをお勧めします。
+1. [OpenAI API](https://platform.openai.com/api-keys)にアクセスし、OpenAI APIキーを取得します（OpenAIモデルを使用する場合）。
+2. [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key)にアクセスし、Gemini APIキーを取得します（Geminiモデルを使用する場合）。
+3. 各サービスの利用には課金が発生する場合があります。事前にクレジットをチャージしておくことをお勧めします。
 
 ### 4. セットアップの実行
 
@@ -43,7 +45,7 @@ unzip ダウンロードしたzipファイル -d 展開先のパス
 2. 展開したフォルダに移動します：`cd 展開したフォルダのパス`
 3. セットアップスクリプトに実行権限を付与します：`chmod +x setup_linux.sh`
 4. 以下のコマンドを実行してセットアップを開始します：`./setup_linux.sh`
-5. プロンプトが表示されたら、OpenAI APIキーを入力します。
+5. プロンプトが表示されたら、OpenAI APIキーとGemini APIキーを入力します（どちらか一方でも可）。
 6. セットアップが自動的に進行し、Dockerコンテナが起動します。
 
 ### 5. アプリケーションへのアクセス
@@ -65,12 +67,12 @@ unzip ダウンロードしたzipファイル -d 展開先のパス
 - アプリケーションの停止:  
   `./stop_linux.sh` を実行します
 
-#### OpenAI APIキーを変更したい場合
+#### APIキーを変更したい場合
 
-OpenAI APIキーを再設定したい場合は、再度 `./setup_linux.sh` を実行してください。
+OpenAI APIキーやGemini APIキーを再設定したい場合は、再度 `./setup_linux.sh` を実行してください。
 
 1. 既存のアプリケーションが起動中の場合は `./stop_linux.sh` で停止してください。  
-2. `./setup_linux.sh` を実行し、新しい APIキーを入力します。  
+2. `./setup_linux.sh` を実行し、新しい APIキーを入力します。
 3. 自動的に再ビルドと起動が行われます。
 
 > ※ `setup_linux.sh` の再実行では、既存の `.env` ファイルが上書きされます。

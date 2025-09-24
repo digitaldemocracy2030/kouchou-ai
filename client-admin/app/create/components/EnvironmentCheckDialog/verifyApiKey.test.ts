@@ -1,4 +1,4 @@
-import { verifyChatGptApiKey } from "./verifyChatGptApiKey";
+import { verifyApiKey } from "./verifyApiKey";
 
 // APIレスポンスをモック
 global.fetch = jest.fn();
@@ -8,7 +8,7 @@ jest.mock("@/app/utils/api", () => ({
   getApiBaseUrl: jest.fn(() => "http://localhost:8000"),
 }));
 
-describe("verifyChatGptApiKey", () => {
+describe("verifyApiKey", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // 環境変数をモック
@@ -30,15 +30,18 @@ describe("verifyChatGptApiKey", () => {
       json: jest.fn().mockResolvedValueOnce(mockResponse),
     });
 
-    const result = await verifyChatGptApiKey();
+    const result = await verifyApiKey("openai");
 
-    expect(fetch).toHaveBeenCalledWith("http://localhost:8000/admin/environment/verify-chatgpt", {
-      method: "GET",
-      headers: {
-        "x-api-key": "test-api-key",
-        "Content-Type": "application/json",
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:8000/admin/environment/verify?provider=openai",
+      {
+        method: "GET",
+        headers: {
+          "x-api-key": "test-api-key",
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     expect(result).toEqual({
       result: mockResponse,
@@ -51,7 +54,7 @@ describe("verifyChatGptApiKey", () => {
 
     const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
-    const result = await verifyChatGptApiKey();
+    const result = await verifyApiKey("openai");
 
     expect(result).toEqual({
       result: null,
@@ -61,5 +64,23 @@ describe("verifyChatGptApiKey", () => {
     expect(consoleSpy).toHaveBeenCalledWith("Error verifying API key:", expect.any(Error));
 
     consoleSpy.mockRestore();
+  });
+
+  it("指定したプロバイダーに応じたURLでAPIを呼び出すべき", async () => {
+    const mockResponse = {
+      success: true,
+      message: "API key verified successfully",
+    };
+
+    (fetch as jest.Mock).mockResolvedValueOnce({
+      json: jest.fn().mockResolvedValueOnce(mockResponse),
+    });
+
+    await verifyApiKey("gemini");
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:8000/admin/environment/verify?provider=gemini",
+      expect.any(Object),
+    );
   });
 });

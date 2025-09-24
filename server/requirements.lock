@@ -64,6 +64,8 @@ frozenlist==1.6.0
 fsspec==2025.3.2
     # via huggingface-hub
     # via torch
+google-generativeai>=0.8.4
+    # via server
 h11==0.16.0
     # via httpcore
     # via uvicorn

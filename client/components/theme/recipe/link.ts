@@ -23,7 +23,7 @@ export const linkRecipe = defineRecipe({
         _hover: {
           opacity: 0.75,
           textDecoration: "none",
-        }
+        },
       },
     },
   },
@@ -31,4 +31,4 @@ export const linkRecipe = defineRecipe({
   defaultVariants: {
     variant: "underline",
   },
-})
+});

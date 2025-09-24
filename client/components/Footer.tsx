@@ -1,5 +1,6 @@
 "use client";
 
+import { getImageFromServerSrc } from "@/app/utils/image-src";
 import type { Meta } from "@/type";
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { ArrowUpRight } from "lucide-react";
@@ -58,7 +59,7 @@ export function Footer({ meta }: Props) {
   return (
     <Box as="footer" color="gray.800">
       <Box
-        bg="url('/images/footer-bg.webp')"
+        bg={`url('${getImageFromServerSrc("/images/footer-bg.webp")}')`}
         bgSize="cover"
         bgPos="center"
         py={{ base: "6", md: "10" }}
@@ -76,7 +77,7 @@ export function Footer({ meta }: Props) {
           gap="8"
         >
           <Image
-            src="/images/kouchouai-logo.svg"
+            src={getImageFromServerSrc("/images/kouchouai-logo.svg")}
             alt="広聴AI すべての声が社会を動かす力になる。"
             width={256}
             height={102}
@@ -125,7 +126,12 @@ export function Footer({ meta }: Props) {
           alignItems={{ base: "center" }}
           gap="8"
         >
-          <Image src="/images/dd2030-logo-full.svg" alt="デジタル民主主義2030" width={256} height={80} />
+          <Image
+            src={getImageFromServerSrc("/images/dd2030-logo-full.svg")}
+            alt="デジタル民主主義2030"
+            width={256}
+            height={80}
+          />
           <Flex flexDirection="column" gap="4">
             <Text textStyle="body/sm">
               2030年には、情報技術により民主主義のあり方はアップデートされており、一人ひとりの声が政治・行政に届き、適切に合意形成・政策反映されていくような社会が当たり前になる、──そんな未来を目指して立ち上げられたのがデジタル民主主義2030プロジェクトです。
