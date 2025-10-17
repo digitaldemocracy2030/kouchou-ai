@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
+  globalSetup: require.resolve("./scripts/global-setup.ts"),
   testDir: "./tests",
   timeout: 30 * 1000,
   expect: {
@@ -45,6 +46,22 @@ export default defineConfig({
       },
     },
     {
+      name: "client-static-root",
+      testMatch: "**/client-static/root/**/*.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: "http://localhost:3001",
+      },
+    },
+    {
+      name: "client-static-subdir",
+      testMatch: "**/client-static/subdir/**/*.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: "http://localhost:3002/kouchou-ai",
+      },
+    },
+    {
       name: "debug",
       testMatch: ["**/simple.spec.ts", "**/debug.spec.ts"],
       use: {
@@ -86,6 +103,20 @@ export default defineConfig({
         API_BASEPATH: "http://localhost:8002",
         NEXT_PUBLIC_PUBLIC_API_KEY: "public",
       },
+    },
+    // Client静的ビルドテスト用（Root）: 静的ファイルをホスティング（port 3001）
+    {
+      command: "cd ../../client && npx http-server out -p 3001 --cors --silent",
+      port: 3001,
+      timeout: 30 * 1000,
+      reuseExistingServer: !process.env.CI,
+    },
+    // Client静的ビルドテスト用（Subdirectory）: 静的ファイルをホスティング（port 3002）
+    {
+      command: "cd ../../client && npx http-server out-subdir -p 3002 --cors --silent",
+      port: 3002,
+      timeout: 30 * 1000,
+      reuseExistingServer: !process.env.CI,
     },
   ],
 });

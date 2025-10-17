@@ -48,6 +48,18 @@ Clientのテストのみ実行:
 npx playwright test --project=client
 ```
 
+Client静的ビルドのテストのみ実行:
+```bash
+# Root ホスティング用（basePath なし）
+npx playwright test --project=client-static-root
+
+# Subdirectory ホスティング用（basePath="/kouchou-ai"）
+npx playwright test --project=client-static-subdir
+
+# 両方実行
+npx playwright test --project=client-static-root --project=client-static-subdir
+```
+
 UIモードでテストを実行:
 ```bash
 npm run test:ui
@@ -71,13 +83,23 @@ test/e2e/
 │   ├── admin/
 │   │   └── create-report.spec.ts  # 管理画面のレポート作成テスト
 │   ├── client/
-│   │   ├── reports.spec.ts        # Client レポート一覧テスト
-│   │   └── report-detail.spec.ts  # Client レポート詳細テスト
+│   │   ├── reports.spec.ts        # Client レポート一覧テスト（開発サーバー版）
+│   │   └── report-detail.spec.ts  # Client レポート詳細テスト（開発サーバー版）
+│   ├── client-static/
+│   │   ├── root/
+│   │   │   ├── reports.spec.ts    # Client レポート一覧テスト（静的ビルド・Root）
+│   │   │   └── report-detail.spec.ts  # Client レポート詳細テスト（静的ビルド・Root）
+│   │   └── subdir/
+│   │       ├── reports.spec.ts    # Client レポート一覧テスト（静的ビルド・Subdir）
+│   │       └── report-detail.spec.ts  # Client レポート詳細テスト（静的ビルド・Subdir）
 │   ├── seed.spec.ts               # 管理画面の基本的な環境確認テスト
 │   ├── verify-dummy-server.spec.ts # ダミーサーバー検証テスト
 │   ├── verify-environment.spec.ts  # 環境設定検証テスト
 │   ├── simple.spec.ts             # シンプルな接続確認テスト（デバッグ用）
 │   └── debug.spec.ts              # 要素確認テスト（デバッグ用）
+├── scripts/
+│   ├── build-static.sh            # 静的ビルド生成スクリプト
+│   └── global-setup.ts            # テスト前のグローバルセットアップ
 ├── fixtures/
 │   ├── admin/                     # 管理画面用フィクスチャ
 │   └── client/                    # Client用フィクスチャ（APIモック）
@@ -144,7 +166,9 @@ test("例", async ({ page }) => {
 
 - **verify**: 検証テスト（ダミーサーバーと環境設定の確認）
 - **admin**: 管理画面テスト（port 4000）
-- **client**: Clientテスト（port 3000）
+- **client**: Clientテスト（port 3000）- 開発サーバー版
+- **client-static-root**: Client静的ビルドテスト（port 3001）- Root ホスティング用
+- **client-static-subdir**: Client静的ビルドテスト（port 3002）- Subdirectory ホスティング用（GitHub Pages等）
 
 各プロジェクトは独立して実行でき、それぞれ異なるbaseURLを使用します。
 
@@ -323,3 +347,126 @@ test("レポート一覧表示", async ({ page }) => {
 4. **`/reports/[slug]`**: `app/reports/[slug]/route.ts`がテストフィクスチャを返す
 
 E2E_TEST環境変数が設定されていない場合は、通常のダミーデータを返します。
+
+## Client静的ビルドテスト（GitHub Pages等の静的ホスティング）
+
+静的ビルドをホスティングした環境での動作をテストします。
+
+### 対象
+
+**2種類のホスティング環境をテスト:**
+
+1. **Root ホスティング** (`client-static-root`)
+   - **URL**: http://localhost:3001
+   - **basePath**: なし
+   - **用途**: 独自ドメインでのホスティング（例: `https://example.com/`）
+
+2. **Subdirectory ホスティング** (`client-static-subdir`)
+   - **URL**: http://localhost:3002/kouchou-ai
+   - **basePath**: `/kouchou-ai`
+   - **用途**: GitHub Pages等のサブディレクトリホスティング（例: `https://username.github.io/kouchou-ai/`）
+
+### テストの特徴
+
+**静的HTMLファイルをテスト:**
+- 事前にビルドされた静的HTML を http-server でホスティング
+- APIサーバーへのリクエストは発生しない（ビルド時にデータが埋め込まれている）
+- 実際のホスティング環境に近い状態でテスト可能
+- **basePath の違い**により、リソースのパスやリンクが異なることを検証
+
+### 自動ビルド（推奨）
+
+テスト実行時に **自動的に静的ビルドが生成されます**：
+
+```bash
+# Root と Subdirectory の両方のビルドが自動生成されます
+npx playwright test --project=client-static-root
+npx playwright test --project=client-static-subdir
+
+# または両方同時に実行
+npx playwright test --project=client-static-root --project=client-static-subdir
+```
+
+**自動ビルドの仕組み:**
+- テスト実行前に `scripts/global-setup.ts` が実行されます
+- ダミーAPIサーバー（port 8002）からデータを取得して2種類のビルドを生成
+  1. Root用: `client/out` (basePath なし)
+  2. Subdirectory用: `client/out-subdir` (basePath="/kouchou-ai")
+
+### 手動ビルド（デバッグ用）
+
+自動ビルドをスキップしたい場合：
+
+```bash
+# 1. 手動でビルドを生成
+cd test/e2e
+./scripts/build-static.sh root      # Root用
+./scripts/build-static.sh subdir    # Subdirectory用
+
+# 2. 自動ビルドをスキップしてテスト実行
+SKIP_STATIC_BUILD=true npx playwright test --project=client-static-root
+```
+
+### テスト実行
+
+```bash
+# Root ホスティング用テスト
+npx playwright test --project=client-static-root
+
+# Subdirectory ホスティング用テスト
+npx playwright test --project=client-static-subdir
+
+# 両方実行
+npx playwright test --project=client-static-root --project=client-static-subdir
+
+# 個別のテストファイルを実行
+npx playwright test tests/client-static/root/reports.spec.ts
+npx playwright test tests/client-static/subdir/reports.spec.ts
+```
+
+**注意**:
+- `playwright.config.ts`の`webServer`設定により、http-server が自動的に起動されます
+  - Root用: port 3001
+  - Subdirectory用: port 3002
+- 初回実行時はビルドに数分かかります（2回目以降はキャッシュされます）
+
+### 静的ビルドとダミーサーバーの関係
+
+静的ビルドは**ビルド時**にダミーAPIサーバーからデータを取得してHTMLに埋め込みます：
+
+```
+ビルド時（グローバルセットアップ）:
+  scripts/build-static.sh
+    ↓ HTTPリクエスト
+  dummy-server (port 8002)
+    ↓ フィクスチャを返す
+  client/out (Root用静的HTML)
+  client/out-subdir (Subdirectory用静的HTML)
+
+テスト実行時:
+  http-server (port 3001 / 3002)
+    ↓ 静的HTMLを配信
+  ブラウザ（APIリクエストなし）
+```
+
+### basePath の検証
+
+Subdirectory ホスティング用テストでは、以下を検証します：
+
+1. **リソースパス**: CSS/JSファイルが `/kouchou-ai/_next/...` のパスで読み込まれる
+2. **ナビゲーション**: リンクが `/kouchou-ai/test-report-1` などの正しいパスになる
+3. **戻るボタン**: `/kouchou-ai/` に正しく戻る
+
+### デバッグ用：手動でサーバーを起動する場合
+
+通常は不要ですが、デバッグのために手動で静的ファイルをホスティングしたい場合：
+
+```bash
+# Root用
+cd client
+npx http-server out -p 3001
+
+# Subdirectory用
+cd client
+npx http-server out-subdir -p 3002
+```
