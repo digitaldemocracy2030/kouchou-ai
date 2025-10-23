@@ -1,0 +1,9 @@
+{
+  "name": "Invalid Type Test Report",
+  "question": "What are the opinions?",
+  "input": "valid_input",
+  "extraction": {
+    "limit": "not_a_number",
+    "workers": 1
+  }
+}
