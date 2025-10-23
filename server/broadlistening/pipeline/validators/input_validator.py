@@ -99,7 +99,7 @@ def validate_input_file(csv_path: str, required_properties: list[str] | None = N
         print("✓ Input CSV is valid")
         print(f"  - Rows: {report['row_count']}")
         print(f"  - Columns: {', '.join(report['columns'])}")
-        if report['additional_properties']:
+        if report["additional_properties"]:
             print(f"  - Additional properties: {', '.join(report['additional_properties'])}")
     else:
         print("✗ Input CSV is invalid")

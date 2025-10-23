@@ -59,7 +59,11 @@ class TestInputCSVSchema:
     def test_from_dataframe_missing_required_property(self):
         """Test that missing required property raises error."""
         df = pd.DataFrame(
-            {"comment-id": [1, 2, 3], "comment-body": ["Comment 1", "Comment 2", "Comment 3"], "source": ["A", "B", "C"]}
+            {
+                "comment-id": [1, 2, 3],
+                "comment-body": ["Comment 1", "Comment 2", "Comment 3"],
+                "source": ["A", "B", "C"],
+            }
         )
         with pytest.raises(ValueError, match="Missing required property columns"):
             InputCSVSchema.from_dataframe(df, required_properties=["age"])

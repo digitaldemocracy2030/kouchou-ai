@@ -54,9 +54,7 @@ class TestHierarchicalResultSchema:
         """Test valid hierarchical result."""
         result = HierarchicalResultSchema(
             arguments=[
-                ArgumentSchema(
-                    arg_id="A0_0", argument="Test", comment_id=0, x=1.0, y=2.0, p=0, cluster_ids=["0"]
-                )
+                ArgumentSchema(arg_id="A0_0", argument="Test", comment_id=0, x=1.0, y=2.0, p=0, cluster_ids=["0"])
             ],
             clusters=[ClusterSchema(id="0", label="Test", description="Test cluster", level=0)],
             propertyMaps={"source": {"Google Form": ["A0_0"]}},

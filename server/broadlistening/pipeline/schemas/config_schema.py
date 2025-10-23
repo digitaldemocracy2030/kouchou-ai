@@ -79,9 +79,7 @@ class AggregationConfig(BaseModel):
     """Configuration for aggregation step."""
 
     sampling_num: int = Field(default=5000, description="Number of samples to use")
-    hidden_properties: dict[str, list[Any]] = Field(
-        default_factory=dict, description="Properties to hide from output"
-    )
+    hidden_properties: dict[str, list[Any]] = Field(default_factory=dict, description="Properties to hide from output")
 
 
 class VisualizationConfig(BaseModel):
