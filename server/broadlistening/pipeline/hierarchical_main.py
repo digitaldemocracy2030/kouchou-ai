@@ -1,7 +1,6 @@
 import argparse
 import json
 import sys
-from pathlib import Path
 
 from hierarchical_utils import initialization, run_step, termination
 from steps.embedding import embedding

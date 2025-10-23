@@ -7,7 +7,6 @@ but do not execute the full pipeline (which would require API keys).
 import json
 from pathlib import Path
 
-import pytest
 
 from broadlistening.pipeline.schemas.config_schema import PipelineConfig
 from broadlistening.pipeline.schemas.input_csv_schema import InputCSVSchema
@@ -69,7 +68,7 @@ class TestPipelineE2E:
         ]
 
         for filename in expected_files:
-            filepath = output_dir / filename
+            _ = output_dir / filename
             assert output_dir.exists()
 
     def test_status_file_structure(self, tmp_path):
@@ -135,7 +134,7 @@ class TestPipelineStepDependencies:
         }
 
         assert len(step_outputs) == 8
-        for step, outputs in step_outputs.items():
+        for _step, outputs in step_outputs.items():
             assert len(outputs) >= 1
 
 

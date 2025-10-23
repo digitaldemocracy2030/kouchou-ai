@@ -1,6 +1,5 @@
 """Tests for input CSV validation."""
 
-import os
 from pathlib import Path
 
 import pandas as pd
