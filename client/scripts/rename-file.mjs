@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { access, rename } from "node:fs/promises";
+import { access, copyFile, rename, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
 
 let ignoreFiles = [];
@@ -12,6 +12,26 @@ if (process.env.NEXT_PUBLIC_OUTPUT_MODE === "export") {
   ignoreFiles = ["app/[slug]/opengraph-image.png/route.ts"];
 }
 
+/**
+ * Rename a file with fallback to copy+delete for cross-device operations
+ * @param {string} oldPath - Source file path
+ * @param {string} newPath - Destination file path
+ */
+async function renameWithFallback(oldPath, newPath) {
+  try {
+    await rename(oldPath, newPath);
+  } catch (error) {
+    // EXDEV error occurs when trying to rename across different filesystems/mount points
+    // Fall back to copy+delete approach
+    if (error.code === "EXDEV") {
+      await copyFile(oldPath, newPath);
+      await unlink(oldPath);
+    } else {
+      throw error;
+    }
+  }
+}
+
 async function renameFiles() {
   for (const file of ignoreFiles) {
     const filePath = resolve(file);
@@ -19,7 +39,7 @@ async function renameFiles() {
 
     try {
       await access(filePath, constants.F_OK);
-      await rename(filePath, renamedPath);
+      await renameWithFallback(filePath, renamedPath);
       console.log(`Renamed: ${file} → _${file.split("/").pop()}`);
     } catch (error) {
       console.warn(`Skipping rename for ${file}: ${error.message}`);
@@ -34,7 +54,7 @@ async function restoreFiles() {
 
     try {
       await access(renamedPath, constants.F_OK);
-      await rename(renamedPath, filePath);
+      await renameWithFallback(renamedPath, filePath);
       console.log(`Restored: _${file.split("/").pop()} → ${file}`);
     } catch (error) {
       console.warn(`Skipping restore for ${file}: ${error.message}`);
