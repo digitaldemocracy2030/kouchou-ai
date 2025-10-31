@@ -3,11 +3,13 @@
 import json
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ArgumentSchema(BaseModel):
     """Schema for an argument in the output."""
+
+    model_config = ConfigDict(extra="allow")
 
     arg_id: str = Field(..., description="Unique argument identifier")
     argument: str = Field(..., description="Argument text")
@@ -21,6 +23,8 @@ class ArgumentSchema(BaseModel):
 class ClusterSchema(BaseModel):
     """Schema for a cluster in the output."""
 
+    model_config = ConfigDict(extra="allow")
+
     id: str = Field(..., description="Unique cluster identifier")
     label: str = Field(..., description="Cluster label")
     description: str = Field(..., description="Cluster description")
@@ -29,6 +33,8 @@ class ClusterSchema(BaseModel):
 
 class HierarchicalResultSchema(BaseModel):
     """Schema for the complete hierarchical result JSON."""
+
+    model_config = ConfigDict(extra="allow")
 
     arguments: list[ArgumentSchema] = Field(..., description="List of extracted arguments")
     clusters: list[ClusterSchema] = Field(..., description="List of clusters")
@@ -67,6 +73,8 @@ class HierarchicalResultSchema(BaseModel):
 
 class StatusSchema(BaseModel):
     """Schema for the status JSON file."""
+
+    model_config = ConfigDict(extra="allow")
 
     status: str = Field(..., description="Pipeline status (running, completed, error)")
     start_time: str = Field(..., description="Pipeline start time (ISO format)")

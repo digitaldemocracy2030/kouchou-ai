@@ -3,11 +3,13 @@
 import json
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ExtractionConfig(BaseModel):
     """Configuration for extraction step."""
+
+    model_config = ConfigDict(extra="allow")
 
     limit: int = Field(default=1000, description="Maximum number of comments to process")
     workers: int = Field(default=1, description="Number of parallel workers")
@@ -38,11 +40,15 @@ class ExtractionConfig(BaseModel):
 class EmbeddingConfig(BaseModel):
     """Configuration for embedding step."""
 
+    model_config = ConfigDict(extra="allow")
+
     model: str = Field(default="text-embedding-3-small", description="Embedding model to use")
 
 
 class HierarchicalClusteringConfig(BaseModel):
     """Configuration for hierarchical clustering step."""
+
+    model_config = ConfigDict(extra="allow")
 
     cluster_nums: list[int] = Field(default_factory=lambda: [3, 6], description="Number of clusters per level")
 
@@ -59,6 +65,8 @@ class HierarchicalClusteringConfig(BaseModel):
 
 class LabellingConfig(BaseModel):
     """Configuration for labelling steps."""
+
+    model_config = ConfigDict(extra="allow")
 
     sampling_num: int = Field(default=3, description="Number of samples to use")
     workers: int = Field(default=1, description="Number of parallel workers")
@@ -78,6 +86,8 @@ class LabellingConfig(BaseModel):
 class AggregationConfig(BaseModel):
     """Configuration for aggregation step."""
 
+    model_config = ConfigDict(extra="allow")
+
     sampling_num: int = Field(default=5000, description="Number of samples to use")
     hidden_properties: dict[str, list[Any]] = Field(default_factory=dict, description="Properties to hide from output")
 
@@ -85,11 +95,15 @@ class AggregationConfig(BaseModel):
 class VisualizationConfig(BaseModel):
     """Configuration for visualization step."""
 
+    model_config = ConfigDict(extra="allow")
+
     replacements: list[dict[str, str]] = Field(default_factory=list, description="Text replacements")
 
 
 class PipelineConfig(BaseModel):
     """Complete pipeline configuration schema."""
+
+    model_config = ConfigDict(extra="allow")
 
     name: str = Field(..., description="Report name")
     question: str = Field(..., description="Analysis question")
