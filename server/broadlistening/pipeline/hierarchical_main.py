@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 
 from hierarchical_utils import initialization, run_step, termination
@@ -10,6 +11,9 @@ from steps.hierarchical_initial_labelling import hierarchical_initial_labelling
 from steps.hierarchical_merge_labelling import hierarchical_merge_labelling
 from steps.hierarchical_overview import hierarchical_overview
 from steps.hierarchical_visualization import hierarchical_visualization
+from validators.config_validator import validate_config_file
+from validators.input_validator import validate_input_file
+from validators.output_validator import validate_output_directory
 
 
 def parse_arguments():
@@ -32,11 +36,31 @@ def parse_arguments():
         action="store_true",
         help="Skip the interactive confirmation prompt and run pipeline immediately.",
     )
-
     parser.add_argument(
         "--without-html",
         action="store_true",
         help="Skip the html output.",
+    )
+    parser.add_argument(
+        "--validate-input",
+        action="store_true",
+        help="Validate input CSV file only and exit.",
+    )
+    parser.add_argument(
+        "--validate-config",
+        action="store_true",
+        help="Validate config JSON file only and exit.",
+    )
+    parser.add_argument(
+        "--validate-output",
+        type=str,
+        metavar="OUTPUT_DIR",
+        help="Validate output directory only and exit.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show execution plan without running the pipeline.",
     )
     return parser.parse_args()
 
@@ -44,18 +68,52 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
+    if args.validate_config:
+        validate_config_file(args.config)
+        return
+
+    if args.validate_output:
+        validate_output_directory(args.validate_output)
+        return
+
+    if args.validate_input:
+        with open(args.config) as f:
+            config_data = json.load(f)
+        input_name = config_data.get("input")
+        if not input_name:
+            print("Error: Config file must contain 'input' field")
+            sys.exit(1)
+        csv_path = f"inputs/{input_name}.csv"
+        required_properties = config_data.get("extraction", {}).get("properties", [])
+        validate_input_file(csv_path, required_properties)
+        return
+
     # Convert argparse namespace to sys.argv format for compatibility
     new_argv = [sys.argv[0], args.config]
     if args.force:
         new_argv.append("-f")
     if args.only:
         new_argv.extend(["-o", args.only])
-    if args.skip_interaction:
+    if args.skip_interaction or args.dry_run:
         new_argv.append("-skip-interaction")
     if args.without_html:
         new_argv.append("--without-html")
 
     config = initialization(new_argv)
+
+    if args.dry_run:
+        print("\nDry run mode - showing execution plan only")
+        print("\nPipeline configuration:")
+        print(f"  - Dataset: {config['output_dir']}")
+        print(f"  - Model: {config.get('model', 'default')}")
+        print(f"  - Provider: {config.get('provider', 'not set')}")
+        print("\nExecution plan:")
+        for step in config.get("plan", []):
+            status = "✓ WILL RUN" if step["run"] else "✗ SKIP"
+            print(f"  {status}: {step['step']}")
+            print(f"           Reason: {step['reason']}")
+        print("\nNo steps were executed (dry run mode)")
+        return
 
     try:
         run_step("extraction", extraction, config)

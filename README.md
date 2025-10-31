@@ -160,6 +160,7 @@ make client-build-static
   - レポートデータの取得・管理
   - レポート生成パイプラインの実行
   - 管理用 API の提供
+  - ファイルシステムベースでの直接実行（[詳細](./server/broadlistening/FILESYSTEM_USAGE.md)）
 - 技術スタック:
   - Python (FastAPI)
   - Docker

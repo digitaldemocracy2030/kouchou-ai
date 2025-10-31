@@ -1,0 +1,16 @@
+{
+  "name": "Test Report",
+  "question": "What are the main opinions about the future?",
+  "input": "valid_input",
+  "model": "gpt-4o-mini",
+  "provider": "openai",
+  "extraction": {
+    "workers": 1,
+    "limit": 10,
+    "properties": ["source", "age"]
+  },
+  "hierarchical_clustering": {
+    "cluster_nums": [2, 4]
+  },
+  "intro": "This is a test report for validation purposes."
+}
