@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  checks: write
   pull-requests: write
 
 jobs:
@@ -26,6 +25,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect changed files
+        id: changed
+        uses: tj-actions/changed-files@v42
+        with:
+          files: |
+            client/**
+            client-admin/**
+            client-static-build/**
+            package.json
+            biome.json
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -36,15 +46,19 @@ jobs:
         run: npm ci
 
       - name: Run Biome check
+        if: steps.changed.outputs.any_changed == 'true' || github.event_name == 'push'
         run: npm run lint:check
         continue-on-error: true
 
       - name: Run Biome format check (frontend)
+        if: steps.changed.outputs.any_changed == 'true' || github.event_name == 'push'
         run: npm run lint:frontend
         continue-on-error: true
 
-      - name: Comment on PR (if needed)
-        if: github.event_name == 'pull_request'
+      - name: Comment on PR (if not a fork)
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.fork == false
         uses: actions/github-script@v7
         with:
           script: |
@@ -52,15 +66,23 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ **Biome Report:** Linting and formatting check completed. Review output above for any issues.\n\n**Note:** Phase 1 is non-blocking—warnings are reported but do not prevent merging. See [biome.md](../blob/main/biome.md) for details.'
+              body: '✅ **Biome Report:** Linting and formatting check completed. Review output above for any issues.\n\n**Note:** Phase 1 is non-blocking—warnings are reported but do not prevent merging. See [docs/biome.md](../blob/main/docs/biome.md) for details.'
             })
 
       - name: Summary
         run: |
-          echo "## Biome Check Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## Biome Lint Check" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Linting and formatting check completed." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Phase 1 Status:** Non-blocking (warnings only)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "See [biome.md](../blob/main/biome.md) for configuration and setup details." >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            if [[ "${{ github.event.pull_request.head.repo.fork }}" == "true" ]]; then
+              echo "**📌 Fork PR Note:** PR comments are skipped for security. Check output above for Biome results." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**✨ Main Repo PR:** Biome report posted as a comment above." >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📖 See [docs/biome.md](../blob/main/docs/biome.md) for setup, phases, and configuration details." >> $GITHUB_STEP_SUMMARY
