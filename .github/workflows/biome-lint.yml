@@ -1,0 +1,66 @@
+name: Biome Lint (Report-Only)
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  biome:
+    name: Biome Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Biome check
+        run: npm run lint:check
+        continue-on-error: true
+
+      - name: Run Biome format check (frontend)
+        run: npm run lint:frontend
+        continue-on-error: true
+
+      - name: Comment on PR (if needed)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Biome Report:** Linting and formatting check completed. Review output above for any issues.\n\n**Note:** Phase 1 is non-blocking—warnings are reported but do not prevent merging. See [biome.md](../blob/main/biome.md) for details.'
+            })
+
+      - name: Summary
+        run: |
+          echo "## Biome Check Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Linting and formatting check completed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Phase 1 Status:** Non-blocking (warnings only)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See [biome.md](../blob/main/biome.md) for configuration and setup details." >> $GITHUB_STEP_SUMMARY

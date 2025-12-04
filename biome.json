@@ -1,27 +1,79 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "vcs": {
-    "enabled": false,
+    "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": ["server", ".next", "node_modules", "out", "hierarchical_result.json"]
+    "ignore": [
+      "server",
+      "node_modules",
+      ".next",
+      "dist",
+      "build",
+      "experimental",
+      "out",
+      "coverage",
+      "hierarchical_result.json",
+      "**/*.min.js",
+      "**/*.min.css"
+    ]
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 120
+    "lineWidth": 100,
+    "attributePosition": "auto"
   },
   "organizeImports": {
     "enabled": true
   },
+  "javascript": {
+    "formatter": {
+      "arrowParentheses": "asNeeded",
+      "bracketSameLine": false,
+      "bracketSpacing": true,
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "semicolons": "always",
+      "singleAttributePerLine": false,
+      "singleQuote": false,
+      "trailingCommas": "all"
+    },
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    }
+  },
+  "json": {
+    "formatter": {
+      "trailingCommas": "none"
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "complexity": {
+        "noExcessiveNestedTestSuites": "warn"
+      },
+      "correctness": {
+        "noConstantCondition": "warn",
+        "noUnnecessaryDependencies": "warn"
+      },
+      "style": {
+        "noNonNullAssertion": "warn",
+        "useConst": "warn",
+        "useFilenamingConvention": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn"
+      },
+      "performance": {
+        "noBarrelFile": "off"
+      }
     }
   }
 }
