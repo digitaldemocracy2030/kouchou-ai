@@ -171,6 +171,28 @@ export function useAISettings() {
   }, [provider]);
 
   /**
+   * LocalLLM provider自動フェッチ：providerが"local"に変更されたときにモデルリストを自動取得
+   * ユーザーが手動で"モデル取得"ボタンをクリックする手間を省く
+   */
+  useEffect(() => {
+    if (provider === "local" && localLLMAddress) {
+      // 自動フェッチ開始（ユーザー通知は不要なため警告/エラーのみ）
+      (async () => {
+        try {
+          const models = await fetchModelsFromServer("local", localLLMAddress);
+          setLocalLLMModels(models);
+          if (models.length > 0) {
+            setModel(models[0].value);
+          }
+        } catch (error) {
+          // 自動フェッチ失敗時はコンソールのみログ（UIには表示しない）
+          console.warn("LocalLLMモデルの自動取得に失敗しました。ユーザーが手動で取得できます:", error);
+        }
+      })();
+    }
+  }, [provider, localLLMAddress]);
+
+  /**
    * LocalLLMのモデルリストを手動で取得
    */
   const fetchLocalLLMModels = async () => {
