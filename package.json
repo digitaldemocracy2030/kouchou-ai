@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "lint": "biome check .",
-    "format": "biome check --write .",
+    "lint:check": "biome check .",
+    "lint:frontend": "biome check client client-admin client-build --write",
+    "format": "biome check . --write",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
+    "@biomejs/biome": "^1.9.4",
     "@playwright/test": "^1.56.0",
     "lefthook": "^1.11.8"
   },
