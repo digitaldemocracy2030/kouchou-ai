@@ -10,12 +10,12 @@ from analysis_core.services.llm import (
 )
 from analysis_core.services.parse_json_list import (
     parse_extraction_response,
-    parse_json_list,
+    parse_response,
 )
 
 __all__ = [
     "request_to_chat_ai",
     "request_to_embed",
     "parse_extraction_response",
-    "parse_json_list",
+    "parse_response",
 ]

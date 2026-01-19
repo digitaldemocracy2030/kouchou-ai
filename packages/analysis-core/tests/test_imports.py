@@ -65,10 +65,10 @@ class TestServiceImports:
 
     def test_parse_json_imports(self):
         """Test JSON parsing utilities."""
-        from analysis_core.services import parse_extraction_response, parse_json_list
+        from analysis_core.services import parse_extraction_response, parse_response
 
         assert parse_extraction_response is not None
-        assert parse_json_list is not None
+        assert parse_response is not None
 
 
 class TestStepImports:
