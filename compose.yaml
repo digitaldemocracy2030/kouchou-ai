@@ -1,4 +1,4 @@
-x-client-common: &client-common
+x-frontend-common: &frontend-common
   depends_on:
     api:
       condition: service_healthy
@@ -10,7 +10,7 @@ x-client-common: &client-common
   extra_hosts:
     - "host.docker.internal:host-gateway"
 
-x-client-build-args: &client-build-args
+x-frontend-build-args: &frontend-build-args
   args:
     - NEXT_PUBLIC_API_BASEPATH=${NEXT_PUBLIC_API_BASEPATH}
     - API_BASEPATH=${API_BASEPATH}
@@ -43,23 +43,23 @@ services:
     networks:
       - app-network
 
-  client:
-    <<: *client-common
+  public-viewer:
+    <<: *frontend-common
     build:
       context: ./apps/public-viewer
       dockerfile: Dockerfile
-      <<: *client-build-args
+      <<: *frontend-build-args
     ports:
       - "3000:3000"
 
-  client-static-build:
-    <<: *client-common
+  static-site-builder:
+    <<: *frontend-common
     build:
       context: .
       dockerfile: ./apps/static-site-builder/Dockerfile
-      <<: *client-build-args
+      <<: *frontend-build-args
 
-  client-admin:
+  admin:
     build:
       context: ./apps/admin
       dockerfile: Dockerfile

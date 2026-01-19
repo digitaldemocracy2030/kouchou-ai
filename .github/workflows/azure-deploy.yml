@@ -69,13 +69,13 @@ jobs:
           echo "API_DOMAIN=$(az containerapp show --name api \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
-          echo "CLIENT_DOMAIN=$(az containerapp show --name client \
+          echo "PUBLIC_VIEWER_DOMAIN=$(az containerapp show --name public-viewer \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
-          echo "CLIENT_ADMIN_DOMAIN=$(az containerapp show --name client-admin \
+          echo "ADMIN_DOMAIN=$(az containerapp show --name admin \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
-          echo "CLIENT_STATIC_BUILD_DOMAIN=$(az containerapp show --name client-static-build \
+          echo "STATIC_SITE_BUILDER_DOMAIN=$(az containerapp show --name static-site-builder \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
 
@@ -100,24 +100,24 @@ jobs:
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
             --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
-            -t ${AZURE_ACR_NAME}.azurecr.io/client:latest \
+            -t ${AZURE_ACR_NAME}.azurecr.io/public-viewer:latest \
             ./apps/public-viewer & build_pids+=("$!")
           docker build --platform linux/amd64 \
-            --build-arg NEXT_PUBLIC_CLIENT_BASEPATH="https://${CLIENT_DOMAIN}" \
+            --build-arg NEXT_PUBLIC_CLIENT_BASEPATH="https://${PUBLIC_VIEWER_DOMAIN}" \
             --build-arg NEXT_PUBLIC_ADMIN_API_KEY="${ADMIN_API_KEY}" \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
-            --build-arg CLIENT_STATIC_BUILD_BASEPATH="https://${CLIENT_STATIC_BUILD_DOMAIN}" \
+            --build-arg CLIENT_STATIC_BUILD_BASEPATH="https://${STATIC_SITE_BUILDER_DOMAIN}" \
             --build-arg BASIC_AUTH_USERNAME="${BASIC_AUTH_USERNAME}" \
             --build-arg BASIC_AUTH_PASSWORD="${BASIC_AUTH_PASSWORD}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
-            -t ${AZURE_ACR_NAME}.azurecr.io/client-admin:latest \
+            -t ${AZURE_ACR_NAME}.azurecr.io/admin:latest \
             ./apps/admin & build_pids+=("$!")
           docker build --platform linux/amd64 \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
             --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
             -f ./apps/static-site-builder/Dockerfile \
-            -t ${AZURE_ACR_NAME}.azurecr.io/client-static-build:latest \
+            -t ${AZURE_ACR_NAME}.azurecr.io/static-site-builder:latest \
             . & build_pids+=("$!")
 
           # 全ビルドの完了を待機 (失敗を確実に検知)
@@ -128,9 +128,9 @@ jobs:
           # イメージを並列プッシュ
           push_pids=()
           docker push ${AZURE_ACR_NAME}.azurecr.io/api:latest & push_pids+=("$!")
-          docker push ${AZURE_ACR_NAME}.azurecr.io/client:latest & push_pids+=("$!")
-          docker push ${AZURE_ACR_NAME}.azurecr.io/client-admin:latest & push_pids+=("$!")
-          docker push ${AZURE_ACR_NAME}.azurecr.io/client-static-build:latest & push_pids+=("$!")
+          docker push ${AZURE_ACR_NAME}.azurecr.io/public-viewer:latest & push_pids+=("$!")
+          docker push ${AZURE_ACR_NAME}.azurecr.io/admin:latest & push_pids+=("$!")
+          docker push ${AZURE_ACR_NAME}.azurecr.io/static-site-builder:latest & push_pids+=("$!")
 
           # 全プッシュの完了を待機 (失敗を確実に検知)
           for pid in "${push_pids[@]}"; do
@@ -153,24 +153,24 @@ jobs:
               azure-blob-storage-account-name=${AZURE_BLOB_STORAGE_ACCOUNT_NAME} \
               azure-blob-storage-container-name=${AZURE_BLOB_STORAGE_CONTAINER_NAME}
 
-          # Clientコンテナのシークレット登録
+          # Public-viewerコンテナのシークレット登録
           az containerapp secret set \
-            --name client --resource-group ${AZURE_RESOURCE_GROUP} \
+            --name public-viewer --resource-group ${AZURE_RESOURCE_GROUP} \
             --secrets \
               public-api-key=${PUBLIC_API_KEY} \
               revalidate-secret=${REVALIDATE_SECRET}
 
-          # Client-adminコンテナのシークレット登録
+          # Adminコンテナのシークレット登録
           az containerapp secret set \
-            --name client-admin --resource-group ${AZURE_RESOURCE_GROUP} \
+            --name admin --resource-group ${AZURE_RESOURCE_GROUP} \
             --secrets \
               admin-api-key=${ADMIN_API_KEY} \
               basic-auth-username=${BASIC_AUTH_USERNAME} \
               basic-auth-password=${BASIC_AUTH_PASSWORD}
 
-          # Client-static-buildコンテナのシークレット登録
+          # Static-site-builderコンテナのシークレット登録
           az containerapp secret set \
-            --name client-static-build --resource-group ${AZURE_RESOURCE_GROUP} \
+            --name static-site-builder --resource-group ${AZURE_RESOURCE_GROUP} \
             --secrets \
               public-api-key=${PUBLIC_API_KEY}
 
@@ -191,33 +191,33 @@ jobs:
               "AZURE_BLOB_STORAGE_ACCOUNT_NAME=secretref:azure-blob-storage-account-name" \
               "AZURE_BLOB_STORAGE_CONTAINER_NAME=secretref:azure-blob-storage-container-name" \
               "STORAGE_TYPE=azure_blob" \
-              "REVALIDATE_URL=https://${CLIENT_DOMAIN}/api/revalidate" \
+              "REVALIDATE_URL=https://${PUBLIC_VIEWER_DOMAIN}/api/revalidate" \
               "REVALIDATE_SECRET=secretref:revalidate-secret" \
               "ENVIRONMENT=${ENVIRONMENT}" & update_pids+=("$!")
 
-          # Clientコンテナの更新（イメージ + 環境変数）
-          az containerapp update --name client --resource-group ${AZURE_RESOURCE_GROUP} \
-            --image ${AZURE_ACR_NAME}.azurecr.io/client:latest \
+          # Public-viewerコンテナの更新（イメージ + 環境変数）
+          az containerapp update --name public-viewer --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/public-viewer:latest \
             --set-env-vars \
               "NEXT_PUBLIC_API_BASEPATH=https://${API_DOMAIN}" \
               "API_BASEPATH=https://${API_DOMAIN}" \
               "NEXT_PUBLIC_PUBLIC_API_KEY=secretref:public-api-key" \
               "REVALIDATE_SECRET=secretref:revalidate-secret" & update_pids+=("$!")
 
-          # Client-adminコンテナの更新（イメージ + 環境変数）
-          az containerapp update --name client-admin --resource-group ${AZURE_RESOURCE_GROUP} \
-            --image ${AZURE_ACR_NAME}.azurecr.io/client-admin:latest \
+          # Adminコンテナの更新（イメージ + 環境変数）
+          az containerapp update --name admin --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/admin:latest \
             --set-env-vars \
               "NEXT_PUBLIC_API_BASEPATH=https://${API_DOMAIN}" \
               "API_BASEPATH=https://${API_DOMAIN}" \
               "NEXT_PUBLIC_ADMIN_API_KEY=secretref:admin-api-key" \
-              "CLIENT_STATIC_BUILD_BASEPATH=https://${CLIENT_STATIC_BUILD_DOMAIN}" \
+              "CLIENT_STATIC_BUILD_BASEPATH=https://${STATIC_SITE_BUILDER_DOMAIN}" \
               "BASIC_AUTH_USERNAME=secretref:basic-auth-username" \
               "BASIC_AUTH_PASSWORD=secretref:basic-auth-password" & update_pids+=("$!")
 
-          # Client-static-buildコンテナの更新（イメージ + 環境変数）
-          az containerapp update --name client-static-build --resource-group ${AZURE_RESOURCE_GROUP} \
-            --image ${AZURE_ACR_NAME}.azurecr.io/client-static-build:latest \
+          # Static-site-builderコンテナの更新（イメージ + 環境変数）
+          az containerapp update --name static-site-builder --resource-group ${AZURE_RESOURCE_GROUP} \
+            --image ${AZURE_ACR_NAME}.azurecr.io/static-site-builder:latest \
             --set-env-vars \
               "NEXT_PUBLIC_API_BASEPATH=https://${API_DOMAIN}" \
               "NEXT_PUBLIC_PUBLIC_API_KEY=secretref:public-api-key" & update_pids+=("$!")
