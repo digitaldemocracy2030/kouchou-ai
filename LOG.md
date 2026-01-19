@@ -727,3 +727,19 @@ plugins/analysis/
 - `result.config.<step>.model` - 使用モデル
 
 **テスト結果**: 83 passed
+
+#### コミット
+```
+bebc1b23 feat(analysis-core): Add external plugin loading and Analysis screen compatibility (Phase 3c)
+```
+
+### Phase 3 完了
+
+Phase 3 の全タスク（3.1〜3.9）が完了。analysis-core パッケージに以下の機能を追加:
+- プラグインアーキテクチャ（interface, registry, decorator）
+- 8つの組み込みプラグイン
+- ワークフローエンジン（依存解決、実行制御）
+- 外部プラグイン読み込み機構
+- Analysis画面との互換性維持（source_code, plan）
+
+次のステップ: Phase 4（API & Schema 更新）
