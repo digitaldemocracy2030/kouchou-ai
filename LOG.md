@@ -830,3 +830,38 @@ Docker ビルド: 成功 ✅
 
 `packages/analysis-core/docs/PLUGIN_GUIDE.md` → `docs/PLUGIN_GUIDE.md` に移動
 （深い位置のドキュメントは発見されにくいため）
+
+### Phase 4: API & Schema 更新（基本実装）
+
+#### 実施内容
+
+1. **packages/report-schema に ReportDisplayConfig 型を追加**
+   - `ChartType`: "scatterAll" | "scatterDensity" | "treemap"
+   - `ScatterDensityParams`: maxDensity, minValue
+   - `DisplayParams`: showClusterLabels, scatterDensity
+   - `ReportDisplayConfig`: version, enabledCharts, defaultChart, chartOrder, params, updatedAt, updatedBy
+   - `DEFAULT_REPORT_DISPLAY_CONFIG`: デフォルト設定値
+   - 注: 既存の `VisualizationConfig` はパイプラインステップ用のため、新型名 `ReportDisplayConfig` を使用
+
+2. **apps/api/src/schemas/visualization_config.py を作成**
+   - pydantic モデルで TypeScript 型と同等の構造を定義
+   - `SchemaBaseModel` を使用し camelCase alias を自動生成
+
+3. **/reports/{slug} API を更新**
+   - `visualization_config.json` が存在する場合、レスポンスに `visualizationConfig` としてマージ
+   - ファイルが存在しない場合は追加なし（既存挙動を維持）
+
+4. **client/admin の型定義を更新**
+   - `apps/public-viewer/type.ts`: `ReportDisplayConfig` 型と `Result.visualizationConfig` を追加
+   - `apps/admin/type.d.ts`: 同上
+
+#### 検証
+- TypeScript ビルド: 成功 ✅
+- API Python lint: 成功 ✅
+- report-schema lint: 成功 ✅
+
+#### 残タスク（Phase 5 に移行）
+- Admin API の visualization config CRUD エンドポイント
+- draft/publish フロー
+- invalidate_report_cache との統合
+- report_launcher.py の workflow id 出力

@@ -48,6 +48,40 @@ type ProcessingOrErrorReport = ReportBase & {
 
 export type Report = ReadyReport | ProcessingOrErrorReport;
 
+// ============================================================================
+// 可視化設定
+// ============================================================================
+
+export type ChartType = "scatterAll" | "scatterDensity" | "treemap";
+
+export type ScatterDensityParams = {
+  maxDensity?: number;
+  minValue?: number;
+};
+
+export type DisplayParams = {
+  showClusterLabels?: boolean;
+  scatterDensity?: ScatterDensityParams;
+};
+
+/**
+ * レポート表示設定
+ * 管理者がカスタマイズ可能な可視化オプション
+ */
+export type ReportDisplayConfig = {
+  version: string;
+  enabledCharts: ChartType[];
+  defaultChart?: ChartType;
+  chartOrder?: ChartType[];
+  params?: DisplayParams;
+  updatedAt?: string;
+  updatedBy?: string;
+};
+
+// ============================================================================
+// Result
+// ============================================================================
+
 export type Result = {
   arguments: Argument[]; // 抽出された意見のリスト
   clusters: Cluster[]; // クラスタ情報
@@ -58,6 +92,7 @@ export type Result = {
   translations: Record<string, any>; // 翻訳情報
   overview: string; // 解析概要
   config: Config; // 設定情報
+  visualizationConfig?: ReportDisplayConfig; // 可視化設定（存在する場合）
 };
 
 type Argument = {

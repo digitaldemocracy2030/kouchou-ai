@@ -51,6 +51,16 @@ async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> di
     # レポートにvisibilityを追加
     report_result["visibility"] = target_report_status.visibility.value
 
+    # 可視化設定をマージ（存在する場合）
+    visualization_config_path = settings.REPORT_DIR / slug / "visualization_config.json"
+    if visualization_config_path.exists():
+        try:
+            with open(visualization_config_path) as f:
+                visualization_config = json.load(f)
+            report_result["visualizationConfig"] = visualization_config
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Failed to load visualization config for {slug}: {e}")
+
     return report_result
 
 

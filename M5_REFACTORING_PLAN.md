@@ -195,7 +195,7 @@
 | Phase 2 | ✅ 完了 | 2026-01-19 |
 | Phase 2.5 | ✅ 完了 | 2026-01-19 |
 | Phase 3 | ✅ 完了 | 2026-01-19 |
-| Phase 4 | 📋 未着手 | - |
+| Phase 4 | 🚧 進行中 | - |
 
 ### Phase 2.5 詳細実績
 - 2.5.1: initialization関数の移行 ✅
@@ -248,6 +248,20 @@
    - 該当箇所: `config_converter.py` (lines 50-140)
 
 **理由:** 現在のプロダクション経路（apps/api）は `run()` メソッドを使用しており、上記の問題は発生しない。`run_workflow()` のWebapp統合は Phase 5以降の課題。
+
+### Phase 4 詳細実績
+- 4.1: `packages/report-schema` に `ReportDisplayConfig` 型を追加 ✅
+- 4.2: `apps/api/src/schemas/visualization_config.py` に pydantic モデルを追加 ✅
+- 4.3: `/reports/{slug}` APIで `visualization_config.json` をマージするよう更新 ✅
+- 4.4: `apps/public-viewer/type.ts` に `ReportDisplayConfig` 型を追加 ✅
+- 4.5: `apps/admin/type.d.ts` に `ReportDisplayConfig` 型を追加 ✅
+- 4.6: Admin API の visualization config CRUD エンドポイント 📋 (Phase 5 で実装)
+- 4.7: `report_launcher.py` の workflow id + step config 出力 📋 (Phase 5 で実装)
+
+### Phase 4 残タスク（Phase 5 に移行）
+- Admin UIでの可視化設定編集・公開機能（Phase 5.1）
+- `visualization_config` のdraft/publish フロー実装（Phase 5.2）
+- `invalidate_report_cache` との統合（Phase 5.3）
 
 ---
 

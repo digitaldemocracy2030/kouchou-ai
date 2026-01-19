@@ -381,3 +381,72 @@ export type JaLocaleType = {
     date: string;
   };
 };
+
+// ============================================================================
+// レポート表示設定
+// ============================================================================
+
+/**
+ * 利用可能なチャートタイプ
+ */
+export type ChartType = "scatterAll" | "scatterDensity" | "treemap";
+
+/**
+ * 散布図密度設定のパラメータ
+ */
+export type ScatterDensityParams = {
+  /** 密度の最大閾値 */
+  maxDensity?: number;
+  /** 最小値の閾値 */
+  minValue?: number;
+};
+
+/**
+ * 表示パラメータ
+ */
+export type DisplayParams = {
+  /** クラスターラベルを表示するかどうか */
+  showClusterLabels?: boolean;
+  /** 散布図密度設定 */
+  scatterDensity?: ScatterDensityParams;
+};
+
+/**
+ * レポート表示設定
+ *
+ * レポートの表示方法をカスタマイズするための設定。
+ * 管理者がdraftとして保存し、publishで公開する。
+ * Note: パイプラインステップ用のVisualizationConfigとは別の型。
+ */
+export type ReportDisplayConfig = {
+  /** 設定のバージョン */
+  version: string;
+  /** 有効化されたチャートのリスト */
+  enabledCharts: ChartType[];
+  /** デフォルトで選択されるチャート */
+  defaultChart?: ChartType;
+  /** チャートの表示順序（指定しない場合はenabledChartsの順） */
+  chartOrder?: ChartType[];
+  /** 表示パラメータ */
+  params?: DisplayParams;
+  /** 最終更新日時（ISO形式） */
+  updatedAt?: string;
+  /** 最終更新者 */
+  updatedBy?: string;
+};
+
+/**
+ * レポート表示設定のデフォルト値
+ */
+export const DEFAULT_REPORT_DISPLAY_CONFIG: ReportDisplayConfig = {
+  version: "1",
+  enabledCharts: ["scatterAll", "scatterDensity", "treemap"],
+  defaultChart: "scatterAll",
+  params: {
+    showClusterLabels: true,
+    scatterDensity: {
+      maxDensity: 0.2,
+      minValue: 5,
+    },
+  },
+};
