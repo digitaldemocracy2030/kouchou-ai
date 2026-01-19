@@ -188,3 +188,44 @@ bef15ac Phase 1: Reorganize repository structure with clearer directory naming
 
 #### 次のステップ
 - Phase 2: Analysis Core 抽出
+
+### Phase 2: Analysis Core 抽出（開始）
+
+#### 現状のパイプライン調査結果
+- 場所: `apps/api/broadlistening/pipeline/` (約10,080 LOC)
+- メインオーケストレーター: `hierarchical_main.py` (77 LOC)
+- コアユーティリティ: `hierarchical_utils.py` (327 LOC), `utils.py` (353 LOC)
+- 8つのステップ: extraction, embedding, clustering, labelling×2, overview, aggregation, visualization
+- サービス: `llm.py` (850+ LOC), `parse_json_list.py` (114 LOC)
+- エントリポイント: CLI (`hierarchical_main.py`) と API (`report_launcher.py`)
+
+#### 実施内容
+1. パッケージ構造作成
+   ```
+   packages/analysis-core/
+   ├── pyproject.toml
+   ├── README.md
+   ├── src/analysis_core/
+   │   ├── __init__.py
+   │   ├── __main__.py      # CLIエントリ
+   │   ├── config.py        # 設定管理
+   │   ├── orchestrator.py  # パイプライン実行制御
+   │   ├── steps/           # ステップ（未実装）
+   │   ├── services/        # サービス（未実装）
+   │   ├── core/            # コアユーティリティ（未実装）
+   │   └── specs/
+   │       └── hierarchical_specs.json
+   └── tests/
+       └── test_config.py
+   ```
+
+2. 基本モジュール作成
+   - `PipelineConfig`: 設定管理クラス
+   - `PipelineOrchestrator`: パイプライン実行制御クラス（スタブ）
+   - CLIエントリポイント（スタブ）
+
+#### 次のステップ
+- 既存のhierarchical_utils.pyとutils.pyをcore/に移行
+- 各ステップをsteps/に移行
+- servicesをservices/に移行
+- report_launcher.pyからの呼び出しを新パッケージに切り替え
