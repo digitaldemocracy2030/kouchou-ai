@@ -791,3 +791,42 @@ Phase 3 の全タスク（3.1〜3.9）が完了。analysis-core パッケージ�
 
 #### テスト結果
 - 88 passed ✅ (83 + 5 新規)
+
+### Phase 3 既知の課題の整理
+
+以下の2件は `run_workflow()` がWebapp経路に統合される Phase 5以降で対応することを決定し、M5_REFACTORING_PLAN.md に記録:
+
+1. 外部プラグイン読み込みが `run_workflow()` に未統合
+2. `run_workflow()` 経由での plan 生成未対応
+
+理由: 現在のプロダクション経路（apps/api）は `run()` を使用しており問題なし。CLI/PyPI配布が主目的であり、Webapp側のカスタマイズは優先度低
+
+### output_dir 回帰テスト追加
+
+`test_workflow_engine.py` に `TestWorkflowEngineOutputDir` クラスを追加:
+- `test_plugin_uses_ctx_output_dir_not_hardcoded_path`: カスタム output_dir が使われ、`Path("outputs")` がハードコードされていないことを確認
+- `test_multiple_steps_share_output_dir`: 複数ステップが同じ output_dir に書き込むことを確認
+
+テスト結果: 90 passed ✅ (88 + 2 新規)
+
+M5_REFACTORING_PLAN.md の Phase 5 に繰越課題3件を追記:
+- 外部プラグイン読み込み統合
+- plan 生成実装
+- 統合テスト
+
+### Phase 3 検証: Analysis画面互換性
+
+`run()` 経路（プロダクション経路）で plan/source_code/prompt が正しく生成されることを確認:
+- plan: 8 steps ✅ (keys: step, run, reason)
+- extraction.source_code: ✅
+- extraction.prompt: ✅
+- hierarchical_initial_labelling.source_code: ✅
+- hierarchical_initial_labelling.prompt: ✅
+
+apps/api テスト: 135 passed ✅
+Docker ビルド: 成功 ✅
+
+### ドキュメント整理
+
+`packages/analysis-core/docs/PLUGIN_GUIDE.md` → `docs/PLUGIN_GUIDE.md` に移動
+（深い位置のドキュメントは発見されにくいため）

@@ -218,9 +218,36 @@
 - 3.9: Analysis画面の互換性維持 ✅
 
 ### テスト結果
-- analysis-core: 83 passed ✅
+- analysis-core: 90 passed ✅
 - apps/api: 135 passed, 5 skipped ✅
 - Dockerビルド: 成功 ✅
+
+### Phase 3 バグ修正
+- 組み込みプラグインの `output_dir` パス問題: 8ファイルで `Path("outputs")` ハードコードを `ctx.output_dir` に修正 ✅
+- `WorkflowEngine` のバリデーション不足: `validate_inputs()` / `validate_config()` 呼び出しを追加 ✅
+
+### Phase 3 検証
+- `run()` 経路で plan/source_code/prompt が正しく生成されることを確認 ✅
+- apps/api テスト: 135 passed ✅
+- Docker ビルド: 成功 ✅
+
+### Phase 3 で対応しない既知の課題（Phase 5以降で対応）
+
+以下の課題は `run_workflow()` がWebapp経路に統合される Phase 5以降で対応する。現時点では CLI/PyPI配布が主目的であり、Webapp側のパイプラインカスタマイズは優先度が低いため。
+
+1. **外部プラグイン読み込みが `run_workflow()` に未統合**
+   - 現状: `run_workflow()` は `WorkflowEngine()` を作成するが `load_all_plugins()` を呼ばない
+   - 影響: `plugins/analysis` に置いた外部プラグインが `run_workflow()` 経由では利用されない
+   - 対応案: ライブラリユーザーは明示的に `load_all_plugins()` を呼ぶ、またはオプション引数を追加
+   - 該当箇所: `orchestrator.py` (lines 331-348)
+
+2. **`run_workflow()` 経由での plan 生成未対応**
+   - 現状: `normalize_config()` に plan 作成がなく、`run_workflow()` 側でも補完しない
+   - 影響: Analysis画面の plan/prompt/source_code 表示要件（Phase 3.9）が `run_workflow()` 経由では満たせない
+   - 対応案: Phase 5で `normalize_config()` に plan 生成を追加
+   - 該当箇所: `config_converter.py` (lines 50-140)
+
+**理由:** 現在のプロダクション経路（apps/api）は `run()` メソッドを使用しており、上記の問題は発生しない。`run_workflow()` のWebapp統合は Phase 5以降の課題。
 
 ---
 
@@ -289,6 +316,9 @@
 - 進行ステップ表示をAPI由来のステップ一覧に変更。
 - 入力検証を plugin schema で統一（client / server）。
 - `visualization_config` のCRUD用API/Repositoryを追加し、公開時のみ `invalidate_report_cache` を実行。
+- **[Phase 3から繰越]** `run_workflow()` に外部プラグイン読み込みを統合（`load_all_plugins()` 呼び出し or オプション引数）。
+- **[Phase 3から繰越]** `run_workflow()` 経由での plan 生成を実装（`normalize_config()` に plan 作成を追加）。
+- **[Phase 3から繰越]** 上記2点の統合テスト（外部プラグイン読み込み、plan出力の回帰テスト）。
 
 ### Phase 6: クライアント可視化プラグイン化
 - visualizationプラグインレジストリを導入。

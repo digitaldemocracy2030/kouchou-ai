@@ -302,3 +302,142 @@ class TestWorkflowEngineValidation:
         assert "downstream" not in result.step_results
         # Downstream should not have been called
         assert call_count["downstream"] == 0
+
+
+class TestWorkflowEngineOutputDir:
+    """Tests for workflow engine output directory handling."""
+
+    def test_plugin_uses_ctx_output_dir_not_hardcoded_path(self, test_registry):
+        """Verify plugins use ctx.output_dir, not hardcoded Path('outputs').
+
+        This is a regression test for the bug where builtin plugins used
+        Path("outputs") / ctx.dataset instead of ctx.output_dir.
+        """
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Use a custom output path that is NOT "outputs"
+            custom_output = Path(tmpdir) / "custom_output_location" / "my_dataset"
+            custom_output.mkdir(parents=True)
+            input_dir = Path(tmpdir) / "input"
+            input_dir.mkdir()
+
+            ctx = StepContext(
+                output_dir=custom_output,
+                input_dir=input_dir,
+                dataset="my_dataset",
+                provider="openai",
+                model="gpt-4o-mini",
+            )
+
+            # Create a plugin that writes to ctx.output_dir
+            @step_plugin(
+                id="test.output_dir_check",
+                version="1.0.0",
+                inputs=[],
+                outputs=["artifact"],
+            )
+            def output_dir_plugin(
+                ctx: StepContext, inputs: StepInputs, config: dict
+            ) -> StepOutputs:
+                # Write to ctx.output_dir (correct behavior)
+                artifact_path = ctx.output_dir / "test_artifact.txt"
+                artifact_path.write_text("test content")
+                return StepOutputs(artifacts={"artifact": artifact_path})
+
+            test_registry.register(output_dir_plugin)
+
+            workflow = WorkflowDefinition(
+                id="test-workflow",
+                version="1.0.0",
+                steps=[
+                    WorkflowStep(
+                        id="output_check",
+                        plugin="test.output_dir_check",
+                    ),
+                ],
+            )
+
+            engine = WorkflowEngine(registry=test_registry)
+            result = engine.run(workflow, {}, ctx)
+
+            # Verify workflow succeeded
+            assert result.success
+            assert result.step_results["output_check"].success
+
+            # Verify artifact was created in custom_output, not in "outputs"
+            artifact_path = result.step_results["output_check"].outputs.artifacts["artifact"]
+            assert artifact_path.exists()
+            assert str(custom_output) in str(artifact_path)
+            assert "outputs" not in str(artifact_path).replace(str(tmpdir), "")
+
+            # Verify the hardcoded path was NOT used
+            hardcoded_path = Path("outputs") / "my_dataset" / "test_artifact.txt"
+            assert not hardcoded_path.exists()
+
+    def test_multiple_steps_share_output_dir(self, test_registry):
+        """Verify multiple steps write to the same ctx.output_dir."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "shared_output"
+            output_dir.mkdir(parents=True)
+            input_dir = Path(tmpdir) / "input"
+            input_dir.mkdir()
+
+            ctx = StepContext(
+                output_dir=output_dir,
+                input_dir=input_dir,
+                dataset="test",
+                provider="openai",
+                model="gpt-4o-mini",
+            )
+
+            @step_plugin(
+                id="test.step1",
+                version="1.0.0",
+                inputs=[],
+                outputs=["file1"],
+            )
+            def step1_plugin(
+                ctx: StepContext, inputs: StepInputs, config: dict
+            ) -> StepOutputs:
+                path = ctx.output_dir / "file1.txt"
+                path.write_text("step1")
+                return StepOutputs(artifacts={"file1": path})
+
+            @step_plugin(
+                id="test.step2",
+                version="1.0.0",
+                inputs=["file1"],
+                outputs=["file2"],
+            )
+            def step2_plugin(
+                ctx: StepContext, inputs: StepInputs, config: dict
+            ) -> StepOutputs:
+                path = ctx.output_dir / "file2.txt"
+                path.write_text("step2")
+                return StepOutputs(artifacts={"file2": path})
+
+            test_registry.register(step1_plugin)
+            test_registry.register(step2_plugin)
+
+            workflow = WorkflowDefinition(
+                id="test-workflow",
+                version="1.0.0",
+                steps=[
+                    WorkflowStep(id="s1", plugin="test.step1"),
+                    WorkflowStep(id="s2", plugin="test.step2", depends_on=["s1"]),
+                ],
+            )
+
+            engine = WorkflowEngine(registry=test_registry)
+            result = engine.run(workflow, {}, ctx)
+
+            assert result.success
+
+            # Both files should be in the same output_dir
+            assert (output_dir / "file1.txt").exists()
+            assert (output_dir / "file2.txt").exists()
+            assert (output_dir / "file1.txt").read_text() == "step1"
+            assert (output_dir / "file2.txt").read_text() == "step2"
