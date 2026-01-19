@@ -355,6 +355,6 @@ test/e2e/fixtures/client/
 
 ## 参考資料
 
-- [Client型定義](/client/type.ts)
+- [Public viewer型定義](/apps/public-viewer/type.ts)
 - [Playwright APIモック](https://playwright.dev/docs/mock)
 - [Admin画面テスト計画](/test/e2e/TEST_PLAN.md)

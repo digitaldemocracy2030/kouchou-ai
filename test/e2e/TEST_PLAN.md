@@ -2,7 +2,7 @@
 
 ## 概要
 
-このドキュメントは広聴AI（Kouchou-AI）の管理画面（client-admin）に対するE2Eテスト計画を定義します。
+このドキュメントは広聴AI（Kouchou-AI）の管理画面（admin）に対するE2Eテスト計画を定義します。
 
 **対象URL**: http://localhost:4000
 **テストフレームワーク**: Playwright

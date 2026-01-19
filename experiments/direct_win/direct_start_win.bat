@@ -13,9 +13,9 @@ if not exist ".env" (
 )
 
 rem --- Initialize target .env files for each service ---
-set CLIENT_ENV=client\.env
-set ADMIN_ENV=client-admin\.env
-set SERVER_ENV=server\.env
+set CLIENT_ENV=apps\public-viewer\.env
+set ADMIN_ENV=apps\admin\.env
+set SERVER_ENV=apps\api\.env
 
 (del %CLIENT_ENV%) >nul 2>&1
 (del %ADMIN_ENV%) >nul 2>&1
@@ -85,7 +85,7 @@ for /f "tokens=1,* delims==" %%A in (.env) do (
 
 rem --- Save current directory and move to server folder ---
 set CURRENT_DIR=%cd%
-cd server
+cd apps\api
 
 rem --- Check if Python executable exists (relative to server) ---
 if not exist "%PYTHON_EXECUTABLE%" (
@@ -104,15 +104,15 @@ cd "%CURRENT_DIR%"
 
 rem --- Start API server ---
 echo [STEP 2] Starting FastAPI server in a new window...
-start "server" cmd /k "cd server && %PYTHON_EXECUTABLE% -m uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload --log-level debug"
+start "api" cmd /k "cd apps\api && %PYTHON_EXECUTABLE% -m uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload --log-level debug"
 
 rem --- Start client (frontend) ---
-echo [STEP 3] Starting client (frontend) in a new window...
-start "client" cmd /k "cd client && npm run dev"
+echo [STEP 3] Starting public-viewer (frontend) in a new window...
+start "public-viewer" cmd /k "cd apps\public-viewer && npm run dev"
 
-rem --- Start client-admin (admin panel) ---
-echo [STEP 4] Starting client-admin (admin panel) in a new window...
-start "client-admin" cmd /k "cd client-admin && npm run dev"
+rem --- Start admin (admin panel) ---
+echo [STEP 4] Starting admin (admin panel) in a new window...
+start "admin" cmd /k "cd apps\admin && npm run dev"
 
 echo [DONE] All services launched. Close each window to stop.
 pause

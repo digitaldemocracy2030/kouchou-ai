@@ -7,7 +7,7 @@ This script:
 2. Fetches individual report results from GET /reports/{slug}
 3. Creates directories for each slug under outputs/
 4. Saves the result data in the corresponding slug directory
-5. Updates ./server/data/report_status.json with the appropriate information
+5. Updates ./apps/api/data/report_status.json with the appropriate information
 
 Usage:
     python fetch_reports.py [--test] [--api-url URL]
@@ -34,9 +34,9 @@ API_KEY = os.environ.get("PUBLIC_API_KEY", "")
 
 # Paths
 SCRIPT_DIR = Path(__file__).parent
-REPO_ROOT = SCRIPT_DIR.parent
-OUTPUT_DIR = REPO_ROOT / "server" / "broadlistening" / "pipeline" / "outputs"
-STATUS_FILE = REPO_ROOT / "server" / "data" / "report_status.json"
+REPO_ROOT = SCRIPT_DIR.parent.parent
+OUTPUT_DIR = REPO_ROOT / "apps" / "api" / "broadlistening" / "pipeline" / "outputs"
+STATUS_FILE = REPO_ROOT / "apps" / "api" / "data" / "report_status.json"
 
 
 def ensure_directories():

@@ -46,8 +46,8 @@ services:
   public-viewer:
     <<: *frontend-common
     build:
-      context: ./apps/public-viewer
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/public-viewer/Dockerfile
       <<: *frontend-build-args
     ports:
       - "3000:3000"
@@ -61,8 +61,8 @@ services:
 
   admin:
     build:
-      context: ./apps/admin
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/admin/Dockerfile
       args:
         - NEXT_PUBLIC_CLIENT_BASEPATH=${NEXT_PUBLIC_CLIENT_BASEPATH}
         - NEXT_PUBLIC_API_BASEPATH=${NEXT_PUBLIC_API_BASEPATH}

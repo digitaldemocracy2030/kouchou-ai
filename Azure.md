@@ -169,7 +169,7 @@ make azure-setup-all
 
 全体のプロセスは初回実行時に約20分程度かかることがあります。
 
-表示された client-admin の URL にアクセスし、BASIC_AUTH_USERNAME, BASIC_AUTH_PASSWORD で設定した認証情報を入力することで、レポート生成ができます。
+表示された admin の URL にアクセスし、BASIC_AUTH_USERNAME, BASIC_AUTH_PASSWORD で設定した認証情報を入力することで、レポート生成ができます。
 
 ## 参考情報
 ### 手動ステップバイステップのデプロイ
@@ -212,7 +212,7 @@ make azure-config-update
 # 待機（30秒）
 
 # 11. 管理画面の環境変数を修正してビルド
-make azure-fix-client-admin
+make azure-fix-admin
 
 # 12. 環境の検証
 make azure-verify
@@ -239,7 +239,7 @@ make azure-status
 
 ```bash
 # クライアントログ
-make azure-logs-client
+make azure-logs-public-viewer
 
 # APIログ
 make azure-logs-api
@@ -248,7 +248,7 @@ make azure-logs-api
 make azure-logs-admin
 
 # クライアントビルドログ
-make azure-logs-client-static-build
+make azure-logs-static-site-builder
 ```
 
 ### コスト最適化
@@ -280,7 +280,7 @@ make azure-cleanup
 環境変数が正しく設定されていない場合は：
 
 ```bash
-make azure-fix-client-admin
+make azure-fix-admin
 ```
 
 ### 2. デプロイ失敗時の検証
@@ -307,7 +307,7 @@ make azure-start
 
 ```bash
 make azure-logs-api
-make azure-logs-client
+make azure-logs-public-viewer
 make azure-logs-admin
 ```
 

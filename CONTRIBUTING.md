@@ -51,9 +51,9 @@
   * `api` については、以下のコマンドでフォーマットのチェックと自動整形を実施できます
     * チェック: `make lint/api-check`
     * 整形: `make lint/api-format`
-  * `client` / `client-admin` については Biome で lint, format のチェックを実施できます
-    * チェック: `npm run lint`
-    * 整形: `npm run format`
+  * `public-viewer` / `admin` については Biome で lint, format のチェックを実施できます
+    * チェック: `pnpm run lint`
+    * 整形: `pnpm run format`
     * [Lefthook](https://lefthook.dev/intro.html) で git push 時に Biome のチェックをかける設定をしています
     * プロジェクトルートの [lefthook-local.sample.yml](./lefthook-local.sample.yml) を参考に、`lefthook-local.yml` を用意してください
 

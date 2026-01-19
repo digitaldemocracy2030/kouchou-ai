@@ -97,8 +97,8 @@ npx playwright test --project=client
 
 ```bash
 # ポート使用状況を確認
-lsof -i :3000  # client
-lsof -i :4000  # client-admin
+lsof -i :3000  # public-viewer
+lsof -i :4000  # admin
 lsof -i :8002  # dummy server
 
 # プロセスを停止

@@ -7,18 +7,18 @@ set -e
 
 BUILD_TYPE=${1:-root}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLIENT_DIR="$SCRIPT_DIR/../../../client"
+PUBLIC_VIEWER_DIR="$SCRIPT_DIR/../../../apps/public-viewer"
 
 echo ">>> 静的ビルドを生成中: $BUILD_TYPE"
 echo ">>> SCRIPT_DIR: $SCRIPT_DIR"
-echo ">>> CLIENT_DIR: $CLIENT_DIR"
+echo ">>> PUBLIC_VIEWER_DIR: $PUBLIC_VIEWER_DIR"
 
-if [ ! -d "$CLIENT_DIR" ]; then
-  echo "エラー: clientディレクトリが見つかりません: $CLIENT_DIR"
+if [ ! -d "$PUBLIC_VIEWER_DIR" ]; then
+  echo "エラー: public-viewerディレクトリが見つかりません: $PUBLIC_VIEWER_DIR"
   exit 1
 fi
 
-cd "$CLIENT_DIR" || exit 1
+cd "$PUBLIC_VIEWER_DIR" || exit 1
 echo ">>> 現在のディレクトリ: $(pwd)"
 
 if [ "$BUILD_TYPE" = "root" ]; then
@@ -35,7 +35,7 @@ if [ "$BUILD_TYPE" = "root" ]; then
   NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="" \
   npm run build:static
 
-  echo ">>> 静的ビルド完了: client/out"
+  echo ">>> 静的ビルド完了: apps/public-viewer/out"
 
 elif [ "$BUILD_TYPE" = "subdir" ]; then
   # 既存のout-subdirディレクトリを削除
@@ -57,7 +57,7 @@ elif [ "$BUILD_TYPE" = "subdir" ]; then
     mv out out-subdir
   fi
 
-  echo ">>> 静的ビルド完了: client/out-subdir"
+  echo ">>> 静的ビルド完了: apps/public-viewer/out-subdir"
 
 else
   echo "エラー: 無効なビルドタイプ: $BUILD_TYPE"

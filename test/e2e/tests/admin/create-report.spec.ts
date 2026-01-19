@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
  * 広聴AI 管理画面テストスイート
  *
  * このファイルは管理画面（http://localhost:4000）の主要な機能をテストします。
- * 管理画面は client-admin で実装されており、レポート作成やパイプライン設定を行います。
+ * 管理画面は admin で実装されており、レポート作成やパイプライン設定を行います。
  */
 
 test.describe("管理画面 - 初期表示とナビゲーション", () => {
@@ -96,7 +96,7 @@ test.describe("管理画面 - API連携", () => {
   // NOTE: このテストはE2E環境ではスキップします
   // 理由: E2Eは「実際のユーザーフローが動作すること」を確認する場所であり、
   // エラーハンドリングの詳細なテストはコンポーネントテスト/統合テストで行うべきです
-  // 推奨: client-admin/__tests__/ にReact Testing Library + MSWでテストを作成
+  // 推奨: apps/admin/__tests__/ にReact Testing Library + MSWでテストを作成
   test.skip("APIエラー時にエラーメッセージが表示される", async ({ page }) => {
     // APIをモックしてエラーレスポンスを返す
     await page.route("**/admin/reports", (route) => {
@@ -151,8 +151,8 @@ test.describe("管理画面 - パフォーマンス", () => {
 
 /**
  * 注意事項:
- * - 上記のテストは実際のUIコード（client-admin/app）に基づいて作成されています
+ * - 上記のテストは実際のUIコード（apps/admin/app）に基づいて作成されています
  * - サーバーが http://localhost:4000 で起動している必要があります
- * - テストを実行する前に `docker compose up` または `cd client-admin && npm run dev` でサーバーを起動してください
+ * - テストを実行する前に `docker compose up` または `cd apps/admin && npm run dev` でサーバーを起動してください
  * - 一部のテストはAPI応答に依存するため、APIサーバー（port 8000）も起動している必要があります
  */

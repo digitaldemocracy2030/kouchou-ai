@@ -2,8 +2,8 @@
 Script to upload existing reports from local filesystem to Azure Blob Storage.
 
 This script:
-1. Reads local report files from the server/broadlistening/pipeline/outputs directory
-2. Reads the report_status.json file from server/data
+1. Reads local report files from the apps/api/broadlistening/pipeline/outputs directory
+2. Reads the report_status.json file from apps/api/data
 3. Uploads these files to Azure Blob Storage with the appropriate structure
 
 Usage:
@@ -31,8 +31,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 SCRIPT_DIR = Path(__file__).parent
-REPO_ROOT = SCRIPT_DIR.parent
-SERVER_DIR = REPO_ROOT / "server"
+REPO_ROOT = SCRIPT_DIR.parent.parent
+SERVER_DIR = REPO_ROOT / "apps" / "api"
 OUTPUT_DIR = SERVER_DIR / "broadlistening" / "pipeline" / "outputs"
 STATUS_FILE = SERVER_DIR / "data" / "report_status.json"
 

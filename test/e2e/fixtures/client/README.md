@@ -1,6 +1,6 @@
-# Client Test Fixtures
+# Public Viewer Test Fixtures
 
-このディレクトリには、Client（レポート表示画面）のE2Eテスト用のフィクスチャ（テストデータ）が含まれています。
+このディレクトリには、Public viewer（レポート表示画面）のE2Eテスト用のフィクスチャ（テストデータ）が含まれています。
 
 ## ファイル一覧
 
@@ -129,10 +129,10 @@ await page.route("**/reports", async (route) => {
 - フィクスチャデータは最小限の構造になっています（実際のレポートはもっと複雑）
 - テストに必要な項目のみを含めています
 - 新しいテストケースが必要な場合は、適宜データを追加してください
-- JSONファイルの構造は `/client/type.ts` の型定義に準拠しています
+- JSONファイルの構造は `/apps/public-viewer/type.ts` の型定義に準拠しています
 
 ## 参考資料
 
-- [Client Test Plan](/test/e2e/CLIENT_TEST_PLAN.md)
-- [Client Type Definitions](/client/type.ts)
+- [Public Viewer Test Plan](/test/e2e/CLIENT_TEST_PLAN.md)
+- [Public Viewer Type Definitions](/apps/public-viewer/type.ts)
 - [Playwright Route Mocking](https://playwright.dev/docs/mock)

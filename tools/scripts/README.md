@@ -23,13 +23,13 @@ Azure Blob Storageへのアクセス権限（Storage Blob Data Contributor）を
 
 ```bash
 # レポートデータの取得
-python scripts/fetch_reports.py --api-url https://your-api-url
+python tools/scripts/fetch_reports.py --api-url https://your-api-url
 
 # Azure Blob Storageへのアクセス権限付与
-./scripts/assign_storage_role.sh
+./tools/scripts/assign_storage_role.sh
 
 # レポートデータのAzure Blob Storageへのアップロード
-python scripts/upload_reports_to_azure.py
+python tools/scripts/upload_reports_to_azure.py
 ```
 
 ## アップロード後のコンテナ再起動

@@ -10,7 +10,7 @@ const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const clientDir = join(__dirname, "../../client");
+const clientDir = join(__dirname, "../../public-viewer");
 const outDir = join(clientDir, "out");
 
 const ZIP_FILE_NAME = "kouchou-ai.zip";

@@ -1,6 +1,7 @@
 FROM node:22-alpine AS builder
 
-WORKDIR /app
+WORKDIR /repo
+RUN corepack enable
 
 ARG NEXT_PUBLIC_CLIENT_BASEPATH
 ARG NEXT_PUBLIC_ADMIN_API_KEY
@@ -13,19 +14,23 @@ ENV NEXT_PUBLIC_ADMIN_API_KEY=${NEXT_PUBLIC_ADMIN_API_KEY}
 ENV NEXT_PUBLIC_API_BASEPATH=${NEXT_PUBLIC_API_BASEPATH}
 ENV CLIENT_STATIC_BUILD_BASEPATH=${CLIENT_STATIC_BUILD_BASEPATH}
 
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY packages/report-schema/package.json packages/report-schema/
+COPY apps/admin/package.json apps/admin/
+RUN pnpm install --frozen-lockfile
 
-COPY . .
+COPY packages/report-schema packages/report-schema
+COPY apps/admin apps/admin
 
 ENV NEXT_DISABLE_FETCH_DURING_BUILD=true
 
-RUN npm run build
+RUN pnpm --filter @kouchou-ai/report-schema build
+RUN pnpm --filter @kouchou-ai/admin build
 
 # 本番環境用イメージ
 FROM node:22-alpine AS runner
 
-WORKDIR /app
+WORKDIR /repo
 
 ARG NEXT_PUBLIC_CLIENT_BASEPATH
 ARG NEXT_PUBLIC_ADMIN_API_KEY
@@ -42,14 +47,8 @@ ENV NEXT_PUBLIC_API_BASEPATH=${NEXT_PUBLIC_API_BASEPATH}
 ENV API_BASEPATH=${API_BASEPATH}
 ENV CLIENT_STATIC_BUILD_BASEPATH=${CLIENT_STATIC_BUILD_BASEPATH}
 
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/package-lock.json ./
-COPY --from=builder /app/next-env.d.ts ./next-env.d.ts
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/type.d.ts ./type.d.ts
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/public ./public
+COPY --from=builder /repo /repo
 
+WORKDIR /repo/apps/admin
 EXPOSE 4000
 CMD ["npm", "start"]

@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const defaultDir = path.join(__dirname, "../../server/public/meta/default");
-const customDir = path.join(__dirname, "../../server/public/meta/custom");
+const defaultDir = path.join(__dirname, "../../api/public/meta/default");
+const customDir = path.join(__dirname, "../../api/public/meta/custom");
 const destDir = path.join(__dirname, "../public/meta");
 
 async function copyImages() {

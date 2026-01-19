@@ -123,22 +123,22 @@ down:
 client-build-static:
 	rm -rf out
 	docker compose up -d --wait api
-	docker compose run --rm -e BASE_PATH=$(NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH) -e NEXT_PUBLIC_OUTPUT_MODE=export -v $(shell pwd)/apps/api:/server -v $(shell pwd)/out:/app/dist public-viewer sh -c "npm run build:static && cp -r out/* dist && touch dist/.nojekyll"
+	docker compose run --rm -e BASE_PATH=$(NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH) -e NEXT_PUBLIC_OUTPUT_MODE=export -v $(shell pwd)/apps/api:/repo/apps/api -v $(shell pwd)/out:/repo/apps/public-viewer/dist public-viewer sh -c "npm run build:static && cp -r out/* dist && touch dist/.nojekyll"
 	docker compose down
 
 client-setup:
-	npm install
-	cd apps/public-viewer && npm install && cp .env-sample .env
-	cd apps/admin && npm install && cp .env-sample .env
+	pnpm install
+	cd apps/public-viewer && cp .env-sample .env
+	cd apps/admin && cp .env-sample .env
 	cd utils/dummy-server && npm install && cp .env-sample .env
 
 client-dev: client-dev-server client-admin-dev-server dummy-server
 
 client-dev-server:
-	cd apps/public-viewer && npm run dev
+	pnpm --filter @kouchou-ai/public-viewer dev
 
 client-admin-dev-server:
-	cd apps/admin && npm run dev
+	pnpm --filter @kouchou-ai/admin dev
 
 dummy-server:
 	cd utils/dummy-server && npm run dev

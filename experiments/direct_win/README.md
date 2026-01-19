@@ -28,7 +28,7 @@ copy .env.example .env
 
 * `.env.example` をベースに `.env` を作成し、OpenAI APIキー他、各種環境変数を設定します。
 
-#### 3. Node.js の確認（client / client-admin用）
+#### 3. Node.js の確認（public-viewer / admin用）
 
 ```
 node -v
@@ -37,7 +37,7 @@ npm -v
 
 * 未インストールの場合は、[Node.js LTS](https://nodejs.org/ja) をインストールしてください。
 
-#### 4. Python の確認（server用）
+#### 4. Python の確認（api用）
 
 ```
 python --version
@@ -46,26 +46,26 @@ python --version
 * バージョンは 3.12 の使用を推奨します。  （他のバージョンでも動作する可能性はありますが、本プロジェクトでの動作確認は行っていません）
 * 未インストールの場合は、[Python公式サイト](https://www.python.org/downloads/windows/) よりインストールしてください。
   
-#### 5. client 側ライブラリのインストール
+#### 5. public-viewer 側ライブラリのインストール
 
 ```
-cd client
+cd apps/public-viewer
 npm install
 cd ..
 ```
 
-#### 6. client-admin 側ライブラリのインストール
+#### 6. admin 側ライブラリのインストール
 
 ```
-cd client-admin
+cd apps/admin
 npm install
 cd ..
 ```
 
-#### 7. server 側ライブラリのインストール（PDM + 仮想環境）
+#### 7. api 側ライブラリのインストール（PDM + 仮想環境）
 
 ```
-cd server
+cd apps/api
 pip install pdm
 pdm install
 cd ..
@@ -76,14 +76,14 @@ cd ..
 * Windows用のバッチスクリプト `direct_start_win.bat` をkouchou-ai配下にコピーしダブルクリックまたはコマンドラインで実行
 
 ```
-copy experimental\direct_win\direct_start_win.bat .\
+copy experiments\direct_win\direct_start_win.bat .\
 direct_start_win.bat
 ```
 
 #### 9. アクセス確認
 
-* [http://localhost:3000](http://localhost:3000) : レポート一覧画面（client）
-* [http://localhost:4000](http://localhost:4000) : 管理画面（client-admin）
+* [http://localhost:3000](http://localhost:3000) : レポート一覧画面（public-viewer）
+* [http://localhost:4000](http://localhost:4000) : 管理画面（admin）
 
 ---
 

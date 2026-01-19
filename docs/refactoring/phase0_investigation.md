@@ -6,10 +6,10 @@
 
 | サービス | ポート | ディレクトリ | 説明 |
 |---------|-------|-------------|------|
-| api | 8000 | server/ | FastAPI バックエンド |
-| client | 3000 | client/ | Next.js レポート閲覧 |
-| client-admin | 4000 | client-admin/ | Next.js 管理画面 |
-| client-static-build | 3200 | client-static-build/ | 静的ビルドサービス |
+| api | 8000 | apps/api/ | FastAPI バックエンド |
+| public-viewer | 3000 | apps/public-viewer/ | Next.js レポート閲覧 |
+| admin | 4000 | apps/admin/ | Next.js 管理画面 |
+| static-site-builder | 3200 | apps/static-site-builder/ | 静的ビルドサービス |
 | ollama (optional) | 11434 | - | ローカルLLM |
 
 ### Makefile コマンド
@@ -17,7 +17,7 @@
 #### ローカル開発
 - `make build` / `make up` - Docker環境のビルド・起動
 - `make client-setup` - クライアント環境セットアップ
-- `make client-dev` - 開発サーバー起動（client + client-admin + dummy-server）
+- `make client-dev` - 開発サーバー起動（public-viewer + admin + dummy-server）
 - `make test/api` - APIテスト実行
 - `make lint/api-check` / `make lint/api-format` - Linting
 
@@ -36,8 +36,8 @@
 ## 2. パイプライン構造
 
 ### エントリポイント
-- `server/broadlistening/pipeline/hierarchical_main.py` - メインオーケストレーター
-- `server/src/services/report_launcher.py` - API からの呼び出し元
+- `apps/api/broadlistening/pipeline/hierarchical_main.py` - メインオーケストレーター
+- `apps/api/src/services/report_launcher.py` - API からの呼び出し元
 
 ### ステップ一覧 (hierarchical_specs.json)
 
@@ -53,7 +53,7 @@
 | hierarchical_visualization | report/ | No | hierarchical_aggregation |
 
 ### ハードコードされたステップ名の場所
-- `client-admin/app/_components/ReportCard/ProgressSteps/ProgressSteps.tsx:8-17`
+- `apps/admin/app/_components/ReportCard/ProgressSteps/ProgressSteps.tsx:8-17`
   - 固定の `steps` 配列でステップ名と表示名をマッピング
 
 ---
@@ -104,7 +104,7 @@
 
 ## 4. チャート種別のハードコード
 
-### client/components/charts/SelectChartButton.tsx
+### apps/public-viewer/components/charts/SelectChartButton.tsx
 ```typescript
 const items = [
   { value: "scatterAll", label: "全体" },
@@ -113,7 +113,7 @@ const items = [
 ];
 ```
 
-### client/components/report/ClientContainer.tsx（初期値）
+### apps/public-viewer/components/report/ClientContainer.tsx（初期値）
 - `selectedChart: "scatterAll"`
 - `showClusterLabels: true`
 - `maxDensity: 0.2`
@@ -124,16 +124,16 @@ const items = [
 
 ## 5. 型定義の重複
 
-### 重複している型（client/type.ts と client-admin/type.d.ts）
+### 重複している型（apps/public-viewer/type.ts と apps/admin/type.d.ts）
 
 | 型名 | 重複状況 | 差異 |
 |-----|---------|-----|
 | Meta | 完全重複 | なし |
 | ReportVisibility | 完全重複 | なし |
-| Report | 部分重複 | client-admin には analysis 情報追加 |
+| Report | 部分重複 | admin には analysis 情報追加 |
 | Result | 部分重複 | client には filteredArgumentIds, visibility 追加 |
-| Argument | 部分重複 | client-admin には attributes, url がない |
-| Cluster | 部分重複 | client-admin には density_rank_percentile, allFiltered, filtered がない |
+| Argument | 部分重複 | admin には attributes, url がない |
+| Cluster | 部分重複 | admin には density_rank_percentile, allFiltered, filtered がない |
 | Comments | 完全重複 | なし |
 | Config | 部分重複 | client には is_embedded_at_local, enable_source_link 追加 |
 
@@ -141,7 +141,7 @@ const items = [
 
 ## 6. UIコンポーネントの重複
 
-### client/components/ui/ と client-admin/components/ui/ の重複ファイル
+### apps/public-viewer/components/ui/ と apps/admin/components/ui/ の重複ファイル
 - button.tsx
 - checkbox.tsx
 - close-button.tsx

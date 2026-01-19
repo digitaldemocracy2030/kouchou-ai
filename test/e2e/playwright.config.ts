@@ -83,7 +83,7 @@ export default defineConfig({
     },
     // Admin tests: 管理画面サーバーを起動（ダミーAPIサーバーを参照）
     {
-      command: "cd ../../client-admin && npm run dev",
+      command: "cd ../../apps/admin && npm run dev",
       port: 4000,
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
@@ -92,9 +92,9 @@ export default defineConfig({
         NEXT_PUBLIC_ADMIN_API_KEY: "public",
       },
     },
-    // Clientテスト用: フロントエンドサーバーを起動（ダミーAPIサーバーを参照）
+    // Public viewer tests: フロントエンドサーバーを起動（ダミーAPIサーバーを参照）
     {
-      command: "cd ../../client && npx next dev -p 3000",
+      command: "cd ../../apps/public-viewer && npx next dev -p 3000",
       port: 3000,
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
@@ -104,16 +104,16 @@ export default defineConfig({
         NEXT_PUBLIC_PUBLIC_API_KEY: "public",
       },
     },
-    // Client静的ビルドテスト用（Root）: 静的ファイルをホスティング（port 3001）
+    // Public viewer静的ビルドテスト用（Root）: 静的ファイルをホスティング（port 3001）
     {
-      command: "cd ../../client && npx http-server out -p 3001 --cors --silent",
+      command: "cd ../../apps/public-viewer && npx http-server out -p 3001 --cors --silent",
       port: 3001,
       timeout: 30 * 1000,
       reuseExistingServer: !process.env.CI,
     },
-    // Client静的ビルドテスト用（Subdirectory）: 静的ファイルをホスティング（port 3002）
+    // Public viewer静的ビルドテスト用（Subdirectory）: 静的ファイルをホスティング（port 3002）
     {
-      command: "cd ../../client && npx http-server out-subdir -p 3002 --cors --silent",
+      command: "cd ../../apps/public-viewer && npx http-server out-subdir -p 3002 --cors --silent",
       port: 3002,
       timeout: 30 * 1000,
       reuseExistingServer: !process.env.CI,
