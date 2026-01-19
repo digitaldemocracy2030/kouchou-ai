@@ -256,3 +256,132 @@ class PipelineOrchestrator:
     def get_plan(self) -> list[dict[str, Any]]:
         """Get the execution plan."""
         return self.config.get("plan", [])
+
+    @classmethod
+    def from_dict(
+        cls,
+        config: dict[str, Any],
+        output_dir: str | None = None,
+        output_base_dir: Path | str | None = None,
+        input_base_dir: Path | str | None = None,
+    ) -> "PipelineOrchestrator":
+        """
+        Create an orchestrator from a configuration dictionary.
+
+        This is a simpler alternative to from_config() that doesn't require
+        a config file and uses default prompts and settings.
+
+        Args:
+            config: Pipeline configuration dictionary
+            output_dir: Output directory name (defaults to config["name"])
+            output_base_dir: Base directory for outputs (default: outputs/)
+            input_base_dir: Base directory for inputs (default: inputs/)
+
+        Returns:
+            Initialized PipelineOrchestrator
+        """
+        from analysis_core.compat import normalize_config
+
+        # Normalize config with defaults
+        normalized = normalize_config(config.copy())
+
+        # Set output directory
+        normalized["output_dir"] = output_dir or config.get("name", "analysis")
+
+        # Convert paths
+        output_base = Path(output_base_dir) if output_base_dir else Path("outputs")
+        input_base = Path(input_base_dir) if input_base_dir else Path("inputs")
+
+        normalized["_output_base_dir"] = str(output_base)
+        normalized["_input_base_dir"] = str(input_base)
+
+        # Create output directory
+        output_path = output_base / normalized["output_dir"]
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Create a simple plan (all steps run)
+        normalized["plan"] = [
+            {"step": step, "run": True, "reason": "new run"}
+            for step in cls.DEFAULT_STEPS
+        ]
+
+        # Skip visualization if requested
+        if normalized.get("without_html", True):
+            for plan_step in normalized["plan"]:
+                if plan_step["step"] == "hierarchical_visualization":
+                    plan_step["run"] = False
+                    plan_step["reason"] = "skipping html output"
+
+        return cls(
+            config=normalized,
+            output_base_dir=output_base,
+            input_base_dir=input_base,
+        )
+
+    def run_workflow(self) -> "PipelineResult":
+        """
+        Execute the pipeline using the workflow engine.
+
+        This is an alternative to run() that uses the plugin-based
+        workflow engine instead of direct step function calls.
+
+        Returns:
+            PipelineResult with execution details
+        """
+        from analysis_core.compat import create_step_context_from_config
+        from analysis_core.workflow import WorkflowEngine
+        from analysis_core.workflows import HIERARCHICAL_DEFAULT_WORKFLOW
+
+        start_time = datetime.now()
+
+        try:
+            # Create step context
+            ctx = create_step_context_from_config(
+                self.config,
+                output_dir=self.config.get("output_dir"),
+                input_dir=str(self.input_base_dir),
+                output_base_dir=str(self.output_base_dir),
+            )
+
+            # Run workflow
+            engine = WorkflowEngine()
+            workflow_result = engine.run(
+                HIERARCHICAL_DEFAULT_WORKFLOW,
+                self.config,
+                ctx,
+            )
+
+            # Convert to PipelineResult
+            step_results = [
+                StepResult(
+                    step_name=step_id,
+                    success=result.success,
+                    duration_seconds=0.0,  # Not tracked in workflow mode
+                    token_usage=result.outputs.token_usage if result.outputs else 0,
+                    error=result.error,
+                )
+                for step_id, result in workflow_result.step_results.items()
+            ]
+
+            total_duration = (datetime.now() - start_time).total_seconds()
+            output_path = self.output_base_dir / self.config.get("output_dir", "")
+
+            return PipelineResult(
+                success=workflow_result.success,
+                steps=step_results,
+                total_duration_seconds=total_duration,
+                total_token_usage=workflow_result.total_token_usage,
+                error=None,
+                output_dir=output_path if output_path.exists() else None,
+            )
+
+        except Exception as e:
+            total_duration = (datetime.now() - start_time).total_seconds()
+            return PipelineResult(
+                success=False,
+                steps=[],
+                total_duration_seconds=total_duration,
+                total_token_usage=0,
+                error=str(e),
+                output_dir=None,
+            )
