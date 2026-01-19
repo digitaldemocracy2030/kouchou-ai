@@ -575,3 +575,28 @@ compose.yamlでAPIのbuildコンテキストがルートレベル(`.`)に変更�
 
 #### テスト結果
 - analysis-core: 44 passed (test_cli: 4, test_config: 4, test_imports: 16, test_integration: 4, test_orchestration: 16)
+
+### Dockerビルド検証と修正
+
+#### 問題
+1. ルートレベルの`.dockerignore`が存在せず、ビルドコンテキストが最適化されていなかった
+2. `umap-learn`が古い`numba`/`llvmlite`を解決し、Python 3.12非対応でビルド失敗
+
+#### 解決
+1. `.dockerignore` をルートレベルに作成
+   - テスト、ドキュメント、開発ツールを除外
+   - ビルドキャッシュ効率を改善
+
+2. `packages/analysis-core/pyproject.toml` に `numba>=0.59.0` を追加
+   - Python 3.12対応のnumbaを強制
+
+#### 検証結果
+- analysis-core テスト: 56 passed ✅
+- Dockerビルド: 成功 ✅
+
+#### コミット履歴
+```
+83beab08 fix(analysis-core): Add numba>=0.59.0 for Python 3.12 compatibility
+f620b556 chore: Add root-level .dockerignore for optimized builds
+87bb7c05 feat(analysis-core): Add default prompts for pipeline steps
+```
