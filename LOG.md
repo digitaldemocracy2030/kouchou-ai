@@ -600,3 +600,130 @@ compose.yamlでAPIのbuildコンテキストがルートレベル(`.`)に変更�
 f620b556 chore: Add root-level .dockerignore for optimized builds
 87bb7c05 feat(analysis-core): Add default prompts for pipeline steps
 ```
+
+### Phase 3a/3b: プラグインアーキテクチャ実装（完了）
+
+#### 実施内容
+
+1. **Task 3.1: プラグインインターフェース定義**
+   - `plugin/interface.py`: `StepContext`, `StepInputs`, `StepOutputs`, `PluginMetadata`, `AnalysisStepPlugin`
+   - 抽象基底クラスによるプラグイン規約定義
+
+2. **Task 3.2: プラグインレジストリ実装**
+   - `plugin/registry.py`: `PluginRegistry` クラス
+   - `get_registry()` グローバルレジストリ関数
+   - 組み込みプラグインの自動登録機構
+
+3. **Task 3.3: 既存ステップのプラグイン化（8ステップ）**
+   - `plugins/builtin/extraction.py`
+   - `plugins/builtin/embedding.py`
+   - `plugins/builtin/hierarchical_clustering.py`
+   - `plugins/builtin/hierarchical_initial_labelling.py`
+   - `plugins/builtin/hierarchical_merge_labelling.py`
+   - `plugins/builtin/hierarchical_overview.py`
+   - `plugins/builtin/hierarchical_aggregation.py`
+   - `plugins/builtin/hierarchical_visualization.py`
+   - 各プラグインは既存のステップ関数をラップ
+
+4. **Task 3.4: ワークフローエンジン実装**
+   - `workflow/definition.py`: `WorkflowStep`, `WorkflowDefinition`, `StepResult`, `WorkflowResult`
+   - `workflow/resolver.py`: トポロジカルソート（Kahnのアルゴリズム）による依存解決
+   - `workflow/engine.py`: `WorkflowEngine` クラス
+
+5. **Task 3.5: デフォルトワークフロー定義**
+   - `workflows/hierarchical_default.py`: `HIERARCHICAL_DEFAULT_WORKFLOW`
+   - `create_hierarchical_workflow()` 関数（visualization on/off 対応）
+
+6. **Task 3.6: 互換レイヤー実装**
+   - `compat/config_converter.py`: `normalize_config()`, `convert_legacy_config()`, `create_step_context_from_config()`
+   - デフォルトプロンプトの自動補完
+
+7. **Task 3.7: Orchestrator のワークフロー対応**
+   - `orchestrator.py`: `from_dict()` クラスメソッド、`run_workflow()` メソッド追加
+   - `__init__.py`: `PipelineResult`, `StepResult` エクスポート追加
+
+#### 構造
+```
+packages/analysis-core/src/analysis_core/
+├── plugin/
+│   ├── __init__.py
+│   ├── interface.py
+│   ├── decorator.py
+│   └── registry.py
+├── plugins/
+│   └── builtin/
+│       ├── __init__.py
+│       └── (8つのプラグイン)
+├── workflow/
+│   ├── __init__.py
+│   ├── definition.py
+│   ├── engine.py
+│   └── resolver.py
+├── workflows/
+│   ├── __init__.py
+│   └── hierarchical_default.py
+└── compat/
+    ├── __init__.py
+    └── config_converter.py
+```
+
+#### コミット
+```
+cf1e5596 feat(analysis-core): Add plugin architecture for pipeline steps (Phase 3)
+```
+
+### Phase 3c: 拡張機能
+
+#### Task 3.8: 外部プラグイン読み込み機構
+
+**実施内容**:
+1. `plugin/loader.py` 作成
+   - `PluginLoadError` 例外クラス
+   - `PluginManifest` データクラス（manifest.yamlの解析）
+   - `LoadedPlugin` データクラス（読み込み済みプラグイン情報）
+   - `load_manifest()` - manifest.yaml読み込み
+   - `load_plugin_module()` - Pythonモジュールからプラグイン読み込み
+   - `load_plugin_from_directory()` - ディレクトリからプラグイン読み込み
+   - `load_plugins_from_directory()` - 複数プラグイン一括読み込み
+   - `discover_plugin_directories()` - プラグインディレクトリ自動検出
+   - `load_all_plugins()` - 組み込み＋外部プラグイン一括読み込み
+
+2. `plugin/__init__.py` 更新
+   - ローダー関数のエクスポート追加
+
+3. `pyproject.toml` 更新
+   - `pyyaml>=6.0.0` 依存関係追加
+
+4. テスト追加
+   - `tests/test_loader.py` - 16テスト
+
+**プラグインディレクトリ構造**:
+```
+plugins/analysis/
+├── my-custom-step/
+│   ├── manifest.yaml
+│   └── plugin.py
+```
+
+**テスト結果**: 83 passed
+
+#### Task 3.9: Analysis画面の互換性維持
+
+**実施内容**:
+1. `compat/config_converter.py` 更新
+   - `_get_step_source_codes()` 関数追加
+   - `normalize_config()` に `include_source_code` パラメータ追加
+   - 各ステップに `source_code` を自動追加（Analysis画面互換）
+
+2. テスト追加
+   - `tests/test_compat.py` - 11テスト
+     - `source_code` が全ステップに含まれることを検証
+     - `source_code` 追加のオプトアウト機能
+
+**Analysis画面が期待するconfig構造**:
+- `result.config.plan` - 実行計画（from_dict()で設定）
+- `result.config.<step>.source_code` - ステップのソースコード
+- `result.config.<step>.prompt` - ステップのプロンプト
+- `result.config.<step>.model` - 使用モデル
+
+**テスト結果**: 83 passed

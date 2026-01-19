@@ -44,6 +44,16 @@ from analysis_core.plugin.registry import (
     get_registry,
     reset_registry,
 )
+from analysis_core.plugin.loader import (
+    PluginLoadError,
+    PluginManifest,
+    LoadedPlugin,
+    load_manifest,
+    load_plugin_from_directory,
+    load_plugins_from_directory,
+    discover_plugin_directories,
+    load_all_plugins,
+)
 
 __all__ = [
     # Interface
@@ -60,4 +70,13 @@ __all__ = [
     "PluginNotFoundError",
     "get_registry",
     "reset_registry",
+    # Loader
+    "PluginLoadError",
+    "PluginManifest",
+    "LoadedPlugin",
+    "load_manifest",
+    "load_plugin_from_directory",
+    "load_plugins_from_directory",
+    "discover_plugin_directories",
+    "load_all_plugins",
 ]
