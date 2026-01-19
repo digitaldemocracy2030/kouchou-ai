@@ -305,7 +305,33 @@ packages/analysis-core/
     └── test_imports.py
 ```
 
+#### テスト実行結果
+
+Python 3.12.8をpyenvでインストールし、パッケージテストを実行:
+
+```bash
+cd packages/analysis-core
+~/.pyenv/versions/3.12.8/bin/python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pytest tests/ -v
+```
+
+結果: **20 passed** (2.51s)
+- test_config.py: 4 passed
+- test_imports.py: 16 passed
+
+修正した問題:
+- `parse_json_list` → `parse_response` に関数名を修正
+
+#### コミット履歴
+```
+9aae04d9 fix: Correct parse_response export and add .gitignore
+cf15e0d  docs: Add Python 3.12 requirement to README
+01df36a  Phase 2: Migrate core utilities, services, and steps to analysis-core package
+48cf3c1  Phase 2: Create analysis-core package structure
+```
+
 #### 次のステップ
-- パッケージをインストールしてテスト実行
 - apps/apiからの呼び出しを新パッケージに切り替え
 - 統合テスト
