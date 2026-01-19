@@ -553,6 +553,17 @@ StepPlugin (統一インターフェース)
 #### テスト結果
 - apps/api pytest: 134 passed, 1 failed（既存のテストセットアップ問題）, 5 skipped
 
+#### 追加対応: ルートレベル.dockerignore作成
+compose.yamlでAPIのbuildコンテキストがルートレベル(`.`)に変更されたため、不要なファイルがDockerビルドに含まれないよう`.dockerignore`を作成。
+
+除外対象:
+- `.git/`, `.idea/`, `.vscode/` - バージョン管理・IDE
+- `**/tests/`, `**/__tests__/`, `test/` - テストファイル
+- `**/.venv/`, `node_modules/` - 依存関係
+- `*.md` (README.md以外), `docs/` - ドキュメント
+- `experiments/`, `tools/`, `utils/` - 開発ツール
+- パイプラインのinputs/outputs/configsディレクトリ
+
 ### Phase 2.5.7: テスト拡充
 
 #### 実施内容

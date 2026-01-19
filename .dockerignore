@@ -1,0 +1,100 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+docs/
+CLAUDE.md
+LOG.md
+PLAN.md
+FEEDBACK.md
+
+# Test and coverage (exclude at all levels)
+**/.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+**/tests/
+**/__tests__/
+test/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Development
+.env.example
+.env.local
+.env.*.local
+lefthook.yml
+biome.json
+tsconfig*.json
+
+# Python virtual environments
+.venv/
+venv/
+env/
+.Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+*.whl
+
+# Node.js
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.next/
+out/
+
+# Build artifacts
+*.tsbuildinfo
+
+# Experiments and tools (not needed in production)
+experiments/
+tools/
+
+# Lock files (we use specific ones in each app)
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# API specific exclusions (data files)
+apps/api/broadlistening/pipeline/inputs/*
+apps/api/broadlistening/pipeline/configs/*
+apps/api/broadlistening/pipeline/outputs/*
+apps/api/data/*.csv
+apps/api/data/*.json
+apps/api/data/raw/
+apps/api/data/processed/
+
+# Package virtual environments
+packages/*/.venv/
+packages/*/dist/
+packages/*/.pytest_cache/
+
+# utils (dummy server not needed in production containers)
+utils/
