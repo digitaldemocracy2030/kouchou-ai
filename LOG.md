@@ -224,8 +224,88 @@ bef15ac Phase 1: Reorganize repository structure with clearer directory naming
    - `PipelineOrchestrator`: パイプライン実行制御クラス（スタブ）
    - CLIエントリポイント（スタブ）
 
+### Phase 2: Analysis Core 抽出（続き）
+
+#### 実施内容
+
+1. コアユーティリティ移行
+   - `core/orchestration.py`: hierarchical_utils.pyからオーケストレーション関数を移行
+     - `load_specs()`, `get_specs()`, `validate_config()`, `decide_what_to_run()`
+     - `update_status()`, `update_progress()`, `run_step()`, `termination()`
+     - ハードコードされたPIPELINE_DIR依存を削除、設定可能に
+   - `core/utils.py`: プロンプト解析ユーティリティを移行
+     - `typed_message()`, `messages()`, `format_token_count()`, `estimate_tokens()`, `chunk_text()`
+   - `core/__init__.py`: エクスポート設定
+
+2. サービス移行
+   - `services/llm.py`: LLMサービス（OpenAI, Azure, Gemini, OpenRouter, Local対応）
+     - DOTENV_PATHのハードコード参照を修正
+   - `services/parse_json_list.py`: JSON解析ユーティリティ
+   - `services/__init__.py`: エクスポート設定
+
+3. ステップ移行（全8ステップ）
+   - `steps/extraction.py`: 意見抽出ステップ
+   - `steps/embedding.py`: 埋め込みベクトル生成ステップ
+   - `steps/hierarchical_clustering.py`: 階層クラスタリングステップ
+   - `steps/hierarchical_initial_labelling.py`: 初期ラベリングステップ
+   - `steps/hierarchical_merge_labelling.py`: マージラベリングステップ
+   - `steps/hierarchical_overview.py`: 概要生成ステップ
+   - `steps/hierarchical_aggregation.py`: 結果集約ステップ
+     - pipeline_dir設定を引数化
+   - `steps/hierarchical_visualization.py`: 可視化ステップ
+   - `steps/__init__.py`: エクスポート設定
+
+4. テストファイル作成
+   - `tests/test_imports.py`: パッケージインポートテスト
+     - コアモジュール、サービス、ステップ、設定の全インポートをテスト
+
+#### インポートパス変更
+```python
+# 旧
+from services.llm import request_to_chat_ai
+from utils import update_progress
+
+# 新
+from analysis_core.services.llm import request_to_chat_ai
+from analysis_core.core import update_progress
+```
+
+#### 現在の構造
+```
+packages/analysis-core/
+├── pyproject.toml
+├── README.md
+├── src/analysis_core/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── config.py
+│   ├── orchestrator.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── orchestration.py
+│   │   └── utils.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── llm.py
+│   │   └── parse_json_list.py
+│   ├── steps/
+│   │   ├── __init__.py
+│   │   ├── extraction.py
+│   │   ├── embedding.py
+│   │   ├── hierarchical_clustering.py
+│   │   ├── hierarchical_initial_labelling.py
+│   │   ├── hierarchical_merge_labelling.py
+│   │   ├── hierarchical_overview.py
+│   │   ├── hierarchical_aggregation.py
+│   │   └── hierarchical_visualization.py
+│   └── specs/
+│       └── hierarchical_specs.json
+└── tests/
+    ├── test_config.py
+    └── test_imports.py
+```
+
 #### 次のステップ
-- 既存のhierarchical_utils.pyとutils.pyをcore/に移行
-- 各ステップをsteps/に移行
-- servicesをservices/に移行
-- report_launcher.pyからの呼び出しを新パッケージに切り替え
+- パッケージをインストールしてテスト実行
+- apps/apiからの呼び出しを新パッケージに切り替え
+- 統合テスト
