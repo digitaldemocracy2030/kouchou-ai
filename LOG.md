@@ -485,3 +485,36 @@ StepPlugin (統一インターフェース)
 
 #### テスト結果
 - 40 passed (test_cli: 4, test_config: 4, test_imports: 16, test_orchestration: 16)
+
+### Phase 2.5.4: プロンプトファイル移行（N/A）
+
+プロンプトはAPIから`report_input.prompt`として設定に含まれて渡されるため、analysis-coreにプロンプトファイルを含める必要はない。CLIでプロンプトなしで使う場合のフォールバックは将来必要に応じて追加。
+
+### Phase 2.5.5: apps/api統合
+
+#### 実施内容
+1. `report_launcher.py` を更新
+   - `launch_report_generation()`: `python -m analysis_core` コマンドに変更
+   - `execute_aggregation()`: 同様に更新
+   - `--output-dir`, `--input-dir` 引数を追加
+
+2. `pyproject.toml` 更新
+   - コメントで analysis-core の依存関係を説明
+   - subprocess呼び出しのため直接依存は不要
+
+3. `Dockerfile` 更新
+   - buildコンテキストをルートレベルに変更
+   - `packages/analysis-core` をコピー・インストール
+   - 依存関係の順序を調整
+
+4. `compose.yaml` 更新
+   - API サービスの context を `.` に変更
+
+#### 変更ファイル
+- `apps/api/src/services/report_launcher.py`
+- `apps/api/pyproject.toml`
+- `apps/api/Dockerfile`
+- `compose.yaml`
+
+#### テスト結果
+- apps/api pytest: 134 passed, 1 failed（既存のテストセットアップ問題）, 5 skipped

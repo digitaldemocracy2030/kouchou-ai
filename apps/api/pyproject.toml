@@ -2,6 +2,8 @@
 name = "server"
 version = "0.1.0"
 description = "Add your description here"
+readme = "README.md"
+requires-python = ">= 3.12"
 authors = [
     { name = "nasuka", email = "nsk.smn@gmail.com" }
 ]
@@ -30,8 +32,10 @@ dependencies = [
     "hf_xet>=0.1.0",
     "tenacity>=9.1.2",
 ]
-readme = "README.md"
-requires-python = ">= 3.12"
+
+# Note: analysis-core is called via subprocess, not imported directly.
+# For local dev: pip install -e ../../packages/analysis-core
+# In Docker: analysis-core is installed in the same image.
 
 [build-system]
 requires = ["hatchling"]

@@ -14,7 +14,12 @@ RUN apt-get update \
 
 RUN pip install uv
 
-COPY pyproject.toml requirements.lock requirements-dev.lock requirements-torch.txt README.md ./
+# Copy API package files (context is repository root)
+COPY apps/api/pyproject.toml apps/api/requirements.lock apps/api/requirements-dev.lock apps/api/requirements-torch.txt apps/api/README.md ./
+
+# Copy and install analysis-core package
+COPY packages/analysis-core /packages/analysis-core
+RUN uv pip install --no-cache --system /packages/analysis-core
 
 # WITH_GPU=false の場合は 不要なパッケージをインストールしないようにする
 RUN if [ "$WITH_GPU" = "true" ]; then \
@@ -34,7 +39,9 @@ RUN if [ "$ENVIRONMENT" = "development" ]; then \
     uv pip install --no-cache --system -r requirements.lock; \
     fi
 
-COPY . .
+# Copy application source
+COPY apps/api/ .
+
 # アプリケーションの実行
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

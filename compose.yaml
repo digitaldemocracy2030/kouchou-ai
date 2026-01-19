@@ -20,8 +20,8 @@ x-frontend-build-args: &frontend-build-args
 services:
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/api/Dockerfile
       args:
         - ENVIRONMENT=${ENVIRONMENT}
         - WITH_GPU=${WITH_GPU:-false}
