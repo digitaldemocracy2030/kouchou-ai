@@ -447,3 +447,41 @@ StepPlugin (統一インターフェース)
 
 #### テスト結果
 - 31 passed (test_config: 4, test_imports: 16, test_orchestration: 11)
+
+### Phase 2.5.2: PipelineOrchestrator完成
+
+#### 実施内容
+1. `orchestrator.py` を完全に書き直し
+   - `DEFAULT_STEP_FUNCTIONS` 辞書: 8ステップへの関数マッピング
+   - `StepResult`: ステップ実行結果のdataclass
+   - `PipelineResult`: パイプライン全体の実行結果dataclass
+   - `PipelineOrchestrator.from_config()`: configファイルからの初期化
+   - `PipelineOrchestrator.run()`: パイプライン実行メソッド
+   - `register_step()`: カスタムステップ登録
+   - `get_plan()`, `get_status()`: 実行計画・ステータス取得
+
+2. テスト追加
+   - `test_orchestration.py` に5つのPipelineOrchestratorテストを追加
+
+#### テスト結果
+- 36 passed
+
+### Phase 2.5.3: CLI実装完成
+
+#### 実施内容
+1. `__main__.py` を完全に書き直し
+   - `PipelineOrchestrator.from_config()` を使用
+   - `--output-dir`, `--input-dir` 引数追加
+   - `--dry-run` 引数追加（実行せずにプラン表示）
+   - 実行結果のサマリー表示
+   - ステップごとの実行時間・エラー表示
+
+2. CLIテスト作成
+   - `tests/test_cli.py` 作成
+   - `test_cli_help`: ヘルプ表示テスト
+   - `test_cli_version`: バージョン表示テスト
+   - `test_cli_missing_config`: 設定ファイル不在テスト
+   - `test_cli_dry_run`: dry-runテスト
+
+#### テスト結果
+- 40 passed (test_cli: 4, test_config: 4, test_imports: 16, test_orchestration: 16)

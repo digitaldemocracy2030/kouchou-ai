@@ -260,3 +260,116 @@ class TestDecideWhatToRun:
         viz_step = next(s for s in plan if s["step"] == "hierarchical_visualization")
         assert viz_step["run"] is False
         assert "skipping html" in viz_step["reason"]
+
+
+class TestPipelineOrchestrator:
+    """Test PipelineOrchestrator class."""
+
+    def test_orchestrator_init(self, tmp_path):
+        """Test orchestrator initialization with config dict."""
+        from analysis_core import PipelineOrchestrator
+
+        config = {
+            "input": "test",
+            "question": "Test?",
+            "output_dir": "test",
+            "plan": [{"step": "extraction", "run": True}],
+        }
+
+        orchestrator = PipelineOrchestrator(
+            config=config,
+            output_base_dir=tmp_path,
+        )
+
+        assert orchestrator.config == config
+        assert orchestrator.output_base_dir == tmp_path
+        assert len(orchestrator.steps) == 8
+
+    def test_orchestrator_from_config(self, tmp_path):
+        """Test orchestrator creation from config file."""
+        from analysis_core import PipelineOrchestrator
+
+        # Create config file
+        config_path = tmp_path / "job.json"
+        config_path.write_text(json.dumps({
+            "input": "test",
+            "question": "Test?",
+            "provider": "openai",
+        }))
+
+        input_dir = tmp_path / "inputs"
+        output_dir = tmp_path / "outputs"
+        input_dir.mkdir()
+
+        orchestrator = PipelineOrchestrator.from_config(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=output_dir,
+            input_base_dir=input_dir,
+        )
+
+        assert orchestrator.config["input"] == "test"
+        assert orchestrator.config["question"] == "Test?"
+        assert "plan" in orchestrator.config
+
+    def test_orchestrator_register_step(self, tmp_path):
+        """Test registering a custom step."""
+        from analysis_core import PipelineOrchestrator
+
+        config = {
+            "input": "test",
+            "question": "Test?",
+            "output_dir": "test",
+        }
+
+        orchestrator = PipelineOrchestrator(config=config, output_base_dir=tmp_path)
+
+        def custom_step(config):
+            pass
+
+        orchestrator.register_step("custom", custom_step)
+
+        assert "custom" in orchestrator._step_functions
+        assert orchestrator._step_functions["custom"] is custom_step
+
+    def test_orchestrator_get_plan(self, tmp_path):
+        """Test getting execution plan."""
+        from analysis_core import PipelineOrchestrator
+
+        plan = [
+            {"step": "extraction", "run": True, "reason": "first run"},
+            {"step": "embedding", "run": True, "reason": "first run"},
+        ]
+
+        config = {
+            "input": "test",
+            "question": "Test?",
+            "output_dir": "test",
+            "plan": plan,
+        }
+
+        orchestrator = PipelineOrchestrator(config=config, output_base_dir=tmp_path)
+
+        assert orchestrator.get_plan() == plan
+
+    def test_orchestrator_get_status(self, tmp_path):
+        """Test getting status."""
+        from analysis_core import PipelineOrchestrator
+
+        config = {
+            "input": "test",
+            "question": "Test?",
+            "output_dir": "test",
+            "status": "running",
+            "current_job": "extraction",
+            "completed_jobs": [],
+            "total_token_usage": 100,
+            "plan": [],
+        }
+
+        orchestrator = PipelineOrchestrator(config=config, output_base_dir=tmp_path)
+        status = orchestrator.get_status()
+
+        assert status["status"] == "running"
+        assert status["current_job"] == "extraction"
+        assert status["total_token_usage"] == 100
