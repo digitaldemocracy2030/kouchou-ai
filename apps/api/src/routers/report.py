@@ -3,9 +3,11 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
+from pydantic import ValidationError
 
 from src.config import settings
 from src.schemas.report import Report, ReportStatus, ReportVisibility
+from src.schemas.visualization_config import DEFAULT_REPORT_DISPLAY_CONFIG, ReportDisplayConfig
 from src.services.report_status import load_status_as_reports
 
 logger = logging.getLogger("uvicorn")
@@ -52,14 +54,21 @@ async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> di
     report_result["visibility"] = target_report_status.visibility.value
 
     # 可視化設定をマージ（存在する場合）
+    # snake_case JSONをpydanticで検証し、camelCaseに変換して返す
     visualization_config_path = settings.REPORT_DIR / slug / "visualization_config.json"
     if visualization_config_path.exists():
         try:
             with open(visualization_config_path) as f:
-                visualization_config = json.load(f)
-            report_result["visualizationConfig"] = visualization_config
+                raw_config = json.load(f)
+            # pydanticで検証（snake_case/camelCase両対応、populate_by_name=True）
+            validated_config = ReportDisplayConfig.model_validate(raw_config)
+            # camelCaseで出力（by_alias=True）
+            report_result["visualizationConfig"] = validated_config.model_dump(by_alias=True)
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"Failed to load visualization config for {slug}: {e}")
+        except ValidationError as e:
+            logger.warning(f"Invalid visualization config for {slug}, using default: {e}")
+            report_result["visualizationConfig"] = DEFAULT_REPORT_DISPLAY_CONFIG.model_dump(by_alias=True)
 
     return report_result
 

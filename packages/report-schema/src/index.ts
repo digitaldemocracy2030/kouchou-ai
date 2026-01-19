@@ -207,6 +207,8 @@ export type Result = {
   filteredArgumentIds?: string[];
   /** レポートの可視性設定 */
   visibility?: ReportVisibility;
+  /** 可視化設定（存在する場合） */
+  visualizationConfig?: ReportDisplayConfig;
 };
 
 // ============================================================================
