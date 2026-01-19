@@ -23,6 +23,10 @@ pip install kouchou-ai-analysis-core[gemini]
 
 ## 使用方法
 
+詳細なチュートリアルは以下を参照してください：
+- [CLI_QUICKSTART.md](../../docs/CLI_QUICKSTART.md) - コマンドラインからの利用
+- [IMPORT_QUICKSTART.md](../../docs/IMPORT_QUICKSTART.md) - Python スクリプトからの利用
+
 ### CLI
 
 ```bash
