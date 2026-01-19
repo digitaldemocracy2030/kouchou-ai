@@ -416,3 +416,34 @@ StepPlugin (統一インターフェース)
 - Phase 3a: プラグイン基盤（3.1〜3.3）
 - Phase 3b: ワークフロー基盤（3.4〜3.7）
 - Phase 3c: 拡張機能（3.8〜3.9）
+
+### Phase 2.5.1: initialization関数の移行（完了）
+
+#### 実施内容
+1. `core/orchestration.py` に `initialization()` 関数を追加
+   - 設定ファイル読み込み
+   - 設定バリデーション
+   - 前回実行ステータス確認
+   - ステップ設定のデフォルト値設定
+   - 出力ディレクトリ作成
+   - 実行プラン決定
+
+2. 設定可能なパラメータ:
+   - `config_path`: 設定JSONファイルパス
+   - `force`: 強制再実行フラグ
+   - `only`: 特定ステップのみ実行
+   - `skip_interaction`: インタラクティブ確認スキップ
+   - `without_html`: HTML出力スキップ
+   - `output_base_dir`: 出力ベースディレクトリ
+   - `input_base_dir`: 入力ベースディレクトリ
+   - `specs_path`: ステップ仕様JSONパス
+   - `steps_module`: ソースコード取得用モジュール
+
+3. エクスポート追加
+   - `core/__init__.py` に `initialization` を追加
+
+4. テスト追加
+   - `tests/test_orchestration.py` 作成（11テスト）
+
+#### テスト結果
+- 31 passed (test_config: 4, test_imports: 16, test_orchestration: 11)

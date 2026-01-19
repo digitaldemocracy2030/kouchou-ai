@@ -7,6 +7,7 @@ This module provides the fundamental building blocks for pipeline orchestration.
 from analysis_core.core.orchestration import (
     decide_what_to_run,
     get_specs,
+    initialization,
     load_specs,
     run_step,
     termination,
@@ -31,6 +32,7 @@ __all__ = [
     "update_status",
     "update_progress",
     "run_step",
+    "initialization",
     "termination",
     # Utils
     "typed_message",

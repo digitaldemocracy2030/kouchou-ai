@@ -5,6 +5,7 @@ Migrated from apps/api/broadlistening/pipeline/hierarchical_utils.py
 with configurable paths and reduced external dependencies.
 """
 
+import inspect
 import json
 import os
 import traceback
@@ -14,6 +15,9 @@ from typing import Any, Callable
 
 # Default specs - can be overridden
 _specs: list[dict[str, Any]] = []
+
+# Default package directory for finding specs
+_PACKAGE_DIR = Path(__file__).parent.parent
 
 
 def load_specs(specs_path: Path) -> list[dict[str, Any]]:
@@ -287,6 +291,160 @@ def run_step(
         },
         output_base_dir,
     )
+
+
+def initialization(
+    config_path: Path | str,
+    force: bool = False,
+    only: str | None = None,
+    skip_interaction: bool = False,
+    without_html: bool = True,
+    output_base_dir: Path | None = None,
+    input_base_dir: Path | None = None,
+    specs_path: Path | None = None,
+    steps_module: Any = None,
+) -> dict[str, Any]:
+    """
+    Initialize pipeline configuration.
+
+    Args:
+        config_path: Path to config JSON file
+        force: Force re-run all steps
+        only: Run only specified step
+        skip_interaction: Skip interactive prompts
+        without_html: Skip HTML visualization
+        output_base_dir: Base directory for outputs (default: outputs/)
+        input_base_dir: Base directory for inputs (default: inputs/)
+        specs_path: Path to specs JSON file (default: package specs)
+        steps_module: Module containing step functions (for source code extraction)
+
+    Returns:
+        Initialized configuration dictionary
+    """
+    config_path = Path(config_path)
+
+    # Set default directories
+    if output_base_dir is None:
+        output_base_dir = Path("outputs")
+    if input_base_dir is None:
+        input_base_dir = Path("inputs")
+    if specs_path is None:
+        specs_path = _PACKAGE_DIR / "specs" / "hierarchical_specs.json"
+
+    # Load specs
+    specs = load_specs(specs_path)
+
+    # Load config
+    job_name = config_path.stem
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    # Validate config
+    validate_config(config, specs)
+
+    # Set output directory
+    config["output_dir"] = job_name
+
+    # Store base directories in config for later use
+    config["_output_base_dir"] = str(output_base_dir)
+    config["_input_base_dir"] = str(input_base_dir)
+
+    # Set options from arguments
+    if force:
+        config["force"] = True
+    if only:
+        config["only"] = only
+    if skip_interaction:
+        config["skip-interaction"] = True
+    if without_html:
+        config["without-html"] = True
+
+    output_dir = config["output_dir"]
+
+    # Check if job has run before
+    previous: dict[str, Any] | bool = False
+    status_file = output_base_dir / output_dir / "hierarchical_status.json"
+    if status_file.exists():
+        with open(status_file, "r", encoding="utf-8") as f:
+            previous = json.load(f)
+        config["previous"] = previous
+
+    # Crash if job is already running and locked
+    if previous and isinstance(previous, dict) and previous.get("status") == "running":
+        lock_until = previous.get("lock_until")
+        if lock_until and datetime.fromisoformat(lock_until) > datetime.now():
+            print("Job already running and locked. Try again in 5 minutes.")
+            raise Exception("Job already running.")
+        else:
+            print("Hum, the last Job crashed a while ago...Proceeding!")
+
+    # Set default LLM model
+    if "model" not in config:
+        config["model"] = "gpt-4o-mini"
+
+    # Prepare configs for each step
+    for step_spec in specs:
+        step = step_spec["step"]
+        if step not in config:
+            config[step] = {}
+
+        # Set default option values
+        if "options" in step_spec:
+            for key, value in step_spec["options"].items():
+                if key not in config[step]:
+                    config[step][key] = value
+
+        # Try to include source code from steps module
+        if steps_module is not None:
+            try:
+                step_func = getattr(steps_module, step, None)
+                if step_func is not None:
+                    config[step]["source_code"] = inspect.getsource(step_func)
+            except Exception:
+                print(f"Warning: could not get source code for step '{step}'")
+
+        # Resolve common options for LLM-based jobs
+        if step_spec.get("use_llm", False):
+            # Resolve model - use step-specific or global
+            if "model" not in config[step]:
+                if "model" in config:
+                    config[step]["model"] = config["model"]
+
+    # Create output directory if needed
+    output_path = output_base_dir / output_dir
+    if not output_path.exists():
+        output_path.mkdir(parents=True, exist_ok=True)
+
+    # Decide what to run
+    plan = decide_what_to_run(config, previous if isinstance(previous, dict) else None, specs, output_base_dir)
+    config["plan"] = plan
+
+    # Interactive confirmation (unless skipped)
+    if "skip-interaction" not in config:
+        print("So, here is what I am planning to run:")
+        for step_plan in plan:
+            print(step_plan)
+        print("Looks good? Press enter to continue or Ctrl+C to abort.")
+        input()
+
+    # Ready to start - update status
+    update_status(
+        config,
+        {
+            "plan": plan,
+            "status": "running",
+            "start_time": datetime.now().isoformat(),
+            "completed_jobs": [],
+            "total_token_usage": 0,
+            "token_usage_input": 0,
+            "token_usage_output": 0,
+            "provider": config.get("provider"),
+            "model": config.get("model"),
+        },
+        output_base_dir,
+    )
+
+    return config
 
 
 def termination(

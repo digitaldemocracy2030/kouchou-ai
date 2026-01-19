@@ -24,6 +24,7 @@ class TestCoreImports:
             update_status,
             update_progress,
             run_step,
+            initialization,
             termination,
         )
 
@@ -34,6 +35,7 @@ class TestCoreImports:
         assert update_status is not None
         assert update_progress is not None
         assert run_step is not None
+        assert initialization is not None
         assert termination is not None
 
     def test_core_utils_imports(self):
