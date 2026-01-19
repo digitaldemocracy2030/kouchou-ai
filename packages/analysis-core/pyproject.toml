@@ -16,7 +16,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-
 dependencies = [
     "pandas>=2.2.3",
     "numpy>=1.26.0",
@@ -39,6 +38,12 @@ dev = [
     "pytest-cov>=4.0.0",
     "ruff>=0.4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/digitaldemocracy2030/kouchou-ai"
+Repository = "https://github.com/digitaldemocracy2030/kouchou-ai"
+Documentation = "https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/docs/CLI_QUICKSTART.md"
+Issues = "https://github.com/digitaldemocracy2030/kouchou-ai/issues"
 
 [project.scripts]
 kouchou-analyze = "analysis_core.__main__:main"
