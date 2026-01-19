@@ -335,3 +335,84 @@ cf15e0d  docs: Add Python 3.12 requirement to README
 #### 次のステップ
 - apps/apiからの呼び出しを新パッケージに切り替え
 - 統合テスト
+
+### Phase 2.5: PyPIパッケージ化（計画策定）
+
+#### 現状分析
+
+Phase 2 で移行済みの内容:
+- パッケージ構造 (`packages/analysis-core/`)
+- 全ステップ (8ステップ)
+- コアユーティリティ (`core/orchestration.py`, `core/utils.py`)
+- サービス (`services/llm.py`, `services/parse_json_list.py`)
+
+未完了の項目:
+1. `orchestrator.py` の `run()` メソッドがスタブ実装
+2. `__main__.py` がレガシーへのリダイレクトのみ
+3. `hierarchical_utils.py` の `initialization()` 関数が未移行
+4. `apps/api` は依然として `hierarchical_main.py` を subprocess で呼び出し
+
+#### 作成ファイル
+- `docs/refactoring/phase2_5_plan.md` - Phase 2.5 詳細計画
+
+#### タスク一覧
+
+| Task | 内容 | 見積もり |
+|------|------|----------|
+| 2.5.1 | initialization 関数の移行 | 1-2時間 |
+| 2.5.2 | PipelineOrchestrator の完成 | 2-3時間 |
+| 2.5.3 | CLI実装の完成 | 1時間 |
+| 2.5.4 | プロンプトファイルの移行 | 30分 |
+| 2.5.5 | apps/api からの呼び出し切り替え | 1-2時間 |
+| 2.5.6 | 依存関係の整理（オプション） | 1時間 |
+| 2.5.7 | テストの拡充 | 2-3時間 |
+| 2.5.8 | バージョニングとリリース準備 | 1時間 |
+
+#### 方針決定
+- apps/api からの呼び出し: **subprocess 維持（CLI呼び出し）**
+  - 理由: 既存動作維持、analysis-core の独立性保持、段階移行可能
+
+#### 次のステップ
+- Task 2.5.1 から順に実施
+
+### Phase 3: 分析プラグイン化（計画策定）
+
+#### 作成ファイル
+- `docs/refactoring/phase3_plan.md` - Phase 3 詳細計画
+
+#### 目標
+- 既存8ステップをプラグインアーキテクチャに変換
+- ワークフロー定義で手順を制御可能に
+- 外部プラグイン読み込み機構
+
+#### タスク一覧
+
+| Task | 内容 | 見積もり |
+|------|------|----------|
+| 3.1 | プラグインインターフェース定義 | 2-3時間 |
+| 3.2 | プラグインレジストリ実装 | 1-2時間 |
+| 3.3 | 既存ステップのプラグイン化 | 4-6時間 |
+| 3.4 | ワークフローエンジン実装 | 3-4時間 |
+| 3.5 | デフォルトワークフロー定義 | 1時間 |
+| 3.6 | 互換レイヤー実装 | 1-2時間 |
+| 3.7 | Orchestrator対応 | 2-3時間 |
+| 3.8 | 外部プラグイン読み込み | 2-3時間 |
+| 3.9 | Analysis画面互換性 | 1-2時間 |
+
+#### アーキテクチャ概要
+
+```
+PluginRegistry (プラグイン登録・管理)
+    ↓
+WorkflowEngine (ワークフロー実行)
+    ↓
+StepPlugin (統一インターフェース)
+    - StepContext: 実行環境
+    - StepInputs: 入力アーティファクト
+    - StepOutputs: 出力アーティファクト
+```
+
+#### 段階的実施
+- Phase 3a: プラグイン基盤（3.1〜3.3）
+- Phase 3b: ワークフロー基盤（3.4〜3.7）
+- Phase 3c: 拡張機能（3.8〜3.9）
