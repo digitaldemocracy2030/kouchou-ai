@@ -64,8 +64,32 @@ frozenlist==1.6.0
 fsspec==2025.3.2
     # via huggingface-hub
     # via torch
-google-generativeai>=0.8.4
+google-ai-generativelanguage==0.6.15
+    # via google-generativeai
+google-api-core==2.29.0
+    # via google-ai-generativelanguage
+    # via google-api-python-client
+    # via google-generativeai
+google-api-python-client==2.188.0
+    # via google-generativeai
+google-auth==2.47.0
+    # via google-ai-generativelanguage
+    # via google-api-core
+    # via google-api-python-client
+    # via google-auth-httplib2
+    # via google-generativeai
+google-auth-httplib2==0.3.0
+    # via google-api-python-client
+google-generativeai==0.8.6
     # via server
+googleapis-common-protos==1.72.0
+    # via google-api-core
+    # via grpcio-status
+grpcio==1.76.0
+    # via google-api-core
+    # via grpcio-status
+grpcio-status==1.71.2
+    # via google-api-core
 h11==0.16.0
     # via httpcore
     # via uvicorn
@@ -74,6 +98,9 @@ hf-xet==1.1.0
     # via server
 httpcore==1.0.9
     # via httpx
+httplib2==0.31.1
+    # via google-api-python-client
+    # via google-auth-httplib2
 httpx==0.28.1
     # via litellm
     # via openai
@@ -160,10 +187,26 @@ pluggy==1.5.0
 propcache==0.3.1
     # via aiohttp
     # via yarl
+proto-plus==1.27.0
+    # via google-ai-generativelanguage
+    # via google-api-core
+protobuf==5.29.5
+    # via google-ai-generativelanguage
+    # via google-api-core
+    # via google-generativeai
+    # via googleapis-common-protos
+    # via grpcio-status
+    # via proto-plus
+pyasn1==0.6.2
+    # via pyasn1-modules
+    # via rsa
+pyasn1-modules==0.4.2
+    # via google-auth
 pycparser==2.22
     # via cffi
 pydantic==2.11.4
     # via fastapi
+    # via google-generativeai
     # via litellm
     # via openai
     # via pydantic-settings
@@ -175,6 +218,8 @@ pyjwt==2.10.1
     # via msal
 pynndescent==0.5.13
     # via umap-learn
+pyparsing==3.3.1
+    # via httplib2
 pytest==8.3.5
     # via server
 python-dateutil==2.9.0.post0
@@ -196,6 +241,7 @@ regex==2024.11.6
     # via transformers
 requests==2.32.3
     # via azure-core
+    # via google-api-core
     # via huggingface-hub
     # via msal
     # via tiktoken
@@ -203,6 +249,8 @@ requests==2.32.3
 rpds-py==0.24.0
     # via jsonschema
     # via referencing
+rsa==4.9.1
+    # via google-auth
 safetensors==0.5.3
     # via transformers
 scikit-learn==1.6.1
@@ -240,8 +288,10 @@ tiktoken==0.9.0
 tokenizers==0.21.1
     # via litellm
     # via transformers
+torch==2.9.1
     # via sentence-transformers
 tqdm==4.67.1
+    # via google-generativeai
     # via huggingface-hub
     # via openai
     # via sentence-transformers
@@ -255,6 +305,8 @@ typing-extensions==4.13.2
     # via azure-identity
     # via azure-storage-blob
     # via fastapi
+    # via google-generativeai
+    # via grpcio
     # via huggingface-hub
     # via openai
     # via pydantic
@@ -270,6 +322,8 @@ tzdata==2025.2
     # via pandas
 umap-learn==0.5.7
     # via server
+uritemplate==4.2.0
+    # via google-api-python-client
 urllib3==2.4.0
     # via requests
 uvicorn==0.34.2
