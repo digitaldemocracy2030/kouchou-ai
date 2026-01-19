@@ -410,6 +410,14 @@ def initialization(
                 if "model" in config:
                     config[step]["model"] = config["model"]
 
+            # Resolve prompt - use step-specific or default
+            if "prompt" not in config[step]:
+                from analysis_core.prompts import get_default_prompt
+
+                default_prompt = get_default_prompt(step)
+                if default_prompt:
+                    config[step]["prompt"] = default_prompt
+
     # Create output directory if needed
     output_path = output_base_dir / output_dir
     if not output_path.exists():

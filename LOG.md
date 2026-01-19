@@ -486,9 +486,43 @@ StepPlugin (統一インターフェース)
 #### テスト結果
 - 40 passed (test_cli: 4, test_config: 4, test_imports: 16, test_orchestration: 16)
 
-### Phase 2.5.4: プロンプトファイル移行（N/A）
+### Phase 2.5.4: デフォルトプロンプト移行
 
-プロンプトはAPIから`report_input.prompt`として設定に含まれて渡されるため、analysis-coreにプロンプトファイルを含める必要はない。CLIでプロンプトなしで使う場合のフォールバックは将来必要に応じて追加。
+~~プロンプトはAPIから`report_input.prompt`として設定に含まれて渡されるため、analysis-coreにプロンプトファイルを含める必要はない。CLIでプロンプトなしで使う場合のフォールバックは将来必要に応じて追加。~~
+
+**修正**: Web版ではデフォルトプロンプトが`apps/admin/app/create/`内に定義されており、ユーザがカスタマイズしない限りそれがAPIに渡される。CLI版でも同様に「特にカスタマイズしていない限りデフォルトプロンプトが使われる」べき。
+
+#### 実施内容
+1. デフォルトプロンプト調査
+   - `apps/admin/app/create/extractionPrompt.ts` - 意見抽出プロンプト
+   - `apps/admin/app/create/initialLabellingPrompt.ts` - 初期ラベリングプロンプト
+   - `apps/admin/app/create/mergeLabellingPrompt.ts` - 統合ラベリングプロンプト
+   - `apps/admin/app/create/overviewPrompt.ts` - 概要生成プロンプト
+
+2. デフォルトプロンプトモジュール作成
+   - `packages/analysis-core/src/analysis_core/prompts/__init__.py`
+   - 4つのプロンプト定数（EXTRACTION_PROMPT, INITIAL_LABELLING_PROMPT, MERGE_LABELLING_PROMPT, OVERVIEW_PROMPT）
+   - `DEFAULT_PROMPTS` 辞書（ステップ名→プロンプト）
+   - `get_default_prompt()` 関数
+
+3. `initialization` 関数更新
+   - `core/orchestration.py` に `use_llm: true` のステップにデフォルトプロンプトを設定する処理を追加
+   - カスタムプロンプトが設定されている場合はそれを優先
+
+4. テスト追加
+   - `tests/test_prompts.py` 作成（12テスト）
+   - プロンプト定義テスト
+   - `get_default_prompt()` テスト
+   - 設定初期化時のデフォルトプロンプト適用テスト
+   - カスタムプロンプト保持テスト
+
+#### 変更ファイル
+- `packages/analysis-core/src/analysis_core/prompts/__init__.py` (新規)
+- `packages/analysis-core/src/analysis_core/core/orchestration.py` (更新)
+- `packages/analysis-core/tests/test_prompts.py` (新規)
+
+#### テスト結果
+- analysis-core: 56 passed (test_cli: 4, test_config: 4, test_imports: 16, test_integration: 4, test_orchestration: 16, test_prompts: 12)
 
 ### Phase 2.5.5: apps/api統合
 
