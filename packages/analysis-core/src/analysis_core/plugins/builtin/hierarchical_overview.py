@@ -4,11 +4,9 @@ Hierarchical overview step plugin.
 Creates an overall summary of all clusters using LLM.
 """
 
-from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
-    PluginMetadata,
     StepContext,
     StepInputs,
     StepOutputs,
@@ -61,10 +59,10 @@ def hierarchical_overview_plugin(
 
     overview_impl(legacy_config)
 
-    output_dir = Path("outputs") / ctx.dataset
+    # Use ctx.output_dir which already contains the full path
     return StepOutputs(
         artifacts={
-            "overview": output_dir / "hierarchical_overview.txt",
+            "overview": ctx.output_dir / "hierarchical_overview.txt",
         },
         token_usage=legacy_config.get("total_token_usage", 0),
         token_input=legacy_config.get("token_usage_input", 0),

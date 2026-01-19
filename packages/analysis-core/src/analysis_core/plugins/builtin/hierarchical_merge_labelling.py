@@ -4,11 +4,9 @@ Hierarchical merge labelling step plugin.
 Merges and labels higher-level clusters by combining lower-level labels.
 """
 
-from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
-    PluginMetadata,
     StepContext,
     StepInputs,
     StepOutputs,
@@ -65,10 +63,10 @@ def hierarchical_merge_labelling_plugin(
 
     merge_impl(legacy_config)
 
-    output_dir = Path("outputs") / ctx.dataset
+    # Use ctx.output_dir which already contains the full path
     return StepOutputs(
         artifacts={
-            "merge_labels": output_dir / "hierarchical_merge_labels.csv",
+            "merge_labels": ctx.output_dir / "hierarchical_merge_labels.csv",
         },
         token_usage=legacy_config.get("total_token_usage", 0),
         token_input=legacy_config.get("token_usage_input", 0),

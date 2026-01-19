@@ -4,11 +4,9 @@ Hierarchical initial labelling step plugin.
 Labels the finest-grained clusters using LLM.
 """
 
-from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
-    PluginMetadata,
     StepContext,
     StepInputs,
     StepOutputs,
@@ -65,10 +63,10 @@ def hierarchical_initial_labelling_plugin(
 
     labelling_impl(legacy_config)
 
-    output_dir = Path("outputs") / ctx.dataset
+    # Use ctx.output_dir which already contains the full path
     return StepOutputs(
         artifacts={
-            "initial_labels": output_dir / "hierarchical_initial_labels.csv",
+            "initial_labels": ctx.output_dir / "hierarchical_initial_labels.csv",
         },
         token_usage=legacy_config.get("total_token_usage", 0),
         token_input=legacy_config.get("token_usage_input", 0),

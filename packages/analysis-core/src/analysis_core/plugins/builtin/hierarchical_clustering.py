@@ -4,11 +4,9 @@ Hierarchical clustering step plugin.
 Performs UMAP dimensionality reduction and hierarchical clustering.
 """
 
-from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
-    PluginMetadata,
     StepContext,
     StepInputs,
     StepOutputs,
@@ -53,9 +51,9 @@ def hierarchical_clustering_plugin(
 
     clustering_impl(legacy_config)
 
-    output_dir = Path("outputs") / ctx.dataset
+    # Use ctx.output_dir which already contains the full path
     return StepOutputs(
         artifacts={
-            "clusters": output_dir / "hierarchical_clusters.csv",
+            "clusters": ctx.output_dir / "hierarchical_clusters.csv",
         },
     )

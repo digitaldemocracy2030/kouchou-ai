@@ -743,3 +743,26 @@ Phase 3 の全タスク（3.1〜3.9）が完了。analysis-core パッケージ�
 - Analysis画面との互換性維持（source_code, plan）
 
 次のステップ: Phase 4（API & Schema 更新）
+
+### バグ修正: 組み込みプラグインの output_dir パス問題
+
+#### 問題
+組み込みプラグインが `StepContext.output_dir` を無視して `Path("outputs") / ctx.dataset` をハードコードしていた。これにより、`output_base_dir` を変更した実行や外部プラグイン連携時に、アーティファクトパスが不整合になる問題があった。
+
+#### 影響ファイル（8ファイル）
+- `plugins/builtin/extraction.py`
+- `plugins/builtin/embedding.py`
+- `plugins/builtin/hierarchical_clustering.py`
+- `plugins/builtin/hierarchical_initial_labelling.py`
+- `plugins/builtin/hierarchical_merge_labelling.py`
+- `plugins/builtin/hierarchical_overview.py`
+- `plugins/builtin/hierarchical_aggregation.py`
+- `plugins/builtin/hierarchical_visualization.py`
+
+#### 修正内容
+- `Path("outputs") / ctx.dataset` → `ctx.output_dir` に変更
+- 未使用となった `from pathlib import Path` インポートを削除
+- ruff による未使用 `PluginMetadata` インポートの自動削除
+
+#### テスト結果
+- 83 passed ✅

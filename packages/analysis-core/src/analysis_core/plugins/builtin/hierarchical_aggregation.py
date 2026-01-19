@@ -4,11 +4,9 @@ Hierarchical aggregation step plugin.
 Aggregates all results into a final JSON output file.
 """
 
-from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
-    PluginMetadata,
     StepContext,
     StepInputs,
     StepOutputs,
@@ -68,10 +66,10 @@ def hierarchical_aggregation_plugin(
 
     success = aggregation_impl(legacy_config)
 
-    output_dir = Path("outputs") / ctx.dataset
+    # Use ctx.output_dir which already contains the full path
     return StepOutputs(
         artifacts={
-            "result": output_dir / "hierarchical_result.json",
+            "result": ctx.output_dir / "hierarchical_result.json",
         },
         metadata={
             "success": success,

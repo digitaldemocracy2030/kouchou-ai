@@ -4,11 +4,9 @@ Embedding step plugin.
 Creates vector embeddings for arguments using embedding models.
 """
 
-from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
-    PluginMetadata,
     StepContext,
     StepInputs,
     StepOutputs,
@@ -54,9 +52,9 @@ def embedding_plugin(
 
     embedding_impl(legacy_config)
 
-    output_dir = Path("outputs") / ctx.dataset
+    # Use ctx.output_dir which already contains the full path
     return StepOutputs(
         artifacts={
-            "embeddings": output_dir / "embeddings.pkl",
+            "embeddings": ctx.output_dir / "embeddings.pkl",
         },
     )

@@ -4,11 +4,9 @@ Extraction step plugin.
 Extracts opinions/arguments from comments using LLM.
 """
 
-from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
-    PluginMetadata,
     StepContext,
     StepInputs,
     StepOutputs,
@@ -69,12 +67,11 @@ def extraction_plugin(
     # Run the extraction
     extraction_impl(legacy_config)
 
-    # Build outputs
-    output_dir = Path("outputs") / ctx.dataset
+    # Build outputs - use ctx.output_dir which already contains the full path
     return StepOutputs(
         artifacts={
-            "arguments": output_dir / "args.csv",
-            "relations": output_dir / "relations.csv",
+            "arguments": ctx.output_dir / "args.csv",
+            "relations": ctx.output_dir / "relations.csv",
         },
         token_usage=legacy_config.get("total_token_usage", 0),
         token_input=legacy_config.get("token_usage_input", 0),

@@ -28,13 +28,13 @@ def register_all(registry: "PluginRegistry") -> None:
         registry: Plugin registry to register plugins with
     """
     # Import plugins here to avoid circular imports
-    from analysis_core.plugins.builtin.extraction import extraction_plugin
     from analysis_core.plugins.builtin.embedding import embedding_plugin
+    from analysis_core.plugins.builtin.extraction import extraction_plugin
+    from analysis_core.plugins.builtin.hierarchical_aggregation import hierarchical_aggregation_plugin
     from analysis_core.plugins.builtin.hierarchical_clustering import hierarchical_clustering_plugin
     from analysis_core.plugins.builtin.hierarchical_initial_labelling import hierarchical_initial_labelling_plugin
     from analysis_core.plugins.builtin.hierarchical_merge_labelling import hierarchical_merge_labelling_plugin
     from analysis_core.plugins.builtin.hierarchical_overview import hierarchical_overview_plugin
-    from analysis_core.plugins.builtin.hierarchical_aggregation import hierarchical_aggregation_plugin
     from analysis_core.plugins.builtin.hierarchical_visualization import hierarchical_visualization_plugin
 
     plugins = [

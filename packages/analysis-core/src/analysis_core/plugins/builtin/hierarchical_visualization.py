@@ -4,11 +4,9 @@ Hierarchical visualization step plugin.
 Generates HTML visualization using npm build.
 """
 
-from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
-    PluginMetadata,
     StepContext,
     StepInputs,
     StepOutputs,
@@ -51,9 +49,9 @@ def hierarchical_visualization_plugin(
 
     viz_impl(legacy_config)
 
-    output_dir = Path("outputs") / ctx.dataset
+    # Use ctx.output_dir which already contains the full path
     return StepOutputs(
         artifacts={
-            "html": output_dir / "index.html",
+            "html": ctx.output_dir / "index.html",
         },
     )
