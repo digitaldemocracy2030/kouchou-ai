@@ -518,3 +518,15 @@ StepPlugin (統一インターフェース)
 
 #### テスト結果
 - apps/api pytest: 134 passed, 1 failed（既存のテストセットアップ問題）, 5 skipped
+
+### Phase 2.5.7: テスト拡充
+
+#### 実施内容
+1. `tests/test_integration.py` 追加
+   - `test_run_with_mocked_steps`: モック化されたステップの順序実行テスト
+   - `test_run_handles_step_failure`: ステップ失敗時のエラーハンドリングテスト
+   - `test_full_plan_execution`: 全8ステップの実行計画テスト
+   - `test_status_tracking`: ステータス追跡テスト
+
+#### テスト結果
+- analysis-core: 44 passed (test_cli: 4, test_config: 4, test_imports: 16, test_integration: 4, test_orchestration: 16)
