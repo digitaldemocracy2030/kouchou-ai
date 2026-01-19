@@ -43,6 +43,38 @@ orchestrator = PipelineOrchestrator(config.to_dict())
 result = orchestrator.run()
 ```
 
+## プラグインシステム
+
+analysis-core は拡張可能なプラグインアーキテクチャを採用しています。
+
+### カスタムプラグインの作成
+
+```python
+from analysis_core.plugin import step_plugin, StepContext, StepInputs, StepOutputs
+
+@step_plugin(
+    id="mycompany.custom_step",
+    version="1.0.0",
+    inputs=["arguments"],
+    outputs=["custom_result"],
+)
+def custom_step(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+    # カスタム処理
+    output_path = ctx.output_dir / "custom_result.csv"
+    return StepOutputs(artifacts={"custom_result": output_path})
+```
+
+### 外部プラグインの配置
+
+```
+plugins/analysis/
+└── my-plugin/
+    ├── manifest.yaml
+    └── plugin.py
+```
+
+詳細は [プラグイン開発ガイド](docs/PLUGIN_GUIDE.md) を参照してください。
+
 ## 開発
 
 ```bash
