@@ -163,7 +163,28 @@ Phase 1続き: packages/ ディレクトリ作成、ワークスペース設定
 - packages/report-schema/tsconfig.json
 - packages/report-schema/src/index.ts
 
+#### テスト実行結果
+
+pnpmワークスペース設定後の動作確認:
+
+| テスト | コマンド | 結果 |
+|--------|----------|------|
+| public-viewer Jest | `pnpm --filter @kouchou-ai/public-viewer test` | ✅ 5 passed |
+| admin Jest | `pnpm --filter @kouchou-ai/admin test` | ✅ 92 passed |
+| API pytest | `cd apps/api && rye run pytest tests/` | ✅ 135 passed, 5 skipped |
+| report-schema build | `pnpm --filter @kouchou-ai/report-schema build` | ✅ 成功 |
+
+#### 追加の整理
+- 古いnpm lockfileを削除（apps/*/package-lock.json）
+- packages/report-schema/biome.json追加（dist/を除外）
+
+#### Phase 1 完了コミット履歴
+```
+5af9902 chore: lockfile整理とbiome設定追加
+8981584 Phase 1 続き: pnpmワークスペース設定と@kouchou-ai/report-schemaパッケージ作成
+557cf0f Phase 1 続き: Docker/Azureサービス名をディレクトリ名に統一
+bef15ac Phase 1: Reorganize repository structure with clearer directory naming
+```
+
 #### 次のステップ
-- pnpm install で動作確認
-- 各アプリで@kouchou-ai/report-schemaからの型インポートに移行
 - Phase 2: Analysis Core 抽出
