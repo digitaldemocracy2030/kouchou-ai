@@ -4,20 +4,20 @@ on:
   push:
     branches: [main]
     paths:
-      - "server/**/*.py"
-      - "server/pyproject.toml"
+      - "apps/api/**/*.py"
+      - "apps/api/pyproject.toml"
   pull_request:
     branches: [main]
     paths:
-      - "server/**/*.py"
-      - "server/pyproject.toml"
+      - "apps/api/**/*.py"
+      - "apps/api/pyproject.toml"
 
 jobs:
   ruff:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./server
+        working-directory: ./apps/api
 
     steps:
       - uses: actions/checkout@v4

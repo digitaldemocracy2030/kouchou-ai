@@ -32,3 +32,48 @@
 
 #### 次のステップ
 Phase 1: リポジトリ構成の整理（apps/ と packages/ 導入）
+
+### Phase 1: リポジトリ構成の整理
+
+#### 実施内容
+1. ディレクトリ移動
+   - server/ → apps/api/
+   - client/ → apps/public-viewer/（名前変更も実施）
+   - client-admin/ → apps/admin/
+   - client-static-build/ → apps/static-site-builder/（名前変更も実施）
+   - scripts/ → tools/scripts/
+   - experimental/ → experiments/
+
+2. 設定ファイル更新
+   - compose.yaml: 新しいパスに更新
+   - Makefile: 全てのパス参照を更新
+   - GitHub Actions ワークフロー更新:
+     - server-pytest.yml
+     - client-build.yml
+     - client-admin-build.yml
+     - client-jest.yml
+     - client-admin-jest.yml
+     - ruff-check.yml
+     - e2e-tests.yml
+     - azure-deploy.yml
+
+3. Dockerfile更新
+   - apps/static-site-builder/Dockerfile: 新しいパスに更新
+
+4. ドキュメント更新
+   - CLAUDE.md: 新しいパスに更新
+   - docs/refactoring/phase0_investigation.md: 新構造を反映
+
+#### 作成ファイル
+- docs/refactoring/naming_convention.md - 命名規約と対応表ドキュメント
+
+#### 命名規約（新規）
+| 旧名 | 新名 | 説明 |
+|-----|-----|------|
+| server/ | apps/api/ | バックエンドAPI |
+| client/ | apps/public-viewer/ | 公開閲覧用フロントエンド |
+| client-admin/ | apps/admin/ | 管理画面 |
+| client-static-build/ | apps/static-site-builder/ | 静的サイト生成 |
+
+#### 次のステップ
+Phase 1続き: packages/ ディレクトリ作成、ワークスペース設定

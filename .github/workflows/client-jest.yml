@@ -4,28 +4,28 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'client/**/*.ts'
-      - 'client/**/*.tsx'
-      - 'client/**/*.js'
-      - 'client/**/*.jsx'
-      - 'client/package.json'
-      - 'client/jest.config.js'
+      - 'apps/public-viewer/**/*.ts'
+      - 'apps/public-viewer/**/*.tsx'
+      - 'apps/public-viewer/**/*.js'
+      - 'apps/public-viewer/**/*.jsx'
+      - 'apps/public-viewer/package.json'
+      - 'apps/public-viewer/jest.config.js'
   pull_request:
     branches: [ main ]
     paths:
-      - 'client/**/*.ts'
-      - 'client/**/*.tsx'
-      - 'client/**/*.js'
-      - 'client/**/*.jsx'
-      - 'client/package.json'
-      - 'client/jest.config.js'
+      - 'apps/public-viewer/**/*.ts'
+      - 'apps/public-viewer/**/*.tsx'
+      - 'apps/public-viewer/**/*.js'
+      - 'apps/public-viewer/**/*.jsx'
+      - 'apps/public-viewer/package.json'
+      - 'apps/public-viewer/jest.config.js'
 
 jobs:
   test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./client
+        working-directory: ./apps/public-viewer
 
     steps:
     - uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: ./client/package.json
+        cache-dependency-path: ./apps/public-viewer/package.json
 
     - name: Install dependencies
       run: npm ci

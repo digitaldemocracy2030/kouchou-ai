@@ -1,12 +1,12 @@
 FROM node:22-alpine AS builder
 
 WORKDIR /app
-COPY ./client-static-build .
+COPY ./apps/static-site-builder .
 RUN npm ci
 RUN npm run build
 
 WORKDIR /client
-COPY ./client/package.json ./client/package-lock.json ./
+COPY ./apps/public-viewer/package.json ./apps/public-viewer/package-lock.json ./
 RUN npm ci
 
 FROM node:22-alpine AS runner
@@ -26,8 +26,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_DISABLE_FETCH_DURING_BUILD=true
 ENV NODE_ENV=production
 
-COPY ./client /client
-COPY ./server/public /server/public
+COPY ./apps/public-viewer /client
+COPY ./apps/api/public /server/public
 COPY --from=builder /app/dist /app/dist
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /client/node_modules /client/node_modules

@@ -20,7 +20,7 @@ x-client-build-args: &client-build-args
 services:
   api:
     build:
-      context: ./server
+      context: ./apps/api
       dockerfile: Dockerfile
       args:
         - ENVIRONMENT=${ENVIRONMENT}
@@ -28,7 +28,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./server:/app
+      - ./apps/api:/app
     environment:
       - LOG_LEVEL=debug
     env_file:
@@ -42,11 +42,11 @@ services:
       start_period: 10s
     networks:
       - app-network
-  
+
   client:
     <<: *client-common
     build:
-      context: ./client
+      context: ./apps/public-viewer
       dockerfile: Dockerfile
       <<: *client-build-args
     ports:
@@ -56,12 +56,12 @@ services:
     <<: *client-common
     build:
       context: .
-      dockerfile: ./client-static-build/Dockerfile
+      dockerfile: ./apps/static-site-builder/Dockerfile
       <<: *client-build-args
-  
+
   client-admin:
     build:
-      context: ./client-admin
+      context: ./apps/admin
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_CLIENT_BASEPATH=${NEXT_PUBLIC_CLIENT_BASEPATH}
@@ -75,7 +75,7 @@ services:
     restart: unless-stopped
     networks:
       - app-network
-      
+
   ollama:
     image: ollama/ollama:latest
     ports:

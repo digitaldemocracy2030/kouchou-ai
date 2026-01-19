@@ -7,11 +7,11 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - 'client-admin/**/*.ts'
-      - 'client-admin/**/*.tsx'
-      - 'client-admin/**/*.js'
-      - 'client-admin/**/*.jsx'
-      - 'client-admin/package.json'
+      - 'apps/admin/**/*.ts'
+      - 'apps/admin/**/*.tsx'
+      - 'apps/admin/**/*.js'
+      - 'apps/admin/**/*.jsx'
+      - 'apps/admin/package.json'
       - 'test/e2e/**/*'
     types: [opened, synchronize, reopened, labeled]
 
@@ -40,11 +40,11 @@ jobs:
       run: npx playwright install --with-deps chromium
 
     - name: Set up client-admin
-      working-directory: ./client-admin
+      working-directory: ./apps/admin
       run: npm ci
 
     - name: Set up client
-      working-directory: ./client
+      working-directory: ./apps/public-viewer
       run: npm ci
 
     - name: Set up dummy-server

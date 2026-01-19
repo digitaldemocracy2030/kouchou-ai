@@ -85,7 +85,7 @@ jobs:
           # レポートのバックアップを取得
           if [ -n "$API_DOMAIN" ]; then
             echo "レポートのバックアップを取得中..."
-            python3 scripts/fetch_reports.py --api-url https://$API_DOMAIN
+            python3 tools/scripts/fetch_reports.py --api-url https://$API_DOMAIN
           else
             echo "❌ レポートのバックアップが取得できませんでした"
             exit 1
@@ -95,13 +95,13 @@ jobs:
           build_pids=()
           docker build --platform linux/amd64 \
             -t ${AZURE_ACR_NAME}.azurecr.io/api:latest \
-            ./server & build_pids+=("$!")
+            ./apps/api & build_pids+=("$!")
           docker build --platform linux/amd64 \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
             --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
             -t ${AZURE_ACR_NAME}.azurecr.io/client:latest \
-            ./client & build_pids+=("$!")
+            ./apps/public-viewer & build_pids+=("$!")
           docker build --platform linux/amd64 \
             --build-arg NEXT_PUBLIC_CLIENT_BASEPATH="https://${CLIENT_DOMAIN}" \
             --build-arg NEXT_PUBLIC_ADMIN_API_KEY="${ADMIN_API_KEY}" \
@@ -111,12 +111,12 @@ jobs:
             --build-arg BASIC_AUTH_PASSWORD="${BASIC_AUTH_PASSWORD}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
             -t ${AZURE_ACR_NAME}.azurecr.io/client-admin:latest \
-            ./client-admin & build_pids+=("$!")
+            ./apps/admin & build_pids+=("$!")
           docker build --platform linux/amd64 \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
             --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
-            -f ./client-static-build/Dockerfile \
+            -f ./apps/static-site-builder/Dockerfile \
             -t ${AZURE_ACR_NAME}.azurecr.io/client-static-build:latest \
             . & build_pids+=("$!")
 

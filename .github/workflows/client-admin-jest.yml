@@ -4,28 +4,28 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'client-admin/**/*.ts'
-      - 'client-admin/**/*.tsx'
-      - 'client-admin/**/*.js'
-      - 'client-admin/**/*.jsx'
-      - 'client-admin/package.json'
-      - 'client-admin/jest.config.js'
+      - 'apps/admin/**/*.ts'
+      - 'apps/admin/**/*.tsx'
+      - 'apps/admin/**/*.js'
+      - 'apps/admin/**/*.jsx'
+      - 'apps/admin/package.json'
+      - 'apps/admin/jest.config.js'
   pull_request:
     branches: [ main ]
     paths:
-      - 'client-admin/**/*.ts'
-      - 'client-admin/**/*.tsx'
-      - 'client-admin/**/*.js'
-      - 'client-admin/**/*.jsx'
-      - 'client-admin/package.json'
-      - 'client-admin/jest.config.js'
+      - 'apps/admin/**/*.ts'
+      - 'apps/admin/**/*.tsx'
+      - 'apps/admin/**/*.js'
+      - 'apps/admin/**/*.jsx'
+      - 'apps/admin/package.json'
+      - 'apps/admin/jest.config.js'
 
 jobs:
   test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./client-admin
+        working-directory: ./apps/admin
 
     steps:
     - uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: ./client-admin/package.json
+        cache-dependency-path: ./apps/admin/package.json
 
     - name: Install dependencies
       run: npm ci

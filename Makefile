@@ -123,22 +123,22 @@ down:
 client-build-static:
 	rm -rf out
 	docker compose up -d --wait api
-	docker compose run --rm -e BASE_PATH=$(NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH) -e NEXT_PUBLIC_OUTPUT_MODE=export -v $(shell pwd)/server:/server -v $(shell pwd)/out:/app/dist client sh -c "npm run build:static && cp -r out/* dist && touch dist/.nojekyll"
+	docker compose run --rm -e BASE_PATH=$(NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH) -e NEXT_PUBLIC_OUTPUT_MODE=export -v $(shell pwd)/apps/api:/server -v $(shell pwd)/out:/app/dist client sh -c "npm run build:static && cp -r out/* dist && touch dist/.nojekyll"
 	docker compose down
 
 client-setup:
 	npm install
-	cd client && npm install && cp .env-sample .env
-	cd client-admin && npm install && cp .env-sample .env
+	cd apps/public-viewer && npm install && cp .env-sample .env
+	cd apps/admin && npm install && cp .env-sample .env
 	cd utils/dummy-server && npm install && cp .env-sample .env
 
 client-dev: client-dev-server client-admin-dev-server dummy-server
 
 client-dev-server:
-	cd client && npm run dev
+	cd apps/public-viewer && npm run dev
 
 client-admin-dev-server:
-	cd client-admin && npm run dev
+	cd apps/admin && npm run dev
 
 dummy-server:
 	cd utils/dummy-server && npm run dev
@@ -234,42 +234,42 @@ azure-build:
 	if [ "$$changed" = "true" ]; then \
 		echo "envファイルの変更が検出されました。Azure用イメージを再ビルドします...(no-cache)"; \
 		docker build --platform linux/amd64 --no-cache \
-			-t $(AZURE_ACR_NAME).azurecr.io/api:latest ./server && \
+			-t $(AZURE_ACR_NAME).azurecr.io/api:latest ./apps/api && \
 		docker build --platform linux/amd64 --no-cache \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_PUBLIC_API_KEY="$(NEXT_PUBLIC_PUBLIC_API_KEY)" \
 			--build-arg NEXT_PUBLIC_SITE_URL="$(NEXT_PUBLIC_SITE_URL)" \
 			--build-arg API_BASEPATH="$(API_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/client:latest ./client && \
+			-t $(AZURE_ACR_NAME).azurecr.io/client:latest ./apps/public-viewer && \
 		docker build --platform linux/amd64 --no-cache \
 			--build-arg NEXT_PUBLIC_CLIENT_BASEPATH="$(NEXT_PUBLIC_CLIENT_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_ADMIN_API_KEY="$(NEXT_PUBLIC_ADMIN_API_KEY)" \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg CLIENT_STATIC_BUILD_BASEPATH="$(CLIENT_STATIC_BUILD_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./client-admin && \
+			-t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./apps/admin && \
 		docker build --platform linux/amd64 --no-cache \
 			-t $(AZURE_ACR_NAME).azurecr.io/client-static-build:latest \
-			-f ./client-static-build/Dockerfile . && \
+			-f ./apps/static-site-builder/Dockerfile . && \
 		$(update_env_hashes); \
 	else \
 		echo "envファイルに変更はありません。Azure用イメージをビルドします..."; \
 		docker build --platform linux/amd64 \
-			-t $(AZURE_ACR_NAME).azurecr.io/api:latest ./server; \
+			-t $(AZURE_ACR_NAME).azurecr.io/api:latest ./apps/api; \
 		docker build --platform linux/amd64 \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_PUBLIC_API_KEY="$(NEXT_PUBLIC_PUBLIC_API_KEY)" \
 			--build-arg NEXT_PUBLIC_SITE_URL="$(NEXT_PUBLIC_SITE_URL)" \
 			--build-arg API_BASEPATH="$(API_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/client:latest ./client; \
+			-t $(AZURE_ACR_NAME).azurecr.io/client:latest ./apps/public-viewer; \
 		docker build --platform linux/amd64 \
 			--build-arg NEXT_PUBLIC_CLIENT_BASEPATH="$(NEXT_PUBLIC_CLIENT_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_ADMIN_API_KEY="$(NEXT_PUBLIC_ADMIN_API_KEY)" \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg CLIENT_STATIC_BUILD_BASEPATH="$(CLIENT_STATIC_BUILD_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./client-admin; \
+			-t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./apps/admin; \
 		docker build --platform linux/amd64 \
 			-t $(AZURE_ACR_NAME).azurecr.io/client-static-build:latest \
-			-f ./client-static-build/Dockerfile .; \
+			-f ./apps/static-site-builder/Dockerfile .; \
 	fi
 
 # イメージをAzureにプッシュ（ローカルのDockerから）
@@ -426,7 +426,7 @@ azure-fix-client-admin:
 	  --build-arg NEXT_PUBLIC_ADMIN_API_KEY=$(ADMIN_API_KEY) \
 	  --build-arg NEXT_PUBLIC_CLIENT_BASEPATH=https://$(CLIENT_DOMAIN) \
 	  --build-arg CLIENT_STATIC_BUILD_BASEPATH=https://$(CLIENT_STATIC_BUILD_DOMAIN) \
-	  -t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./client-admin
+	  -t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./apps/admin
 
 	@echo ">>> イメージをプッシュ..."
 	docker push $(AZURE_ACR_NAME).azurecr.io/client-admin:latest
@@ -622,7 +622,7 @@ azure-update-deployment:
 		-w /workspace \
 		python:3.11-slim /bin/bash -c "\
 		pip install requests python-dotenv > /dev/null 2>&1 && \
-		python scripts/fetch_reports.py --api-url https://$(API_DOMAIN)"
+		python tools/scripts/fetch_reports.py --api-url https://$(API_DOMAIN)"
 
 	@echo ">>> コンテナイメージのビルド..."
 	@$(MAKE) azure-build

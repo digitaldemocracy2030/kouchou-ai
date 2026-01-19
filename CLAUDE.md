@@ -13,19 +13,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **API (Server)** - Port 8000
    - FastAPI-based Python backend
    - Handles report generation and data management
-   - Located in `/server/`
+   - Located in `/apps/api/`
 
-2. **Client** - Port 3000
+2. **Public Viewer (Client)** - Port 3000
    - Next.js frontend for report viewing
    - Interactive data visualization
-   - Located in `/client/`
+   - Located in `/apps/public-viewer/`
 
-3. **Client-Admin** - Port 4000
+3. **Admin** - Port 4000
    - Next.js admin interface for report creation
    - Pipeline configuration management
-   - Located in `/client-admin/`
+   - Located in `/apps/admin/`
 
-4. **Ollama (Optional)** - Port 11434
+4. **Static Site Builder** - Port 3200
+   - Static site generation service
+   - Located in `/apps/static-site-builder/`
+
+5. **Ollama (Optional)** - Port 11434
    - Local LLM support for GPU-enabled environments
    - Uses ELYZA-JP model by default
 
@@ -58,8 +62,8 @@ make build
 make client-build-static
 
 # Client development builds
-cd client && npm run build
-cd client-admin && npm run build
+cd apps/public-viewer && npm run build
+cd apps/admin && npm run build
 ```
 
 ### Code Quality & Linting
@@ -69,9 +73,9 @@ npm run lint
 npm run format
 
 # Individual projects
-cd client && npm run lint
-cd client-admin && npm run lint
-cd server && rye run ruff check .
+cd apps/public-viewer && npm run lint
+cd apps/admin && npm run lint
+cd apps/api && rye run ruff check .
 ```
 
 ### Testing Commands
@@ -79,10 +83,10 @@ cd server && rye run ruff check .
 # Server tests
 make test/api
 # OR
-cd server && rye run pytest tests/
+cd apps/api && rye run pytest tests/
 
 # Client tests
-cd client && npm test
+cd apps/public-viewer && npm test
 
 # E2E tests
 cd test/e2e && npm test
@@ -93,11 +97,11 @@ cd test/e2e && npm run test:debug  # debug mode
 ### Server Development
 ```bash
 # Run server locally (development)
-cd server && rye run uvicorn src.main:app --reload --port 8000
+cd apps/api && rye run uvicorn src.main:app --reload --port 8000
 
 # Server linting and formatting
-cd server && make lint/check
-cd server && make lint/format
+cd apps/api && make lint/check
+cd apps/api && make lint/format
 
 # Using Docker for server operations
 make lint/api-check
@@ -107,22 +111,22 @@ make lint/api-format
 ## Key Directories
 
 ### Core Processing Pipeline
-- `/server/broadlistening/pipeline/` - AI processing pipeline
+- `/apps/api/broadlistening/pipeline/` - AI processing pipeline
   - `steps/` - Individual pipeline steps (embedding, clustering, labeling)
   - `services/` - Shared services (LLM, category classification)
   - `hierarchical_main.py` - Main pipeline orchestrator
 
 ### Frontend Structure
-- `/client/components/charts/` - Data visualization (Plotly.js)
-- `/client/components/report/` - Report display components
-- `/client-admin/app/create/` - Report creation interface
-- `/client-admin/app/create/hooks/` - React hooks for form state
+- `/apps/public-viewer/components/charts/` - Data visualization (Plotly.js)
+- `/apps/public-viewer/components/report/` - Report display components
+- `/apps/admin/app/create/` - Report creation interface
+- `/apps/admin/app/create/hooks/` - React hooks for form state
 
 ### API Structure
-- `/server/src/routers/` - FastAPI route handlers
-- `/server/src/services/` - Business logic layer
-- `/server/src/schemas/` - Pydantic data models
-- `/server/src/repositories/` - Data access layer
+- `/apps/api/src/routers/` - FastAPI route handlers
+- `/apps/api/src/services/` - Business logic layer
+- `/apps/api/src/schemas/` - Pydantic data models
+- `/apps/api/src/repositories/` - Data access layer
 
 ## Technology Stack
 
@@ -147,16 +151,16 @@ make lint/api-format
 ## Important Development Notes
 
 ### Pipeline Architecture
-The core AI processing happens in `/server/broadlistening/pipeline/`:
+The core AI processing happens in `/apps/api/broadlistening/pipeline/`:
 - `hierarchical_main.py` orchestrates the entire analysis
 - Pipeline processes: embedding → clustering → labeling → overview generation
-- Results stored in `/server/broadlistening/pipeline/outputs/{report_id}/`
+- Results stored in `/apps/api/broadlistening/pipeline/outputs/{report_id}/`
 
 ### Report Data Flow
-1. CSV upload via client-admin → API validation
+1. CSV upload via admin → API validation
 2. Pipeline processing (embeddings, hierarchical clustering, LLM labeling)
 3. Results stored with hierarchical structure
-4. Client displays interactive visualizations
+4. Public viewer displays interactive visualizations
 
 ### Environment Configuration
 - Local: `.env` files in each service directory
@@ -190,7 +194,7 @@ make azure-info           # Get service URLs
 
 ## Configuration Files
 - `/biome.json` - Frontend code style (2-space, 120 char)
-- `/server/pyproject.toml` - Python dependencies and Ruff config
+- `/apps/api/pyproject.toml` - Python dependencies and Ruff config
 - `/lefthook.yml` - Git hooks for code quality
 - `/.env.example` - Environment variable template
 

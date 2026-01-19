@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'client/**'
-      - '!client/**/*.md'
+      - 'apps/public-viewer/**'
+      - '!apps/public-viewer/**/*.md'
   pull_request:
     branches: [main]
     paths:
-      - 'client/**'
-      - '!client/**/*.md'
+      - 'apps/public-viewer/**'
+      - '!apps/public-viewer/**/*.md'
   workflow_dispatch:
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./client
+        working-directory: ./apps/public-viewer
 
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: './client/package-lock.json'
+          cache-dependency-path: './apps/public-viewer/package-lock.json'
 
       - name: Install dependencies
         run: npm ci

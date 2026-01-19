@@ -184,9 +184,9 @@ Phase 1 では以下のディレクトリ構成への移行を実施:
 kouchou-ai/
 ├── apps/
 │   ├── api/              # server → apps/api
-│   ├── client/           # client → apps/client
+│   ├── public-viewer/    # client → apps/public-viewer
 │   ├── admin/            # client-admin → apps/admin
-│   └── client-static/    # client-static-build → apps/client-static
+│   └── static-site-builder/  # client-static-build → apps/static-site-builder
 ├── packages/
 │   ├── analysis-core/    # 新規：パイプライン実行基盤
 │   ├── report-schema/    # 新規：共通型定義
