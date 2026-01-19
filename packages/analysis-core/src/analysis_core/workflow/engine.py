@@ -134,6 +134,32 @@ class WorkflowEngine:
             # Get step-specific config
             step_config = self._resolve_step_config(step.config, config)
 
+            # Validate inputs and config before execution
+            input_errors = plugin.validate_inputs(inputs)
+            config_errors = plugin.validate_config(step_config)
+
+            if input_errors or config_errors:
+                all_errors = input_errors + config_errors
+                error_msg = f"Step '{step_id}' validation failed: {'; '.join(all_errors)}"
+                print(f"Validation error: {error_msg}")
+
+                if step.optional:
+                    result.step_results[step_id] = StepResult(
+                        step_id=step_id,
+                        success=False,
+                        error=error_msg,
+                        skipped=True,
+                    )
+                    continue
+                else:
+                    result.step_results[step_id] = StepResult(
+                        step_id=step_id,
+                        success=False,
+                        error=error_msg,
+                    )
+                    result.success = False
+                    break
+
             try:
                 # Execute step
                 print(f"Executing step: {step_id} ({step.plugin})")
