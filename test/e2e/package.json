@@ -1,6 +1,6 @@
 {
-  "name": "kouchou-ai-e2e-tests",
-  "version": "1.0.0",
+  "name": "@kouchou-ai/e2e-tests",
+  "version": "0.1.0",
   "description": "E2E tests for Kouchou AI",
   "scripts": {
     "test": "playwright test",

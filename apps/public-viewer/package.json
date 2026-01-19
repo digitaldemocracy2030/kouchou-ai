@@ -1,5 +1,5 @@
 {
-  "name": "kouchou-ai-client",
+  "name": "@kouchou-ai/public-viewer",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -21,6 +21,7 @@
     "typegen:chakra": "npx @chakra-ui/cli typegen ./components/theme/system.ts"
   },
   "dependencies": {
+    "@kouchou-ai/report-schema": "workspace:*",
     "@chakra-ui/react": "^3.5.1",
     "@emotion/react": "^11.14.0",
     "@next/third-parties": "^15.2.4",

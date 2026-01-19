@@ -130,3 +130,40 @@ Phase 1続き: packages/ ディレクトリ作成、ワークスペース設定
 
 #### 次のステップ
 Phase 1続き: packages/ ディレクトリ作成、ワークスペース設定
+
+### Phase 1 続き: packages/ ディレクトリ作成とpnpmワークスペース設定
+
+#### 実施内容
+
+1. pnpmワークスペース設定
+   - pnpm-workspace.yaml 作成
+   - ルート package.json 更新（packageManager, workspaces対応スクリプト）
+   - .npmrc 作成（shamefully-hoist, strict-peer-dependencies）
+
+2. 共通パッケージ作成
+   - packages/report-schema/ 作成
+     - TypeScript型定義を統合
+     - Meta, ReportVisibility, Report, Argument, Cluster, Comments, Result, Config等
+     - apps/public-viewer/type.ts と apps/admin/type.d.ts から統合
+
+3. パッケージ名の統一
+   - apps/public-viewer: kouchou-ai-client → @kouchou-ai/public-viewer
+   - apps/admin: kouchou-ai-client-admin → @kouchou-ai/admin
+   - apps/static-site-builder: client-static-build → @kouchou-ai/static-site-builder
+   - test/e2e: kouchou-ai-e2e-tests → @kouchou-ai/e2e-tests
+
+4. ワークスペース依存関係追加
+   - apps/public-viewer に @kouchou-ai/report-schema: workspace:* 追加
+   - apps/admin に @kouchou-ai/report-schema: workspace:* 追加
+
+#### 作成ファイル
+- pnpm-workspace.yaml
+- .npmrc
+- packages/report-schema/package.json
+- packages/report-schema/tsconfig.json
+- packages/report-schema/src/index.ts
+
+#### 次のステップ
+- pnpm install で動作確認
+- 各アプリで@kouchou-ai/report-schemaからの型インポートに移行
+- Phase 2: Analysis Core 抽出

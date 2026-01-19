@@ -2,12 +2,15 @@
   "name": "kouchou-ai",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "lint": "biome check .",
     "format": "biome check --write .",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "build:packages": "pnpm --filter './packages/*' build",
+    "clean": "pnpm -r exec rm -rf node_modules dist .next"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

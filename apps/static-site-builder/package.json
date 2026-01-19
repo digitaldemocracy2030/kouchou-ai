@@ -1,6 +1,6 @@
 {
-  "name": "client-static-build",
-  "version": "0.0.1",
+  "name": "@kouchou-ai/static-site-builder",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {

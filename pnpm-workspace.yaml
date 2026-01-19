@@ -1,0 +1,11 @@
+packages:
+  # アプリケーション
+  - "apps/public-viewer"
+  - "apps/admin"
+  - "apps/static-site-builder"
+  # 共通パッケージ
+  - "packages/*"
+  # プラグイン
+  - "plugins/*"
+  # テスト
+  - "test/e2e"
