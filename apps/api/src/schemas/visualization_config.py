@@ -4,11 +4,9 @@
 レポートの表示方法をカスタマイズするための設定を定義します。
 """
 
-from typing import Literal
-
 from src.schemas.base import SchemaBaseModel
 
-ChartType = Literal["scatterAll", "scatterDensity", "treemap"]
+ChartType = str
 
 
 class ScatterDensityParams(SchemaBaseModel):

@@ -390,8 +390,14 @@ export type JaLocaleType = {
 
 /**
  * 利用可能なチャートタイプ
+ * 既知のID + プラグインで追加される任意ID
  */
-export type ChartType = "scatterAll" | "scatterDensity" | "treemap";
+export type ChartType =
+  | "scatterAll"
+  | "scatterDensity"
+  | "treemap"
+  | "hierarchyList"
+  | (string & {});
 
 /**
  * 散布図密度設定のパラメータ

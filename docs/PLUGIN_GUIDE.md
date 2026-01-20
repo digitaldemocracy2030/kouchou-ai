@@ -6,6 +6,9 @@ kouchou-ai には3種類のプラグインシステムがあります：
 2. **分析プラグイン** - 分析パイプラインの処理ステップをカスタマイズ
 3. **可視化プラグイン** - 分析結果の表示・可視化をカスタマイズ
 
+サンプルとして YouTube 入力プラグインと階層リスト可視化プラグインを同梱しています。
+入力は環境変数、可視化は `visualization_config` で有効化する運用です。
+
 ---
 
 # Part 1: 入力プラグイン（Input Plugins）
@@ -724,11 +727,19 @@ export const myCustomPlugin: ChartPlugin = {
 };
 ```
 
-### Step 3: ChartTypeに新しいモードを追加
+### Step 3: ChartTypeは更新不要（任意）
+
+ChartType は既知のID + 任意文字列を許容するため、サーバや共有スキーマの更新は不要です。
+補完を強くしたい場合のみ、型定義の例を参考にしてください。
 
 ```typescript
 // apps/public-viewer/type.ts
-export type ChartType = "scatterAll" | "scatterDensity" | "treemap" | "hierarchyList" | "customView";
+export type ChartType =
+  | "scatterAll"
+  | "scatterDensity"
+  | "treemap"
+  | "hierarchyList"
+  | (string & {});
 ```
 
 ### Step 4: レジストリにプラグインを登録

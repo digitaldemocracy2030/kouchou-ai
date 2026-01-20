@@ -28,7 +28,12 @@ export type Report = {
 // 可視化設定
 // ============================================================================
 
-export type ChartType = "scatterAll" | "scatterDensity" | "treemap" | "hierarchyList";
+export type ChartType =
+  | "scatterAll"
+  | "scatterDensity"
+  | "treemap"
+  | "hierarchyList"
+  | (string & {});
 
 export type ScatterDensityParams = {
   maxDensity?: number;

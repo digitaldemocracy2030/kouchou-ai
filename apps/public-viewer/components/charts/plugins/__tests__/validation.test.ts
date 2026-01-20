@@ -289,6 +289,18 @@ describe("validateVisualizationConfig", () => {
     expect(result.valid).toBe(true);
   });
 
+  it("passes for hierarchyList enabled", () => {
+    const registry = createMockRegistry();
+    const config: ReportDisplayConfig = {
+      version: "1.0",
+      enabledCharts: ["hierarchyList"],
+      defaultChart: "hierarchyList",
+    };
+
+    const result = validateVisualizationConfig(config, registry);
+    expect(result.valid).toBe(true);
+  });
+
   it("fails for unknown chart type in enabledCharts", () => {
     const registry = createMockRegistry();
     const config: ReportDisplayConfig = {
