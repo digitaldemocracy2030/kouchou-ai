@@ -42,6 +42,7 @@ class ReportInput(SchemaBaseModel):
         if v in valid_types or v.startswith("plugin:"):
             return v
         raise ValueError(f"inputType must be 'file', 'spreadsheet', or 'plugin:xxx', got '{v}'")
+
     provider: str = "openai"  # LLMプロバイダー（openai, azure, openrouter, gemini, local）
     local_llm_address: str | None = None  # LocalLLM用アドレス（例: "127.0.0.1:1234"）
 

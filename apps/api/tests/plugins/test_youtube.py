@@ -1,6 +1,5 @@
 """Test cases for YouTube plugin."""
 
-
 from src.plugins.youtube import YouTubePlugin, parse_youtube_url
 
 

@@ -6,6 +6,7 @@ Please use the analysis-core package instead:
 
 See packages/analysis-core/ for the new implementation.
 """
+
 import argparse
 import sys
 import warnings

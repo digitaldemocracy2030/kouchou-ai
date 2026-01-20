@@ -6,6 +6,7 @@ Please use the analysis-core package instead:
 
 See packages/analysis-core/ for the new implementation.
 """
+
 import json
 import os
 import sys
@@ -37,6 +38,7 @@ PIPELINE_DIR = Path(__file__).parent
 specs = []
 try:
     from analysis_core.core.orchestration import get_specs
+
     specs = get_specs()
 except ImportError:
     # analysis-core not available, try loading local file (for backwards compatibility)

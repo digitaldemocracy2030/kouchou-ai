@@ -201,4 +201,3 @@ class TestVisualizationConfigMerge:
         assert response.status_code == 200
         data = response.json()
         assert "visualizationConfig" not in data
-

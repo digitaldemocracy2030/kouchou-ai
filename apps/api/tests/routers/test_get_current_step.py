@@ -68,7 +68,13 @@ async def test_get_current_step_with_token_usage(async_client, test_slug):
     with patch("src.routers.admin_report.settings") as mock_settings:
         mock_settings.REPORT_DIR.__truediv__ = MagicMock(return_value=MagicMock())
         mock_settings.REPORT_DIR.__truediv__.return_value.__truediv__ = MagicMock(return_value=mock_status_file)
-        with patch("builtins.open", return_value=MagicMock(__enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))), __exit__=MagicMock(return_value=False))):
+        with patch(
+            "builtins.open",
+            return_value=MagicMock(
+                __enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))),
+                __exit__=MagicMock(return_value=False),
+            ),
+        ):
             with patch("json.load", return_value=status_data):
                 response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
                 assert response.status_code == 200
@@ -90,7 +96,13 @@ async def test_get_current_step_with_no_token_usage(async_client, test_slug):
     with patch("src.routers.admin_report.settings") as mock_settings:
         mock_settings.REPORT_DIR.__truediv__ = MagicMock(return_value=MagicMock())
         mock_settings.REPORT_DIR.__truediv__.return_value.__truediv__ = MagicMock(return_value=mock_status_file)
-        with patch("builtins.open", return_value=MagicMock(__enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))), __exit__=MagicMock(return_value=False))):
+        with patch(
+            "builtins.open",
+            return_value=MagicMock(
+                __enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))),
+                __exit__=MagicMock(return_value=False),
+            ),
+        ):
             with patch("json.load", return_value=status_data):
                 response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
                 assert response.status_code == 200
@@ -119,7 +131,13 @@ async def test_get_current_step_with_error(async_client, test_slug):
     with patch("src.routers.admin_report.settings") as mock_settings:
         mock_settings.REPORT_DIR.__truediv__ = MagicMock(return_value=MagicMock())
         mock_settings.REPORT_DIR.__truediv__.return_value.__truediv__ = MagicMock(return_value=mock_status_file)
-        with patch("builtins.open", return_value=MagicMock(__enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))), __exit__=MagicMock(return_value=False))):
+        with patch(
+            "builtins.open",
+            return_value=MagicMock(
+                __enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))),
+                __exit__=MagicMock(return_value=False),
+            ),
+        ):
             with patch("json.load", return_value=status_data):
                 response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
                 assert response.status_code == 200

@@ -46,9 +46,8 @@ class PluginRegistry:
             # Plugin is enabled - validate settings are present
             is_valid, errors = manifest.validate_settings()
             if not is_valid:
-                error_msg = (
-                    f"Plugin '{manifest.id}' is enabled but missing required settings:\n"
-                    + "\n".join(f"  - {e}" for e in errors)
+                error_msg = f"Plugin '{manifest.id}' is enabled but missing required settings:\n" + "\n".join(
+                    f"  - {e}" for e in errors
                 )
                 logger.error(error_msg)
                 raise PluginConfigError(manifest.id, errors)
