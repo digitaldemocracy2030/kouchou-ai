@@ -290,7 +290,8 @@ export function ClientContainer({ result }: Props) {
         onChange={handleChartChange}
         onClickDensitySetting={handleClickDensitySetting}
         onClickFullscreen={handleClickFullscreen}
-        isDenseGroupEnabled={isDenseGroupEnabled}
+        result={result}
+        disabledModeOverrides={{ scatterDensity: !isDenseGroupEnabled }}
         onClickAttentionFilter={handleOpenAttributeFilter}
         isAttentionFilterEnabled={attributeMetas.length > 0}
         showAttentionFilterBadge={

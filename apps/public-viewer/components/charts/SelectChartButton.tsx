@@ -1,5 +1,6 @@
 import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins";
 import { Tooltip } from "@/components/ui/tooltip";
+import type { Result } from "@/type";
 import { Box, Button, HStack, Icon, SegmentGroup, Stack } from "@chakra-ui/react";
 import { CogIcon, Filter, FullscreenIcon } from "lucide-react";
 import type React from "react";
@@ -14,7 +15,10 @@ type Props = {
   onChange: (value: string) => void;
   onClickDensitySetting: () => void;
   onClickFullscreen: () => void;
-  isDenseGroupEnabled: boolean;
+  /** Result data for evaluating mode.isDisabled conditions */
+  result: Result;
+  /** Override for modes that have external disabled conditions (e.g., density filter empty) */
+  disabledModeOverrides?: Record<string, boolean>;
   onClickAttentionFilter?: () => void;
   isAttentionFilterEnabled?: boolean;
   showAttentionFilterBadge?: boolean;
@@ -50,7 +54,8 @@ export function SelectChartButton({
   onChange,
   onClickDensitySetting,
   onClickFullscreen,
-  isDenseGroupEnabled,
+  result,
+  disabledModeOverrides = {},
   onClickAttentionFilter,
   isAttentionFilterEnabled,
   showAttentionFilterBadge,
@@ -60,9 +65,12 @@ export function SelectChartButton({
   const items = useMemo(() => {
     const modes = chartRegistry.getAllModes();
     return modes.map((mode) => {
-      // For scatterDensity, use the isDenseGroupEnabled prop for disabled state
-      // This allows the parent to control the disabled state based on user settings
-      const isDisabled = mode.id === "scatterDensity" ? !isDenseGroupEnabled : false;
+      // Evaluate disabled state from multiple sources:
+      // 1. Plugin's isDisabled function (based on result data structure)
+      // 2. Parent's override (e.g., density filter produces empty results)
+      const pluginDisabled = mode.isDisabled?.(result) ?? false;
+      const overrideDisabled = disabledModeOverrides[mode.id] ?? false;
+      const isDisabled = pluginDisabled || overrideDisabled;
       const tooltip = isDisabled && mode.disabledTooltip ? mode.disabledTooltip : undefined;
 
       return {
@@ -72,7 +80,15 @@ export function SelectChartButton({
         tooltip,
       };
     });
-  }, [selected, isDenseGroupEnabled]);
+  }, [selected, result, disabledModeOverrides]);
+
+  // Calculate dynamic tab width based on mode count
+  const modeCount = items.length;
+  const tabWidth = useMemo(() => {
+    // On mobile, tabs fill 100% width divided by count
+    // On desktop, use fixed width per tab
+    return [`calc(100% / ${modeCount})`, null, "162px"];
+  }, [modeCount]);
 
   const handleChange = (event: React.FormEvent<HTMLDivElement>) => {
     const value = (event.target as HTMLInputElement).value;
@@ -92,7 +108,7 @@ export function SelectChartButton({
           h={["80px", null, "56px"]}
         >
           <SegmentGroup.Indicator bg="white" border="1px solid #E4E4E7" boxShadow="0 4px 6px 0 rgba(0, 0, 0, 0.1)" />
-          <SegmentGroup.Items items={items} w={["calc(100% / 3)", null, "162px"]} h="100%" cursor="pointer" />
+          <SegmentGroup.Items items={items} w={tabWidth} h="100%" cursor="pointer" />
         </SegmentGroup.Root>
 
         <HStack gap={1} justifySelf={["end"]} alignSelf={"center"}>

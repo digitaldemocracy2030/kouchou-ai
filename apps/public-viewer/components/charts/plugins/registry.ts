@@ -15,10 +15,26 @@ class ChartPluginRegistry {
    * Register a chart plugin
    */
   register(plugin: ChartPlugin): void {
+    // Check for plugin ID collision
+    if (this.plugins.has(plugin.manifest.id)) {
+      console.warn(
+        `Chart plugin collision: "${plugin.manifest.id}" is already registered. ` +
+          `Overwriting with new plugin (v${plugin.manifest.version}).`,
+      );
+    }
+
     this.plugins.set(plugin.manifest.id, plugin);
 
     // Map each mode to this plugin for quick lookup
     for (const mode of plugin.manifest.modes) {
+      // Check for mode ID collision
+      if (this.modeToPlugin.has(mode.id)) {
+        const existingPlugin = this.modeToPlugin.get(mode.id);
+        console.warn(
+          `Chart mode collision: "${mode.id}" is already registered by plugin "${existingPlugin?.manifest.id}". ` +
+            `Overwriting with plugin "${plugin.manifest.id}".`,
+        );
+      }
       this.modeToPlugin.set(mode.id, plugin);
     }
 
