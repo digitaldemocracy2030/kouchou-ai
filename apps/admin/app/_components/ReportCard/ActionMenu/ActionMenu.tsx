@@ -5,7 +5,7 @@ import { MenuContent, MenuItem, MenuPositioner, MenuRoot, MenuTrigger, MenuTrigg
 import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
 import { IconButton, Portal } from "@chakra-ui/react";
-import { Ellipsis, FileSpreadsheet, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
+import { Ellipsis, Eye, FileSpreadsheet, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import { useBuildDownload } from "../../BuildDownloadButton/useBuildDownload";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
@@ -16,9 +16,15 @@ type Props = {
   report: Report;
   setIsEditDialogOpen: Dispatch<SetStateAction<boolean>>;
   setIsClusterEditDialogOpen: Dispatch<SetStateAction<boolean>>;
+  setIsVisualizationConfigDialogOpen: Dispatch<SetStateAction<boolean>>;
 };
 
-export function ActionMenu({ report, setIsEditDialogOpen, setIsClusterEditDialogOpen }: Props) {
+export function ActionMenu({
+  report,
+  setIsEditDialogOpen,
+  setIsClusterEditDialogOpen,
+  setIsVisualizationConfigDialogOpen,
+}: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const { exportStaticHTML } = useBuildDownload();
   const isVisible = report.visibility === "public";
@@ -61,6 +67,22 @@ export function ActionMenu({ report, setIsEditDialogOpen, setIsClusterEditDialog
               >
                 <TextIcon />
                 意見グループ編集
+              </MenuItem>
+            )}
+            {report.status === "ready" && (
+              <MenuItem
+                value="visualization-config"
+                textStyle="body/md/bold"
+                onClick={() => {
+                  setIsVisualizationConfigDialogOpen(true);
+                }}
+                _icon={{
+                  w: 5,
+                  h: 5,
+                }}
+              >
+                <Eye />
+                可視化設定
               </MenuItem>
             )}
             {report.status === "ready" && report.isPubcom && (

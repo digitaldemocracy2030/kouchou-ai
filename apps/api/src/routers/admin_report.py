@@ -19,6 +19,7 @@ from src.schemas.admin_report import ReportInput, ReportVisibilityUpdate
 from src.schemas.cluster import ClusterResponse, ClusterUpdate
 from src.schemas.report import Report, ReportStatus
 from src.schemas.report_config import ReportConfigUpdate
+from src.schemas.visualization_config import ReportDisplayConfig
 from src.services.llm_models import get_models_by_provider
 from src.services.llm_pricing import LLMPricing
 from src.services.report_launcher import execute_aggregation, launch_report_generation
@@ -239,6 +240,69 @@ async def update_cluster_label(
     invalidate_report_cache(slug)
 
     return {"success": True}
+
+
+@router.get("/admin/reports/{slug}/visualization-config")
+async def get_visualization_config(slug: str, api_key: str = Depends(verify_admin_api_key)) -> dict:
+    """レポートの可視化設定を取得するエンドポイント
+
+    Args:
+        slug: レポートのスラッグ
+        api_key: 管理者APIキー
+
+    Returns:
+        可視化設定
+    """
+    visualization_config_path = settings.REPORT_DIR / slug / "visualization_config.json"
+    if not visualization_config_path.exists():
+        return {"visualizationConfig": None}
+
+    try:
+        with open(visualization_config_path) as f:
+            raw_config = json.load(f)
+        validated_config = ReportDisplayConfig.model_validate(raw_config)
+        return {"visualizationConfig": validated_config.model_dump(by_alias=True)}
+    except Exception as e:
+        slogger.error(f"Error reading visualization config: {e}")
+        return {"visualizationConfig": None}
+
+
+@router.patch("/admin/reports/{slug}/visualization-config")
+async def update_visualization_config(
+    slug: str, config: ReportDisplayConfig, api_key: str = Depends(verify_admin_api_key)
+) -> dict:
+    """レポートの可視化設定を更新するエンドポイント
+
+    Args:
+        slug: レポートのスラッグ
+        config: 更新する可視化設定
+        api_key: 管理者APIキー
+
+    Returns:
+        更新後の可視化設定
+    """
+    try:
+        report_dir = settings.REPORT_DIR / slug
+        if not report_dir.exists():
+            raise HTTPException(status_code=404, detail=f"Report {slug} not found")
+
+        visualization_config_path = report_dir / "visualization_config.json"
+
+        # snake_caseで保存（Pydanticのデフォルト）
+        with open(visualization_config_path, mode="w", encoding="utf-8") as f:
+            json.dump(config.model_dump(), f, ensure_ascii=False, indent=2)
+
+        invalidate_report_cache(slug)
+
+        return {
+            "success": True,
+            "visualizationConfig": config.model_dump(by_alias=True),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        slogger.error(f"Error updating visualization config: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/admin/models")

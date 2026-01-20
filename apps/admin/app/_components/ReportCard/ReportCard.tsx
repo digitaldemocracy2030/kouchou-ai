@@ -14,6 +14,7 @@ import { ReportEditDialog } from "./ReportEditDialog/ReportEditDialog";
 import { ReportTitle } from "./ReportTitle";
 import { TokenUsage } from "./TokenUsage/TokenUsage";
 import { Visibility } from "./Visibility/Visibility";
+import { VisualizationConfigDialog } from "./VisualizationConfigDialog/VisualizationConfigDialog";
 
 type Props = {
   report: Report;
@@ -24,6 +25,7 @@ const duration = 0.3;
 function ReportDataAndActions({ report }: Props) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isClusterEditDialogOpen, setIsClusterEditDialogOpen] = useState(false);
+  const [isVisualizationConfigDialogOpen, setIsVisualizationConfigDialogOpen] = useState(false);
   return (
     <LayoutGroup>
       <AnimatePresence mode="wait">
@@ -66,6 +68,7 @@ function ReportDataAndActions({ report }: Props) {
                 report={report}
                 setIsEditDialogOpen={setIsEditDialogOpen}
                 setIsClusterEditDialogOpen={setIsClusterEditDialogOpen}
+                setIsVisualizationConfigDialogOpen={setIsVisualizationConfigDialogOpen}
               />
             </GridItem>
             <GridItem>
@@ -80,6 +83,11 @@ function ReportDataAndActions({ report }: Props) {
               report={report}
               isOpen={isClusterEditDialogOpen}
               setIsClusterEditDialogOpen={setIsClusterEditDialogOpen}
+            />
+            <VisualizationConfigDialog
+              report={report}
+              isOpen={isVisualizationConfigDialogOpen}
+              setIsVisualizationConfigDialogOpen={setIsVisualizationConfigDialogOpen}
             />
           </motion.div>
         )}
