@@ -1,5 +1,241 @@
 # プラグイン開発ガイド
 
+kouchou-ai には3種類のプラグインシステムがあります：
+
+1. **入力プラグイン** - 外部サービス（YouTube、Twitter等）からデータを取得
+2. **分析プラグイン** - 分析パイプラインの処理ステップをカスタマイズ
+3. **可視化プラグイン** - 分析結果の表示・可視化をカスタマイズ
+
+---
+
+# Part 1: 入力プラグイン（Input Plugins）
+
+Admin UIから外部サービスのデータを取り込むためのプラグインシステムです。
+
+## 概要
+
+入力プラグインにより：
+
+- YouTube、Twitter等の外部サービスからコメント/投稿を取得
+- プラグインごとに必要な設定（APIキー等）を宣言的に管理
+- 設定不備の早期検出（サーバー起動時にエラー）
+- Admin UIでのプラグイン表示を自動化
+
+## クイックスタート：新しい入力プラグインの作成
+
+### Step 1: プラグインファイルを作成
+
+`apps/api/src/plugins/` に新しいPythonファイルを作成します。
+
+```python
+# apps/api/src/plugins/twitter.py
+"""
+Twitter input plugin for fetching tweets.
+"""
+
+import pandas as pd
+from typing import Any
+
+from src.plugins.base import InputPlugin, PluginManifest, PluginSetting, SettingType
+from src.plugins.registry import PluginRegistry
+
+
+@PluginRegistry.register
+class TwitterPlugin(InputPlugin):
+    """Twitter投稿を取得するプラグイン"""
+
+    manifest = PluginManifest(
+        id="twitter",                          # 一意のID
+        name="Twitter",                        # 表示名
+        description="Twitterの投稿を取得します。",  # 説明
+        version="1.0.0",                       # バージョン
+        icon="twitter",                        # アイコン識別子
+        placeholder="https://twitter.com/...", # URL入力欄のプレースホルダー
+        enabled_by_default=False,              # デフォルトで無効
+        settings=[                             # 必要な設定
+            PluginSetting(
+                key="TWITTER_API_KEY",
+                label="Twitter API Key",
+                description="Twitter API v2のAPIキー",
+                setting_type=SettingType.SECRET,
+                required=True,
+            ),
+            PluginSetting(
+                key="TWITTER_API_SECRET",
+                label="Twitter API Secret",
+                description="Twitter API v2のAPIシークレット",
+                setting_type=SettingType.SECRET,
+                required=True,
+            ),
+        ],
+    )
+
+    def validate_source(self, source: str) -> tuple[bool, str | None]:
+        """ソースURL/IDの検証"""
+        if "twitter.com" not in source and "x.com" not in source:
+            return False, "無効なTwitter URLです"
+        return True, None
+
+    def fetch_data(self, source: str, **options: Any) -> pd.DataFrame:
+        """データを取得してDataFrameで返す"""
+        # 設定が完了しているか確認（必須）
+        self.ensure_configured()
+
+        # URL検証
+        is_valid, error = self.validate_source(source)
+        if not is_valid:
+            raise ValueError(error)
+
+        # APIキーを取得
+        api_key = self.manifest.settings[0].get_value()
+        api_secret = self.manifest.settings[1].get_value()
+
+        # データ取得処理...
+        # (Twitter API呼び出しを実装)
+
+        # 必須カラム: comment-id, comment-body, source, url
+        # オプション: attribute_* で追加属性
+        return pd.DataFrame([
+            {
+                "comment-id": "tweet_123",
+                "comment-body": "投稿内容",
+                "source": "Twitter",
+                "url": "https://twitter.com/...",
+                "attribute_author": "@username",
+                "attribute_likes": 100,
+            }
+        ])
+```
+
+### Step 2: 環境変数を設定
+
+`.env` ファイルにプラグインの有効化と設定を追加：
+
+```bash
+# プラグインを有効化（必須）
+ENABLE_TWITTER_INPUT_PLUGIN=true
+
+# プラグイン固有の設定
+TWITTER_API_KEY=your-api-key
+TWITTER_API_SECRET=your-api-secret
+```
+
+**以上で完了です！** `registry.py` や Admin UI の修正は不要です。
+
+## プラグインの動作
+
+### 有効化の仕組み
+
+| 環境変数 | APIキー | 動作 |
+|---------|---------|------|
+| 未設定 | - | プラグイン無効（Admin UIに「設定が必要です」と表示）|
+| `=true` | 未設定 | **サーバー起動エラー**（設定漏れを早期検出）|
+| `=true` | 設定済み | プラグイン有効（Admin UIで使用可能）|
+
+### 自動検出の仕組み
+
+`src/plugins/` 配下のPythonファイルは自動的に検出・登録されます：
+
+```
+apps/api/src/plugins/
+├── __init__.py      # エクスポート（変更不要）
+├── base.py          # 基底クラス（変更不要）
+├── registry.py      # レジストリ（変更不要）
+├── youtube.py       # YouTubeプラグイン
+└── twitter.py       # 新規追加 → 自動で登録される
+```
+
+## PluginManifest フィールド
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `id` | `str` | 一意のプラグインID（例: `"youtube"`, `"twitter"`）|
+| `name` | `str` | Admin UIに表示される名前 |
+| `description` | `str` | プラグインの説明 |
+| `version` | `str` | セマンティックバージョン（例: `"1.0.0"`）|
+| `icon` | `str \| None` | アイコン識別子（将来のUI用）|
+| `placeholder` | `str` | URL入力フィールドのプレースホルダー |
+| `enabled_by_default` | `bool` | `False` を推奨（明示的有効化が必要）|
+| `settings` | `list[PluginSetting]` | 必要な設定のリスト |
+
+## PluginSetting フィールド
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `key` | `str` | 環境変数名（例: `"YOUTUBE_API_KEY"`）|
+| `label` | `str` | Admin UIに表示されるラベル |
+| `description` | `str` | 設定の説明 |
+| `setting_type` | `SettingType` | `STRING`, `SECRET`, `INTEGER`, `BOOLEAN`, `URL` |
+| `required` | `bool` | 必須かどうか |
+| `default` | `Any` | デフォルト値（`required=False` の場合）|
+
+## fetch_data の戻り値
+
+`fetch_data()` は以下のカラムを持つ `pd.DataFrame` を返す必要があります：
+
+### 必須カラム
+
+| カラム名 | 説明 |
+|---------|------|
+| `comment-id` | コメントの一意ID |
+| `comment-body` | コメント本文 |
+| `source` | ソース名（例: `"YouTube"`, `"Twitter"`）|
+| `url` | 元のコメントへのURL |
+
+### オプションカラム（属性）
+
+`attribute_` プレフィックスで追加属性を含められます：
+
+```python
+{
+    "attribute_author": "投稿者名",
+    "attribute_published_at": "2024-01-01T00:00:00Z",
+    "attribute_like_count": 100,
+    "attribute_video_title": "動画タイトル",
+}
+```
+
+## 依存関係の追加
+
+外部ライブラリが必要な場合、`apps/api/pyproject.toml` にオプション依存として追加：
+
+```toml
+[project.optional-dependencies]
+youtube = ["google-api-python-client>=2.150.0"]
+twitter = ["tweepy>=4.14.0"]
+all-plugins = [
+    "google-api-python-client>=2.150.0",
+    "tweepy>=4.14.0",
+]
+```
+
+インストール：
+
+```bash
+pip install -e ".[twitter]"
+# または全プラグイン
+pip install -e ".[all-plugins]"
+```
+
+## 既存プラグイン: YouTube
+
+参考実装として [apps/api/src/plugins/youtube.py](../apps/api/src/plugins/youtube.py) を参照してください。
+
+**機能:**
+- YouTube動画URLからコメントを取得
+- プレイリストURLから複数動画のコメントを一括取得
+- 返信コメントの取得（オプション）
+
+**環境変数:**
+```bash
+ENABLE_YOUTUBE_INPUT_PLUGIN=true
+YOUTUBE_API_KEY=your-youtube-data-api-v3-key
+```
+
+---
+
+# Part 2: 分析プラグイン（Analysis Plugins）
+
 analysis-core のプラグインシステムを使用して、カスタム分析ステップを追加する方法を説明します。
 
 ## 概要
@@ -389,3 +625,47 @@ PluginLoadError: Attribute 'plugin' is not an AnalysisStepPlugin
 解決策：
 - `@step_plugin` デコレータが正しく適用されているか確認
 - 関数シグネチャが正しいか確認（`ctx`, `inputs`, `config` の3引数）
+
+---
+
+# Part 3: 可視化プラグイン（Visualization Plugins）
+
+分析結果の表示・可視化をカスタマイズするためのプラグインシステムです。
+
+## 概要
+
+可視化プラグインにより：
+
+- 分析結果のグラフ・チャートのカスタマイズ
+- 新しい可視化コンポーネントの追加
+- レポート表示形式のカスタマイズ
+- 外部ダッシュボードとの連携
+
+## ステータス
+
+> **Note**: 可視化プラグインシステムは現在設計段階です。
+> 詳細なAPIとドキュメントは今後追加予定です。
+
+## 想定されるユースケース
+
+1. **カスタムチャートタイプ**
+   - 階層クラスタリング結果の独自可視化
+   - センチメント分析のヒートマップ
+   - 時系列トレンド分析
+
+2. **レポートテンプレート**
+   - 組織固有のブランディング
+   - 多言語対応
+   - アクセシビリティ対応
+
+3. **外部連携**
+   - BIツール（Tableau、Power BI等）へのエクスポート
+   - データポータルとの統合
+
+## 関連ファイル
+
+現在の可視化実装は以下にあります：
+
+- `apps/public-viewer/components/charts/` - グラフコンポーネント
+- `apps/public-viewer/components/report/` - レポート表示コンポーネント
+- `apps/api/broadlistening/pipeline/steps/hierarchical_visualization.py` - HTML生成

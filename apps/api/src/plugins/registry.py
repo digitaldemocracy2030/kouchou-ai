@@ -4,7 +4,7 @@ Plugin registry for discovering and managing input plugins.
 
 import logging
 
-from src.plugins.base import InputPlugin, PluginManifest
+from src.plugins.base import InputPlugin, PluginConfigError, PluginManifest
 
 logger = logging.getLogger("uvicorn")
 
@@ -15,6 +15,11 @@ class PluginRegistry:
 
     Plugins are registered by their manifest ID and can be discovered
     dynamically based on their availability.
+
+    Plugin loading behavior:
+    - Plugins are always registered to allow API to list available plugins
+    - If a plugin is enabled but missing required settings, server fails on startup
+    - If a plugin is not enabled, it's registered but not available for use
     """
 
     _plugins: dict[str, type[InputPlugin]] = {}
@@ -29,10 +34,28 @@ class PluginRegistry:
             @PluginRegistry.register
             class MyPlugin(InputPlugin):
                 ...
+
+        If the plugin is explicitly enabled via environment variable but
+        required settings are missing, raises PluginConfigError to fail startup.
         """
         manifest = plugin_class.manifest
         cls._plugins[manifest.id] = plugin_class
-        logger.info(f"Registered input plugin: {manifest.id} (v{manifest.version})")
+
+        # Check if plugin is enabled
+        if manifest.is_enabled():
+            # Plugin is enabled - validate settings are present
+            is_valid, errors = manifest.validate_settings()
+            if not is_valid:
+                error_msg = (
+                    f"Plugin '{manifest.id}' is enabled but missing required settings:\n"
+                    + "\n".join(f"  - {e}" for e in errors)
+                )
+                logger.error(error_msg)
+                raise PluginConfigError(manifest.id, errors)
+            logger.info(f"Registered and enabled input plugin: {manifest.id} (v{manifest.version})")
+        else:
+            logger.info(f"Registered input plugin (disabled): {manifest.id} (v{manifest.version})")
+
         return plugin_class
 
     @classmethod
@@ -82,16 +105,31 @@ class PluginRegistry:
 
 def load_builtin_plugins() -> None:
     """
-    Load all built-in plugins.
+    Load all built-in plugins by auto-discovering modules in src.plugins package.
 
     This is called during application startup to register
-    all available input plugins.
+    all available input plugins. Plugins are discovered automatically
+    by scanning the plugins directory for Python modules.
     """
-    # Import plugins to trigger registration
-    # Each plugin module uses @PluginRegistry.register decorator
-    try:
-        from src.plugins import youtube  # noqa: F401
+    import importlib
+    import pkgutil
 
-        logger.info("Loaded built-in input plugins")
-    except ImportError as e:
-        logger.warning(f"Failed to load some plugins: {e}")
+    from src import plugins
+
+    # Modules to skip (not plugins)
+    skip_modules = {"base", "registry", "__init__"}
+
+    loaded = []
+    for _, name, _ in pkgutil.iter_modules(plugins.__path__):
+        if name in skip_modules:
+            continue
+        try:
+            importlib.import_module(f"src.plugins.{name}")
+            loaded.append(name)
+        except ImportError as e:
+            logger.warning(f"Failed to load plugin '{name}': {e}")
+
+    if loaded:
+        logger.info(f"Loaded built-in input plugins: {', '.join(loaded)}")
+    else:
+        logger.info("No built-in input plugins loaded")

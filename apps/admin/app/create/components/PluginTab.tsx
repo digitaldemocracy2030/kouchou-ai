@@ -107,7 +107,7 @@ export function PluginTab({
       <Field.Root>
         <Field.Label>{plugin.name} URL</Field.Label>
         <Input
-          placeholder={getPlaceholder(plugin.id)}
+          placeholder={plugin.placeholder}
           value={url}
           onChange={(e) => onUrlChange(e.target.value)}
           disabled={isLoading}
@@ -155,16 +155,4 @@ export function PluginTab({
       )}
     </VStack>
   );
-}
-
-/**
- * プラグインIDに応じたプレースホルダーテキストを取得
- */
-function getPlaceholder(pluginId: string): string {
-  switch (pluginId) {
-    case "youtube":
-      return "https://www.youtube.com/watch?v=... または https://www.youtube.com/playlist?list=...";
-    default:
-      return "URLを入力してください";
-  }
 }

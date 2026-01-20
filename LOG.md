@@ -944,6 +944,129 @@ Docker ビルド: 成功 ✅
 3. **オプション依存**: YouTube API クライアントは `pip install server[youtube]` で追加
 4. **API応答にisAvailable**: フロントエンドでプラグインの利用可否を表示可能
 
+### Admin UIプラグイン統合（完了）
+
+#### 実施内容
+
+1. **プラグインAPIクライアント** (`apps/admin/app/create/api/plugins.ts`)
+   - `getPlugins()`: プラグイン一覧取得
+   - `validatePluginSource()`: ソースURL検証
+   - `previewPluginData()`: プレビュー取得
+   - `importPluginData()`: データインポート
+
+2. **usePluginDataフック** (`apps/admin/app/create/hooks/usePluginData.ts`)
+   - プラグイン一覧の取得と状態管理
+   - プラグインごとのURL、ロード状態、インポート状態を管理
+   - プレビュー・インポートハンドラ
+   - カラム選択の自動設定
+
+3. **PluginTabコンポーネント** (`apps/admin/app/create/components/PluginTab.tsx`)
+   - 利用不可時: 不足設定のエラー表示
+   - インポート済み: 完了状態表示、クリアボタン
+   - 通常: URL入力、プレビュー/インポートボタン、カラム選択
+
+4. **create page統合** (`apps/admin/app/create/page.tsx`)
+   - プラグインタブを動的に生成
+   - `plugin:${pluginId}` 形式の入力タイプ対応
+   - onSubmitでプラグインデータを処理
+
+5. **バリデーション更新** (`apps/admin/app/create/utils/validation.ts`)
+   - `pluginImported`, `pluginSelectedCommentColumn` パラメータ追加
+   - プラグイン入力タイプのバリデーション対応
+
+6. **APIレスポンス更新** (`apps/api/src/routers/plugins.py`)
+   - インポートレスポンスに `comments` フィールド追加
+   - フロントエンドでインポート済みデータを使用可能に
+
+7. **TypeScript型更新** (`apps/admin/type.d.ts`)
+   - `PluginImportResult` に `comments` フィールド追加
+
+#### テスト結果
+- apps/api: 25 plugin tests passed ✅
+- apps/admin: lint passed ✅
+
+#### コミット
+```
+72627609 feat: Integrate plugin tabs into admin create page
+```
+
 #### 次のステップ
-- Admin UIでのプラグインタブ表示
-- プラグインからのコメント取得フロー統合
+- E2Eテストの追加（オプション）
+- YouTube以外のプラグイン追加（オプション）
+
+### プラグイン有効化の明示的制御
+
+#### 背景
+ユーザー要望: プラグインはデフォルトで無効化し、管理者が明示的に `ENABLE_YOUTUBE_INPUT_PLUGIN=true` を設定した場合のみ有効化。有効化されているがAPIキーが未設定の場合はサーバー起動時にエラー終了すべき。
+
+#### 実施内容
+
+1. **PluginManifest更新** (`apps/api/src/plugins/base.py`)
+   - `get_enable_env_var()`: `ENABLE_{PLUGIN_ID}_INPUT_PLUGIN` 形式の環境変数名を取得
+   - `is_enabled()`: 環境変数が `true` に設定されているかチェック
+   - `is_available()`: `is_enabled()` **かつ** 設定が有効な場合のみ `True`
+   - `to_dict()`: `isEnabled` フィールドを追加、`missingSettings` に環境変数要件を含める
+
+2. **PluginRegistry更新** (`apps/api/src/plugins/registry.py`)
+   - `register()`: プラグインが有効化されているが必須設定が欠けている場合、`PluginConfigError` を送出してサーバー起動を停止
+
+3. **.env.example更新** (`/.env.example`)
+   - Input Plugin Configuration セクションを追加
+   - `ENABLE_YOUTUBE_INPUT_PLUGIN` と `YOUTUBE_API_KEY` の設定例
+
+#### 動作確認
+
+| テストケース | 結果 |
+|-------------|------|
+| ENABLEなし | プラグイン無効（Enabled: False, Available: False）✅ |
+| ENABLE=true, APIキーなし | サーバー起動エラー ✅ |
+| ENABLE=true, APIキーあり | プラグイン有効（Enabled: True, Available: True）✅ |
+| API応答 missingSettings | `環境変数 ENABLE_YOUTUBE_INPUT_PLUGIN=true が必要です` を表示 ✅ |
+
+#### 変更ファイル
+- `apps/api/src/plugins/base.py`
+- `apps/api/src/plugins/registry.py`
+- `.env.example`
+
+### プラグインのハードコード箇所解消
+
+#### 背景
+「プラグインはコード上で明確に分かれていて、類似のプラグインを作る人が容易に真似をできるのが好ましい」を満たすため、ハードコード箇所を解消。
+
+#### 実施内容
+
+1. **registry.py - プラグイン自動検出**
+   - `load_builtin_plugins()` を書き換え
+   - `pkgutil.iter_modules()` で `src/plugins/` 配下のモジュールを自動検出
+   - `base`, `registry`, `__init__` を除外し、残りを自動インポート
+   - 新しいプラグインは `src/plugins/xxx.py` を置くだけで登録される
+
+2. **PluginManifestにplaceholderフィールドを追加**
+   - `base.py`: `placeholder: str = "URLを入力してください"`（デフォルト値付き）
+   - `to_dict()` にも `placeholder` を追加
+   - `youtube.py`: YouTubeプラグイン固有のplaceholderを設定
+
+3. **Admin UIのハードコード削除**
+   - `PluginTab.tsx`: `getPlaceholder()` 関数を削除
+   - 代わりに `plugin.placeholder` を使用
+   - `type.d.ts`: `PluginManifest` 型に `placeholder`, `isEnabled` を追加
+
+#### 改善結果
+
+| 箇所 | Before | After |
+|------|--------|-------|
+| registry.py | `from src.plugins import youtube` のハードコード | 自動検出 |
+| PluginTab.tsx | `case "youtube":` のハードコード | manifestから取得 |
+
+#### 新しいプラグイン追加手順（改善後）
+1. `apps/api/src/plugins/xxx.py` にプラグインクラスを作成
+2. `@PluginRegistry.register` デコレータを使用
+3. manifestにid, name, description, placeholder, settingsを設定
+4. **以上** （registry.pyやAdmin UIの修正不要）
+
+#### 変更ファイル
+- `apps/api/src/plugins/registry.py`
+- `apps/api/src/plugins/base.py`
+- `apps/api/src/plugins/youtube.py`
+- `apps/admin/app/create/components/PluginTab.tsx`
+- `apps/admin/type.d.ts`

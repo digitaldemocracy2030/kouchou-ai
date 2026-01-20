@@ -245,8 +245,10 @@ export type PluginManifest = {
   description: string; // 説明
   version: string; // バージョン
   icon: string | null; // アイコン識別子
+  placeholder: string; // URL入力フィールドのプレースホルダー
   enabledByDefault: boolean; // デフォルトで有効か
-  isAvailable: boolean; // 利用可能か（設定済みか）
+  isEnabled: boolean; // 明示的に有効化されているか
+  isAvailable: boolean; // 利用可能か（有効化されていて設定済みか）
   missingSettings: string[]; // 不足している設定のエラーメッセージ
   settings: PluginSetting[]; // 必要な設定一覧
 };

@@ -86,6 +86,7 @@ class PluginManifest:
         settings: List of required settings
         enabled_by_default: Whether plugin is enabled without explicit configuration
         icon: Optional icon identifier for UI
+        placeholder: Placeholder text for URL input field
     """
 
     id: str
@@ -95,6 +96,23 @@ class PluginManifest:
     settings: list[PluginSetting] = field(default_factory=list)
     enabled_by_default: bool = False
     icon: str | None = None
+    placeholder: str = "URLを入力してください"
+
+    def get_enable_env_var(self) -> str:
+        """Get the environment variable name for enabling this plugin."""
+        return f"ENABLE_{self.id.upper()}_INPUT_PLUGIN"
+
+    def is_enabled(self) -> bool:
+        """
+        Check if the plugin is explicitly enabled via environment variable.
+
+        Returns True only if ENABLE_{PLUGIN_ID}_INPUT_PLUGIN=true
+        """
+        import os
+
+        env_var = self.get_enable_env_var()
+        value = os.environ.get(env_var, "").lower()
+        return value in ("true", "1", "yes")
 
     def validate_settings(self) -> tuple[bool, list[str]]:
         """
@@ -110,22 +128,40 @@ class PluginManifest:
         return len(errors) == 0, errors
 
     def is_available(self) -> bool:
-        """Check if the plugin is available (all settings configured)."""
+        """
+        Check if the plugin is available for use.
+
+        A plugin is available only if:
+        1. It is explicitly enabled via ENABLE_{PLUGIN_ID}_INPUT_PLUGIN=true
+        2. All required settings are configured
+        """
+        if not self.is_enabled():
+            return False
         is_valid, _ = self.validate_settings()
         return is_valid
 
     def to_dict(self) -> dict:
         """Convert manifest to dictionary for API response."""
-        is_valid, errors = self.validate_settings()
+        is_enabled = self.is_enabled()
+        is_settings_valid, settings_errors = self.validate_settings()
+
+        # Build missing settings messages
+        missing_settings = []
+        if not is_enabled:
+            missing_settings.append(f"環境変数 {self.get_enable_env_var()}=true が必要です")
+        missing_settings.extend(settings_errors)
+
         return {
             "id": self.id,
             "name": self.name,
             "description": self.description,
             "version": self.version,
             "icon": self.icon,
+            "placeholder": self.placeholder,
             "enabledByDefault": self.enabled_by_default,
-            "isAvailable": is_valid,
-            "missingSettings": errors,
+            "isEnabled": is_enabled,
+            "isAvailable": is_enabled and is_settings_valid,
+            "missingSettings": missing_settings,
             "settings": [
                 {
                     "key": s.key,

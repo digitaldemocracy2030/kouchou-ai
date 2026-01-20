@@ -79,9 +79,10 @@ class YouTubePlugin(InputPlugin):
     manifest = PluginManifest(
         id="youtube",
         name="YouTube",
-        description="YouTubeの動画コメントを取得します。YouTube Data API v3のAPIキーが必要です。",
+        description="YouTubeの動画コメントを取得します。",
         version="1.0.0",
         icon="youtube",
+        placeholder="https://www.youtube.com/watch?v=... または https://www.youtube.com/playlist?list=...",
         enabled_by_default=False,  # Requires API key configuration
         settings=[
             PluginSetting(
