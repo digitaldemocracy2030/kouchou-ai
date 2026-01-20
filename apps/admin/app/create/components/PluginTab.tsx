@@ -146,9 +146,9 @@ export function PluginTab({
 
             <AttributeColumnsSelector
               columns={csvColumns}
-              selectedCommentColumn={selectedCommentColumn}
-              selectedAttributeColumns={selectedAttributeColumns}
-              onAttributeColumnsChange={setSelectedAttributeColumns}
+              selectedColumn={selectedCommentColumn}
+              selectedAttributes={selectedAttributeColumns}
+              onAttributeChange={setSelectedAttributeColumns}
             />
           </VStack>
         </Box>
