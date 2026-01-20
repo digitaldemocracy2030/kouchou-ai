@@ -258,6 +258,7 @@ export type PluginImportResult = {
   success: boolean;
   filePath: string | null;
   commentCount: number;
+  comments: Record<string, unknown>[];
   error: string | null;
 };
 

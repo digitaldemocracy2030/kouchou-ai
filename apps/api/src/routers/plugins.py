@@ -120,6 +120,7 @@ class ImportResponse(BaseModel):
     success: bool
     filePath: str | None
     commentCount: int
+    comments: list[dict]
     error: str | None
 
 
@@ -152,6 +153,7 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
             success=True,
             filePath=str(file_path),
             commentCount=len(df),
+            comments=df.to_dict(orient="records"),
             error=None,
         )
 
@@ -161,6 +163,7 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
             success=False,
             filePath=None,
             commentCount=0,
+            comments=[],
             error=str(e),
         )
     except ValueError as e:
@@ -169,6 +172,7 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
             success=False,
             filePath=None,
             commentCount=0,
+            comments=[],
             error=str(e),
         )
     except Exception as e:
@@ -177,6 +181,7 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
             success=False,
             filePath=None,
             commentCount=0,
+            comments=[],
             error=f"予期しないエラーが発生しました: {str(e)}",
         )
 

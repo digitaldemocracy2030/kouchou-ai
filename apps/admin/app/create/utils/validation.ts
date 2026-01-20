@@ -58,6 +58,8 @@ export function validateFormValues({
   selectedAttributeColumns,
   provider,
   modelOptions,
+  pluginImported,
+  pluginSelectedCommentColumn,
 }: {
   input: string;
   question: string;
@@ -74,6 +76,8 @@ export function validateFormValues({
   selectedAttributeColumns?: string[];
   provider?: string;
   modelOptions?: { value: string; label: string }[];
+  pluginImported?: boolean;
+  pluginSelectedCommentColumn?: string;
 }): { isValid: boolean; errorMessage?: string } {
   // 共通チェック
   const commonCheck = [
@@ -94,7 +98,11 @@ export function validateFormValues({
   }
 
   // 入力ソースのチェック
-  const sourceCheck = (inputType === "file" && !!csv) || (inputType === "spreadsheet" && spreadsheetImported);
+  const isPluginInput = inputType.startsWith("plugin:");
+  const sourceCheck =
+    (inputType === "file" && !!csv) ||
+    (inputType === "spreadsheet" && spreadsheetImported) ||
+    (isPluginInput && pluginImported);
 
   if (!sourceCheck) {
     return {
@@ -104,7 +112,14 @@ export function validateFormValues({
   }
 
   // カラム選択のチェック
-  if (csvColumns.length > 0 && !selectedCommentColumn) {
+  if (isPluginInput) {
+    if (!pluginSelectedCommentColumn) {
+      return {
+        isValid: false,
+        errorMessage: "コメントカラムを選択してください",
+      };
+    }
+  } else if (csvColumns.length > 0 && !selectedCommentColumn) {
     return {
       isValid: false,
       errorMessage: "コメントカラムを選択してください",

@@ -10,14 +10,17 @@ import { AISettingsSection } from "./components/AISettingsSection";
 import { BasicInfoSection } from "./components/BasicInfoSection";
 import { CsvFileTab } from "./components/CsvFileTab";
 import { EnvironmentCheckDialog } from "./components/EnvironmentCheckDialog/EnvironmentCheckDialog";
+import { PluginTab } from "./components/PluginTab";
 import { SpreadsheetTab } from "./components/SpreadsheetTab";
 import { WarningSection } from "./components/WarningSection";
 import { useAISettings } from "./hooks/useAISettings";
 import { useBasicInfo } from "./hooks/useBasicInfo";
 import { useClusterSettings } from "./hooks/useClusterSettings";
 import { useInputData } from "./hooks/useInputData";
+import { usePluginData } from "./hooks/usePluginData";
 import { usePromptSettings } from "./hooks/usePromptSettings";
 import { type CsvData, parseCsv } from "./parseCsv";
+import type { InputType } from "./types";
 import { validateFormValues } from "./utils/validation";
 
 /**
@@ -34,12 +37,13 @@ export default function Page() {
   const promptSettings = usePromptSettings();
   const aiSettings = useAISettings();
   const inputData = useInputData(clusterSettings.setRecommended);
+  const pluginData = usePluginData(clusterSettings.setRecommended);
 
   /**
    * タブ切り替え時の処理
    */
   const handleTabValueChange = (details: { value: string }) => {
-    inputData.setInputType(details.value as "file" | "spreadsheet");
+    inputData.setInputType(details.value as InputType);
   };
 
   /**
@@ -47,6 +51,15 @@ export default function Page() {
    */
   const onSubmit = async () => {
     setLoading(true);
+
+    // プラグインの場合、インポート状態を取得
+    const isPluginInput = inputData.inputType.startsWith("plugin:");
+    let pluginImported = false;
+    if (isPluginInput) {
+      const pluginId = inputData.inputType.replace("plugin:", "");
+      const pluginState = pluginData.getPluginState(pluginId);
+      pluginImported = pluginState?.imported ?? false;
+    }
 
     // フォーム入力値のバリデーション
     const validation = validateFormValues({
@@ -65,6 +78,8 @@ export default function Page() {
       selectedAttributeColumns: inputData.selectedAttributeColumns,
       provider: aiSettings.provider,
       modelOptions: aiSettings.getCurrentModels(),
+      pluginImported,
+      pluginSelectedCommentColumn: pluginData.pluginSelectedCommentColumn,
     });
 
     if (!validation.isValid) {
@@ -138,6 +153,55 @@ export default function Page() {
 
           return comment;
         });
+      } else if (inputData.inputType.startsWith("plugin:")) {
+        // プラグインからのインポートデータを使用
+        const pluginId = inputData.inputType.replace("plugin:", "");
+        const pluginState = pluginData.getPluginState(pluginId);
+
+        if (!pluginState?.imported || pluginState.data.length === 0) {
+          toaster.create({
+            type: "error",
+            title: "入力エラー",
+            description: "プラグインからデータをインポートしてください",
+          });
+          setLoading(false);
+          return;
+        }
+
+        comments = pluginState.data.map((row, index) => {
+          const rowData = row as unknown as Record<string, unknown>;
+
+          // コメントオブジェクトの作成（基本フィールド）
+          const comment: CsvData = {
+            id: row.id || `plugin-${index + 1}`,
+            comment: rowData[pluginData.pluginSelectedCommentColumn] as string,
+            source: row.source || null,
+            url: row.url || null,
+          };
+
+          // 選択された属性カラムの値を直接追加（"attribute" プレフィックス付き）
+          for (const attrCol of pluginData.pluginSelectedAttributeColumns) {
+            if (rowData[attrCol] !== undefined && rowData[attrCol] !== null) {
+              // 属性カラムの名前に "attribute" プレフィックスを追加
+              const attributeKey = `attribute_${attrCol}`;
+              comment[attributeKey] = rowData[attrCol] as string;
+            }
+          }
+
+          return comment;
+        });
+
+        if (comments.length < clusterSettings.clusterLv2) {
+          const confirmProceed = window.confirm(
+            `インポートされたコメント数 (${comments.length}) が設定された意見グループ数 (${clusterSettings.clusterLv2}) を下回っています。このまま続けますか？
+    \n※コメントから抽出される意見が設定された意見グループ数に満たない場合、処理中にエラーになる可能性があります（一つのコメントから複数の意見が抽出されることもあるため、問題ない場合もあります）。
+    \n意見グループ数を変更する場合は、「AI詳細設定」を開いてください。`,
+          );
+          if (!confirmProceed) {
+            setLoading(false);
+            return;
+          }
+        }
       }
     } catch (e) {
       toaster.create({
@@ -222,6 +286,12 @@ export default function Page() {
               <Tabs.List>
                 <Tabs.Trigger value="file">CSVファイル</Tabs.Trigger>
                 <Tabs.Trigger value="spreadsheet">Googleスプレッドシート</Tabs.Trigger>
+                {/* プラグインタブを動的に追加 */}
+                {pluginData.plugins.map((plugin) => (
+                  <Tabs.Trigger key={plugin.id} value={`plugin:${plugin.id}`}>
+                    {plugin.name}
+                  </Tabs.Trigger>
+                ))}
                 <Tabs.Indicator />
               </Tabs.List>
 
@@ -257,6 +327,26 @@ export default function Page() {
                   onImport={() => inputData.importSpreadsheet(basicInfo.input)}
                   onClearData={inputData.clearSpreadsheetData}
                 />
+
+                {/* プラグインタブの内容 */}
+                {pluginData.plugins.map((plugin) => (
+                  <Presence key={plugin.id} present={inputData.inputType === `plugin:${plugin.id}`}>
+                    <PluginTab
+                      plugin={plugin}
+                      state={pluginData.getPluginState(plugin.id)}
+                      csvColumns={pluginData.pluginCsvColumns}
+                      selectedCommentColumn={pluginData.pluginSelectedCommentColumn}
+                      selectedAttributeColumns={pluginData.pluginSelectedAttributeColumns}
+                      setSelectedCommentColumn={pluginData.setPluginSelectedCommentColumn}
+                      setSelectedAttributeColumns={pluginData.setPluginSelectedAttributeColumns}
+                      onUrlChange={(url) => pluginData.handlePluginUrlChange(plugin.id, url)}
+                      onPreview={() => pluginData.handlePreviewPluginData(plugin.id)}
+                      onImport={() => pluginData.handleImportPluginData(plugin.id, basicInfo.input)}
+                      onClear={() => pluginData.handleClearPluginData(plugin.id)}
+                      reportId={basicInfo.input}
+                    />
+                  </Presence>
+                ))}
               </Box>
             </Tabs.Root>
           </Field.Root>
