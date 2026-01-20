@@ -100,4 +100,6 @@ known-first-party = ["src", "broadlistening", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # `__init__.py` での未使用importを許可
-# Force CI re-run to verify ruff fixes
+# Deprecated files - E402 allowed due to sys.path manipulation before imports
+"broadlistening/pipeline/hierarchical_main.py" = ["E402"]
+"broadlistening/pipeline/hierarchical_utils.py" = ["E402"]

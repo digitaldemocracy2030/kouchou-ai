@@ -1,4 +1,5 @@
 from pydantic import field_validator
+
 from src.schemas.base import SchemaBaseModel
 from src.schemas.report import ReportVisibility
 
