@@ -1,9 +1,24 @@
+"""
+DEPRECATED: This module is deprecated and will be removed in a future release.
+
+Please use the analysis-core package instead:
+    from analysis_core.core.orchestration import initialization, run_step, termination
+
+See packages/analysis-core/ for the new implementation.
+"""
 import json
 import os
 import sys
 import traceback
+import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
+
+warnings.warn(
+    "hierarchical_utils.py is deprecated. Use analysis_core.core.orchestration instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 # serverディレクトリをパスに追加
 current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

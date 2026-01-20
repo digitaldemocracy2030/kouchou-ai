@@ -198,6 +198,8 @@
 | Phase 4 | ✅ 完了 | 2026-01-21 |
 | Phase 5 | ✅ 完了（一部延期） | 2026-01-21 |
 | Phase 6 | ✅ 完了 | 2026-01-21 |
+| Phase 7 | ✅ 完了 | 2026-01-21 |
+| Phase 8 | ✅ 完了 | 2026-01-21 |
 
 ### Phase 2.5 詳細実績
 - 2.5.1: initialization関数の移行 ✅
@@ -288,6 +290,23 @@
 - 6.5: `SelectChartButton` の動的タブ生成 ✅
   - `enabledCharts` でフィルタリング、`chartOrder` でソート
   - プラグインごとの `isDisabled` 評価
+
+### Phase 7 詳細実績
+- 7.1: 進捗テーブル更新 ✅
+- 7.2: Phase 4-6 詳細実績の追加 ✅
+- 7.3: 延期項目のドキュメント化 ✅
+  - [docs/FUTURE_PROPOSALS.md](docs/FUTURE_PROPOSALS.md) に将来実装案を整理
+
+### Phase 8 詳細実績
+- 8.1: 旧spec/utilsファイルの削除 ✅
+  - `specs.json` - 非階層パイプライン用（未使用）
+  - `hierarchical_specs.json` - プロダクションでは未使用
+  - `utils.py` - 非階層パイプライン用ユーティリティ（未使用）
+- 8.2: 旧エントリポイントへの非推奨警告追加 ✅
+  - `hierarchical_main.py` - DeprecationWarning + ドキュメント追加
+  - `hierarchical_utils.py` - DeprecationWarning + ドキュメント追加
+- 8.3: 残存依存への TODO コメント追加 ✅
+  - `admin_report.py` の `request_to_chat_ai` インポート（analysis_core が直接依存になったら移行）
 
 ---
 

@@ -156,7 +156,7 @@ class TestPluginManifest:
             ],
         )
 
-        with patch.dict(os.environ, {"TEST_KEY": "value"}):
+        with patch.dict(os.environ, {"TEST_KEY": "value", "ENABLE_TEST-PLUGIN_INPUT_PLUGIN": "true"}):
             result = manifest.to_dict()
 
         assert result["id"] == "test-plugin"
@@ -253,7 +253,7 @@ class TestPluginRegistry:
         PluginRegistry.register(AvailablePlugin)
         PluginRegistry.register(UnavailablePlugin)
 
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict(os.environ, {"ENABLE_AVAILABLE-PLUGIN_INPUT_PLUGIN": "true"}, clear=True):
             os.environ.pop("MISSING_KEY_FOR_TEST", None)
             available = PluginRegistry.list_available_plugins()
 

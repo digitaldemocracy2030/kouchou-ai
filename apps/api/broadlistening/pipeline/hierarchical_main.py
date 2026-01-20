@@ -1,5 +1,20 @@
+"""
+DEPRECATED: This module is deprecated and will be removed in a future release.
+
+Please use the analysis-core package instead:
+    python -m analysis_core --config config.json --output-dir outputs/
+
+See packages/analysis-core/ for the new implementation.
+"""
 import argparse
 import sys
+import warnings
+
+warnings.warn(
+    "hierarchical_main.py is deprecated. Use 'python -m analysis_core' instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from hierarchical_utils import initialization, run_step, termination
 from steps.embedding import embedding
