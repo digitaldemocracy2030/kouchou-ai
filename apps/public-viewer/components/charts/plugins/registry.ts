@@ -86,9 +86,12 @@ export function loadBuiltinChartPlugins(): void {
   const { scatterPlugin } = require("./scatter");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { treemapPlugin } = require("./treemap");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { hierarchyListPlugin } = require("./hierarchy-list");
 
   chartRegistry.register(scatterPlugin);
   chartRegistry.register(treemapPlugin);
+  chartRegistry.register(hierarchyListPlugin);
 
   console.debug(`Loaded ${chartRegistry.getAll().length} chart plugins`);
 }

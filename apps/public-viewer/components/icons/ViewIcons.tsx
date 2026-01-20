@@ -94,3 +94,15 @@ export const HierarchyViewIcon: FC = () => (
     />
   </svg>
 );
+
+export const ListViewIcon: FC = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <title>List View</title>
+    <path d="M4 6H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 12H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 18H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="2" cy="6" r="1" fill="currentColor" />
+    <circle cx="2" cy="12" r="1" fill="currentColor" />
+    <circle cx="2" cy="18" r="1" fill="currentColor" />
+  </svg>
+);

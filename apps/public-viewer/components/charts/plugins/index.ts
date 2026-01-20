@@ -22,3 +22,4 @@ export { chartRegistry, loadBuiltinChartPlugins, ensurePluginsLoaded } from "./r
 // Built-in plugins
 export { scatterPlugin } from "./scatter";
 export { treemapPlugin } from "./treemap";
+export { hierarchyListPlugin } from "./hierarchy-list";
