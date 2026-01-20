@@ -33,8 +33,24 @@ except ImportError:
 
 PIPELINE_DIR = Path(__file__).parent
 
-with open(PIPELINE_DIR / "hierarchical_specs.json") as f:
-    specs = json.load(f)
+# Try to load specs from analysis-core or fallback
+specs = []
+try:
+    from analysis_core.core.orchestration import get_specs
+    specs = get_specs()
+except ImportError:
+    # analysis-core not available, try loading local file (for backwards compatibility)
+    specs_file = PIPELINE_DIR / "hierarchical_specs.json"
+    if specs_file.exists():
+        with open(specs_file) as f:
+            specs = json.load(f)
+    else:
+        warnings.warn(
+            "hierarchical_specs.json not found and analysis_core not available. "
+            "This deprecated module will not function properly.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
 
 def validate_config(config):

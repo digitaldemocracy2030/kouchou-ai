@@ -60,6 +60,7 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
 def save_config_file(report_input: ReportInput) -> Path:
     config = _build_config(report_input)
     config_path = settings.CONFIG_DIR / f"{report_input.input}.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
     return config_path
@@ -94,6 +95,7 @@ def save_input_file(report_input: ReportInput) -> Path:
         comments.append(comment_data)
 
     input_path = settings.INPUT_DIR / f"{report_input.input}.csv"
+    input_path.parent.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(comments)
     df.to_csv(input_path, index=False)
     return input_path

@@ -1,5 +1,4 @@
-from typing import Literal
-
+from pydantic import field_validator
 from src.schemas.base import SchemaBaseModel
 from src.schemas.report import ReportVisibility
 
@@ -31,8 +30,17 @@ class ReportInput(SchemaBaseModel):
     prompt: Prompt  # プロンプト
     comments: list[Comment]  # コメントのリスト
     is_pubcom: bool = False  # CSV出力モード出力フラグ
-    inputType: Literal["file", "spreadsheet"] = "file"  # 入力タイプ
+    inputType: str = "file"  # 入力タイプ（"file", "spreadsheet", "plugin:xxx"）
     is_embedded_at_local: bool = False  # エンベデッド処理をローカルで行うかどうか
+
+    @field_validator("inputType")
+    @classmethod
+    def validate_input_type(cls, v: str) -> str:
+        """Validate input type: file, spreadsheet, or plugin:xxx format."""
+        valid_types = {"file", "spreadsheet"}
+        if v in valid_types or v.startswith("plugin:"):
+            return v
+        raise ValueError(f"inputType must be 'file', 'spreadsheet', or 'plugin:xxx', got '{v}'")
     provider: str = "openai"  # LLMプロバイダー（openai, azure, openrouter, gemini, local）
     local_llm_address: str | None = None  # LocalLLM用アドレス（例: "127.0.0.1:1234"）
 
