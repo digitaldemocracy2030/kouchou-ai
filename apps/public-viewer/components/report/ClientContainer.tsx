@@ -1,6 +1,13 @@
 "use client";
 
 import { SelectChartButton } from "@/components/charts/SelectChartButton";
+import {
+  chartRegistry,
+  ensurePluginsLoaded,
+  formatValidationResult,
+  validateResultData,
+  validateVisualizationConfig,
+} from "@/components/charts/plugins";
 import { AttributeFilterDialog, type AttributeFilters } from "@/components/report/AttributeFilterDialog";
 import { Chart } from "@/components/report/Chart";
 import { ClusterOverview } from "@/components/report/ClusterOverview";
@@ -10,6 +17,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { AttributeMeta } from "./AttributeFilterDialog";
 import { type NumericRangeFilters, filterSamples } from "./attributeFilterUtils";
 
+// Ensure plugins are loaded for validation
+ensurePluginsLoaded();
+
 /** Default enabled charts (backward compatibility) */
 const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDensity", "treemap"];
 
@@ -18,6 +28,21 @@ type Props = {
 };
 
 export function ClientContainer({ result }: Props) {
+  // --- Validate data at load time ---
+  useEffect(() => {
+    // Validate result data structure
+    const resultValidation = validateResultData(result);
+    if (!resultValidation.valid || resultValidation.warnings.length > 0) {
+      console.warn(`Result data validation:\n${formatValidationResult(resultValidation)}`);
+    }
+
+    // Validate visualization config against registered plugins
+    const configValidation = validateVisualizationConfig(result.visualizationConfig, chartRegistry);
+    if (!configValidation.valid || configValidation.warnings.length > 0) {
+      console.warn(`Visualization config validation:\n${formatValidationResult(configValidation)}`);
+    }
+  }, [result]);
+
   // --- Extract visualization config with defaults ---
   const visualizationConfig = result.visualizationConfig;
   const enabledCharts = visualizationConfig?.enabledCharts ?? DEFAULT_ENABLED_CHARTS;

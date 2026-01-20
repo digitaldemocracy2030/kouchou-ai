@@ -17,7 +17,20 @@ export type {
 } from "./types";
 
 // Registry
-export { chartRegistry, loadBuiltinChartPlugins, ensurePluginsLoaded } from "./registry";
+export { ChartPluginRegistry, chartRegistry, loadBuiltinChartPlugins, ensurePluginsLoaded } from "./registry";
+
+// Validation
+export {
+  validatePlugin,
+  validatePluginManifest,
+  validateChartMode,
+  validateVisualizationConfig,
+  validateResultData,
+  formatValidationResult,
+  assertValidation,
+  logValidationWarnings,
+} from "./validation";
+export type { ValidationError, ValidationResult } from "./validation";
 
 // Built-in plugins
 export { scatterPlugin } from "./scatter";

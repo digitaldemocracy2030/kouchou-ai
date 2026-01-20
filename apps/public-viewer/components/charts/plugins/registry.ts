@@ -6,15 +6,39 @@
  */
 
 import type { ChartMode, ChartPlugin } from "./types";
+import { formatValidationResult, logValidationWarnings, validatePlugin } from "./validation";
 
-class ChartPluginRegistry {
+export class ChartPluginRegistry {
   private plugins: Map<string, ChartPlugin> = new Map();
   private modeToPlugin: Map<string, ChartPlugin> = new Map();
+  private strictMode = false;
 
   /**
-   * Register a chart plugin
+   * Enable strict mode - throws on validation errors
+   */
+  setStrictMode(strict: boolean): void {
+    this.strictMode = strict;
+  }
+
+  /**
+   * Register a chart plugin with validation
    */
   register(plugin: ChartPlugin): void {
+    // Validate plugin before registration
+    const validation = validatePlugin(plugin);
+
+    if (!validation.valid) {
+      const message = `Plugin '${plugin.manifest.id}' validation failed:\n${formatValidationResult(validation)}`;
+      if (this.strictMode) {
+        throw new Error(message);
+      }
+      console.error(message);
+      // Continue registration even with errors (for backward compatibility)
+    }
+
+    // Log warnings
+    logValidationWarnings(validation, `Plugin '${plugin.manifest.id}'`);
+
     // Check for plugin ID collision
     if (this.plugins.has(plugin.manifest.id)) {
       console.warn(
