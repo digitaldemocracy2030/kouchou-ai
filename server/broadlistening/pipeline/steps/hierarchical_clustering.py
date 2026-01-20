@@ -1,9 +1,10 @@
 """Cluster the arguments using UMAP + HDBSCAN and GPT-4."""
 
+import pickle
 from importlib import import_module
 
 import numpy as np
-import pandas as pd
+import polars as pl
 import scipy.cluster.hierarchy as sch
 from sklearn.cluster import KMeans
 
@@ -13,9 +14,52 @@ def hierarchical_clustering(config):
 
     dataset = config["output_dir"]
     path = f"outputs/{dataset}/hierarchical_clusters.csv"
-    arguments_df = pd.read_csv(f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
-    embeddings_df = pd.read_pickle(f"outputs/{dataset}/embeddings.pkl")
-    embeddings_array = np.asarray(embeddings_df["embedding"].values.tolist())
+    arguments_df = pl.read_csv(f"outputs/{dataset}/args.csv", columns=["arg-id", "argument"])
+    embeddings_path = f"outputs/{dataset}/embeddings.pkl"
+    try:
+        with open(embeddings_path, "rb") as f:
+            embeddings_obj = pickle.load(f)
+    except ModuleNotFoundError as exc:
+        msg = (
+            "旧形式(pandas DataFrame)の embeddings.pkl を読み込めません。"
+            "再度 embedding ステップを実行してファイルを再生成してください。"
+        )
+        raise RuntimeError(msg) from exc
+    if not isinstance(embeddings_obj, list):
+        raise RuntimeError(f"サポートされていない embeddings.pkl 形式です: {type(embeddings_obj)}")
+    embeddings_map: dict[str, list[float]] = {}
+    for row in embeddings_obj:
+        if not isinstance(row, dict):
+            raise RuntimeError(
+                "embeddings.pkl の各要素は dict である必要があります。再度 embedding ステップを実行してください。"
+            )
+        arg_id = row.get("arg-id")
+        embedding = row.get("embedding")
+        if arg_id is None or embedding is None:
+            raise RuntimeError(
+                "embeddings.pkl に arg-id または embedding が含まれていません。再度 embedding ステップを実行してください。"
+            )
+        if arg_id in embeddings_map:
+            raise RuntimeError(
+                f"embeddings.pkl に重複した arg-id '{arg_id}' が含まれています。再度 embedding ステップを実行してください。"
+            )
+        embeddings_map[arg_id] = embedding
+
+    arg_ids = arguments_df["arg-id"].to_list()
+    missing_embeddings = [arg_id for arg_id in arg_ids if arg_id not in embeddings_map]
+    if missing_embeddings:
+        raise RuntimeError(
+            "embeddings.pkl に不足している arg-id があります。"
+            f"不足: {missing_embeddings[:5]}{'...' if len(missing_embeddings) > 5 else ''}"
+        )
+    extra_embeddings = [arg_id for arg_id in embeddings_map.keys() if arg_id not in arg_ids]
+    if extra_embeddings:
+        raise RuntimeError(
+            "embeddings.pkl に args.csv に存在しない arg-id が含まれています。"
+            f"余剰: {extra_embeddings[:5]}{'...' if len(extra_embeddings) > 5 else ''}"
+        )
+
+    embeddings_array = np.asarray([embeddings_map[arg_id] for arg_id in arg_ids])
     cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 
     n_samples = embeddings_array.shape[0]
@@ -38,19 +82,21 @@ def hierarchical_clustering(config):
         umap_embeds=umap_embeds,
         cluster_nums=cluster_nums,
     )
-    result_df = pd.DataFrame(
+    result_df = pl.DataFrame(
         {
-            "arg-id": arguments_df["arg-id"],
-            "argument": arguments_df["argument"],
-            "x": umap_embeds[:, 0],
-            "y": umap_embeds[:, 1],
+            "arg-id": arguments_df["arg-id"].to_list(),
+            "argument": arguments_df["argument"].to_list(),
+            "x": umap_embeds[:, 0].tolist(),
+            "y": umap_embeds[:, 1].tolist(),
         }
     )
 
     for cluster_level, final_labels in enumerate(cluster_results.values(), start=1):
-        result_df[f"cluster-level-{cluster_level}-id"] = [f"{cluster_level}_{label}" for label in final_labels]
+        result_df = result_df.with_columns(
+            pl.Series(f"cluster-level-{cluster_level}-id", [f"{cluster_level}_{label}" for label in final_labels])
+        )
 
-    result_df.to_csv(path, index=False)
+    result_df.write_csv(path)
 
 
 def generate_cluster_count_list(min_clusters: int, max_clusters: int):

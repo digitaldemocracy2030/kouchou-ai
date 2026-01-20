@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
+import polars as pl
 
 from src.config import settings
 from src.schemas.admin_report import ReportInput
@@ -94,8 +94,18 @@ def save_input_file(report_input: ReportInput) -> Path:
         comments.append(comment_data)
 
     input_path = settings.INPUT_DIR / f"{report_input.input}.csv"
-    df = pd.DataFrame(comments)
-    df.to_csv(input_path, index=False)
+    if comments:
+        df = pl.DataFrame(comments)
+    else:
+        df = pl.DataFrame(
+            schema={
+                "comment-id": pl.Utf8,
+                "comment-body": pl.Utf8,
+                "source": pl.Utf8,
+                "url": pl.Utf8,
+            }
+        )
+    df.write_csv(input_path)
     return input_path
 
 

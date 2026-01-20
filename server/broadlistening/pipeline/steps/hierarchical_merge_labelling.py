@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import partial
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 
@@ -56,7 +56,7 @@ def hierarchical_merge_labelling(config: dict) -> None:
     """
     dataset = config["output_dir"]
     merge_path = f"outputs/{dataset}/hierarchical_merge_labels.csv"
-    clusters_df = pd.read_csv(f"outputs/{dataset}/hierarchical_initial_labels.csv")
+    clusters_df = pl.read_csv(f"outputs/{dataset}/hierarchical_initial_labels.csv")
 
     cluster_id_columns: list[str] = _filter_id_columns(clusters_df.columns)
     # ボトムクラスタのラベル・説明とクラスタid付きの各argumentを入力し、各階層のクラスタラベル・説明を生成し、argumentに付けたdfを作成
@@ -69,12 +69,12 @@ def hierarchical_merge_labelling(config: dict) -> None:
     melted_df = melt_cluster_data(merge_result_df)
     # 上記のdfに親子関係を追加
     parent_child_df = _build_parent_child_mapping(merge_result_df, cluster_id_columns)
-    melted_df = melted_df.merge(parent_child_df, on=["level", "id"], how="left")
+    melted_df = melted_df.join(parent_child_df, on=["level", "id"], how="left")
     density_df = calculate_cluster_density(melted_df, config)
-    density_df.to_csv(merge_path, index=False)
+    density_df.write_csv(merge_path)
 
 
-def _build_parent_child_mapping(df: pd.DataFrame, cluster_id_columns: list[str]):
+def _build_parent_child_mapping(df: pl.DataFrame, cluster_id_columns: list[str]) -> pl.DataFrame:
     """クラスタ間の親子関係をマッピングする
 
     Args:
@@ -86,7 +86,7 @@ def _build_parent_child_mapping(df: pd.DataFrame, cluster_id_columns: list[str])
     """
     results = []
     top_cluster_column = cluster_id_columns[0]
-    top_cluster_values = df[top_cluster_column].unique()
+    top_cluster_values = df.select(top_cluster_column).unique().to_series().to_list()
     for c in top_cluster_values:
         results.append(
             {
@@ -100,10 +100,11 @@ def _build_parent_child_mapping(df: pd.DataFrame, cluster_id_columns: list[str])
         current_column = cluster_id_columns[idx]
         children_column = cluster_id_columns[idx + 1]
         current_level = current_column.replace("-id", "").replace("cluster-level-", "")
-        # 現在のレベルのクラスタid
-        current_cluster_values = df[current_column].unique()
+        current_cluster_values = df.select(current_column).unique().to_series().to_list()
         for current_id in current_cluster_values:
-            children_ids = df.loc[df[current_column] == current_id, children_column].unique()
+            children_ids = (
+                df.filter(pl.col(current_column) == current_id).select(children_column).unique().to_series().to_list()
+            )
             for child_id in children_ids:
                 results.append(
                     {
@@ -112,7 +113,9 @@ def _build_parent_child_mapping(df: pd.DataFrame, cluster_id_columns: list[str])
                         "parent": current_id,
                     }
                 )
-    return pd.DataFrame(results)
+    if not results:
+        return pl.DataFrame({"level": [], "id": [], "parent": []})
+    return pl.DataFrame(results)
 
 
 def _filter_id_columns(columns: list[str]) -> list[str]:
@@ -127,7 +130,7 @@ def _filter_id_columns(columns: list[str]) -> list[str]:
     return [col for col in columns if col.startswith("cluster-level-") and col.endswith("-id")]
 
 
-def melt_cluster_data(df: pd.DataFrame) -> pd.DataFrame:
+def melt_cluster_data(df: pl.DataFrame) -> pl.DataFrame:
     """クラスタデータを行形式に変換する
 
     cluster-level-n-(id|label|description) を行形式 (level, id, label, description, value) にまとめる。
@@ -146,28 +149,36 @@ def melt_cluster_data(df: pd.DataFrame) -> pd.DataFrame:
     # levelごとに各クラスタの出現件数を集計・縦持ちにする
     for level in levels:
         cluster_columns = ClusterColumns.from_id_column(f"cluster-level-{level}-id")
-        # クラスタidごとの件数集計
-        level_count_df = df.groupby(cluster_columns.id).size().reset_index(name="value")
-
-        level_unique_val_df = df[
-            [cluster_columns.id, cluster_columns.label, cluster_columns.description]
-        ].drop_duplicates()
-        level_unique_val_df = level_unique_val_df.merge(level_count_df, on=cluster_columns.id, how="left")
-        level_unique_vals = [
+        level_count_df = df.group_by(cluster_columns.id).len().rename({"len": "value"})
+        level_unique_val_df = (
+            df.select([cluster_columns.id, cluster_columns.label, cluster_columns.description])
+            .unique()
+            .join(level_count_df, on=cluster_columns.id, how="left")
+        )
+        for row in level_unique_val_df.iter_rows(named=True):
+            all_rows.append(
+                {
+                    "level": level,
+                    "id": row[cluster_columns.id],
+                    "label": row[cluster_columns.label],
+                    "description": row[cluster_columns.description],
+                    "value": row["value"],
+                }
+            )
+    if not all_rows:
+        return pl.DataFrame(
             {
-                "level": level,
-                "id": row[cluster_columns.id],
-                "label": row[cluster_columns.label],
-                "description": row[cluster_columns.description],
-                "value": row["value"],
+                "level": [],
+                "id": [],
+                "label": [],
+                "description": [],
+                "value": [],
             }
-            for _, row in level_unique_val_df.iterrows()
-        ]
-        all_rows.extend(level_unique_vals)
-    return pd.DataFrame(all_rows)
+        )
+    return pl.DataFrame(all_rows)
 
 
-def merge_labelling(clusters_df: pd.DataFrame, cluster_id_columns: list[str], config) -> pd.DataFrame:
+def merge_labelling(clusters_df: pl.DataFrame, cluster_id_columns: list[str], config) -> pl.DataFrame:
     """階層的なクラスタのマージラベリングを実行する
 
     Args:
@@ -190,7 +201,7 @@ def merge_labelling(clusters_df: pd.DataFrame, cluster_id_columns: list[str], co
             config=config,
         )
 
-        current_cluster_ids = sorted(clusters_df[current_columns.id].unique())
+        current_cluster_ids = sorted(clusters_df.select(current_columns.id).unique().to_series().to_list())
         with ThreadPoolExecutor(max_workers=config["hierarchical_merge_labelling"]["workers"]) as executor:
             responses = list(
                 tqdm(
@@ -199,8 +210,8 @@ def merge_labelling(clusters_df: pd.DataFrame, cluster_id_columns: list[str], co
                 )
             )
 
-        current_result_df = pd.DataFrame(responses)
-        clusters_df = clusters_df.merge(current_result_df, on=[current_columns.id])
+        current_result_df = pl.DataFrame(responses)
+        clusters_df = clusters_df.join(current_result_df, on=current_columns.id, how="left")
     return clusters_df
 
 
@@ -213,7 +224,7 @@ class LabellingFromat(BaseModel):
 
 def process_merge_labelling(
     target_cluster_id: str,
-    result_df: pd.DataFrame,
+    result_df: pl.DataFrame,
     current_columns: ClusterColumns,
     previous_columns: ClusterColumns,
     config,
@@ -231,17 +242,19 @@ def process_merge_labelling(
         マージラベリング結果を含む辞書
     """
 
-    def filter_previous_values(df: pd.DataFrame, previous_columns: ClusterColumns) -> list[ClusterValues]:
+    def filter_previous_values(df: pl.DataFrame, previous_columns: ClusterColumns) -> list[ClusterValues]:
         """前のレベルのクラスタ情報を取得する"""
-        previous_records = df[df[current_columns.id] == target_cluster_id][
-            [previous_columns.label, previous_columns.description]
-        ].drop_duplicates()
+        previous_records = (
+            df.filter(pl.col(current_columns.id) == target_cluster_id)
+            .select([previous_columns.label, previous_columns.description])
+            .unique()
+        )
         previous_values = [
             ClusterValues(
                 label=row[previous_columns.label],
                 description=row[previous_columns.description],
             )
-            for _, row in previous_records.iterrows()
+            for row in previous_records.iter_rows(named=True)
         ]
         return previous_values
 
@@ -255,13 +268,13 @@ def process_merge_labelling(
     elif len(previous_values) == 0:
         raise ValueError(f"クラスタ {target_cluster_id} には前のレベルのクラスタが存在しません。")
 
-    current_cluster_data = result_df[result_df[current_columns.id] == target_cluster_id]
+    current_cluster_data = result_df.filter(pl.col(current_columns.id) == target_cluster_id)
     sampling_num = min(
         config["hierarchical_merge_labelling"]["sampling_num"],
-        len(current_cluster_data),
+        current_cluster_data.height,
     )
-    sampled_data = current_cluster_data.sample(sampling_num)
-    sampled_argument_text = "\n".join(sampled_data["argument"].values)
+    sampled_data = current_cluster_data.sample(sampling_num) if sampling_num > 0 else current_cluster_data
+    sampled_argument_text = "\n".join(sampled_data["argument"].to_list())
     cluster_text = "\n".join([value.to_prompt_text() for value in previous_values])
     messages = [
         {"role": "system", "content": config["hierarchical_merge_labelling"]["prompt"]},
@@ -300,22 +313,26 @@ def process_merge_labelling(
         }
 
 
-def calculate_cluster_density(melted_df: pd.DataFrame, config: dict):
+def calculate_cluster_density(melted_df: pl.DataFrame, config: dict):
     """クラスタ内の密度計算"""
-    hierarchical_cluster_df = pd.read_csv(f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
+    hierarchical_cluster_df = pl.read_csv(f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
 
     densities = []
-    for level, c_id in zip(melted_df["level"], melted_df["id"], strict=False):
-        cluster_embeds = hierarchical_cluster_df[hierarchical_cluster_df[f"cluster-level-{level}-id"] == c_id][
-            ["x", "y"]
-        ].values
-        density = calculate_density(cluster_embeds)
+    for level, c_id in zip(melted_df["level"].to_list(), melted_df["id"].to_list(), strict=False):
+        column_name = f"cluster-level-{level}-id"
+        cluster_embeds_df = hierarchical_cluster_df.filter(pl.col(column_name) == c_id).select(["x", "y"])
+        embeds_array = cluster_embeds_df.to_numpy()
+        density = calculate_density(embeds_array) if embeds_array.size > 0 else 0
         densities.append(density)
 
     # 密度のランクを計算
-    melted_df["density"] = densities
-    melted_df["density_rank"] = melted_df.groupby("level")["density"].rank(ascending=False, method="first")
-    melted_df["density_rank_percentile"] = melted_df.groupby("level")["density_rank"].transform(lambda x: x / len(x))
+    melted_df = melted_df.with_columns(pl.Series("density", densities))
+    melted_df = melted_df.with_columns(
+        pl.col("density").rank(method="ordinal", descending=True).over("level").alias("density_rank")
+    )
+    melted_df = melted_df.with_columns(
+        (pl.col("density_rank") / pl.len().over("level")).alias("density_rank_percentile")
+    )
     return melted_df
 
 

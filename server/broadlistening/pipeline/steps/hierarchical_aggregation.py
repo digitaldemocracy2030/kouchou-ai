@@ -1,12 +1,13 @@
 """Generate a convenient JSON output file."""
 
 import json
+import math
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, TypedDict
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent
 CONFIG_DIR = ROOT_DIR / "scatter" / "pipeline" / "configs"
@@ -74,13 +75,12 @@ def hierarchical_aggregation(config) -> bool:
             "config": config,
         }
 
-        arguments = pd.read_csv(f"outputs/{config['output_dir']}/args.csv")
-        arguments.set_index("arg-id", inplace=True)
-        arg_num = len(arguments)
-        relation_df = pd.read_csv(f"outputs/{config['output_dir']}/relations.csv")
-        comments = pd.read_csv(f"inputs/{config['input']}.csv")
-        clusters = pd.read_csv(f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
-        labels = pd.read_csv(f"outputs/{config['output_dir']}/hierarchical_merge_labels.csv")
+        arguments = pl.read_csv(f"outputs/{config['output_dir']}/args.csv")
+        arg_num = arguments.height
+        relation_df = pl.read_csv(f"outputs/{config['output_dir']}/relations.csv")
+        comments = pl.read_csv(f"inputs/{config['input']}.csv")
+        clusters = pl.read_csv(f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
+        labels = pl.read_csv(f"outputs/{config['output_dir']}/hierarchical_merge_labels.csv")
 
         hidden_properties_map: dict[str, list[str]] = config["hierarchical_aggregation"]["hidden_properties"]
 
@@ -90,7 +90,7 @@ def hierarchical_aggregation(config) -> bool:
         # results["comments"] = _build_comments_value(
         #     comments, arguments, hidden_properties_map
         # )
-        results["comment_num"] = len(comments)
+        results["comment_num"] = comments.height
         results["translations"] = _build_translations(config)
         # 属性情報のカラムは、元データに対して指定したカラムとclassificationするカテゴリを合わせたもの
         results["propertyMap"] = _build_property_map(arguments, comments, hidden_properties_map, config)
@@ -120,11 +120,11 @@ def hierarchical_aggregation(config) -> bool:
 def create_custom_intro(config):
     dataset = config["output_dir"]
     args_path = PIPELINE_DIR / f"outputs/{dataset}/args.csv"
-    comments = pd.read_csv(PIPELINE_DIR / f"inputs/{config['input']}.csv")
+    comments = pl.read_csv(PIPELINE_DIR / f"inputs/{config['input']}.csv")
     result_path = PIPELINE_DIR / f"outputs/{dataset}/hierarchical_result.json"
 
-    input_count = len(comments)
-    args_count = len(pd.read_csv(args_path))
+    input_count = comments.height
+    args_count = pl.read_csv(args_path).height
     processed_num = min(input_count, config["extraction"]["limit"])
 
     print(f"Input count: {input_count}")
@@ -165,34 +165,39 @@ def create_custom_intro(config):
         json.dump(result, f, indent=2, ensure_ascii=False)
 
 
-def add_original_comments(labels, arguments, relation_df, clusters, config):
+def add_original_comments(
+    labels: pl.DataFrame, arguments: pl.DataFrame, relation_df: pl.DataFrame, clusters: pl.DataFrame, config
+):
     # 大カテゴリ（cluster-level-1）に該当するラベルだけ抽出
-    labels_lv1 = labels[labels["level"] == 1][["id", "label"]].rename(
-        columns={"id": "cluster-level-1-id", "label": "category_label"}
+    labels_lv1 = (
+        labels.filter(pl.col("level") == 1)
+        .select(["id", "label"])
+        .rename({"id": "cluster-level-1-id", "label": "category_label"})
     )
 
     # arguments と clusters をマージ（カテゴリ情報付与）
-    merged = arguments.merge(clusters[["arg-id", "cluster-level-1-id"]], on="arg-id").merge(
+    merged = arguments.join(clusters.select(["arg-id", "cluster-level-1-id"]), on="arg-id", how="left").join(
         labels_lv1, on="cluster-level-1-id", how="left"
     )
 
     # relation_df と結合
-    merged = merged.merge(relation_df, on="arg-id", how="left")
+    relation_df = relation_df.with_columns(pl.col("comment-id").cast(pl.Utf8))
+    merged = merged.join(relation_df, on="arg-id", how="left")
 
     # 元コメント取得
-    comments = pd.read_csv(PIPELINE_DIR / f"inputs/{config['input']}.csv")
-    comments["comment-id"] = comments["comment-id"].astype(str)
-    merged["comment-id"] = merged["comment-id"].astype(str)
+    comments = pl.read_csv(PIPELINE_DIR / f"inputs/{config['input']}.csv").with_columns(
+        pl.col("comment-id").cast(pl.Utf8)
+    )
 
     # 元コメント本文などとマージ
-    final_df = merged.merge(comments, on="comment-id", how="left")
+    final_df = merged.join(comments, on="comment-id", how="left")
 
     # 必要カラムのみ整形
     final_cols = ["comment-id", "comment-body", "arg-id", "argument", "cluster-level-1-id", "category_label"]
 
     # 基本カラム
     for col in ["x", "y", "source", "url"]:
-        if col in comments.columns:
+        if col in final_df.columns:
             final_cols.append(col)
 
     # 属性カラムを追加
@@ -206,9 +211,8 @@ def add_original_comments(labels, arguments, relation_df, clusters, config):
     print(f"属性カラム検出: {attribute_columns}")
 
     # 必要なカラムだけ選択
-    final_df = final_df[final_cols]
-    final_df = final_df.rename(
-        columns={
+    final_df = final_df.select([col for col in final_cols if col in final_df.columns]).rename(
+        {
             "cluster-level-1-id": "category_id",
             "category_label": "category",
             "arg-id": "arg_id",
@@ -218,11 +222,11 @@ def add_original_comments(labels, arguments, relation_df, clusters, config):
     )
 
     # 保存
-    final_df.to_csv(PIPELINE_DIR / f"outputs/{config['output_dir']}/final_result_with_comments.csv", index=False)
+    final_df.write_csv(PIPELINE_DIR / f"outputs/{config['output_dir']}/final_result_with_comments.csv")
 
 
 def _build_arguments(
-    clusters: pd.DataFrame, comments: pd.DataFrame, relation_df: pd.DataFrame, config: dict
+    clusters: pl.DataFrame, comments: pl.DataFrame, relation_df: pl.DataFrame, config: dict
 ) -> list[Argument]:
     """
     Build the arguments list including attribute information from original comments
@@ -235,22 +239,19 @@ def _build_arguments(
     """
     cluster_columns = [col for col in clusters.columns if col.startswith("cluster-level-") and "id" in col]
 
-    # Prepare for merging with original comments to get attributes
-    comments_copy = comments.copy()
-    comments_copy["comment-id"] = comments_copy["comment-id"].astype(str)
+    comments_copy = comments.with_columns(pl.col("comment-id").cast(pl.Utf8))
+    comment_lookup = {row["comment-id"]: row for row in comments_copy.iter_rows(named=True)}
 
-    # Get argument to comment mapping
     arg_comment_map = {}
     if "comment-id" in relation_df.columns:
-        relation_df["comment-id"] = relation_df["comment-id"].astype(str)
-        arg_comment_map = dict(zip(relation_df["arg-id"], relation_df["comment-id"], strict=False))
+        relation_cast = relation_df.with_columns(pl.col("comment-id").cast(pl.Utf8))
+        arg_comment_map = {row["arg-id"]: row["comment-id"] for row in relation_cast.iter_rows(named=True)}
 
-    # Find attribute columns in comments dataframe
     attribute_columns = [col for col in comments.columns if col.startswith("attribute_")]
     print(f"属性カラム検出: {attribute_columns}")
 
     arguments: list[Argument] = []
-    for _, row in clusters.iterrows():
+    for row in clusters.iter_rows(named=True):
         cluster_ids = ["0"]
         for cluster_column in cluster_columns:
             cluster_ids.append(str(row[cluster_column]))  # Convert to string to ensure serializable
@@ -270,23 +271,17 @@ def _build_arguments(
         # Add attributes and URL if available
         if row["arg-id"] in arg_comment_map:
             comment_id = arg_comment_map[row["arg-id"]]
-            comment_rows = comments_copy[comments_copy["comment-id"] == comment_id]
+            comment_row = comment_lookup.get(comment_id)
 
-            if not comment_rows.empty:
-                comment_row = comment_rows.iloc[0]
-
-                # Add URL if available and enabled
-                if config.get("enable_source_link", False) and "url" in comment_row and comment_row["url"] is not None:
+            if comment_row:
+                if config.get("enable_source_link", False) and comment_row.get("url") is not None:
                     argument["url"] = str(comment_row["url"])
 
-                # Add attributes if available
                 if attribute_columns:
                     attributes = {}
                     for attr_col in attribute_columns:
-                        # Remove "attribute_" prefix for cleaner attribute names
                         attr_name = attr_col[len("attribute_") :]
-                        # Convert potential numpy types to Python native types
-                        attr_value = comment_row.get(attr_col, None)
+                        attr_value = comment_row.get(attr_col)
                         if attr_value is not None:
                             if isinstance(attr_value, np.integer):
                                 attr_value = int(attr_value)
@@ -296,7 +291,6 @@ def _build_arguments(
                                 attr_value = attr_value.tolist()
                         attributes[attr_name] = attr_value
 
-                    # Only add non-empty attributes
                     if any(v is not None for v in attributes.values()):
                         argument["attributes"] = attributes
 
@@ -304,7 +298,7 @@ def _build_arguments(
     return arguments
 
 
-def _build_cluster_value(melted_labels: pd.DataFrame, total_num: int) -> list[Cluster]:
+def _build_cluster_value(melted_labels: pl.DataFrame, total_num: int) -> list[Cluster]:
     results: list[Cluster] = [
         Cluster(
             level=0,
@@ -317,7 +311,7 @@ def _build_cluster_value(melted_labels: pd.DataFrame, total_num: int) -> list[Cl
         )
     ]
 
-    for _, melted_label in melted_labels.iterrows():
+    for melted_label in melted_labels.iter_rows(named=True):
         # Convert potential NumPy types to native Python types
         level = (
             int(melted_label["level"]) if isinstance(melted_label["level"], int | np.integer) else melted_label["level"]
@@ -352,20 +346,26 @@ def _build_cluster_value(melted_labels: pd.DataFrame, total_num: int) -> list[Cl
 
 
 def _build_comments_value(
-    comments: pd.DataFrame,
-    arguments: pd.DataFrame,
+    comments: pl.DataFrame,
+    arguments: pl.DataFrame,
     hidden_properties_map: dict[str, list[str]],
 ):
     comment_dict: dict[str, dict[str, str]] = {}
-    useful_comment_ids = set(arguments["comment-id"].values)
-    for _, row in comments.iterrows():
-        id = row["comment-id"]
-        if id in useful_comment_ids:
+    if "comment-id" in arguments.columns:
+        arguments = arguments.with_columns(pl.col("comment-id").cast(pl.Utf8))
+        useful_comment_ids = set(arguments["comment-id"].to_list())
+    else:
+        useful_comment_ids = set()
+    if "comment-id" in comments.columns:
+        comments = comments.with_columns(pl.col("comment-id").cast(pl.Utf8))
+    for row in comments.iter_rows(named=True):
+        id_value = row.get("comment-id")
+        if id_value in useful_comment_ids:
             res = {"comment": row["comment-body"]}
-            should_skip = any(row[prop] in hidden_values for prop, hidden_values in hidden_properties_map.items())
+            should_skip = any(row.get(prop) in hidden_values for prop, hidden_values in hidden_properties_map.items())
             if should_skip:
                 continue
-            comment_dict[str(id)] = res
+            comment_dict[str(id_value)] = res
 
     return comment_dict
 
@@ -380,7 +380,7 @@ def _build_translations(config):
 
 
 def _build_property_map(
-    arguments: pd.DataFrame, comments: pd.DataFrame, hidden_properties_map: dict[str, list[str]], config: dict
+    arguments: pl.DataFrame, _comments: pl.DataFrame, hidden_properties_map: dict[str, list[str]], config: dict
 ) -> dict[str, dict[str, str]]:
     property_columns = list(hidden_properties_map.keys()) + list(config["extraction"]["categories"].keys())
     property_map = defaultdict(dict)
@@ -394,11 +394,11 @@ def _build_property_map(
         )
 
     for prop in property_columns:
-        for arg_id, row in arguments.iterrows():
-            # LLMによるcategory classificationがうまく行かず、NaNの場合はNoneにする
-            value = row[prop] if not pd.isna(row[prop]) else None
+        for row in arguments.iter_rows(named=True):
+            value = row.get(prop)
+            if isinstance(value, float) and math.isnan(value):
+                value = None
 
-            # Convert NumPy types to Python native types
             if value is not None:
                 if isinstance(value, np.integer):
                     value = int(value)
@@ -407,15 +407,12 @@ def _build_property_map(
                 elif isinstance(value, np.ndarray):
                     value = value.tolist()
                 else:
-                    # Convert any other types to string to ensure serialization
                     try:
                         value = str(value)
                     except Exception as e:
                         print(f"Error converting value to string: {e}")
                         value = None
 
-            # Make sure arg_id is string
-            str_arg_id = str(arg_id)
-            property_map[prop][str_arg_id] = value
+            property_map[prop][str(row["arg-id"])] = value
 
     return property_map
