@@ -5,25 +5,35 @@ import { AttributeFilterDialog, type AttributeFilters } from "@/components/repor
 import { Chart } from "@/components/report/Chart";
 import { ClusterOverview } from "@/components/report/ClusterOverview";
 import { DisplaySettingDialog } from "@/components/report/DisplaySettingDialog";
-import type { Cluster, Result } from "@/type";
+import type { ChartType, Cluster, Result } from "@/type";
 import { useEffect, useMemo, useState } from "react";
 import type { AttributeMeta } from "./AttributeFilterDialog";
 import { type NumericRangeFilters, filterSamples } from "./attributeFilterUtils";
+
+/** Default enabled charts (backward compatibility) */
+const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDensity", "treemap"];
 
 type Props = {
   result: Result;
 };
 
 export function ClientContainer({ result }: Props) {
-  // --- UI State ---
+  // --- Extract visualization config with defaults ---
+  const visualizationConfig = result.visualizationConfig;
+  const enabledCharts = visualizationConfig?.enabledCharts ?? DEFAULT_ENABLED_CHARTS;
+  const chartOrder = visualizationConfig?.chartOrder;
+  const defaultChart = visualizationConfig?.defaultChart ?? enabledCharts[0] ?? "scatterAll";
+  const defaultParams = visualizationConfig?.params;
+
+  // --- UI State (initialized from visualization config) ---
   const [filteredResult, setFilteredResult] = useState<Result>(result);
   const [openDensityFilterSetting, setOpenDensityFilterSetting] = useState(false);
-  const [selectedChart, setSelectedChart] = useState("scatterAll");
-  const [maxDensity, setMaxDensity] = useState(0.2);
-  const [minValue, setMinValue] = useState(5);
+  const [selectedChart, setSelectedChart] = useState<string>(defaultChart);
+  const [maxDensity, setMaxDensity] = useState(defaultParams?.scatterDensity?.maxDensity ?? 0.2);
+  const [minValue, setMinValue] = useState(defaultParams?.scatterDensity?.minValue ?? 5);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDenseGroupEnabled, setIsDenseGroupEnabled] = useState(true);
-  const [showClusterLabels, setShowClusterLabels] = useState(true);
+  const [showClusterLabels, setShowClusterLabels] = useState(defaultParams?.showClusterLabels ?? true);
   const [treemapLevel, setTreemapLevel] = useState("0");
 
   // --- 標本データ生成 ---
@@ -292,6 +302,8 @@ export function ClientContainer({ result }: Props) {
         onClickFullscreen={handleClickFullscreen}
         result={result}
         disabledModeOverrides={{ scatterDensity: !isDenseGroupEnabled }}
+        enabledCharts={enabledCharts}
+        chartOrder={chartOrder}
         onClickAttentionFilter={handleOpenAttributeFilter}
         isAttentionFilterEnabled={attributeMetas.length > 0}
         showAttentionFilterBadge={

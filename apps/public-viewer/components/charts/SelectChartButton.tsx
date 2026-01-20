@@ -1,6 +1,6 @@
 import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins";
 import { Tooltip } from "@/components/ui/tooltip";
-import type { Result } from "@/type";
+import type { ChartType, Result } from "@/type";
 import { Box, Button, HStack, Icon, SegmentGroup, Stack } from "@chakra-ui/react";
 import { CogIcon, Filter, FullscreenIcon } from "lucide-react";
 import type React from "react";
@@ -9,6 +9,9 @@ import { useMemo } from "react";
 
 // Ensure plugins are loaded
 ensurePluginsLoaded();
+
+/** Default enabled charts (maintains backward compatibility) */
+const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDensity", "treemap"];
 
 type Props = {
   selected: string;
@@ -19,6 +22,10 @@ type Props = {
   result: Result;
   /** Override for modes that have external disabled conditions (e.g., density filter empty) */
   disabledModeOverrides?: Record<string, boolean>;
+  /** List of enabled chart types (undefined = default 3 charts for backward compatibility) */
+  enabledCharts?: ChartType[];
+  /** Order to display charts (undefined = use enabledCharts order) */
+  chartOrder?: ChartType[];
   onClickAttentionFilter?: () => void;
   isAttentionFilterEnabled?: boolean;
   showAttentionFilterBadge?: boolean;
@@ -56,15 +63,33 @@ export function SelectChartButton({
   onClickFullscreen,
   result,
   disabledModeOverrides = {},
+  enabledCharts,
+  chartOrder,
   onClickAttentionFilter,
   isAttentionFilterEnabled,
   showAttentionFilterBadge,
   attentionFilterBadgeCount,
 }: Props) {
-  // Generate items from plugin registry
+  // Generate items from plugin registry, filtered by enabledCharts
   const items = useMemo(() => {
-    const modes = chartRegistry.getAllModes();
-    return modes.map((mode) => {
+    const allModes = chartRegistry.getAllModes();
+    const enabled = enabledCharts ?? DEFAULT_ENABLED_CHARTS;
+    const order = chartOrder ?? enabled;
+
+    // Filter modes by enabledCharts
+    const enabledModes = allModes.filter((mode) => enabled.includes(mode.id as ChartType));
+
+    // Sort by chartOrder if provided
+    const sortedModes = [...enabledModes].sort((a, b) => {
+      const aIndex = order.indexOf(a.id as ChartType);
+      const bIndex = order.indexOf(b.id as ChartType);
+      // Modes not in order go to the end
+      const aOrder = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+      const bOrder = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+      return aOrder - bOrder;
+    });
+
+    return sortedModes.map((mode) => {
       // Evaluate disabled state from multiple sources:
       // 1. Plugin's isDisabled function (based on result data structure)
       // 2. Parent's override (e.g., density filter produces empty results)
@@ -80,7 +105,7 @@ export function SelectChartButton({
         tooltip,
       };
     });
-  }, [selected, result, disabledModeOverrides]);
+  }, [selected, result, disabledModeOverrides, enabledCharts, chartOrder]);
 
   // Calculate dynamic tab width based on mode count
   const modeCount = items.length;
