@@ -58,6 +58,7 @@ dev-dependencies = [
     "isort>=6.0.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.24.0",
 ]
 
 [tool.hatch.metadata]
