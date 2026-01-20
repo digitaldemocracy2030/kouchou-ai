@@ -1070,3 +1070,40 @@ Docker ビルド: 成功 ✅
 - `apps/api/src/plugins/youtube.py`
 - `apps/admin/app/create/components/PluginTab.tsx`
 - `apps/admin/type.d.ts`
+
+## 2026-01-21
+
+### Phase 8 テスト修正
+
+#### 背景
+Phase 8 の deprecation 変更後、プラグインテストで失敗が発生していた。
+
+#### 問題の原因分析
+1. `test_manifest_to_dict` 失敗: `isAvailable` が False を返す
+   - 原因: テストが `TEST_KEY=value` のみ設定し、`ENABLE_TEST-PLUGIN_INPUT_PLUGIN=true` を設定していなかった
+   - `isAvailable = is_enabled and is_settings_valid` のため、`is_enabled()` が False で全体が False に
+
+2. `test_list_available_plugins` 失敗: 利用可能プラグインが 0 件
+   - 原因: 同様に enable 環境変数が設定されていなかった
+
+#### 修正内容
+`tests/plugins/test_plugin_registry.py`:
+- `test_manifest_to_dict`: `ENABLE_TEST-PLUGIN_INPUT_PLUGIN=true` を追加
+- `test_list_available_plugins`: `ENABLE_AVAILABLE-PLUGIN_INPUT_PLUGIN=true` を追加
+
+#### pyproject.toml コメント更新
+- analysis-core の subprocess 経由呼び出しに関するコメントを明確化
+
+#### 既存の失敗テスト対応
+`test_visualization_config_invalid_returns_default` が失敗していたが、これは意図的な設計変更：
+- `ChartType = str` に変更し、チャート名のバリデーションを削除
+- 理由: 新しい可視化手法がプラグインとして追加される際、バリデーションの修正が不要になる
+- 対応: このテストを削除（バリデーションが行われなくなったため不要）
+
+#### テスト結果
+- 162 passed, 5 skipped ✅（全テスト合格）
+
+#### コミット
+```
+57124b70 chore: Phase 8 - deprecate old pipeline files (amended with test fixes)
+```
