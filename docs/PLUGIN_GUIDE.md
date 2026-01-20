@@ -964,9 +964,166 @@ describe("myCustomPlugin", () => {
 });
 ```
 
+## バリデーションシステム
+
+プラグインシステムには、コンパイル時チェックに似た事前検証機能があります。これにより、実行時のデバッグ困難なバグを早期に検出できます。
+
+### バリデーション関数
+
+```typescript
+import {
+  validatePlugin,
+  validatePluginManifest,
+  validateChartMode,
+  validateVisualizationConfig,
+  validateResultData,
+  formatValidationResult,
+  assertValidation,
+  logValidationWarnings,
+} from "@/components/charts/plugins";
+```
+
+| 関数 | 用途 |
+|------|------|
+| `validatePlugin(plugin)` | プラグイン全体を検証 |
+| `validatePluginManifest(manifest)` | マニフェストのみを検証 |
+| `validateChartMode(mode, pluginId)` | 個別モードを検証 |
+| `validateVisualizationConfig(config, registry)` | visualization_configを検証 |
+| `validateResultData(result)` | 結果データ構造を検証 |
+| `formatValidationResult(result)` | 検証結果をフォーマット |
+| `assertValidation(result, context)` | エラー時に例外をスロー |
+| `logValidationWarnings(result, context)` | 警告をコンソールに出力 |
+
+### エラーコード
+
+#### マニフェスト関連 (MANIFEST_*)
+
+| コード | 重要度 | 説明 |
+|--------|--------|------|
+| `MANIFEST_MISSING_ID` | error | プラグインIDが未定義 |
+| `MANIFEST_MISSING_NAME` | error | 表示名が未定義 |
+| `MANIFEST_MISSING_VERSION` | error | バージョンが未定義 |
+| `MANIFEST_INVALID_VERSION_FORMAT` | warning | semver形式でないバージョン |
+| `MANIFEST_MISSING_ICON` | error | アイコンが未定義 |
+| `MANIFEST_MODES_NOT_ARRAY` | error | modesが配列でない |
+| `MANIFEST_NO_MODES` | warning | モードが定義されていない |
+| `MANIFEST_DUPLICATE_MODE_IDS` | error | モードIDが重複 |
+
+#### モード関連 (MODE_*)
+
+| コード | 重要度 | 説明 |
+|--------|--------|------|
+| `MODE_MISSING_ID` | error | モードIDが未定義 |
+| `MODE_MISSING_LABEL` | error | ラベルが未定義 |
+| `MODE_MISSING_ICON` | error | アイコンが未定義 |
+| `MODE_ISDISABLED_WITHOUT_FLAG` | warning | isDisabledがあるがcanBeDisabledがfalse |
+| `MODE_CANBEDISABLED_WITHOUT_ISDISABLED` | warning | canBeDisabledがtrueだがisDisabledがない |
+
+#### プラグイン関連 (PLUGIN_*)
+
+| コード | 重要度 | 説明 |
+|--------|--------|------|
+| `PLUGIN_CANHANDLE_NOT_FUNCTION` | error | canHandleが関数でない |
+| `PLUGIN_CANHANDLE_MISMATCH` | error | canHandleが宣言モードでfalseを返す |
+| `PLUGIN_CANHANDLE_THROWS` | error | canHandleが例外をスロー |
+| `PLUGIN_RENDER_NOT_FUNCTION` | error | renderが関数でない |
+
+#### 設定関連 (CONFIG_*)
+
+| コード | 重要度 | 説明 |
+|--------|--------|------|
+| `CONFIG_ENABLED_CHARTS_NOT_ARRAY` | error | enabledChartsが配列でない |
+| `CONFIG_UNKNOWN_CHART_TYPE` | error | 未登録のチャートタイプ |
+| `CONFIG_DUPLICATE_ENABLED_CHARTS` | warning | enabledChartsに重複 |
+| `CONFIG_EMPTY_ENABLED_CHARTS` | warning | enabledChartsが空 |
+| `CONFIG_UNKNOWN_DEFAULT_CHART` | error | defaultChartが未登録 |
+| `CONFIG_DEFAULT_NOT_IN_ENABLED` | error | defaultChartがenabledChartsに含まれない |
+| `CONFIG_CHART_ORDER_NOT_ARRAY` | error | chartOrderが配列でない |
+| `CONFIG_UNKNOWN_CHART_IN_ORDER` | warning | chartOrderに未登録のチャート |
+| `CONFIG_ENABLED_NOT_IN_ORDER` | warning | enabledChartsのチャートがchartOrderにない |
+
+#### 結果データ関連 (RESULT_*)
+
+| コード | 重要度 | 説明 |
+|--------|--------|------|
+| `RESULT_NULL` | error | 結果データがnull |
+| `RESULT_CLUSTERS_NOT_ARRAY` | error | clustersが配列でない |
+| `RESULT_NO_CLUSTERS` | warning | clustersが空 |
+| `CLUSTER_MISSING_ID` | error | クラスターにidがない |
+| `CLUSTER_MISSING_LEVEL` | error | クラスターにlevelがない |
+| `RESULT_ARGUMENTS_NOT_ARRAY` | error | argumentsが配列でない |
+
+### ストリクトモード
+
+レジストリをストリクトモードに設定すると、バリデーションエラー時に例外をスローします：
+
+```typescript
+import { chartRegistry } from "@/components/charts/plugins";
+
+// 開発環境でストリクトモードを有効化
+if (process.env.NODE_ENV === "development") {
+  chartRegistry.setStrictMode(true);
+}
+
+// エラーのあるプラグインを登録しようとすると例外がスロー
+chartRegistry.register(invalidPlugin); // throws Error
+```
+
+### バリデーションの使用例
+
+```typescript
+import {
+  validatePlugin,
+  validateVisualizationConfig,
+  formatValidationResult,
+  chartRegistry,
+} from "@/components/charts/plugins";
+
+// プラグインの検証
+const plugin = createMyPlugin();
+const pluginResult = validatePlugin(plugin);
+
+if (!pluginResult.valid) {
+  console.error("Plugin validation failed:");
+  console.error(formatValidationResult(pluginResult));
+}
+
+// visualization_configの検証
+const config = { enabledCharts: ["scatterAll", "unknownChart"] };
+const configResult = validateVisualizationConfig(config, chartRegistry);
+
+if (!configResult.valid) {
+  console.error("Config validation failed:");
+  console.error(formatValidationResult(configResult));
+}
+// Output:
+// ✗ 1 error(s):
+//   [CONFIG_UNKNOWN_CHART_TYPE] visualizationConfig.enabledCharts contains unknown chart type 'unknownChart'. Available: scatterAll, scatterDensity, treemap, hierarchyList
+```
+
+### 自動バリデーション
+
+`ClientContainer` コンポーネントは、ロード時に自動的にバリデーションを実行し、警告をコンソールに出力します：
+
+```typescript
+// apps/public-viewer/components/report/ClientContainer.tsx
+useEffect(() => {
+  const resultValidation = validateResultData(result);
+  if (!resultValidation.valid || resultValidation.warnings.length > 0) {
+    console.warn(`Result data validation:\n${formatValidationResult(resultValidation)}`);
+  }
+
+  const configValidation = validateVisualizationConfig(result.visualizationConfig, chartRegistry);
+  if (!configValidation.valid || configValidation.warnings.length > 0) {
+    console.warn(`Visualization config validation:\n${formatValidationResult(configValidation)}`);
+  }
+}, [result]);
+```
+
 ## 関連ファイル
 
 - `apps/public-viewer/components/charts/plugins/` - プラグインシステム
+- `apps/public-viewer/components/charts/plugins/validation.ts` - バリデーションシステム
 - `apps/public-viewer/components/charts/` - チャートコンポーネント
-- `apps/public-viewer/components/report/ClientContainer.tsx` - visualization_config読み込み
+- `apps/public-viewer/components/report/ClientContainer.tsx` - visualization_config読み込みとバリデーション
 - `apps/public-viewer/type.ts` - 型定義（ChartType, ReportDisplayConfig）
