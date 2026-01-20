@@ -2,9 +2,9 @@ import { system } from "@/components/theme/system";
 import { ChakraProvider } from "@chakra-ui/react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { Provider } from "../../hooks/useAISettings";
 import { EnvironmentCheckDialog } from "./EnvironmentCheckDialog";
 import { verifyApiKey } from "./verifyApiKey";
-import { type Provider } from "../../hooks/useAISettings";
 
 // test時のimportエラーを防止するために、lucide-reactをモック化
 jest.mock("lucide-react", () => ({

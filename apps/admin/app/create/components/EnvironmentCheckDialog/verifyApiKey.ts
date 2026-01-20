@@ -36,7 +36,7 @@ export const verifyApiKey = async (provider: string) => {
   }
 };
 
-export const verifyChatGptApiKeyWithProvider = async (provider: string = "openai") => {
+export const verifyChatGptApiKeyWithProvider = async (provider = "openai") => {
   try {
     const response = await fetch(`${getApiBaseUrl()}/admin/environment/verify-chatgpt?provider=${provider}`, {
       method: "GET",

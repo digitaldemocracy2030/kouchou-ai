@@ -36,8 +36,8 @@ const iconStyles = {
 
 export function Visibility({ report }: Props) {
   const router = useRouter();
-  const visibility = report.visibility || 'private'; // fallback to 'private'
-  
+  const visibility = report.visibility || "private"; // fallback to 'private'
+
   return (
     <MenuRoot
       onSelect={async (e) => {

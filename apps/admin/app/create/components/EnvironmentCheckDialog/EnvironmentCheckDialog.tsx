@@ -14,10 +14,10 @@ import {
 import { Box, DialogActionTrigger, DialogFooter, Image, Text } from "@chakra-ui/react";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { startTransition, useActionState, useState } from "react";
+import type { Provider } from "../../hooks/useAISettings";
 import { ErrorIcon } from "./ErrorIcon";
 import { GradientCheckIcon } from "./GradientCheckIcon";
 import { verifyApiKey } from "./verifyApiKey";
-import { type Provider } from "../../hooks/useAISettings";
 
 type EnvironmentCheckDialogProps = {
   provider: Provider;

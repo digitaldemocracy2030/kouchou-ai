@@ -32,16 +32,13 @@ describe("verifyApiKey", () => {
 
     const result = await verifyApiKey("openai");
 
-    expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:8000/admin/environment/verify?provider=openai",
-      {
-        method: "GET",
-        headers: {
-          "x-api-key": "test-api-key",
-          "Content-Type": "application/json",
-        },
+    expect(fetch).toHaveBeenCalledWith("http://localhost:8000/admin/environment/verify?provider=openai", {
+      method: "GET",
+      headers: {
+        "x-api-key": "test-api-key",
+        "Content-Type": "application/json",
       },
-    );
+    });
 
     expect(result).toEqual({
       result: mockResponse,
