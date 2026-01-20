@@ -638,34 +638,335 @@ PluginLoadError: Attribute 'plugin' is not an AnalysisStepPlugin
 
 - 分析結果のグラフ・チャートのカスタマイズ
 - 新しい可視化コンポーネントの追加
-- レポート表示形式のカスタマイズ
-- 外部ダッシュボードとの連携
+- チャートモードの追加・削除
+- レポートごとに表示するチャートの設定
 
-## ステータス
+## アーキテクチャ
 
-> **Note**: 可視化プラグインシステムは現在設計段階です。
-> 詳細なAPIとドキュメントは今後追加予定です。
+```
+apps/public-viewer/components/charts/
+├── plugins/
+│   ├── types.ts          # プラグインの型定義
+│   ├── registry.ts       # プラグインレジストリ
+│   ├── scatter.tsx       # 散布図プラグイン (scatterAll, scatterDensity)
+│   ├── treemap.tsx       # ツリーマップ プラグイン
+│   └── hierarchy-list.tsx # 階層リストプラグイン
+├── ScatterChart.tsx       # 散布図コンポーネント
+├── TreemapChart.tsx       # ツリーマップコンポーネント
+├── HierarchyListChart.tsx # 階層リストコンポーネント
+└── SelectChartButton.tsx  # チャート選択UI
+```
 
-## 想定されるユースケース
+## クイックスタート：新しいチャートプラグインの作成
 
-1. **カスタムチャートタイプ**
-   - 階層クラスタリング結果の独自可視化
-   - センチメント分析のヒートマップ
-   - 時系列トレンド分析
+### Step 1: チャートコンポーネントを作成
 
-2. **レポートテンプレート**
-   - 組織固有のブランディング
-   - 多言語対応
-   - アクセシビリティ対応
+```tsx
+// apps/public-viewer/components/charts/MyCustomChart.tsx
+import type { Argument, Cluster } from "@/type";
 
-3. **外部連携**
-   - BIツール（Tableau、Power BI等）へのエクスポート
-   - データポータルとの統合
+type Props = {
+  clusterList: Cluster[];
+  argumentList: Argument[];
+  onHover?: () => void;
+  filteredArgumentIds?: string[];
+};
+
+export function MyCustomChart({ clusterList, argumentList, filteredArgumentIds }: Props) {
+  return (
+    <div>
+      {/* チャートの実装 */}
+    </div>
+  );
+}
+```
+
+### Step 2: プラグインファイルを作成
+
+```tsx
+// apps/public-viewer/components/charts/plugins/my-custom.tsx
+import { MyCustomIcon } from "@/components/icons/ViewIcons";
+import { MyCustomChart } from "../MyCustomChart";
+import type { ChartPlugin, ChartRenderContext } from "./types";
+
+export const myCustomPlugin: ChartPlugin = {
+  manifest: {
+    id: "my-custom",                    // 一意のプラグインID
+    name: "カスタムチャート",           // 表示名
+    description: "カスタム可視化を表示", // 説明
+    version: "1.0.0",                   // バージョン
+    icon: MyCustomIcon,                 // アイコンコンポーネント
+    modes: [                            // このプラグインが提供するモード
+      {
+        id: "customView",               // モードID（ChartTypeに追加が必要）
+        label: "カスタム",              // 表示ラベル
+        icon: MyCustomIcon,
+      },
+    ],
+  },
+
+  canHandle: (mode: string) => {
+    return mode === "customView";
+  },
+
+  render: (context: ChartRenderContext) => {
+    const { result, filteredArgumentIds, onHover } = context;
+
+    return (
+      <MyCustomChart
+        clusterList={result.clusters}
+        argumentList={result.arguments}
+        onHover={onHover}
+        filteredArgumentIds={filteredArgumentIds}
+      />
+    );
+  },
+};
+```
+
+### Step 3: ChartTypeに新しいモードを追加
+
+```typescript
+// apps/public-viewer/type.ts
+export type ChartType = "scatterAll" | "scatterDensity" | "treemap" | "hierarchyList" | "customView";
+```
+
+### Step 4: レジストリにプラグインを登録
+
+```typescript
+// apps/public-viewer/components/charts/plugins/registry.ts
+import { myCustomPlugin } from "./my-custom";
+
+export function loadBuiltinChartPlugins(): void {
+  // ... 既存のプラグイン登録
+  chartRegistry.register(myCustomPlugin);
+}
+```
+
+## プラグインインターフェース
+
+### ChartPlugin
+
+```typescript
+interface ChartPlugin {
+  /** プラグインのメタデータ */
+  manifest: ChartPluginManifest;
+
+  /** 指定されたモードを処理できるか判定 */
+  canHandle: (mode: string) => boolean;
+
+  /** チャートをレンダリング */
+  render: (context: ChartRenderContext) => React.ReactNode;
+}
+```
+
+### ChartPluginManifest
+
+```typescript
+interface ChartPluginManifest {
+  /** 一意のプラグインID */
+  id: string;
+  /** 表示名 */
+  name: string;
+  /** 説明 */
+  description: string;
+  /** バージョン（semver） */
+  version: string;
+  /** アイコンコンポーネント */
+  icon: ComponentType;
+  /** このプラグインが提供するモード */
+  modes: ChartMode[];
+}
+```
+
+### ChartMode
+
+```typescript
+interface ChartMode {
+  /** モードID（selectedChartの値） */
+  id: string;
+  /** 表示ラベル */
+  label: string;
+  /** アイコンコンポーネント */
+  icon: ComponentType;
+  /** データに基づいて無効化できるか */
+  canBeDisabled?: boolean;
+  /** 無効化判定関数 */
+  isDisabled?: (result: Result) => boolean;
+  /** 無効時のツールチップ */
+  disabledTooltip?: string;
+}
+```
+
+### ChartRenderContext
+
+```typescript
+interface ChartRenderContext {
+  /** 分析結果データ */
+  result: Result;
+  /** 選択中のチャートモード */
+  selectedChart: string;
+  /** フルスクリーンモードか */
+  isFullscreen: boolean;
+  /** フィルター適用時の引数ID */
+  filteredArgumentIds?: string[];
+  /** クラスターラベル表示 */
+  showClusterLabels?: boolean;
+  /** ツリーマップのズームレベル */
+  treemapLevel?: string;
+  /** ツリーマップナビゲーション */
+  onTreeZoom?: (level: string) => void;
+  /** ホバーイベント */
+  onHover?: () => void;
+}
+```
+
+## 組み込みプラグイン
+
+### 1. Scatter Plugin (`scatter`)
+
+散布図を表示するプラグイン。2つのモードを提供：
+
+| モード | 説明 |
+|--------|------|
+| `scatterAll` | 全データの散布図表示 |
+| `scatterDensity` | 密度フィルター適用済み表示（条件付きで無効化） |
+
+### 2. Treemap Plugin (`treemap`)
+
+階層構造をツリーマップで可視化。
+
+| モード | 説明 |
+|--------|------|
+| `treemap` | 階層ツリーマップ表示 |
+
+### 3. Hierarchy List Plugin (`hierarchy-list`)
+
+クラスタを展開可能なリストで表示。
+
+| モード | 説明 |
+|--------|------|
+| `hierarchyList` | 階層リスト表示 |
+
+## レポートごとのチャート設定
+
+### visualization_config
+
+レポートごとに表示するチャートを設定できます：
+
+```typescript
+// apps/public-viewer/type.ts
+interface ReportDisplayConfig {
+  version: string;
+  /** 有効なチャートタイプ */
+  enabledCharts: ChartType[];
+  /** デフォルトで表示するチャート */
+  defaultChart?: ChartType;
+  /** チャートの表示順序 */
+  chartOrder?: ChartType[];
+  /** チャート固有のパラメータ */
+  params?: DisplayParams;
+}
+```
+
+### 使用例
+
+```json
+{
+  "visualizationConfig": {
+    "version": "1.0",
+    "enabledCharts": ["treemap", "hierarchyList"],
+    "defaultChart": "hierarchyList",
+    "chartOrder": ["hierarchyList", "treemap"]
+  }
+}
+```
+
+これにより、散布図を非表示にしてツリーマップと階層リストのみを表示できます。
+
+## 条件付きモード無効化
+
+特定の条件でモードを無効化できます：
+
+```typescript
+modes: [
+  {
+    id: "scatterDensity",
+    label: "濃い意見",
+    icon: DenseViewIcon,
+    canBeDisabled: true,
+    isDisabled: (result) => {
+      // 最大レベルが1以下の場合は無効
+      const maxLevel = Math.max(...result.clusters.map((c) => c.level));
+      return maxLevel <= 1;
+    },
+    disabledTooltip: "この設定条件では抽出できませんでした",
+  },
+]
+```
+
+## プラグインレジストリ
+
+### 主要メソッド
+
+```typescript
+// プラグイン登録
+chartRegistry.register(plugin: ChartPlugin): void;
+
+// プラグイン取得
+chartRegistry.get(pluginId: string): ChartPlugin | undefined;
+
+// モードからプラグイン取得
+chartRegistry.getByMode(modeId: string): ChartPlugin | undefined;
+
+// 全モード取得
+chartRegistry.getAllModes(): ChartMode[];
+
+// モード存在チェック
+chartRegistry.hasMode(modeId: string): boolean;
+```
+
+### 衝突検出
+
+レジストリは重複するプラグインIDやモードIDを検出し、警告を出力します：
+
+```
+Chart plugin collision: "scatter" is already registered. Overwriting with new plugin (v2.0.0).
+Chart mode collision: "scatterAll" is already registered by plugin "scatter". Overwriting with plugin "scatter-v2".
+```
+
+## テスト
+
+プラグインのテスト例：
+
+```typescript
+// components/charts/plugins/__tests__/plugins.test.tsx
+import { myCustomPlugin } from "../my-custom";
+
+describe("myCustomPlugin", () => {
+  it("has correct plugin ID", () => {
+    expect(myCustomPlugin.manifest.id).toBe("my-custom");
+  });
+
+  it("canHandle returns true for customView", () => {
+    expect(myCustomPlugin.canHandle("customView")).toBe(true);
+  });
+
+  it("renders without error", () => {
+    const result = { clusters: [], arguments: [], config: { title: "Test" } };
+    const element = myCustomPlugin.render({
+      result,
+      selectedChart: "customView",
+      isFullscreen: false,
+    });
+    expect(element).not.toBeNull();
+  });
+});
+```
 
 ## 関連ファイル
 
-現在の可視化実装は以下にあります：
-
-- `apps/public-viewer/components/charts/` - グラフコンポーネント
-- `apps/public-viewer/components/report/` - レポート表示コンポーネント
-- `apps/api/broadlistening/pipeline/steps/hierarchical_visualization.py` - HTML生成
+- `apps/public-viewer/components/charts/plugins/` - プラグインシステム
+- `apps/public-viewer/components/charts/` - チャートコンポーネント
+- `apps/public-viewer/components/report/ClientContainer.tsx` - visualization_config読み込み
+- `apps/public-viewer/type.ts` - 型定義（ChartType, ReportDisplayConfig）
