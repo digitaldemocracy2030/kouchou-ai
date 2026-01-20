@@ -195,7 +195,9 @@
 | Phase 2 | ✅ 完了 | 2026-01-19 |
 | Phase 2.5 | ✅ 完了 | 2026-01-19 |
 | Phase 3 | ✅ 完了 | 2026-01-19 |
-| Phase 4 | 🚧 進行中 | - |
+| Phase 4 | ✅ 完了 | 2026-01-21 |
+| Phase 5 | ✅ 完了（一部延期） | 2026-01-21 |
+| Phase 6 | ✅ 完了 | 2026-01-21 |
 
 ### Phase 2.5 詳細実績
 - 2.5.1: initialization関数の移行 ✅
@@ -255,13 +257,37 @@
 - 4.3: `/reports/{slug}` APIで `visualization_config.json` をマージするよう更新 ✅
 - 4.4: `apps/public-viewer/type.ts` に `ReportDisplayConfig` 型を追加 ✅
 - 4.5: `apps/admin/type.d.ts` に `ReportDisplayConfig` 型を追加 ✅
-- 4.6: Admin API の visualization config CRUD エンドポイント 📋 (Phase 5 で実装)
-- 4.7: `report_launcher.py` の workflow id + step config 出力 📋 (Phase 5 で実装)
+- 4.6: Admin API の visualization config GET/PATCH エンドポイント ✅
+- 4.7: `report_launcher.py` の workflow id + step config 出力 📋 (将来実装 → [FUTURE_PROPOSALS.md](docs/FUTURE_PROPOSALS.md))
 
-### Phase 4 残タスク（Phase 5 に移行）
-- Admin UIでの可視化設定編集・公開機能（Phase 5.1）
-- `visualization_config` のdraft/publish フロー実装（Phase 5.2）
-- `invalidate_report_cache` との統合（Phase 5.3）
+### Phase 5 詳細実績
+- 5.1: Admin UIでの可視化設定編集機能 ✅
+  - `VisualizationConfigDialog.tsx` コンポーネント実装
+  - `ActionMenu.tsx` にメニュー項目追加
+  - Server Actions (`actions.ts`) で GET/PATCH API呼び出し
+- 5.2: `invalidate_report_cache` との統合 ✅
+- 5.3: プラグインバリデーション（`chartRegistry` による有効化チャート検証）✅
+
+#### Phase 5 延期項目（→ [FUTURE_PROPOSALS.md](docs/FUTURE_PROPOSALS.md)）
+以下は今回のスコープ外として将来実装案に移行:
+- ワークフロー選択UIとステップ別設定UI
+- `visualization_config` のdraft/publish フロー
+- `run_workflow()` への外部プラグイン読み込み統合
+- `run_workflow()` 経由での plan 生成
+
+### Phase 6 詳細実績
+- 6.1: 可視化プラグインレジストリ実装 ✅
+  - `chartRegistry` で動的プラグイン管理
+  - `ensurePluginsLoaded()` による遅延初期化
+- 6.2: 既存チャートのプラグイン化 ✅
+  - `scatterAll`, `scatterDensity`, `treemap`, `hierarchyList` を `ChartMode` として実装
+- 6.3: `ChartType` の拡張性対応 ✅
+  - `| (string & {})` パターンで拡張可能な型に変更
+- 6.4: `ClientContainer` の初期state反映 ✅
+  - `result.visualizationConfig` から `defaultChart`, `enabledCharts`, `params` を読み込み
+- 6.5: `SelectChartButton` の動的タブ生成 ✅
+  - `enabledCharts` でフィルタリング、`chartOrder` でソート
+  - プラグインごとの `isDisabled` 評価
 
 ---
 
