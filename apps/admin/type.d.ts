@@ -217,3 +217,56 @@ export type ClusterUpdate = {
   label: string;
   description: string;
 };
+
+// ============================================================================
+// 入力プラグイン
+// ============================================================================
+
+/**
+ * プラグイン設定項目
+ * プラグインが必要とする設定（環境変数など）を定義
+ */
+export type PluginSetting = {
+  key: string; // 環境変数名 (e.g., "YOUTUBE_API_KEY")
+  label: string; // UI表示用ラベル
+  description: string; // 設定の説明
+  type: "string" | "secret" | "integer" | "boolean" | "url";
+  required: boolean;
+  isConfigured: boolean; // 設定済みかどうか
+};
+
+/**
+ * プラグインマニフェスト
+ * プラグインのメタデータと状態
+ */
+export type PluginManifest = {
+  id: string; // プラグインID (e.g., "youtube")
+  name: string; // 表示名
+  description: string; // 説明
+  version: string; // バージョン
+  icon: string | null; // アイコン識別子
+  enabledByDefault: boolean; // デフォルトで有効か
+  isAvailable: boolean; // 利用可能か（設定済みか）
+  missingSettings: string[]; // 不足している設定のエラーメッセージ
+  settings: PluginSetting[]; // 必要な設定一覧
+};
+
+/**
+ * プラグインからのインポート結果
+ */
+export type PluginImportResult = {
+  success: boolean;
+  filePath: string | null;
+  commentCount: number;
+  error: string | null;
+};
+
+/**
+ * プラグインからのプレビュー結果
+ */
+export type PluginPreviewResult = {
+  success: boolean;
+  comments: Record<string, unknown>[];
+  totalCount: number;
+  error: string | null;
+};

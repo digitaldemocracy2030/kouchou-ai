@@ -33,6 +33,15 @@ dependencies = [
     "tenacity>=9.1.2",
 ]
 
+# Optional dependencies for plugins
+[project.optional-dependencies]
+youtube = [
+    "google-api-python-client>=2.150.0",
+]
+all-plugins = [
+    "google-api-python-client>=2.150.0",
+]
+
 # Note: analysis-core is called via subprocess, not imported directly.
 # For local dev: pip install -e ../../packages/analysis-core
 # In Docker: analysis-core is installed in the same image.

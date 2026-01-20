@@ -865,3 +865,85 @@ Docker ビルド: 成功 ✅
 - draft/publish フロー
 - invalidate_report_cache との統合
 - report_launcher.py の workflow id 出力
+
+## 2026-01-20
+
+### YouTube入力プラグイン実装
+
+#### 背景
+ユーザーの要望: YouTube入力コネクタをプラグインとして実装したい
+- YouTube API Keyなどの追加設定を要求する
+- 使わない人にはデフォルトでONにしたくない
+- プラグインが必要とする設定をコードで管理
+- 設定不良で実行された場合に早期警告
+
+#### 実装内容
+
+1. **プラグインアーキテクチャ基盤** (`apps/api/src/plugins/`)
+   - `base.py`: プラグイン基底クラスとマニフェスト
+     - `PluginSetting`: 設定項目（環境変数名、型、必須フラグ）
+     - `PluginManifest`: プラグインメタデータ（ID、名前、設定リスト、デフォルト有効）
+     - `InputPlugin`: 入力プラグイン基底クラス（fetch_data, validate_source, ensure_configured）
+     - `PluginConfigError`: 設定エラー例外
+   - `registry.py`: プラグインレジストリ
+     - `PluginRegistry`: プラグイン登録・検索・一覧
+     - `load_builtin_plugins()`: 組み込みプラグインのロード
+
+2. **YouTubeプラグイン** (`apps/api/src/plugins/youtube.py`)
+   - マニフェスト設定:
+     - `id`: "youtube"
+     - `enabled_by_default`: False（APIキー必須のため）
+     - `settings`: YOUTUBE_API_KEY（required=True, type=SECRET）
+   - 機能:
+     - YouTube URL解析（動画、短縮URL、埋め込み、プレイリスト対応）
+     - YouTube Data API v3 でコメント取得
+     - 出力: comment-id, comment-body, source, url, attribute_* (author, published_at, like_count, video_title)
+
+3. **プラグインAPI** (`apps/api/src/routers/plugins.py`)
+   - `GET /admin/plugins`: プラグイン一覧（利用可能状態含む）
+   - `GET /admin/plugins/{plugin_id}`: プラグイン詳細
+   - `POST /admin/plugins/{plugin_id}/validate-source`: ソースURL検証
+   - `POST /admin/plugins/{plugin_id}/import`: データインポート（CSV保存）
+   - `POST /admin/plugins/{plugin_id}/preview`: プレビュー取得
+
+4. **TypeScript型定義** (`apps/admin/type.d.ts`)
+   - `PluginSetting`: プラグイン設定項目
+   - `PluginManifest`: プラグインマニフェスト
+   - `PluginImportResult`: インポート結果
+   - `PluginPreviewResult`: プレビュー結果
+
+5. **入力タイプ拡張** (`apps/admin/app/create/types/index.ts`)
+   - `BuiltinInputType`: "file" | "spreadsheet"
+   - `PluginInputType`: `plugin:${string}` 形式
+   - `InputType`: 両方を含む Union 型
+   - `PluginState`: プラグイン状態管理
+
+6. **オプション依存** (`apps/api/pyproject.toml`)
+   - `youtube`: google-api-python-client>=2.150.0
+   - `all-plugins`: 全プラグイン依存をまとめたエクストラ
+
+#### テスト追加
+
+1. **プラグイン基盤テスト** (`tests/plugins/test_plugin_registry.py`): 14テスト
+   - PluginSetting: 環境変数取得、デフォルト値、型変換
+   - PluginManifest: バリデーション、dict変換
+   - PluginRegistry: 登録、取得、一覧
+   - InputPlugin: 設定検証、ソース検証
+
+2. **YouTubeプラグインテスト** (`tests/plugins/test_youtube.py`): 11テスト
+   - URL解析: 標準URL、短縮URL、埋め込み、プレイリスト、無効URL
+   - プラグイン: マニフェスト、ソース検証
+
+#### テスト結果
+- apps/api: 163 passed, 5 skipped ✅ (新規25テスト)
+
+#### 設計ポイント
+
+1. **早期バリデーション**: `ensure_configured()` で設定不足を即座に検出
+2. **デフォルト無効**: `enabled_by_default=False` で明示的な設定を要求
+3. **オプション依存**: YouTube API クライアントは `pip install server[youtube]` で追加
+4. **API応答にisAvailable**: フロントエンドでプラグインの利用可否を表示可能
+
+#### 次のステップ
+- Admin UIでのプラグインタブ表示
+- プラグインからのコメント取得フロー統合
