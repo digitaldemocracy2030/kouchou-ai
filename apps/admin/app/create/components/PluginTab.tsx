@@ -2,7 +2,7 @@
 
 import type { PluginManifest } from "@/type.d";
 import { Badge, Box, Button, Field, HStack, Input, Spinner, Text, VStack } from "@chakra-ui/react";
-import { LuAlertCircle, LuCheck, LuDownload, LuEye, LuTrash2 } from "react-icons/lu";
+import { LuCheck, LuCircleAlert, LuDownload, LuEye, LuTrash2 } from "react-icons/lu";
 import type { PluginState } from "../types";
 import { AttributeColumnsSelector } from "./AttributeColumnsSelector";
 import { CommentColumnSelector } from "./CommentColumnSelector";
@@ -51,7 +51,7 @@ export function PluginTab({
       <Box p={4} borderWidth="1px" borderRadius="md" bg="orange.50">
         <VStack align="start" gap={3}>
           <HStack>
-            <LuAlertCircle color="orange" />
+            <LuCircleAlert color="orange" />
             <Text fontWeight="bold" color="orange.700">
               {plugin.name}は設定が必要です
             </Text>
