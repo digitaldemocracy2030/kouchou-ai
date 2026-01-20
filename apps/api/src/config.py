@@ -2,8 +2,13 @@ import os
 from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings
+
+# Load .env file into os.environ so plugins can access all settings
+env_file_path = os.environ.get("ENV_FILE", ".env")
+load_dotenv(env_file_path, override=False)
 
 Environment = Literal["development", "production"]
 StorageType = Literal["local", "azure_blob"]
