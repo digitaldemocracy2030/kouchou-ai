@@ -1,10 +1,13 @@
-import { ScatterChart } from "@/components/charts/ScatterChart";
-import { TreemapChart } from "@/components/charts/TreemapChart";
+import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins";
+import type { ChartRenderContext } from "@/components/charts/plugins/types";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Result } from "@/type";
 import { Box, Button, Dialog, HStack, Icon, Portal } from "@chakra-ui/react";
 import { Minimize2 } from "lucide-react";
 import { useMemo } from "react";
+
+// Ensure plugins are loaded
+ensurePluginsLoaded();
 
 type ReportProps = {
   result: Result;
@@ -93,6 +96,21 @@ export function Chart({
       .map((arg) => arg.arg_id);
   }, [result.arguments, filterState]);
 
+  // Create render context for plugins
+  const renderContext: ChartRenderContext = {
+    result,
+    selectedChart,
+    isFullscreen,
+    filteredArgumentIds,
+    showClusterLabels,
+    treemapLevel,
+    onTreeZoom,
+    onHover: isFullscreen ? () => setTimeout(avoidHoverTextCoveringShrinkButton, 500) : undefined,
+  };
+
+  // Get the plugin that handles the selected chart mode
+  const plugin = chartRegistry.getByMode(selectedChart);
+
   if (isFullscreen) {
     return (
       <Dialog.Root size="full" open={isFullscreen} onOpenChange={onExitFullscreen}>
@@ -118,28 +136,7 @@ export function Chart({
                     </Button>
                   </Tooltip>
                 </HStack>
-                {(selectedChart === "scatterAll" || selectedChart === "scatterDensity") && (
-                  <ScatterChart
-                    clusterList={result.clusters}
-                    argumentList={result.arguments}
-                    targetLevel={selectedChart === "scatterAll" ? 1 : Math.max(...result.clusters.map((c) => c.level))}
-                    onHover={() => setTimeout(avoidHoverTextCoveringShrinkButton, 500)}
-                    showClusterLabels={showClusterLabels}
-                    filteredArgumentIds={filteredArgumentIds}
-                    config={result.config}
-                  />
-                )}
-                {selectedChart === "treemap" && (
-                  <TreemapChart
-                    key={treemapLevel}
-                    clusterList={result.clusters}
-                    argumentList={result.arguments}
-                    onHover={avoidHoverTextCoveringShrinkButton}
-                    level={treemapLevel}
-                    onTreeZoom={onTreeZoom}
-                    filteredArgumentIds={filteredArgumentIds}
-                  />
-                )}
+                {plugin?.render(renderContext)}
               </Box>
             </Dialog.Content>
           </Dialog.Positioner>
@@ -151,26 +148,7 @@ export function Chart({
   return (
     <Box mx={"auto"} w={"100%"} maxW={"1200px"} mb={10} border={"1px solid #ccc"}>
       <Box h={"500px"} mb={0}>
-        {selectedChart === "treemap" && (
-          <TreemapChart
-            key={treemapLevel}
-            clusterList={result.clusters}
-            argumentList={result.arguments}
-            level={treemapLevel}
-            onTreeZoom={onTreeZoom}
-            filteredArgumentIds={filteredArgumentIds}
-          />
-        )}
-        {(selectedChart === "scatterAll" || selectedChart === "scatterDensity") && (
-          <ScatterChart
-            clusterList={result.clusters}
-            argumentList={result.arguments}
-            targetLevel={selectedChart === "scatterAll" ? 1 : Math.max(...result.clusters.map((c) => c.level))}
-            showClusterLabels={showClusterLabels}
-            filteredArgumentIds={filteredArgumentIds}
-            config={result.config}
-          />
-        )}
+        {plugin?.render({ ...renderContext, onHover: undefined })}
       </Box>
     </Box>
   );

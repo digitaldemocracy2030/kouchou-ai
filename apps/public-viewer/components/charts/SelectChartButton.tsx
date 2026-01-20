@@ -1,9 +1,13 @@
-import { AllViewIcon, DenseViewIcon, HierarchyViewIcon } from "@/components/icons/ViewIcons";
+import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Box, Button, HStack, Icon, SegmentGroup, Stack } from "@chakra-ui/react";
-import { CogIcon, Filter, FullscreenIcon } from "lucide-react"; // Filter アイコンをインポート
+import { CogIcon, Filter, FullscreenIcon } from "lucide-react";
 import type React from "react";
 import type { ComponentType } from "react";
+import { useMemo } from "react";
+
+// Ensure plugins are loaded
+ensurePluginsLoaded();
 
 type Props = {
   selected: string;
@@ -52,24 +56,23 @@ export function SelectChartButton({
   showAttentionFilterBadge,
   attentionFilterBadgeCount,
 }: Props) {
-  const items = [
-    {
-      value: "scatterAll",
-      label: SegmentItemWithIcon(AllViewIcon, "全体", selected === "scatterAll"),
-      isDisabled: false,
-    },
-    {
-      value: "scatterDensity",
-      label: SegmentItemWithIcon(DenseViewIcon, "濃い意見", selected === "scatterDensity"),
-      isDisabled: !isDenseGroupEnabled,
-      tooltip: !isDenseGroupEnabled ? "この設定条件では抽出できませんでした" : undefined,
-    },
-    {
-      value: "treemap",
-      label: SegmentItemWithIcon(HierarchyViewIcon, "階層", selected === "treemap"),
-      isDisabled: false,
-    },
-  ];
+  // Generate items from plugin registry
+  const items = useMemo(() => {
+    const modes = chartRegistry.getAllModes();
+    return modes.map((mode) => {
+      // For scatterDensity, use the isDenseGroupEnabled prop for disabled state
+      // This allows the parent to control the disabled state based on user settings
+      const isDisabled = mode.id === "scatterDensity" ? !isDenseGroupEnabled : false;
+      const tooltip = isDisabled && mode.disabledTooltip ? mode.disabledTooltip : undefined;
+
+      return {
+        value: mode.id,
+        label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id),
+        isDisabled,
+        tooltip,
+      };
+    });
+  }, [selected, isDenseGroupEnabled]);
 
   const handleChange = (event: React.FormEvent<HTMLDivElement>) => {
     const value = (event.target as HTMLInputElement).value;
