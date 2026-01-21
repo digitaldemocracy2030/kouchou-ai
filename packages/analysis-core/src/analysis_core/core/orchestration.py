@@ -176,10 +176,15 @@ def update_status(
     Args:
         config: Pipeline configuration (modified in place)
         updates: Status updates to apply
-        output_base_dir: Base directory for outputs
+        output_base_dir: Base directory for outputs (falls back to config._output_base_dir)
     """
     if output_base_dir is None:
-        output_base_dir = Path("outputs")
+        # Read from config if available, otherwise use default
+        config_base_dir = config.get("_output_base_dir")
+        if config_base_dir:
+            output_base_dir = Path(config_base_dir)
+        else:
+            output_base_dir = Path("outputs")
 
     output_dir = config["output_dir"]
 
