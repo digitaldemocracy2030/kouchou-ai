@@ -79,11 +79,9 @@ export function validateFormValues({
   pluginImported?: boolean;
   pluginSelectedCommentColumn?: string;
 }): { isValid: boolean; errorMessage?: string } {
-  // 共通チェック
+  // 共通チェック（question と intro は省略可能）
   const commonCheck = [
     isValidId(input),
-    question.length > 0,
-    intro.length > 0,
     clusterLv1 > 0,
     clusterLv2 > 0,
     model.length > 0,
