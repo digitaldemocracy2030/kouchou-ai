@@ -55,8 +55,9 @@ def hierarchical_merge_labelling(config: dict) -> None:
             - provider: LLMプロバイダー
     """
     dataset = config["output_dir"]
-    merge_path = f"outputs/{dataset}/hierarchical_merge_labels.csv"
-    clusters_df = pd.read_csv(f"outputs/{dataset}/hierarchical_initial_labels.csv")
+    output_base_dir = config.get("_output_base_dir", "outputs")
+    merge_path = f"{output_base_dir}/{dataset}/hierarchical_merge_labels.csv"
+    clusters_df = pd.read_csv(f"{output_base_dir}/{dataset}/hierarchical_initial_labels.csv")
 
     cluster_id_columns: list[str] = _filter_id_columns(clusters_df.columns)
     # ボトムクラスタのラベル・説明とクラスタid付きの各argumentを入力し、各階層のクラスタラベル・説明を生成し、argumentに付けたdfを作成
@@ -302,7 +303,8 @@ def process_merge_labelling(
 
 def calculate_cluster_density(melted_df: pd.DataFrame, config: dict):
     """クラスタ内の密度計算"""
-    hierarchical_cluster_df = pd.read_csv(f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
+    output_base_dir = config.get("_output_base_dir", "outputs")
+    hierarchical_cluster_df = pd.read_csv(f"{output_base_dir}/{config['output_dir']}/hierarchical_clusters.csv")
 
     densities = []
     for level, c_id in zip(melted_df["level"], melted_df["id"], strict=False):

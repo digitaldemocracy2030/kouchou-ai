@@ -16,9 +16,10 @@ class OverviewResponse(BaseModel):
 
 def hierarchical_overview(config):
     dataset = config["output_dir"]
-    path = f"outputs/{dataset}/hierarchical_overview.txt"
+    output_base_dir = config.get("_output_base_dir", "outputs")
+    path = f"{output_base_dir}/{dataset}/hierarchical_overview.txt"
 
-    hierarchical_label_df = pd.read_csv(f"outputs/{dataset}/hierarchical_merge_labels.csv")
+    hierarchical_label_df = pd.read_csv(f"{output_base_dir}/{dataset}/hierarchical_merge_labels.csv")
 
     prompt = config["hierarchical_overview"]["prompt"]
     model = config["hierarchical_overview"]["model"]

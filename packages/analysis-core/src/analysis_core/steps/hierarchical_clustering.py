@@ -12,9 +12,10 @@ def hierarchical_clustering(config):
     UMAP = import_module("umap").UMAP
 
     dataset = config["output_dir"]
-    path = f"outputs/{dataset}/hierarchical_clusters.csv"
-    arguments_df = pd.read_csv(f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
-    embeddings_df = pd.read_pickle(f"outputs/{dataset}/embeddings.pkl")
+    output_base_dir = config.get("_output_base_dir", "outputs")
+    path = f"{output_base_dir}/{dataset}/hierarchical_clusters.csv"
+    arguments_df = pd.read_csv(f"{output_base_dir}/{dataset}/args.csv", usecols=["arg-id", "argument"])
+    embeddings_df = pd.read_pickle(f"{output_base_dir}/{dataset}/embeddings.pkl")
     embeddings_array = np.asarray(embeddings_df["embedding"].values.tolist())
     cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 

@@ -2,7 +2,6 @@
 
 import json
 from collections import defaultdict
-from pathlib import Path
 from typing import Any, TypedDict
 
 import numpy as np
@@ -66,10 +65,11 @@ def hierarchical_aggregation(config) -> bool:
         - pipeline_dir: (optional) base directory for pipeline operations
     """
     try:
-        # Get base directory from config, default to current directory
-        pipeline_dir = Path(config.get("pipeline_dir", "."))
+        # Get base directories from config
+        output_base_dir = config.get("_output_base_dir", "outputs")
+        input_base_dir = config.get("_input_base_dir", "inputs")
 
-        path = f"outputs/{config['output_dir']}/hierarchical_result.json"
+        path = f"{output_base_dir}/{config['output_dir']}/hierarchical_result.json"
         results = {
             "arguments": [],
             "clusters": [],
@@ -80,13 +80,13 @@ def hierarchical_aggregation(config) -> bool:
             "config": config,
         }
 
-        arguments = pd.read_csv(f"outputs/{config['output_dir']}/args.csv")
+        arguments = pd.read_csv(f"{output_base_dir}/{config['output_dir']}/args.csv")
         arguments.set_index("arg-id", inplace=True)
         arg_num = len(arguments)
-        relation_df = pd.read_csv(f"outputs/{config['output_dir']}/relations.csv")
-        comments = pd.read_csv(f"inputs/{config['input']}.csv")
-        clusters = pd.read_csv(f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
-        labels = pd.read_csv(f"outputs/{config['output_dir']}/hierarchical_merge_labels.csv")
+        relation_df = pd.read_csv(f"{output_base_dir}/{config['output_dir']}/relations.csv")
+        comments = pd.read_csv(f"{input_base_dir}/{config['input']}.csv")
+        clusters = pd.read_csv(f"{output_base_dir}/{config['output_dir']}/hierarchical_clusters.csv")
+        labels = pd.read_csv(f"{output_base_dir}/{config['output_dir']}/hierarchical_merge_labels.csv")
 
         hidden_properties_map: dict[str, list[str]] = config["hierarchical_aggregation"]["hidden_properties"]
 
@@ -97,11 +97,11 @@ def hierarchical_aggregation(config) -> bool:
         #     comments, arguments, hidden_properties_map
         # )
         results["comment_num"] = len(comments)
-        results["translations"] = _build_translations(config, pipeline_dir)
+        results["translations"] = _build_translations(config)
         # 属性情報のカラムは、元データに対して指定したカラムとclassificationするカテゴリを合わせたもの
         results["propertyMap"] = _build_property_map(arguments, comments, hidden_properties_map, config)
 
-        with open(f"outputs/{config['output_dir']}/hierarchical_overview.txt") as f:
+        with open(f"{output_base_dir}/{config['output_dir']}/hierarchical_overview.txt") as f:
             overview = f.read()
         print("overview")
         print(overview)
@@ -113,9 +113,9 @@ def hierarchical_aggregation(config) -> bool:
         with open(path, "w") as file:
             json.dump(results, file, indent=2, ensure_ascii=False)
         # TODO: サンプリングロジックを実装したいが、現状は全件抽出
-        create_custom_intro(config, pipeline_dir)
+        create_custom_intro(config)
         if config["is_pubcom"]:
-            add_original_comments(labels, arguments, relation_df, clusters, config, pipeline_dir)
+            add_original_comments(labels, arguments, relation_df, clusters, config)
         return True
     except Exception as e:
         print("error")
@@ -123,14 +123,14 @@ def hierarchical_aggregation(config) -> bool:
         return False
 
 
-def create_custom_intro(config, pipeline_dir: Path = None):
-    if pipeline_dir is None:
-        pipeline_dir = Path(".")
+def create_custom_intro(config):
+    output_base_dir = config.get("_output_base_dir", "outputs")
+    input_base_dir = config.get("_input_base_dir", "inputs")
 
     dataset = config["output_dir"]
-    args_path = pipeline_dir / f"outputs/{dataset}/args.csv"
-    comments = pd.read_csv(pipeline_dir / f"inputs/{config['input']}.csv")
-    result_path = pipeline_dir / f"outputs/{dataset}/hierarchical_result.json"
+    args_path = f"{output_base_dir}/{dataset}/args.csv"
+    comments = pd.read_csv(f"{input_base_dir}/{config['input']}.csv")
+    result_path = f"{output_base_dir}/{dataset}/hierarchical_result.json"
 
     input_count = len(comments)
     args_count = len(pd.read_csv(args_path))
@@ -174,9 +174,9 @@ def create_custom_intro(config, pipeline_dir: Path = None):
         json.dump(result, f, indent=2, ensure_ascii=False)
 
 
-def add_original_comments(labels, arguments, relation_df, clusters, config, pipeline_dir: Path = None):
-    if pipeline_dir is None:
-        pipeline_dir = Path(".")
+def add_original_comments(labels, arguments, relation_df, clusters, config):
+    output_base_dir = config.get("_output_base_dir", "outputs")
+    input_base_dir = config.get("_input_base_dir", "inputs")
 
     # 大カテゴリ（cluster-level-1）に該当するラベルだけ抽出
     labels_lv1 = labels[labels["level"] == 1][["id", "label"]].rename(
@@ -192,7 +192,7 @@ def add_original_comments(labels, arguments, relation_df, clusters, config, pipe
     merged = merged.merge(relation_df, on="arg-id", how="left")
 
     # 元コメント取得
-    comments = pd.read_csv(pipeline_dir / f"inputs/{config['input']}.csv")
+    comments = pd.read_csv(f"{input_base_dir}/{config['input']}.csv")
     comments["comment-id"] = comments["comment-id"].astype(str)
     merged["comment-id"] = merged["comment-id"].astype(str)
 
@@ -230,7 +230,7 @@ def add_original_comments(labels, arguments, relation_df, clusters, config, pipe
     )
 
     # 保存
-    final_df.to_csv(pipeline_dir / f"outputs/{config['output_dir']}/final_result_with_comments.csv", index=False)
+    final_df.to_csv(f"{output_base_dir}/{config['output_dir']}/final_result_with_comments.csv", index=False)
 
 
 def _build_arguments(
@@ -382,13 +382,12 @@ def _build_comments_value(
     return comment_dict
 
 
-def _build_translations(config, pipeline_dir: Path = None):
-    if pipeline_dir is None:
-        pipeline_dir = Path(".")
+def _build_translations(config):
+    output_base_dir = config.get("_output_base_dir", "outputs")
 
     languages = list(config.get("translation", {}).get("languages", []))
     if len(languages) > 0:
-        with open(pipeline_dir / f"outputs/{config['output_dir']}/translations.json") as f:
+        with open(f"{output_base_dir}/{config['output_dir']}/translations.json") as f:
             translations = f.read()
         return json.loads(translations)
     return {}

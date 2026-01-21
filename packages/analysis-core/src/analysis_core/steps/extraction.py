@@ -26,7 +26,9 @@ def _validate_property_columns(property_columns: list[str], comments: pd.DataFra
 
 def extraction(config):
     dataset = config["output_dir"]
-    path = f"outputs/{dataset}/args.csv"
+    output_base_dir = config.get("_output_base_dir", "outputs")
+    input_base_dir = config.get("_input_base_dir", "inputs")
+    path = f"{output_base_dir}/{dataset}/args.csv"
     model = config["extraction"]["model"]
     prompt = config["extraction"]["prompt"]
     workers = config["extraction"]["workers"]
@@ -38,11 +40,12 @@ def extraction(config):
     provider = config["provider"]
 
     # カラム名だけを読み込み、必要なカラムが含まれているか確認する
-    comments = pd.read_csv(f"inputs/{config['input']}.csv", nrows=0)
+    input_path = f"{input_base_dir}/{config['input']}.csv"
+    comments = pd.read_csv(input_path, nrows=0)
     _validate_property_columns(property_columns, comments)
     # エラーが出なかった場合、すべての行を読み込む
     comments = pd.read_csv(
-        f"inputs/{config['input']}.csv", usecols=["comment-id", "comment-body"] + config["extraction"]["properties"]
+        input_path, usecols=["comment-id", "comment-body"] + config["extraction"]["properties"]
     )
     comment_ids = (comments["comment-id"].values)[:limit]
     comments.set_index("comment-id", inplace=True)
@@ -90,7 +93,7 @@ def extraction(config):
 
     results.to_csv(path, index=False)
     # comment-idとarg-idの関係を保存
-    relation_df.to_csv(f"outputs/{dataset}/relations.csv", index=False)
+    relation_df.to_csv(f"{output_base_dir}/{dataset}/relations.csv", index=False)
 
 
 logging.basicConfig(level=logging.DEBUG)

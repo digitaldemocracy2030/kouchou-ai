@@ -32,8 +32,9 @@ def hierarchical_initial_labelling(config: dict) -> None:
             - provider: LLMプロバイダー
     """
     dataset = config["output_dir"]
-    path = f"outputs/{dataset}/hierarchical_initial_labels.csv"
-    clusters_argument_df = pd.read_csv(f"outputs/{dataset}/hierarchical_clusters.csv")
+    output_base_dir = config.get("_output_base_dir", "outputs")
+    path = f"{output_base_dir}/{dataset}/hierarchical_initial_labels.csv"
+    clusters_argument_df = pd.read_csv(f"{output_base_dir}/{dataset}/hierarchical_clusters.csv")
 
     cluster_id_columns = [col for col in clusters_argument_df.columns if col.startswith("cluster-level-")]
     initial_cluster_id_column = cluster_id_columns[-1]

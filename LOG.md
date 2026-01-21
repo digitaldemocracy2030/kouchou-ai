@@ -1,5 +1,87 @@
 # 作業ログ
 
+## 2026-01-21
+
+### analysis-core パッケージのパス設定バグ修正
+
+#### 問題
+- `analysis_core/steps/` 内のstep関数が、`config.get("_output_base_dir")` / `config.get("_input_base_dir")` を使わず、ハードコードされた相対パス（`"inputs/"`, `"outputs/"`）を使用していた
+- Docker環境で絶対パスが渡される場合、ファイルが見つからないエラーが発生
+- `hierarchical_aggregation.py` では未定義の `pipeline_dir` 変数を参照するバグも存在
+
+#### 修正内容
+以下のファイルを修正し、設定可能なパスを使用するように変更：
+
+1. **extraction.py** - `_output_base_dir` と `_input_base_dir` を使用
+2. **embedding.py** - `_output_base_dir` を使用
+3. **hierarchical_clustering.py** - `_output_base_dir` を使用
+4. **hierarchical_initial_labelling.py** - `_output_base_dir` を使用
+5. **hierarchical_merge_labelling.py** - `_output_base_dir` を使用（`calculate_cluster_density`関数も修正）
+6. **hierarchical_overview.py** - `_output_base_dir` を使用
+7. **hierarchical_aggregation.py** - 全関数を修正：
+   - `hierarchical_aggregation()` - 両方のbase_dirを使用
+   - `create_custom_intro()` - `pipeline_dir`パラメータを削除、configからパスを取得
+   - `add_original_comments()` - 同上
+   - `_build_translations()` - 同上
+   - 未使用の `Path` importを削除
+
+#### 回帰テストの追加
+- `tests/test_steps_paths.py` を新規作成
+- step関数がハードコードされたパスを使用していないことを検証
+- step関数が `_output_base_dir` / `_input_base_dir` をconfigから取得していることを検証
+
+#### 変更ファイル
+- `packages/analysis-core/src/analysis_core/steps/extraction.py`
+- `packages/analysis-core/src/analysis_core/steps/embedding.py`
+- `packages/analysis-core/src/analysis_core/steps/hierarchical_clustering.py`
+- `packages/analysis-core/src/analysis_core/steps/hierarchical_initial_labelling.py`
+- `packages/analysis-core/src/analysis_core/steps/hierarchical_merge_labelling.py`
+- `packages/analysis-core/src/analysis_core/steps/hierarchical_overview.py`
+- `packages/analysis-core/src/analysis_core/steps/hierarchical_aggregation.py`
+- `packages/analysis-core/tests/test_steps_paths.py` (新規)
+
+---
+
+### MkDocs Material ドキュメントサイトのセットアップ
+
+#### 実施内容
+1. MkDocs Material の設定ファイル作成
+   - `mkdocs.yml`: サイト設定、テーマ、ナビゲーション構造
+   - `docs/requirements.txt`: 依存パッケージ
+
+2. ドキュメント構造の整理
+   - `docs/getting-started/`: セットアップガイド (Windows/Mac/Linux)
+   - `docs/user-guide/`: 使い方、CLI、インポート、FAQ
+   - `docs/development/`: コントリビューション、プラグイン開発
+   - `docs/deployment/`: Azure、GitHub Pages デプロイ
+   - `docs/misc/`: プロジェクト一覧、CLA、その他
+
+3. 既存ドキュメントの移行
+   - ルートレベルの md ファイルを適切なディレクトリにコピー
+   - 既存の docs/*.md を新しい構造に移動
+   - リンクの修正（相対パスの更新）
+
+4. GitHub Actions ワークフロー作成
+   - `.github/workflows/docs.yml`: main ブランチへのプッシュ時に GitHub Pages へ自動デプロイ
+
+5. その他
+   - `.gitignore` に `site/` を追加
+   - `docs/index.md` にホームページを作成
+
+#### 作成/変更ファイル
+- `mkdocs.yml` (新規)
+- `.github/workflows/docs.yml` (新規)
+- `docs/index.md` (新規)
+- `docs/getting-started/quickstart.md` (新規)
+- `docs/requirements.txt` (新規)
+- 多数のドキュメントファイルを新しい構造に移動
+
+#### 次のステップ
+- GitHub Pages の設定（リポジトリ Settings → Pages で GitHub Actions を選択）
+- main ブランチにマージ後、ドキュメントサイトが公開される
+
+---
+
 ## 2026-01-19
 
 ### Phase 0: 現状把握・棚卸し

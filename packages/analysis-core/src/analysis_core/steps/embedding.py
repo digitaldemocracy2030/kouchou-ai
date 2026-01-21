@@ -13,8 +13,9 @@ def embedding(config):
     # print(f"embedding model: {model}, is_embedded_at_local: {is_embedded_at_local}")
 
     dataset = config["output_dir"]
-    path = f"outputs/{dataset}/embeddings.pkl"
-    arguments = pd.read_csv(f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
+    output_base_dir = config.get("_output_base_dir", "outputs")
+    path = f"{output_base_dir}/{dataset}/embeddings.pkl"
+    arguments = pd.read_csv(f"{output_base_dir}/{dataset}/args.csv", usecols=["arg-id", "argument"])
     embeddings = []
     batch_size = 1000
     for i in tqdm(range(0, len(arguments), batch_size)):
