@@ -5,12 +5,13 @@ import { MenuContent, MenuItem, MenuPositioner, MenuRoot, MenuTrigger, MenuTrigg
 import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
 import { IconButton, Portal } from "@chakra-ui/react";
-import { Ellipsis, Eye, FileSpreadsheet, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
+import { Ellipsis, Eye, FileSpreadsheet, FileText, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import { useBuildDownload } from "../../BuildDownloadButton/useBuildDownload";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
 import { csvDownload } from "./csvDownload";
 import { csvDownloadForWindows } from "./csvDownloadForWindows";
+import { jsonDownload } from "./jsonDownload";
 
 type Props = {
   report: Report;
@@ -141,6 +142,31 @@ export function ActionMenu({
                   </MenuPositioner>
                 </Portal>
               </MenuRoot>
+            )}
+            {report.status === "ready" && (
+              <MenuItem
+                value="json-download"
+                textStyle="body/md/bold"
+                onClick={async () => {
+                  const result = await jsonDownload(report.slug);
+                  if (result.success) {
+                    downloadFile(result);
+                  } else {
+                    toaster.create({
+                      title: "エラー",
+                      type: "error",
+                      description: result.error,
+                    });
+                  }
+                }}
+                _icon={{
+                  w: 5,
+                  h: 5,
+                }}
+              >
+                <FileText />
+                JSONダウンロード
+              </MenuItem>
             )}
             <MenuItem
               value="static-export"

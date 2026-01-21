@@ -80,6 +80,14 @@ async def download_comments_csv(slug: str, api_key: str = Depends(verify_admin_a
     return FileResponse(path=str(csv_path), media_type="text/csv", filename=f"kouchou_{slug}.csv")
 
 
+@router.get("/admin/reports/{slug}/json")
+async def download_report_json(slug: str, api_key: str = Depends(verify_admin_api_key)) -> FileResponse:
+    json_path = settings.REPORT_DIR / slug / "hierarchical_result.json"
+    if not json_path.exists():
+        raise HTTPException(status_code=404, detail="JSON file not found")
+    return FileResponse(path=str(json_path), media_type="application/json", filename=f"kouchou_{slug}.json")
+
+
 @router.get("/admin/reports/{slug}/status/step-json", dependencies=[Depends(verify_admin_api_key)])
 async def get_current_step(slug: str) -> dict:
     status_file = settings.REPORT_DIR / slug / "hierarchical_status.json"
