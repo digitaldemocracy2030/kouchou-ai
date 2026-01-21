@@ -17,3 +17,11 @@ pre-push:
       exclude: "hierarchical_result.json"
       run: "npx biome check {push_files}"
       skip: true
+    api-ruff-check:
+      root: "apps/api/"
+      glob: "apps/api/**/*.py"
+      run: "cd apps/api && rye run ruff check ."
+    api-ruff-format:
+      root: "apps/api/"
+      glob: "apps/api/**/*.py"
+      run: "cd apps/api && rye run ruff format . --check"
