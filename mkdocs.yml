@@ -1,0 +1,99 @@
+site_name: 広聴AI Documentation
+site_description: デジタル民主主義2030プロジェクト - ブロードリスニングシステム
+site_url: https://digitaldemocracy2030.github.io/kouchou-ai/
+repo_url: https://github.com/digitaldemocracy2030/kouchou-ai
+repo_name: digitaldemocracy2030/kouchou-ai
+
+# Hooks for copying root-level markdown files
+hooks:
+  - scripts/docs_hooks.py
+
+theme:
+  name: material
+  language: ja
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: ダークモードに切り替え
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: ライトモードに切り替え
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search:
+      lang: ja
+  - offline
+
+not_in_nav: |
+  /refactoring/**
+  /misc/github-actions-status-update.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - ホーム: index.md
+  - はじめに:
+      - クイックスタート: getting-started/quickstart.md
+      - Windowsセットアップ: getting-started/windows-setup.md
+      - Macセットアップ: getting-started/mac-setup.md
+      - Linuxセットアップ: getting-started/linux-setup.md
+  - ユーザーガイド:
+      - 使い方: user-guide/how-to-use.md
+      - CLIクイックスタート: user-guide/cli-quickstart.md
+      - インポート方法: user-guide/import-quickstart.md
+      - FAQ: user-guide/faq.md
+  - 開発者向け:
+      - コントリビューション: development/contributing.md
+      - プラグインガイド: development/plugin-guide.md
+      - プラグインシステムの設計思想: development/why-plugin-system.md
+      - PyPI公開: development/pypi-release.md
+      - コードレビューガイドライン: development/code-review-guidelines.md
+      - Devinとの協働: development/devin-collaboration.md
+  - デプロイ:
+      - Azure デプロイ: deployment/azure.md
+      - Azure Blob Storage: deployment/azure-blob-storage.md
+      - GitHub Pages: deployment/github-pages.md
+  - その他:
+      - プロジェクト一覧: misc/projects.md
+      - CLA: misc/cla.md
+      - 今後の提案: misc/future-proposals.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/digitaldemocracy2030/kouchou-ai
