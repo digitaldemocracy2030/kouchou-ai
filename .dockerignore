@@ -77,8 +77,7 @@ out/
 experiments/
 tools/
 
-# Lock files (we use specific ones in each app)
-pnpm-lock.yaml
+# Lock files (keep pnpm-lock.yaml for pnpm workspace builds)
 package-lock.json
 yarn.lock
 

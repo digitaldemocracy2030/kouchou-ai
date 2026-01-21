@@ -60,6 +60,7 @@ services:
       <<: *frontend-build-args
 
   admin:
+    <<: *frontend-common
     build:
       context: .
       dockerfile: ./apps/admin/Dockerfile
@@ -67,14 +68,12 @@ services:
         - NEXT_PUBLIC_CLIENT_BASEPATH=${NEXT_PUBLIC_CLIENT_BASEPATH}
         - NEXT_PUBLIC_API_BASEPATH=${NEXT_PUBLIC_API_BASEPATH}
         - NEXT_PUBLIC_ADMIN_API_KEY=${NEXT_PUBLIC_ADMIN_API_KEY}
+        - API_BASEPATH=http://api:8000
         - CLIENT_STATIC_BUILD_BASEPATH=${CLIENT_STATIC_BUILD_BASEPATH}
     ports:
       - "4000:4000"
-    env_file:
-      - .env
-    restart: unless-stopped
-    networks:
-      - app-network
+    environment:
+      - API_BASEPATH=http://api:8000
 
   ollama:
     image: ollama/ollama:latest
