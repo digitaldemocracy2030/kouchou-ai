@@ -44,9 +44,7 @@ def extraction(config):
     comments = pd.read_csv(input_path, nrows=0)
     _validate_property_columns(property_columns, comments)
     # エラーが出なかった場合、すべての行を読み込む
-    comments = pd.read_csv(
-        input_path, usecols=["comment-id", "comment-body"] + config["extraction"]["properties"]
-    )
+    comments = pd.read_csv(input_path, usecols=["comment-id", "comment-body"] + config["extraction"]["properties"])
     comment_ids = (comments["comment-id"].values)[:limit]
     comments.set_index("comment-id", inplace=True)
     results = pd.DataFrame()
