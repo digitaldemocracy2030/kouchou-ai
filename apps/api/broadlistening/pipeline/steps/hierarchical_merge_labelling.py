@@ -3,6 +3,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -10,6 +11,8 @@ from pydantic import BaseModel, Field
 from tqdm import tqdm
 
 from services.llm import request_to_chat_ai
+
+PIPELINE_DIR = Path(__file__).parent.parent
 
 
 @dataclass
@@ -55,8 +58,8 @@ def hierarchical_merge_labelling(config: dict) -> None:
             - provider: LLMプロバイダー
     """
     dataset = config["output_dir"]
-    merge_path = f"outputs/{dataset}/hierarchical_merge_labels.csv"
-    clusters_df = pd.read_csv(f"outputs/{dataset}/hierarchical_initial_labels.csv")
+    merge_path = PIPELINE_DIR / f"outputs/{dataset}/hierarchical_merge_labels.csv"
+    clusters_df = pd.read_csv(PIPELINE_DIR / f"outputs/{dataset}/hierarchical_initial_labels.csv")
 
     cluster_id_columns: list[str] = _filter_id_columns(clusters_df.columns)
     # ボトムクラスタのラベル・説明とクラスタid付きの各argumentを入力し、各階層のクラスタラベル・説明を生成し、argumentに付けたdfを作成
@@ -302,7 +305,7 @@ def process_merge_labelling(
 
 def calculate_cluster_density(melted_df: pd.DataFrame, config: dict):
     """クラスタ内の密度計算"""
-    hierarchical_cluster_df = pd.read_csv(f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
+    hierarchical_cluster_df = pd.read_csv(PIPELINE_DIR / f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
 
     densities = []
     for level, c_id in zip(melted_df["level"], melted_df["id"], strict=False):

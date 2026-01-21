@@ -1,20 +1,23 @@
 """Cluster the arguments using UMAP + HDBSCAN and GPT-4."""
 
 from importlib import import_module
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import scipy.cluster.hierarchy as sch
 from sklearn.cluster import KMeans
 
+PIPELINE_DIR = Path(__file__).parent.parent
+
 
 def hierarchical_clustering(config):
     UMAP = import_module("umap").UMAP
 
     dataset = config["output_dir"]
-    path = f"outputs/{dataset}/hierarchical_clusters.csv"
-    arguments_df = pd.read_csv(f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
-    embeddings_df = pd.read_pickle(f"outputs/{dataset}/embeddings.pkl")
+    path = PIPELINE_DIR / f"outputs/{dataset}/hierarchical_clusters.csv"
+    arguments_df = pd.read_csv(PIPELINE_DIR / f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
+    embeddings_df = pd.read_pickle(PIPELINE_DIR / f"outputs/{dataset}/embeddings.pkl")
     embeddings_array = np.asarray(embeddings_df["embedding"].values.tolist())
     cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 

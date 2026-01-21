@@ -3,11 +3,14 @@
 import json
 import os
 import re
+from pathlib import Path
 
 import pandas as pd
 from pydantic import BaseModel, Field
 
 from services.llm import request_to_chat_ai
+
+PIPELINE_DIR = Path(__file__).parent.parent
 
 
 class OverviewResponse(BaseModel):
@@ -16,9 +19,9 @@ class OverviewResponse(BaseModel):
 
 def hierarchical_overview(config):
     dataset = config["output_dir"]
-    path = f"outputs/{dataset}/hierarchical_overview.txt"
+    path = PIPELINE_DIR / f"outputs/{dataset}/hierarchical_overview.txt"
 
-    hierarchical_label_df = pd.read_csv(f"outputs/{dataset}/hierarchical_merge_labels.csv")
+    hierarchical_label_df = pd.read_csv(PIPELINE_DIR / f"outputs/{dataset}/hierarchical_merge_labels.csv")
 
     prompt = config["hierarchical_overview"]["prompt"]
     model = config["hierarchical_overview"]["model"]

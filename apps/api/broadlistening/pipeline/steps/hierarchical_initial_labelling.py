@@ -2,12 +2,15 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+from pathlib import Path
 from typing import TypedDict
 
 import pandas as pd
 from pydantic import BaseModel, Field
 
 from services.llm import request_to_chat_ai
+
+PIPELINE_DIR = Path(__file__).parent.parent
 
 
 class LabellingResult(TypedDict):
@@ -32,8 +35,8 @@ def hierarchical_initial_labelling(config: dict) -> None:
             - provider: LLMプロバイダー
     """
     dataset = config["output_dir"]
-    path = f"outputs/{dataset}/hierarchical_initial_labels.csv"
-    clusters_argument_df = pd.read_csv(f"outputs/{dataset}/hierarchical_clusters.csv")
+    path = PIPELINE_DIR / f"outputs/{dataset}/hierarchical_initial_labels.csv"
+    clusters_argument_df = pd.read_csv(PIPELINE_DIR / f"outputs/{dataset}/hierarchical_clusters.csv")
 
     cluster_id_columns = [col for col in clusters_argument_df.columns if col.startswith("cluster-level-")]
     initial_cluster_id_column = cluster_id_columns[-1]

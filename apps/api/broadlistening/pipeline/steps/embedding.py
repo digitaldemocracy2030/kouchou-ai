@@ -1,9 +1,12 @@
 import os
+from pathlib import Path
 
 import pandas as pd
 from tqdm import tqdm
 
 from services.llm import request_to_embed
+
+PIPELINE_DIR = Path(__file__).parent.parent
 
 
 def embedding(config):
@@ -13,8 +16,8 @@ def embedding(config):
     # print(f"embedding model: {model}, is_embedded_at_local: {is_embedded_at_local}")
 
     dataset = config["output_dir"]
-    path = f"outputs/{dataset}/embeddings.pkl"
-    arguments = pd.read_csv(f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
+    path = PIPELINE_DIR / f"outputs/{dataset}/embeddings.pkl"
+    arguments = pd.read_csv(PIPELINE_DIR / f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
     embeddings = []
     batch_size = 1000
     for i in tqdm(range(0, len(arguments), batch_size)):

@@ -63,7 +63,7 @@ class Cluster(TypedDict):
 
 def hierarchical_aggregation(config) -> bool:
     try:
-        path = f"outputs/{config['output_dir']}/hierarchical_result.json"
+        path = PIPELINE_DIR / f"outputs/{config['output_dir']}/hierarchical_result.json"
         results = {
             "arguments": [],
             "clusters": [],
@@ -74,13 +74,13 @@ def hierarchical_aggregation(config) -> bool:
             "config": config,
         }
 
-        arguments = pd.read_csv(f"outputs/{config['output_dir']}/args.csv")
+        arguments = pd.read_csv(PIPELINE_DIR / f"outputs/{config['output_dir']}/args.csv")
         arguments.set_index("arg-id", inplace=True)
         arg_num = len(arguments)
-        relation_df = pd.read_csv(f"outputs/{config['output_dir']}/relations.csv")
-        comments = pd.read_csv(f"inputs/{config['input']}.csv")
-        clusters = pd.read_csv(f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
-        labels = pd.read_csv(f"outputs/{config['output_dir']}/hierarchical_merge_labels.csv")
+        relation_df = pd.read_csv(PIPELINE_DIR / f"outputs/{config['output_dir']}/relations.csv")
+        comments = pd.read_csv(PIPELINE_DIR / f"inputs/{config['input']}.csv")
+        clusters = pd.read_csv(PIPELINE_DIR / f"outputs/{config['output_dir']}/hierarchical_clusters.csv")
+        labels = pd.read_csv(PIPELINE_DIR / f"outputs/{config['output_dir']}/hierarchical_merge_labels.csv")
 
         hidden_properties_map: dict[str, list[str]] = config["hierarchical_aggregation"]["hidden_properties"]
 
@@ -95,7 +95,7 @@ def hierarchical_aggregation(config) -> bool:
         # 属性情報のカラムは、元データに対して指定したカラムとclassificationするカテゴリを合わせたもの
         results["propertyMap"] = _build_property_map(arguments, comments, hidden_properties_map, config)
 
-        with open(f"outputs/{config['output_dir']}/hierarchical_overview.txt") as f:
+        with open(PIPELINE_DIR / f"outputs/{config['output_dir']}/hierarchical_overview.txt") as f:
             overview = f.read()
         print("overview")
         print(overview)
