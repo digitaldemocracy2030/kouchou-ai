@@ -67,3 +67,9 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+# Exclude e2e tests from automatic runs (they require API KEY and cost money)
+# Run e2e tests explicitly: OPENAI_API_KEY=xxx pytest tests/e2e/ -v
+norecursedirs = ["tests/e2e"]
+markers = [
+    "e2e: end-to-end tests requiring real API calls (not run by default)",
+]

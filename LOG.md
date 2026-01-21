@@ -1189,3 +1189,80 @@ Phase 8 の deprecation 変更後、プラグインテストで失敗が発生�
 ```
 57124b70 chore: Phase 8 - deprecate old pipeline files (amended with test fixes)
 ```
+
+### E2Eテストフレームワーク実装
+
+#### 背景
+LLMを実際に使って分析パイプラインをテストする仕組みが必要。ただしコストがかかるため自動実行は避け、API KEYを渡すことで手動で実行できるようにする。
+
+#### 実装内容
+
+1. **ディレクトリ構造の作成**
+   ```
+   packages/analysis-core/tests/e2e/
+   ├── __init__.py
+   ├── conftest.py           # pytest設定・API KEY検証
+   ├── test_pipeline_e2e.py  # E2Eテスト
+   ├── fixtures/
+   │   └── small_comments.csv  # テスト用入力データ（5件）
+   └── schemas/
+       ├── __init__.py
+       └── hierarchical_result.py  # Pydanticによる出力検証
+   ```
+
+2. **conftest.py**
+   - `api_key` フィクスチャ: OPENAI_API_KEYが未設定の場合テストをスキップ
+   - `temp_dirs` フィクスチャ: カスタムパス名でハードコードパスバグを検出
+   - `pipeline_config` フィクスチャ: gpt-4o-miniを使用した最小構成
+
+3. **schemas/hierarchical_result.py**
+   - `Argument`: 抽出された意見のスキーマ
+   - `Cluster`: クラスターのスキーマ
+   - `HierarchicalResult`: hierarchical_result.json全体のスキーマ
+   - `validate_structure()`: 構造的整合性チェック（クラスター階層、参照整合性など）
+
+4. **test_pipeline_e2e.py**
+   - `TestPipelineE2E`:
+     - `test_full_pipeline_produces_valid_output`: 全パイプライン実行と出力検証
+     - `test_extraction_produces_arguments`: 意見抽出ステップの検証
+     - `test_clustering_produces_hierarchy`: クラスタリングの検証
+   - `TestOutputSchemaValidation`:
+     - `test_hierarchical_result_schema`: JSONスキーマ検証
+     - `test_args_csv_schema`: args.csv構造検証
+
+5. **pyproject.toml更新**
+   - `norecursedirs = ["tests/e2e"]`: 自動実行から除外
+   - `markers = ["e2e"]`: E2Eマーカー定義
+
+#### 実行方法
+```bash
+# API KEYなしで実行（全スキップ）
+pytest tests/e2e/ -v
+# 結果: 5 skipped
+
+# API KEYありで実行
+OPENAI_API_KEY=sk-xxx pytest tests/e2e/ -v
+
+# 通常テストには影響なし
+pytest tests/ -v
+# 結果: 105 passed（e2eは除外）
+```
+
+#### テスト結果
+- E2Eテスト: 5 tests defined
+- API KEY未設定時: 5 skipped ✅
+- 通常テスト: 105 passed ✅（e2eは除外される）
+
+#### 作成ファイル
+- `packages/analysis-core/tests/e2e/__init__.py`
+- `packages/analysis-core/tests/e2e/conftest.py`
+- `packages/analysis-core/tests/e2e/test_pipeline_e2e.py`
+- `packages/analysis-core/tests/e2e/fixtures/small_comments.csv`
+- `packages/analysis-core/tests/e2e/schemas/__init__.py`
+- `packages/analysis-core/tests/e2e/schemas/hierarchical_result.py`
+- `PLAN.md`（E2Eテスト計画）
+- `docs/development/testing.md`（テスト手法ガイド）
+
+#### 実行確認結果
+- 5 passed in 64.61s ✅
+- 実際のOpenAI APIを使用してパイプライン全体が正常動作を確認
