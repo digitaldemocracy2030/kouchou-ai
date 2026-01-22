@@ -234,19 +234,22 @@ azure-build:
 	if [ "$$changed" = "true" ]; then \
 		echo "envファイルの変更が検出されました。Azure用イメージを再ビルドします...(no-cache)"; \
 		docker build --platform linux/amd64 --no-cache \
-			-t $(AZURE_ACR_NAME).azurecr.io/api:latest ./apps/api && \
+			-f ./apps/api/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/api:latest . && \
 		docker build --platform linux/amd64 --no-cache \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_PUBLIC_API_KEY="$(NEXT_PUBLIC_PUBLIC_API_KEY)" \
 			--build-arg NEXT_PUBLIC_SITE_URL="$(NEXT_PUBLIC_SITE_URL)" \
 			--build-arg API_BASEPATH="$(API_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/public-viewer:latest ./apps/public-viewer && \
+			-f ./apps/public-viewer/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/public-viewer:latest . && \
 		docker build --platform linux/amd64 --no-cache \
 			--build-arg NEXT_PUBLIC_CLIENT_BASEPATH="$(NEXT_PUBLIC_CLIENT_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_ADMIN_API_KEY="$(NEXT_PUBLIC_ADMIN_API_KEY)" \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg CLIENT_STATIC_BUILD_BASEPATH="$(CLIENT_STATIC_BUILD_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/admin:latest ./apps/admin && \
+			-f ./apps/admin/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/admin:latest . && \
 		docker build --platform linux/amd64 --no-cache \
 			-t $(AZURE_ACR_NAME).azurecr.io/static-site-builder:latest \
 			-f ./apps/static-site-builder/Dockerfile . && \
@@ -254,19 +257,22 @@ azure-build:
 	else \
 		echo "envファイルに変更はありません。Azure用イメージをビルドします..."; \
 		docker build --platform linux/amd64 \
-			-t $(AZURE_ACR_NAME).azurecr.io/api:latest ./apps/api; \
+			-f ./apps/api/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/api:latest .; \
 		docker build --platform linux/amd64 \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_PUBLIC_API_KEY="$(NEXT_PUBLIC_PUBLIC_API_KEY)" \
 			--build-arg NEXT_PUBLIC_SITE_URL="$(NEXT_PUBLIC_SITE_URL)" \
 			--build-arg API_BASEPATH="$(API_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/public-viewer:latest ./apps/public-viewer; \
+			-f ./apps/public-viewer/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/public-viewer:latest .; \
 		docker build --platform linux/amd64 \
 			--build-arg NEXT_PUBLIC_CLIENT_BASEPATH="$(NEXT_PUBLIC_CLIENT_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_ADMIN_API_KEY="$(NEXT_PUBLIC_ADMIN_API_KEY)" \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg CLIENT_STATIC_BUILD_BASEPATH="$(CLIENT_STATIC_BUILD_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/admin:latest ./apps/admin; \
+			-f ./apps/admin/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/admin:latest .; \
 		docker build --platform linux/amd64 \
 			-t $(AZURE_ACR_NAME).azurecr.io/static-site-builder:latest \
 			-f ./apps/static-site-builder/Dockerfile .; \
