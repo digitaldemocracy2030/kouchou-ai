@@ -4,41 +4,43 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'client/**/*.ts'
-      - 'client/**/*.tsx'
-      - 'client/**/*.js'
-      - 'client/**/*.jsx'
-      - 'client/package.json'
-      - 'client/jest.config.js'
+      - 'apps/public-viewer/**/*.ts'
+      - 'apps/public-viewer/**/*.tsx'
+      - 'apps/public-viewer/**/*.js'
+      - 'apps/public-viewer/**/*.jsx'
+      - 'apps/public-viewer/package.json'
+      - 'apps/public-viewer/jest.config.js'
   pull_request:
     branches: [ main ]
     paths:
-      - 'client/**/*.ts'
-      - 'client/**/*.tsx'
-      - 'client/**/*.js'
-      - 'client/**/*.jsx'
-      - 'client/package.json'
-      - 'client/jest.config.js'
+      - 'apps/public-viewer/**/*.ts'
+      - 'apps/public-viewer/**/*.tsx'
+      - 'apps/public-viewer/**/*.js'
+      - 'apps/public-viewer/**/*.jsx'
+      - 'apps/public-viewer/package.json'
+      - 'apps/public-viewer/jest.config.js'
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./client
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9.15.4
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: ./client/package.json
+        cache: 'pnpm'
+        cache-dependency-path: ./pnpm-lock.yaml
 
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
 
     - name: Run tests with Jest
-      run: npm test
+      run: pnpm --filter @kouchou-ai/public-viewer test

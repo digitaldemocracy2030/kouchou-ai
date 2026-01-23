@@ -2,13 +2,13 @@ pre-push:
   parallel: true
   commands:
     client-lint:
-      root: "client/"
-      glob: "client/**/*.{js,mjs,jsx,ts,tsx,json}"
+      root: "apps/public-viewer/"
+      glob: "apps/public-viewer/**/*.{js,mjs,jsx,ts,tsx,json}"
       run: "npx biome check {push_files}"
       skip: true
     client-admin-lint:
-      root: "client-admin/"
-      glob: "client-admin/**/*.{js,mjs,jsx,ts,tsx,json}"
+      root: "apps/admin/"
+      glob: "apps/admin/**/*.{js,mjs,jsx,ts,tsx,json}"
       run: "npx biome check {push_files}"
       skip: true
     dummy-server-lint:

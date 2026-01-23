@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
  * - test/e2e/tests/seed.spec.ts - 管理画面の基本的な環境確認テスト
  * - test/e2e/tests/verify-*.spec.ts - ダミーサーバーと環境設定の検証テスト
  * - test/e2e/tests/admin/ - 管理画面のテスト
- * - test/e2e/tests/client/ - クライアント画面のテスト
+ * - test/e2e/tests/client/ - 公開閲覧画面（public-viewer）のテスト
  */
 
 test.describe('Test group', () => {

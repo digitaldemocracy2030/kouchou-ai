@@ -26,8 +26,8 @@
 
 Playwrightの`webServer`機能により、テスト実行時に必要なサーバーが**自動的に起動**されます。
 
-- **Admin tests**: client-admin（port 4000）が自動起動
-- **Client tests**: dummy-server（port 8002）とclient（port 3000）が自動起動
+- **Admin tests**: admin（port 4000）が自動起動
+- **Client tests**: dummy-server（port 8002）とpublic-viewer（port 3000）が自動起動
 
 **手動でサーバーを起動する必要はありません。**
 
@@ -244,7 +244,7 @@ npx playwright test --headed --debug
 
 ### 対象
 
-- **URL**: http://localhost:4000（client-admin）
+- **URL**: http://localhost:4000（admin）
 - **機能**: レポート作成、パイプライン設定
 
 ### テスト実行
@@ -256,7 +256,7 @@ npx playwright test --project=admin
 npx playwright test tests/admin/
 ```
 
-**注意**: `playwright.config.ts`の`webServer`設定により、client-adminサーバーは自動的に起動されます。手動起動は不要です。
+**注意**: `playwright.config.ts`の`webServer`設定により、adminサーバーは自動的に起動されます。手動起動は不要です。
 
 ## Clientテスト（レポート表示画面）
 
@@ -264,7 +264,7 @@ npx playwright test tests/admin/
 
 ### 対象
 
-- **URL**: http://localhost:3000（client）
+- **URL**: http://localhost:3000（public-viewer）
 - **機能**: レポート一覧表示、レポート詳細表示
 
 ### テストの特徴
@@ -290,7 +290,7 @@ npx playwright test tests/verify-environment.spec.ts --project=verify
 ```
 
 **注意**:
-- `playwright.config.ts`の`webServer`設定により、dummy-server（port 8002）とclient（port 3000）は自動的に起動されます
+- `playwright.config.ts`の`webServer`設定により、dummy-server（port 8002）とpublic-viewer（port 3000）は自動的に起動されます
 - 手動起動は不要です
 - テスト失敗時は、まず検証テストを実行してサーバーと環境変数が正しく設定されているか確認してください
 
@@ -303,8 +303,8 @@ npx playwright test tests/verify-environment.spec.ts --project=verify
 cd utils/dummy-server
 PUBLIC_API_KEY=public E2E_TEST=true npx next dev -p 8002
 
-# ターミナル2: Clientサーバーを起動（port 3000、ダミーAPIサーバーを参照）
-cd client
+# ターミナル2: Public viewerサーバーを起動（port 3000、ダミーAPIサーバーを参照）
+cd apps/public-viewer
 NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
 API_BASEPATH=http://localhost:8002 \
 NEXT_PUBLIC_PUBLIC_API_KEY=public \
@@ -390,8 +390,8 @@ npx playwright test --project=client-static-root --project=client-static-subdir
 **自動ビルドの仕組み:**
 - テスト実行前に `scripts/global-setup.ts` が実行されます
 - ダミーAPIサーバー（port 8002）からデータを取得して2種類のビルドを生成
-  1. Root用: `client/out` (basePath なし)
-  2. Subdirectory用: `client/out-subdir` (basePath="/kouchou-ai")
+  1. Root用: `apps/public-viewer/out` (basePath なし)
+  2. Subdirectory用: `apps/public-viewer/out-subdir` (basePath="/kouchou-ai")
 
 ### 手動ビルド（デバッグ用）
 
@@ -440,8 +440,8 @@ npx playwright test tests/client-static/subdir/reports.spec.ts
     ↓ HTTPリクエスト
   dummy-server (port 8002)
     ↓ フィクスチャを返す
-  client/out (Root用静的HTML)
-  client/out-subdir (Subdirectory用静的HTML)
+  apps/public-viewer/out (Root用静的HTML)
+  apps/public-viewer/out-subdir (Subdirectory用静的HTML)
 
 テスト実行時:
   http-server (port 3001 / 3002)
@@ -463,10 +463,10 @@ Subdirectory ホスティング用テストでは、以下を検証します：
 
 ```bash
 # Root用
-cd client
+cd apps/public-viewer
 npx http-server out -p 3001
 
 # Subdirectory用
-cd client
+cd apps/public-viewer
 npx http-server out-subdir -p 3002
 ```

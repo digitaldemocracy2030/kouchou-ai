@@ -22,7 +22,6 @@ test-results/
 /playwright.config.ts
 
 # Package managers
-pnpm-lock.yaml
 
 # Build outputs
-client/issues-kouchou-ai/
+apps/public-viewer/issues-kouchou-ai/

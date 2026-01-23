@@ -4,11 +4,11 @@
 
 ## Environment variables
 - `PUBLIC_API_KEY`
-  - kouchou-ai-client からのリクエストを受け付けるためのAPIキー
+  - public-viewer からのリクエストを受け付けるためのAPIキー
   - /reports および /reports/:slug へアクセスする際に必要
   - (/ や /meta/** へのアクセスには不要)
 - `ADMIN_API_KEY`
-  - kouchou-ai-client-admin からのリクエストを受け付けるためのAPIキー
+  - admin からのリクエストを受け付けるためのAPIキー
   - /admin/reports へアクセスする際に必要
 
 ## endpoints

@@ -7,7 +7,7 @@
 **対象URL**: http://localhost:3001
 **テストフレームワーク**: Playwright
 **テストファイルの場所**: `/test/e2e/tests/client-static/`
-**ホスティング方法**: http-server で `client/out` をホスティング
+**ホスティング方法**: http-server で `apps/public-viewer/out` をホスティング
 
 ## 静的ビルドの特徴
 
@@ -21,7 +21,7 @@
     ↓ HTTPリクエスト
   APIサーバー（http://localhost:8002）
     ↓ JSONレスポンス
-  client/out/*.html（静的HTML生成）
+  apps/public-viewer/out/*.html（静的HTML生成）
 
 テスト実行時:
   http-server（port 3001）
@@ -36,7 +36,7 @@
 - **Root hosting**: `NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH=""` → `https://example.com/`
 - **Subdirectory hosting**: `NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="/kouchou-ai"` → `https://example.com/kouchou-ai/`
 
-この設定により、Next.jsの `basePath` と `assetPrefix` が自動的に設定されます（`client/next.config.ts`）。
+この設定により、Next.jsの `basePath` と `assetPrefix` が自動的に設定されます（`apps/public-viewer/next.config.ts`）。
 
 ## テスト対象
 
@@ -211,7 +211,7 @@ cd utils/dummy-server
 PUBLIC_API_KEY=public E2E_TEST=true npx next dev -p 8002
 
 # 別のターミナルで静的ビルド
-cd client
+cd apps/public-viewer
 NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
 API_BASEPATH=http://localhost:8002 \
 NEXT_PUBLIC_PUBLIC_API_KEY=public \
@@ -227,7 +227,7 @@ cd utils/dummy-server
 PUBLIC_API_KEY=public E2E_TEST=true npx next dev -p 8002
 
 # 別のターミナルで静的ビルド
-cd client
+cd apps/public-viewer
 NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
 API_BASEPATH=http://localhost:8002 \
 NEXT_PUBLIC_PUBLIC_API_KEY=public \
@@ -305,7 +305,7 @@ webServer: [
 
 ## 参考資料
 
-- [Client型定義](/client/type.ts)
+- [Public viewer型定義](/apps/public-viewer/type.ts)
 - [Next.js Static Exports](https://nextjs.org/docs/app/building-your-application/deploying/static-exports)
 - [Next.js basePath設定](https://nextjs.org/docs/app/api-reference/next-config-js/basePath)
 - [Client開発サーバー版テスト計画](/test/e2e/CLIENT_TEST_PLAN.md)

@@ -34,7 +34,7 @@ test.describe("Client - レポート一覧", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    // Linkコンポーネントを取得してクリック（client/app/page.tsx:74のLink）
+    // Linkコンポーネントを取得してクリック（apps/public-viewer/app/page.tsx:74のLink）
     await page.getByRole("link", { name: /テストレポート1/ }).click();
 
     // ページ遷移を待機してURLを確認
@@ -46,7 +46,7 @@ test.describe("Client - レポート一覧", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    // 作成日時が表示される（client/app/page.tsx:92-96で条件付きレンダリング）
+    // 作成日時が表示される（apps/public-viewer/app/page.tsx:92-96で条件付きレンダリング）
     // 複数のレポートカードがあるため .first() を使用
     await expect(page.getByText(/作成日時:/).first()).toBeVisible();
   });

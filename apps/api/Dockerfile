@@ -1,0 +1,47 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+ARG ENVIRONMENT
+ARG WITH_GPU=false
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install uv
+
+# Copy API package files (context is repository root)
+COPY apps/api/pyproject.toml apps/api/requirements.lock apps/api/requirements-dev.lock apps/api/requirements-torch.txt apps/api/README.md ./
+
+# Copy and install analysis-core package
+COPY packages/analysis-core /packages/analysis-core
+RUN uv pip install --no-cache --system /packages/analysis-core
+
+# WITH_GPU=false の場合は 不要なパッケージをインストールしないようにする
+RUN if [ "$WITH_GPU" = "true" ]; then \
+    echo "Installing PyTorch (GPU version)" && \
+    uv pip install --no-cache --system -r requirements-torch.txt; \
+    else \
+    echo "Installing PyTorch (CPU version)" && \
+    uv pip install --no-cache --system -r requirements-torch.txt --index-url https://download.pytorch.org/whl/cpu; \
+    fi
+
+# 依存関係をインストール
+RUN if [ "$ENVIRONMENT" = "development" ]; then \
+    echo "Installing development dependencies" && \
+    uv pip install --no-cache --system -r requirements-dev.lock; \
+    else \
+    echo "Installing production dependencies" && \
+    uv pip install --no-cache --system -r requirements.lock; \
+    fi
+
+# Copy application source
+COPY apps/api/ .
+
+# アプリケーションの実行
+EXPOSE 8000
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

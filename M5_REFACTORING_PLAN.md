@@ -186,6 +186,130 @@
 - `client-admin/app/_components/ReportCard/ReportEditDialog/*`: 既存のServer Actionパターンを踏襲して可視化設定用のUI/Actionを追加。
 - `client-admin/type.d.ts`: `visualization_config` を追加。
 
+## 進捗状況
+
+| Phase | 状態 | 完了日 |
+|-------|------|--------|
+| Phase 0 | ✅ 完了 | 2026-01-19 |
+| Phase 1 | ✅ 完了 | 2026-01-19 |
+| Phase 2 | ✅ 完了 | 2026-01-19 |
+| Phase 2.5 | ✅ 完了 | 2026-01-19 |
+| Phase 3 | ✅ 完了 | 2026-01-19 |
+| Phase 4 | ✅ 完了 | 2026-01-21 |
+| Phase 5 | ✅ 完了（一部延期） | 2026-01-21 |
+| Phase 6 | ✅ 完了 | 2026-01-21 |
+| Phase 7 | ✅ 完了 | 2026-01-21 |
+| Phase 8 | ✅ 完了 | 2026-01-21 |
+
+### Phase 2.5 詳細実績
+- 2.5.1: initialization関数の移行 ✅
+- 2.5.2: PipelineOrchestrator完成 ✅
+- 2.5.3: CLI実装完成 ✅
+- 2.5.4: デフォルトプロンプト移行 ✅
+- 2.5.5: apps/api統合 ✅
+- 2.5.7: テスト拡充 ✅
+- 2.5.8: リリース準備 ✅
+
+### Phase 3 詳細実績
+- 3.1: プラグインインターフェース定義 ✅
+- 3.2: プラグインレジストリ実装 ✅
+- 3.3: 既存ステップのプラグイン化（8ステップ） ✅
+- 3.4: ワークフローエンジン実装 ✅
+- 3.5: デフォルトワークフロー定義 ✅
+- 3.6: 互換レイヤー実装 ✅
+- 3.7: Orchestrator のワークフロー対応 ✅
+- 3.8: 外部プラグイン読み込み機構 ✅
+- 3.9: Analysis画面の互換性維持 ✅
+
+### テスト結果
+- analysis-core: 90 passed ✅
+- apps/api: 135 passed, 5 skipped ✅
+- Dockerビルド: 成功 ✅
+
+### Phase 3 バグ修正
+- 組み込みプラグインの `output_dir` パス問題: 8ファイルで `Path("outputs")` ハードコードを `ctx.output_dir` に修正 ✅
+- `WorkflowEngine` のバリデーション不足: `validate_inputs()` / `validate_config()` 呼び出しを追加 ✅
+
+### Phase 3 検証
+- `run()` 経路で plan/source_code/prompt が正しく生成されることを確認 ✅
+- apps/api テスト: 135 passed ✅
+- Docker ビルド: 成功 ✅
+
+### Phase 3 で対応しない既知の課題（Phase 5以降で対応）
+
+以下の課題は `run_workflow()` がWebapp経路に統合される Phase 5以降で対応する。現時点では CLI/PyPI配布が主目的であり、Webapp側のパイプラインカスタマイズは優先度が低いため。
+
+1. **外部プラグイン読み込みが `run_workflow()` に未統合**
+   - 現状: `run_workflow()` は `WorkflowEngine()` を作成するが `load_all_plugins()` を呼ばない
+   - 影響: `plugins/analysis` に置いた外部プラグインが `run_workflow()` 経由では利用されない
+   - 対応案: ライブラリユーザーは明示的に `load_all_plugins()` を呼ぶ、またはオプション引数を追加
+   - 該当箇所: `orchestrator.py` (lines 331-348)
+
+2. **`run_workflow()` 経由での plan 生成未対応**
+   - 現状: `normalize_config()` に plan 作成がなく、`run_workflow()` 側でも補完しない
+   - 影響: Analysis画面の plan/prompt/source_code 表示要件（Phase 3.9）が `run_workflow()` 経由では満たせない
+   - 対応案: Phase 5で `normalize_config()` に plan 生成を追加
+   - 該当箇所: `config_converter.py` (lines 50-140)
+
+**理由:** 現在のプロダクション経路（apps/api）は `run()` メソッドを使用しており、上記の問題は発生しない。`run_workflow()` のWebapp統合は Phase 5以降の課題。
+
+### Phase 4 詳細実績
+- 4.1: `packages/report-schema` に `ReportDisplayConfig` 型を追加 ✅
+- 4.2: `apps/api/src/schemas/visualization_config.py` に pydantic モデルを追加 ✅
+- 4.3: `/reports/{slug}` APIで `visualization_config.json` をマージするよう更新 ✅
+- 4.4: `apps/public-viewer/type.ts` に `ReportDisplayConfig` 型を追加 ✅
+- 4.5: `apps/admin/type.d.ts` に `ReportDisplayConfig` 型を追加 ✅
+- 4.6: Admin API の visualization config GET/PATCH エンドポイント ✅
+- 4.7: `report_launcher.py` の workflow id + step config 出力 📋 (将来実装 → [FUTURE_PROPOSALS.md](docs/FUTURE_PROPOSALS.md))
+
+### Phase 5 詳細実績
+- 5.1: Admin UIでの可視化設定編集機能 ✅
+  - `VisualizationConfigDialog.tsx` コンポーネント実装
+  - `ActionMenu.tsx` にメニュー項目追加
+  - Server Actions (`actions.ts`) で GET/PATCH API呼び出し
+- 5.2: `invalidate_report_cache` との統合 ✅
+- 5.3: プラグインバリデーション（`chartRegistry` による有効化チャート検証）✅
+
+#### Phase 5 延期項目（→ [FUTURE_PROPOSALS.md](docs/FUTURE_PROPOSALS.md)）
+以下は今回のスコープ外として将来実装案に移行:
+- ワークフロー選択UIとステップ別設定UI
+- `visualization_config` のdraft/publish フロー
+- `run_workflow()` への外部プラグイン読み込み統合
+- `run_workflow()` 経由での plan 生成
+
+### Phase 6 詳細実績
+- 6.1: 可視化プラグインレジストリ実装 ✅
+  - `chartRegistry` で動的プラグイン管理
+  - `ensurePluginsLoaded()` による遅延初期化
+- 6.2: 既存チャートのプラグイン化 ✅
+  - `scatterAll`, `scatterDensity`, `treemap`, `hierarchyList` を `ChartMode` として実装
+- 6.3: `ChartType` の拡張性対応 ✅
+  - `| (string & {})` パターンで拡張可能な型に変更
+- 6.4: `ClientContainer` の初期state反映 ✅
+  - `result.visualizationConfig` から `defaultChart`, `enabledCharts`, `params` を読み込み
+- 6.5: `SelectChartButton` の動的タブ生成 ✅
+  - `enabledCharts` でフィルタリング、`chartOrder` でソート
+  - プラグインごとの `isDisabled` 評価
+
+### Phase 7 詳細実績
+- 7.1: 進捗テーブル更新 ✅
+- 7.2: Phase 4-6 詳細実績の追加 ✅
+- 7.3: 延期項目のドキュメント化 ✅
+  - [docs/FUTURE_PROPOSALS.md](docs/FUTURE_PROPOSALS.md) に将来実装案を整理
+
+### Phase 8 詳細実績
+- 8.1: 旧spec/utilsファイルの削除 ✅
+  - `specs.json` - 非階層パイプライン用（未使用）
+  - `hierarchical_specs.json` - プロダクションでは未使用
+  - `utils.py` - 非階層パイプライン用ユーティリティ（未使用）
+- 8.2: 旧エントリポイントへの非推奨警告追加 ✅
+  - `hierarchical_main.py` - DeprecationWarning + ドキュメント追加
+  - `hierarchical_utils.py` - DeprecationWarning + ドキュメント追加
+- 8.3: 残存依存への TODO コメント追加 ✅
+  - `admin_report.py` の `request_to_chat_ai` インポート（analysis_core が直接依存になったら移行）
+
+---
+
 ## 移行計画（フェーズ別）
 
 ### Phase 0: 現状把握・棚卸し
@@ -251,6 +375,9 @@
 - 進行ステップ表示をAPI由来のステップ一覧に変更。
 - 入力検証を plugin schema で統一（client / server）。
 - `visualization_config` のCRUD用API/Repositoryを追加し、公開時のみ `invalidate_report_cache` を実行。
+- **[Phase 3から繰越]** `run_workflow()` に外部プラグイン読み込みを統合（`load_all_plugins()` 呼び出し or オプション引数）。
+- **[Phase 3から繰越]** `run_workflow()` 経由での plan 生成を実装（`normalize_config()` に plan 作成を追加）。
+- **[Phase 3から繰越]** 上記2点の統合テスト（外部プラグイン読み込み、plan出力の回帰テスト）。
 
 ### Phase 6: クライアント可視化プラグイン化
 - visualizationプラグインレジストリを導入。
@@ -269,6 +396,33 @@
 - 旧エントリ（`hierarchical_main.py`, 旧specs）を非推奨化。
 - 必要なら旧config移行スクリプトを提供。
 - 不要ディレクトリの削除／アーカイブ。
+
+## 開発分担と手順（Codex/Claude Code vs Devin.ai）
+
+### 分担の原則
+- ローカル（Codex/Claude Code）: 変更範囲が広い／依存が絡む／実行検証が必要／秘密情報に触れる可能性がある作業を担当。
+- Devin.ai: 仕様が固定され、変更範囲が限定される作業（新規モジュールの下地、UIの一部、ドキュメント、ユニットテスト追加など）を担当。
+- Devin.aiの成果は必ずローカルでレビューし、統合と検証はローカルで行う。
+
+### フェーズ別の担当割り（提案）
+| Phase | ローカル（Codex/Claude Code） | Devin.ai | 補足 |
+| --- | --- | --- | --- |
+| Phase 0 | 現状調査、設計方針の確定 | なし | 仕様ブレを避けるためローカル集中 |
+| Phase 1 | リポジトリ移動、Docker/Makefile更新 | なし | 影響範囲が広く統合リスクが高い |
+| Phase 2 | analysis-core抽出と統合 | analysis-coreの雛形作成、単体テスト雛形 | 仕様確定後に限定タスクとして切り出し |
+| Phase 2.5 | PyPIパッケージ化の統合 | 配布ドキュメント草案 | リリース手順はローカルで確定 |
+| Phase 3 | プラグイン化の統合・互換維持 | 既存ステップの個別プラグイン化（単位ごと） | プラグイン仕様確定後に細分化 |
+| Phase 4 | API/Schema統合、実装反映 | TS型/JSON schemaの更新 | スキーマ確定後の機械的変更を委譲 |
+| Phase 5 | API実装、publish/revalidate統合 | client-admin UIの一部実装 | API契約を固めた上でUI部分を切り出し |
+| Phase 6 | client統合、可視化レジストリ実装 | 既存チャートのアダプタ実装 | UI仕様が安定してから委譲 |
+| Phase 7 | ドキュメント統合 | ドキュメント作成 | Devinに一括委譲しやすい |
+| Phase 8 | cleanup/移行判定 | なし | 破壊的変更はローカルで実施 |
+
+### Devin.ai への切り出し手順（推奨）
+1. ローカルで仕様確定（API契約・型・入出力・受け入れ基準）。
+2. Devinに渡す「短いタスク仕様」を作成（目的／範囲／変更ファイル／完了条件）。
+3. Devinの成果をローカルでレビューし、統合前にテストを実行。
+4. 失敗時はローカルで修正し、再委譲は最小限にする。
 
 ## 検証方針（各フェーズで既存機能を壊さない）
 - 共通:

@@ -1,0 +1,105 @@
+[project]
+name = "server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">= 3.12"
+authors = [
+    { name = "nasuka", email = "nsk.smn@gmail.com" }
+]
+dependencies = [
+    "fastapi>=0.115.8",
+    "pydantic-settings>=2.7.1",
+    "pandas>=2.2.3",
+    "openai>=1.77.0",
+    "google-generativeai>=0.8.4",
+    "litellm>=1.58.2",
+    "python-dotenv>=1.0.1",
+    "plotly>=5.24.1",
+    "joblib>=1.4.2",
+    "umap-learn>=0.5.7",
+    "scipy>=1.15.1",
+    "llvmlite>=0.41.0",
+    "janome>=0.5.0",
+    "structlog>=25.1.0",
+    "uvicorn>=0.34.0",
+    "orjson>=3.10.15",
+    "azure-storage-blob>=12.25.0",
+    "azure-core>=1.32.0",
+    "pytest>=8.3.5",
+    "azure-identity>=1.21.0",
+    "sentence-transformers>=2.7.0",
+    "hf_xet>=0.1.0",
+    "tenacity>=9.1.2",
+]
+
+# Note: analysis-core is called via subprocess for pipeline execution.
+# The LLM service can be imported directly if analysis-core is installed.
+# For local dev: pip install -e ../../packages/analysis-core
+# In Docker: analysis-core is installed in the same image.
+
+# Optional dependencies for plugins
+[project.optional-dependencies]
+youtube = [
+    "google-api-python-client>=2.150.0",
+]
+all-plugins = [
+    "google-api-python-client>=2.150.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "ruff>=0.9.7",
+    "isort>=6.0.0",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/server"]
+
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["src", "broadlistening", "tests"]
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist"
+]
+lint.select = [
+    "E",   # pycodestyle エラー
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+lint.ignore = [
+    "E501",  # ignore line length
+    "C402",  # ignore dict.fromkeys() usage
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+relative-imports-order = "closest-to-furthest"
+known-first-party = ["src", "broadlistening", "tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # `__init__.py` での未使用importを許可
+# Deprecated files - E402 allowed due to sys.path manipulation before imports
+"broadlistening/pipeline/hierarchical_main.py" = ["E402"]
+"broadlistening/pipeline/hierarchical_utils.py" = ["E402"]

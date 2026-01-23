@@ -2,7 +2,7 @@
 lint/server-check lint/server-format \
 client-build-static client-setup client-dev client-dev-server client-admin-dev-server dummy-server \
 azure-cli azure-login azure-build azure-push azure-deploy azure-info azure-config-update azure-cleanup azure-status prepare-yaml azure-save-env azure-apply-policies \
-azure-logs-client azure-logs-api azure-logs-admin azure-logs-client-static-build
+azure-logs-public-viewer azure-logs-api azure-logs-admin azure-logs-static-site-builder
 
 ##############################################################################
 # envファイル変更チェック機能
@@ -123,22 +123,22 @@ down:
 client-build-static:
 	rm -rf out
 	docker compose up -d --wait api
-	docker compose run --rm -e BASE_PATH=$(NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH) -e NEXT_PUBLIC_OUTPUT_MODE=export -v $(shell pwd)/server:/server -v $(shell pwd)/out:/app/dist client sh -c "npm run build:static && cp -r out/* dist && touch dist/.nojekyll"
+	docker compose run --rm -e BASE_PATH=$(NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH) -e NEXT_PUBLIC_OUTPUT_MODE=export -v $(shell pwd)/apps/api:/repo/apps/api -v $(shell pwd)/out:/repo/apps/public-viewer/dist public-viewer sh -c "npm run build:static && cp -r out/* dist && touch dist/.nojekyll"
 	docker compose down
 
 client-setup:
-	npm install
-	cd client && npm install && cp .env-sample .env
-	cd client-admin && npm install && cp .env-sample .env
+	pnpm install
+	cd apps/public-viewer && cp .env-sample .env
+	cd apps/admin && cp .env-sample .env
 	cd utils/dummy-server && npm install && cp .env-sample .env
 
 client-dev: client-dev-server client-admin-dev-server dummy-server
 
 client-dev-server:
-	cd client && npm run dev
+	pnpm --filter @kouchou-ai/public-viewer dev
 
 client-admin-dev-server:
-	cd client-admin && npm run dev
+	pnpm --filter @kouchou-ai/admin dev
 
 dummy-server:
 	cd utils/dummy-server && npm run dev
@@ -234,51 +234,57 @@ azure-build:
 	if [ "$$changed" = "true" ]; then \
 		echo "envファイルの変更が検出されました。Azure用イメージを再ビルドします...(no-cache)"; \
 		docker build --platform linux/amd64 --no-cache \
-			-t $(AZURE_ACR_NAME).azurecr.io/api:latest ./server && \
+			-f ./apps/api/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/api:latest . && \
 		docker build --platform linux/amd64 --no-cache \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_PUBLIC_API_KEY="$(NEXT_PUBLIC_PUBLIC_API_KEY)" \
 			--build-arg NEXT_PUBLIC_SITE_URL="$(NEXT_PUBLIC_SITE_URL)" \
 			--build-arg API_BASEPATH="$(API_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/client:latest ./client && \
+			-f ./apps/public-viewer/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/public-viewer:latest . && \
 		docker build --platform linux/amd64 --no-cache \
 			--build-arg NEXT_PUBLIC_CLIENT_BASEPATH="$(NEXT_PUBLIC_CLIENT_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_ADMIN_API_KEY="$(NEXT_PUBLIC_ADMIN_API_KEY)" \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg CLIENT_STATIC_BUILD_BASEPATH="$(CLIENT_STATIC_BUILD_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./client-admin && \
+			-f ./apps/admin/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/admin:latest . && \
 		docker build --platform linux/amd64 --no-cache \
-			-t $(AZURE_ACR_NAME).azurecr.io/client-static-build:latest \
-			-f ./client-static-build/Dockerfile . && \
+			-t $(AZURE_ACR_NAME).azurecr.io/static-site-builder:latest \
+			-f ./apps/static-site-builder/Dockerfile . && \
 		$(update_env_hashes); \
 	else \
 		echo "envファイルに変更はありません。Azure用イメージをビルドします..."; \
 		docker build --platform linux/amd64 \
-			-t $(AZURE_ACR_NAME).azurecr.io/api:latest ./server; \
+			-f ./apps/api/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/api:latest .; \
 		docker build --platform linux/amd64 \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_PUBLIC_API_KEY="$(NEXT_PUBLIC_PUBLIC_API_KEY)" \
 			--build-arg NEXT_PUBLIC_SITE_URL="$(NEXT_PUBLIC_SITE_URL)" \
 			--build-arg API_BASEPATH="$(API_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/client:latest ./client; \
+			-f ./apps/public-viewer/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/public-viewer:latest .; \
 		docker build --platform linux/amd64 \
 			--build-arg NEXT_PUBLIC_CLIENT_BASEPATH="$(NEXT_PUBLIC_CLIENT_BASEPATH)" \
 			--build-arg NEXT_PUBLIC_ADMIN_API_KEY="$(NEXT_PUBLIC_ADMIN_API_KEY)" \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg CLIENT_STATIC_BUILD_BASEPATH="$(CLIENT_STATIC_BUILD_BASEPATH)" \
-			-t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./client-admin; \
+			-f ./apps/admin/Dockerfile \
+			-t $(AZURE_ACR_NAME).azurecr.io/admin:latest .; \
 		docker build --platform linux/amd64 \
-			-t $(AZURE_ACR_NAME).azurecr.io/client-static-build:latest \
-			-f ./client-static-build/Dockerfile .; \
+			-t $(AZURE_ACR_NAME).azurecr.io/static-site-builder:latest \
+			-f ./apps/static-site-builder/Dockerfile .; \
 	fi
 
 # イメージをAzureにプッシュ（ローカルのDockerから）
 azure-push:
 	$(call read-env)
 	docker push $(AZURE_ACR_NAME).azurecr.io/api:latest
-	docker push $(AZURE_ACR_NAME).azurecr.io/client:latest
-	docker push $(AZURE_ACR_NAME).azurecr.io/client-admin:latest
-	docker push $(AZURE_ACR_NAME).azurecr.io/client-static-build:latest
+	docker push $(AZURE_ACR_NAME).azurecr.io/public-viewer:latest
+	docker push $(AZURE_ACR_NAME).azurecr.io/admin:latest
+	docker push $(AZURE_ACR_NAME).azurecr.io/static-site-builder:latest
 
 # Container Apps環境の作成とデプロイ
 azure-deploy:
@@ -325,36 +331,36 @@ azure-deploy:
 	        --target-port 8000 \
 	        --ingress external \
 	        --min-replicas 1 && \
-	    echo '>>> クライアントコンテナのデプロイ...' && \
+	    echo '>>> 公開閲覧用コンテナのデプロイ...' && \
 	    az containerapp create \
-	        --name client \
+	        --name public-viewer \
 	        --resource-group $(AZURE_RESOURCE_GROUP) \
 	        --environment $(AZURE_CONTAINER_ENV) \
-	        --image $(AZURE_ACR_NAME).azurecr.io/client:latest \
+	        --image $(AZURE_ACR_NAME).azurecr.io/public-viewer:latest \
 	        --registry-server $(AZURE_ACR_NAME).azurecr.io \
 	        --registry-username $(AZURE_ACR_NAME) \
 	        --registry-password \$$ACR_PASSWORD \
 	        --target-port 3000 \
 	        --ingress external \
 	        --min-replicas 1 && \
-	    echo '>>> 管理者クライアントコンテナのデプロイ...' && \
+	    echo '>>> 管理画面コンテナのデプロイ...' && \
 	    az containerapp create \
-	        --name client-admin \
+	        --name admin \
 	        --resource-group $(AZURE_RESOURCE_GROUP) \
 	        --environment $(AZURE_CONTAINER_ENV) \
-	        --image $(AZURE_ACR_NAME).azurecr.io/client-admin:latest \
+	        --image $(AZURE_ACR_NAME).azurecr.io/admin:latest \
 	        --registry-server $(AZURE_ACR_NAME).azurecr.io \
 	        --registry-username $(AZURE_ACR_NAME) \
 	        --registry-password \$$ACR_PASSWORD \
 	        --target-port 4000 \
 	        --ingress external \
 	        --min-replicas 1 && \
-	    echo '>>> クライアントビルドコンテナのデプロイ...' && \
+	    echo '>>> 静的サイトビルダーコンテナのデプロイ...' && \
 	    az containerapp create \
-	        --name client-static-build \
+	        --name static-site-builder \
 	        --resource-group $(AZURE_RESOURCE_GROUP) \
 	        --environment $(AZURE_CONTAINER_ENV) \
-	        --image $(AZURE_ACR_NAME).azurecr.io/client-static-build:latest \
+	        --image $(AZURE_ACR_NAME).azurecr.io/static-site-builder:latest \
 	        --registry-server $(AZURE_ACR_NAME).azurecr.io \
 	        --registry-username $(AZURE_ACR_NAME) \
 	        --registry-password \$$ACR_PASSWORD \
@@ -391,50 +397,50 @@ azure-config-update:
 	$(call read-env)
 	docker run -it --rm -v $(shell pwd):/workspace -v $(HOME)/.azure:/root/.azure -w /workspace mcr.microsoft.com/azure-cli /bin/bash -c "\
 	    API_DOMAIN=\$$(az containerapp show --name api --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv) && \
-	    CLIENT_DOMAIN=\$$(az containerapp show --name client --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv) && \
-	    CLIENT_ADMIN_DOMAIN=\$$(az containerapp show --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv) && \
-	    CLIENT_STATIC_BUILD_DOMAIN=\$$(az containerapp show --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv) && \
-	    echo '>>> ドメイン情報: API='\$$API_DOMAIN', CLIENT='\$$CLIENT_DOMAIN', ADMIN='\$$CLIENT_ADMIN_DOMAIN', CLIENT_STATIC_BUILD='\$$CLIENT_STATIC_BUILD_DOMAIN && \
+	    PUBLIC_VIEWER_DOMAIN=\$$(az containerapp show --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv) && \
+	    ADMIN_DOMAIN=\$$(az containerapp show --name admin --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv) && \
+	    STATIC_SITE_BUILDER_DOMAIN=\$$(az containerapp show --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv) && \
+	    echo '>>> ドメイン情報: API='\$$API_DOMAIN', PUBLIC_VIEWER='\$$PUBLIC_VIEWER_DOMAIN', ADMIN='\$$ADMIN_DOMAIN', STATIC_SITE_BUILDER='\$$STATIC_SITE_BUILDER_DOMAIN && \
 	    echo '>>> APIの環境変数を更新...' && \
 	    az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --set-env-vars 'OPENAI_API_KEY=$(OPENAI_API_KEY)' 'PUBLIC_API_KEY=$(PUBLIC_API_KEY)' 'ADMIN_API_KEY=$(ADMIN_API_KEY)' 'LOG_LEVEL=info' 'AZURE_BLOB_STORAGE_ACCOUNT_NAME=$(AZURE_BLOB_STORAGE_ACCOUNT_NAME)' 'AZURE_BLOB_STORAGE_CONTAINER_NAME=$(AZURE_BLOB_STORAGE_CONTAINER_NAME)' 'STORAGE_TYPE=azure_blob' \"REVALIDATE_URL=https://\$$CLIENT_DOMAIN/api/revalidate\" 'REVALIDATE_SECRET=$(REVALIDATE_SECRET)' && \
-	    echo '>>> クライアントの環境変数を更新...' && \
-	    az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) \
+	        --set-env-vars 'OPENAI_API_KEY=$(OPENAI_API_KEY)' 'PUBLIC_API_KEY=$(PUBLIC_API_KEY)' 'ADMIN_API_KEY=$(ADMIN_API_KEY)' 'LOG_LEVEL=info' 'AZURE_BLOB_STORAGE_ACCOUNT_NAME=$(AZURE_BLOB_STORAGE_ACCOUNT_NAME)' 'AZURE_BLOB_STORAGE_CONTAINER_NAME=$(AZURE_BLOB_STORAGE_CONTAINER_NAME)' 'STORAGE_TYPE=azure_blob' \"REVALIDATE_URL=https://\$$PUBLIC_VIEWER_DOMAIN/api/revalidate\" 'REVALIDATE_SECRET=$(REVALIDATE_SECRET)' && \
+	    echo '>>> 公開閲覧用の環境変数を更新...' && \
+	    az containerapp update --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) \
 	        --set-env-vars 'NEXT_PUBLIC_PUBLIC_API_KEY=$(PUBLIC_API_KEY)' \"NEXT_PUBLIC_API_BASEPATH=https://\$$API_DOMAIN\" \"API_BASEPATH=https://\$$API_DOMAIN\" && \
-	    echo '>>> 管理者クライアントの環境変数を更新...' && \
-	    az containerapp update --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --set-env-vars 'NEXT_PUBLIC_ADMIN_API_KEY=$(ADMIN_API_KEY)' \"NEXT_PUBLIC_CLIENT_BASEPATH=https://\$$CLIENT_DOMAIN\" \"NEXT_PUBLIC_API_BASEPATH=https://\$$API_DOMAIN\" \"API_BASEPATH=https://\$$API_DOMAIN\" \"CLIENT_STATIC_BUILD_BASEPATH=https://\$$CLIENT_STATIC_BUILD_DOMAIN\" 'BASIC_AUTH_USERNAME=$(BASIC_AUTH_USERNAME)' 'BASIC_AUTH_PASSWORD=$(BASIC_AUTH_PASSWORD)' && \
-	    echo '>>> クライアントビルドの環境変数を更新...' && \
-	    az containerapp update --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) \
+	    echo '>>> 管理画面の環境変数を更新...' && \
+	    az containerapp update --name admin --resource-group $(AZURE_RESOURCE_GROUP) \
+	        --set-env-vars 'NEXT_PUBLIC_ADMIN_API_KEY=$(ADMIN_API_KEY)' \"NEXT_PUBLIC_CLIENT_BASEPATH=https://\$$PUBLIC_VIEWER_DOMAIN\" \"NEXT_PUBLIC_API_BASEPATH=https://\$$API_DOMAIN\" \"API_BASEPATH=https://\$$API_DOMAIN\" \"CLIENT_STATIC_BUILD_BASEPATH=https://\$$STATIC_SITE_BUILDER_DOMAIN\" 'BASIC_AUTH_USERNAME=$(BASIC_AUTH_USERNAME)' 'BASIC_AUTH_PASSWORD=$(BASIC_AUTH_PASSWORD)' && \
+	    echo '>>> 静的サイトビルダーの環境変数を更新...' && \
+	    az containerapp update --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) \
 	        --set-env-vars 'NEXT_PUBLIC_PUBLIC_API_KEY=$(PUBLIC_API_KEY)' \"NEXT_PUBLIC_API_BASEPATH=https://\$$API_DOMAIN\" \"API_BASEPATH=https://\$$API_DOMAIN\""
 
-# client-adminアプリの環境変数を修正してビルド
-azure-fix-client-admin:
+# adminアプリの環境変数を修正してビルド
+azure-fix-admin:
 	$(call read-env)
-	@echo ">>> API・クライアント・クライアントビルドのドメイン情報を取得しています..."
+	@echo ">>> API・公開閲覧用・静的サイトビルダーのドメイン情報を取得しています..."
 	$(eval API_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name api --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
-	$(eval CLIENT_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name client --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
-	$(eval CLIENT_STATIC_BUILD_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
+	$(eval PUBLIC_VIEWER_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
+	$(eval STATIC_SITE_BUILDER_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
 
 	@echo ">>> API_DOMAIN=$(API_DOMAIN)"
-	@echo ">>> CLIENT_DOMAIN=$(CLIENT_DOMAIN)"
-	@echo ">>> CLIENT_STATIC_BUILD_DOMAIN=$(CLIENT_DOMAIN)"
+	@echo ">>> PUBLIC_VIEWER_DOMAIN=$(PUBLIC_VIEWER_DOMAIN)"
+	@echo ">>> STATIC_SITE_BUILDER_DOMAIN=$(STATIC_SITE_BUILDER_DOMAIN)"
 
-	@echo ">>> 環境変数を設定し、キャッシュを無効化してclient-adminを再ビルド..."
+	@echo ">>> 環境変数を設定し、キャッシュを無効化してadminを再ビルド..."
 	docker build --platform linux/amd64 --no-cache \
 	  --build-arg NEXT_PUBLIC_API_BASEPATH=https://$(API_DOMAIN) \
 	  --build-arg NEXT_PUBLIC_ADMIN_API_KEY=$(ADMIN_API_KEY) \
-	  --build-arg NEXT_PUBLIC_CLIENT_BASEPATH=https://$(CLIENT_DOMAIN) \
-	  --build-arg CLIENT_STATIC_BUILD_BASEPATH=https://$(CLIENT_STATIC_BUILD_DOMAIN) \
-	  -t $(AZURE_ACR_NAME).azurecr.io/client-admin:latest ./client-admin
+	  --build-arg NEXT_PUBLIC_CLIENT_BASEPATH=https://$(PUBLIC_VIEWER_DOMAIN) \
+	  --build-arg CLIENT_STATIC_BUILD_BASEPATH=https://$(STATIC_SITE_BUILDER_DOMAIN) \
+	  -t $(AZURE_ACR_NAME).azurecr.io/admin:latest ./apps/admin
 
 	@echo ">>> イメージをプッシュ..."
-	docker push $(AZURE_ACR_NAME).azurecr.io/client-admin:latest
+	docker push $(AZURE_ACR_NAME).azurecr.io/admin:latest
 
 	@echo ">>> コンテナアプリを更新..."
 	docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
-	  az containerapp update --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) \
-	    --image $(AZURE_ACR_NAME).azurecr.io/client-admin:latest"
+	  az containerapp update --name admin --resource-group $(AZURE_RESOURCE_GROUP) \
+	    --image $(AZURE_ACR_NAME).azurecr.io/admin:latest"
 
 	@$(MAKE) azure-restart-admin
 
@@ -444,15 +450,15 @@ azure-verify:
 	@echo ">>> 環境の検証を開始..."
 	@docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
 	  API_UP=\$$(az containerapp show --name api --resource-group $(AZURE_RESOURCE_GROUP) --query 'properties.latestRevisionName' -o tsv); \
-	  CLIENT_UP=\$$(az containerapp show --name client --resource-group $(AZURE_RESOURCE_GROUP) --query 'properties.latestRevisionName' -o tsv); \
-	  ADMIN_UP=\$$(az containerapp show --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --query 'properties.latestRevisionName' -o tsv); \
-	  CLIENT_SATIC_BUILD_UP=\$$(az containerapp show --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) --query 'properties.latestRevisionName' -o tsv); \
+	  PUBLIC_VIEWER_UP=\$$(az containerapp show --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --query 'properties.latestRevisionName' -o tsv); \
+	  ADMIN_UP=\$$(az containerapp show --name admin --resource-group $(AZURE_RESOURCE_GROUP) --query 'properties.latestRevisionName' -o tsv); \
+	  STATIC_SITE_BUILDER_UP=\$$(az containerapp show --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) --query 'properties.latestRevisionName' -o tsv); \
 	  echo '検証結果:'; \
 	  echo 'API Status: '\$$API_UP; \
-	  echo 'Client Status: '\$$CLIENT_UP; \
-	  echo 'Admin Client Status: '\$$ADMIN_UP; \
-	  echo 'Client Static Build Status: '\$$CLIENT_SATIC_BUILD_UP; \
-	  if [ -z \"\$$API_UP\" ] || [ -z \"\$$CLIENT_UP\" ] || [ -z \"\$$ADMIN_UP\" ]; then \
+	  echo 'Public Viewer Status: '\$$PUBLIC_VIEWER_UP; \
+	  echo 'Admin Status: '\$$ADMIN_UP; \
+	  echo 'Static Site Builder Status: '\$$STATIC_SITE_BUILDER_UP; \
+	  if [ -z \"\$$API_UP\" ] || [ -z \"\$$PUBLIC_VIEWER_UP\" ] || [ -z \"\$$ADMIN_UP\" ]; then \
 	    echo '警告: いくつかのサービスが正しくデプロイされていません。'; \
 	  else \
 	    echo 'すべてのサービスが正常にデプロイされています。'; \
@@ -464,11 +470,11 @@ azure-info:
 	$(call read-env)
 	@echo "----------------------------------------------------------------------------------------"
 	$(eval API_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name api --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
-	$(eval CLIENT_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name client --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
-	$(eval ADMIN_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
-	@echo "client      : https://$(CLIENT_DOMAIN)"
-	@echo "client-admin: https://$(ADMIN_DOMAIN)"
-	@echo "API         : https://$(API_DOMAIN)"
+	$(eval PUBLIC_VIEWER_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
+	$(eval ADMIN_DOMAIN=$(shell docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "az containerapp show --name admin --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null | tail -n 1"))
+	@echo "public-viewer: https://$(PUBLIC_VIEWER_DOMAIN)"
+	@echo "admin        : https://$(ADMIN_DOMAIN)"
+	@echo "API          : https://$(API_DOMAIN)"
 	@echo "----------------------------------------------------------------------------------------"
 
 # 完全セットアップを一括実行
@@ -512,7 +518,7 @@ azure-setup-all:
 	@sleep 30
 
 	@echo ">>> 11. 管理画面の環境変数を修正してビルド..."
-	@$(MAKE) azure-fix-client-admin
+	@$(MAKE) azure-fix-admin
 
 	@echo ">>> 12. 環境の検証..."
 	@$(MAKE) azure-verify
@@ -547,12 +553,12 @@ azure-stop:
 	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
 	    echo '>>> APIコンテナをスケールダウン中...' && \
 	    az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
-	    echo '>>> クライアントコンテナをスケールダウン中...' && \
-	    az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
-	    echo '>>> 管理者クライアントコンテナをスケールダウン中...' && \
-	    az containerapp update --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
-	    echo '>>> クライアントビルドコンテナをスケールダウン中...' && \
-	    az containerapp update --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
+	    echo '>>> 公開閲覧用コンテナをスケールダウン中...' && \
+	    az containerapp update --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
+	    echo '>>> 管理画面コンテナをスケールダウン中...' && \
+	    az containerapp update --name admin --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
+	    echo '>>> 静的サイトビルダーコンテナをスケールダウン中...' && \
+	    az containerapp update --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
 	    echo '>>> すべてのコンテナのスケールダウンが完了しました。'"
 
 # コンテナを再起動（使用時）
@@ -561,12 +567,12 @@ azure-start:
 	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
 	    echo '>>> APIコンテナを起動中...' && \
 	    az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1 && \
-	    echo '>>> クライアントコンテナを起動中...' && \
-	    az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1 && \
-	    echo '>>> 管理者クライアントコンテナを起動中...' && \
-	    az containerapp update --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1 && \
-	    echo '>>> クライアントビルドコンテナを起動中...' && \
-	    az containerapp update --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1 && \
+	    echo '>>> 公開閲覧用コンテナを起動中...' && \
+	    az containerapp update --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1 && \
+	    echo '>>> 管理画面コンテナを起動中...' && \
+	    az containerapp update --name admin --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1 && \
+	    echo '>>> 静的サイトビルダーコンテナを起動中...' && \
+	    az containerapp update --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1 && \
 	    echo '>>> すべてのコンテナの起動が完了しました。'"
 
 # コンテナのステータス確認
@@ -575,17 +581,17 @@ azure-status:
 	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
 	    echo '>>> APIコンテナのステータス:' && \
 	    az containerapp revision list --name api --resource-group $(AZURE_RESOURCE_GROUP) -o table && \
-	    echo '>>> クライアントコンテナのステータス:' && \
-	    az containerapp revision list --name client --resource-group $(AZURE_RESOURCE_GROUP) -o table && \
-	    echo '>>> 管理者クライアントコンテナのステータス:' && \
-	    az containerapp revision list --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) -o table && \
-	    echo '>>> クライアントビルドコンテナのステータス:' && \
-	    az containerapp revision list --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) -o table"
+	    echo '>>> 公開閲覧用コンテナのステータス:' && \
+	    az containerapp revision list --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) -o table && \
+	    echo '>>> 管理画面コンテナのステータス:' && \
+	    az containerapp revision list --name admin --resource-group $(AZURE_RESOURCE_GROUP) -o table && \
+	    echo '>>> 静的サイトビルダーコンテナのステータス:' && \
+	    az containerapp revision list --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) -o table"
 
 # コンテナのログ確認
-azure-logs-client:
+azure-logs-public-viewer:
 	$(call read-env)
-	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli az containerapp logs show --name client --resource-group $(AZURE_RESOURCE_GROUP) --follow
+	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli az containerapp logs show --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --follow
 
 azure-logs-api:
 	$(call read-env)
@@ -593,11 +599,11 @@ azure-logs-api:
 
 azure-logs-admin:
 	$(call read-env)
-	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli az containerapp logs show --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --follow
+	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli az containerapp logs show --name admin --resource-group $(AZURE_RESOURCE_GROUP) --follow
 
-azure-logs-client-static-build:
+azure-logs-static-site-builder:
 	$(call read-env)
-	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli az containerapp logs show --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) --follow
+	docker run -it --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli az containerapp logs show --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) --follow
 
 # REVALIDATE_SECRETが.envファイルに定義されているか確認
 azure-check-revalidate-secret:
@@ -622,7 +628,7 @@ azure-update-deployment:
 		-w /workspace \
 		python:3.11-slim /bin/bash -c "\
 		pip install requests python-dotenv > /dev/null 2>&1 && \
-		python scripts/fetch_reports.py --api-url https://$(API_DOMAIN)"
+		python tools/scripts/fetch_reports.py --api-url https://$(API_DOMAIN)"
 
 	@echo ">>> コンテナイメージのビルド..."
 	@$(MAKE) azure-build
@@ -636,10 +642,10 @@ azure-update-deployment:
 
 	@echo ">>> コンテナ再起動..."
 	@$(MAKE) azure-restart-api
-	@$(MAKE) azure-restart-client
-	@$(MAKE) azure-restart-client-static-build
-	@echo ">>> 管理者クライアントコンテナを環境変数を修正して再起動中..."
-	@$(MAKE) azure-fix-client-admin
+	@$(MAKE) azure-restart-public-viewer
+	@$(MAKE) azure-restart-static-site-builder
+	@echo ">>> 管理画面コンテナを環境変数を修正して再起動中..."
+	@$(MAKE) azure-fix-admin
 
 	@echo ">>> 9. サービスURLの確認..."
 	@$(MAKE) azure-info
@@ -659,37 +665,37 @@ azure-restart-api:
 	az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1
 
 # azure-update-deployment時にイメージのpush後に必要
-azure-restart-client:
+azure-restart-public-viewer:
 	$(call read-env)
-	@echo ">>> クライアントコンテナを再起動中..."
+	@echo ">>> 公開閲覧用コンテナを再起動中..."
 	@docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
 	  echo '>>> 一時的にスケールダウン...' && \
-	  az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
+	  az containerapp update --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
 	  echo '>>> 再度スケールアップ...' && \
 	  sleep 5 && \
-	  az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1"
+	  az containerapp update --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1"
 
 # azure-update-deployment時にイメージのpush後にも必要
 azure-restart-admin:
 	$(call read-env)
-	@echo ">>> コンテナアプリを再起動（スケールダウン後にスケールアップ）..."
+	@echo ">>> 管理画面コンテナを再起動（スケールダウン後にスケールアップ）..."
 	docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
 	  echo '>>> 一時的にスケールダウン...' && \
-	  az containerapp update --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
+	  az containerapp update --name admin --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
 	  echo '>>> 再度スケールアップ...' && \
 	  sleep 5 && \
-	  az containerapp update --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1"
+	  az containerapp update --name admin --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1"
 
 # azure-update-deployment時にイメージのpush後にも必要
-azure-restart-client-static-build:
+azure-restart-static-site-builder:
 	$(call read-env)
-	@echo ">>> コンテナアプリを再起動（スケールダウン後にスケールアップ）..."
+	@echo ">>> 静的サイトビルダーコンテナを再起動（スケールダウン後にスケールアップ）..."
 	docker run --rm -v $(HOME)/.azure:/root/.azure mcr.microsoft.com/azure-cli /bin/bash -c "\
 	  echo '>>> 一時的にスケールダウン...' && \
-	  az containerapp update --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
+	  az containerapp update --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 0 && \
 	  echo '>>> 再度スケールアップ...' && \
 	  sleep 5 && \
-	  az containerapp update --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1"
+	  az containerapp update --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) --min-replicas 1"
 
 # リソースの完全削除
 azure-cleanup:
@@ -715,21 +721,21 @@ azure-apply-policies:
 	        --yaml /workspace/.azure/generated/policies/api-pull-policy.yaml || echo '警告: APIポリシー適用に失敗しました' && \
 	    az containerapp update --name api --resource-group $(AZURE_RESOURCE_GROUP) \
 	        --yaml /workspace/.azure/generated/health/api-health-probe.yaml || echo '警告: APIヘルスプローブ適用に失敗しました' && \
-	    echo '>>> クライアントコンテナにヘルスチェック設定とイメージプルポリシーを適用...' && \
-	    az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --yaml /workspace/.azure/generated/policies/client-pull-policy.yaml || echo '警告: クライアントポリシー適用に失敗しました' && \
-	    az containerapp update --name client --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --yaml /workspace/.azure/generated/health/client-health-probe.yaml || echo '警告: クライアントヘルスプローブ適用に失敗しました' && \
-	    echo '>>> 管理者クライアントコンテナにヘルスチェック設定とイメージプルポリシーを適用...' && \
-	    az containerapp update --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --yaml /workspace/.azure/generated/policies/client-admin-pull-policy.yaml || echo '警告: 管理者クライアントポリシー適用に失敗しました' && \
-	    az containerapp update --name client-admin --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --yaml /workspace/.azure/generated/health/client-admin-health-probe.yaml || echo '警告: 管理者クライアントヘルスプローブ適用に失敗しました' && \
-	    echo '>>> クライアントビルドコンテナにヘルスチェック設定とイメージプルポリシーを適用...' && \
-	    az containerapp update --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --yaml /workspace/.azure/generated/policies/client-static-build-pull-policy.yaml || echo '警告: クライアントビルドポリシー適用に失敗しました' && \
-	    az containerapp update --name client-static-build --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --yaml /workspace/.azure/generated/health/client-static-build-health-probe.yaml || echo '警告: クライアントビルドヘルスプローブ適用に失敗しました'"
+	    echo '>>> 公開閲覧用コンテナにヘルスチェック設定とイメージプルポリシーを適用...' && \
+	    az containerapp update --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) \
+	        --yaml /workspace/.azure/generated/policies/public-viewer-pull-policy.yaml || echo '警告: 公開閲覧用ポリシー適用に失敗しました' && \
+	    az containerapp update --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) \
+	        --yaml /workspace/.azure/generated/health/public-viewer-health-probe.yaml || echo '警告: 公開閲覧用ヘルスプローブ適用に失敗しました' && \
+	    echo '>>> 管理画面コンテナにヘルスチェック設定とイメージプルポリシーを適用...' && \
+	    az containerapp update --name admin --resource-group $(AZURE_RESOURCE_GROUP) \
+	        --yaml /workspace/.azure/generated/policies/admin-pull-policy.yaml || echo '警告: 管理画面ポリシー適用に失敗しました' && \
+	    az containerapp update --name admin --resource-group $(AZURE_RESOURCE_GROUP) \
+	        --yaml /workspace/.azure/generated/health/admin-health-probe.yaml || echo '警告: 管理画面ヘルスプローブ適用に失敗しました' && \
+	    echo '>>> 静的サイトビルダーコンテナにヘルスチェック設定とイメージプルポリシーを適用...' && \
+	    az containerapp update --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) \
+	        --yaml /workspace/.azure/generated/policies/static-site-builder-pull-policy.yaml || echo '警告: 静的サイトビルダーポリシー適用に失敗しました' && \
+	    az containerapp update --name static-site-builder --resource-group $(AZURE_RESOURCE_GROUP) \
+	        --yaml /workspace/.azure/generated/health/static-site-builder-health-probe.yaml || echo '警告: 静的サイトビルダーヘルスプローブ適用に失敗しました'"
 
 # YAMLテンプレートを処理
 prepare-yaml:

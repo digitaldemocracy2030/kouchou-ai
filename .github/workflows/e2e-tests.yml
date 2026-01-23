@@ -7,11 +7,11 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - 'client-admin/**/*.ts'
-      - 'client-admin/**/*.tsx'
-      - 'client-admin/**/*.js'
-      - 'client-admin/**/*.jsx'
-      - 'client-admin/package.json'
+      - 'apps/admin/**/*.ts'
+      - 'apps/admin/**/*.tsx'
+      - 'apps/admin/**/*.js'
+      - 'apps/admin/**/*.jsx'
+      - 'apps/admin/package.json'
       - 'test/e2e/**/*'
     types: [opened, synchronize, reopened, labeled]
 
@@ -24,36 +24,30 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9.15.4
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: ./test/e2e/package.json
+        cache: 'pnpm'
+        cache-dependency-path: ./pnpm-lock.yaml
 
     - name: Install dependencies
-      working-directory: ./test/e2e
-      run: npm ci
+      run: pnpm install --frozen-lockfile
 
-    - name: Install Playwright browsers
-      working-directory: ./test/e2e
-      run: npx playwright install --with-deps chromium
-
-    - name: Set up client-admin
-      working-directory: ./client-admin
-      run: npm ci
-
-    - name: Set up client
-      working-directory: ./client
-      run: npm ci
-
-    - name: Set up dummy-server
+    - name: Install dependencies (dummy-server)
       working-directory: ./utils/dummy-server
       run: npm ci
 
+    - name: Install Playwright browsers
+      run: pnpm --filter @kouchou-ai/e2e-tests exec playwright install --with-deps chromium
+
     - name: Run Playwright tests
-      working-directory: ./test/e2e
-      run: npx playwright test
+      run: pnpm --filter @kouchou-ai/e2e-tests test
 
     - name: Upload test results
       if: always()

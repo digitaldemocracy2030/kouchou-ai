@@ -50,7 +50,7 @@ export default async function globalSetup() {
       },
     });
 
-    console.log(">>> 静的ビルド完了（root: client/out, subdir: client/out-subdir）");
+    console.log(">>> 静的ビルド完了（root: apps/public-viewer/out, subdir: apps/public-viewer/out-subdir）");
   } catch (error) {
     console.error(">>> 静的ビルドに失敗しました:", error);
     throw error;

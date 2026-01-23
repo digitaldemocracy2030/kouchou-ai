@@ -4,24 +4,24 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'server/**/*.py'
-      - 'server/pyproject.toml'
-      - 'server/tests/**/*.py'
-      - 'server/pytest.ini'
+      - 'apps/api/**/*.py'
+      - 'apps/api/pyproject.toml'
+      - 'apps/api/tests/**/*.py'
+      - 'apps/api/pytest.ini'
   pull_request:
     branches: [ main ]
     paths:
-      - 'server/**/*.py'
-      - 'server/pyproject.toml'
-      - 'server/tests/**/*.py'
-      - 'server/pytest.ini'
+      - 'apps/api/**/*.py'
+      - 'apps/api/pyproject.toml'
+      - 'apps/api/tests/**/*.py'
+      - 'apps/api/pytest.ini'
 
 jobs:
   test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./server
+        working-directory: ./apps/api
 
     steps:
     - uses: actions/checkout@v4
