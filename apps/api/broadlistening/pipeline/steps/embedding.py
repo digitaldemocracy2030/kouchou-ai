@@ -1,7 +1,8 @@
 import os
+import pickle
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 from tqdm import tqdm
 
 from services.llm import request_to_embed
@@ -17,11 +18,13 @@ def embedding(config):
 
     dataset = config["output_dir"]
     path = PIPELINE_DIR / f"outputs/{dataset}/embeddings.pkl"
-    arguments = pd.read_csv(PIPELINE_DIR / f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
+    arguments = pl.read_csv(PIPELINE_DIR / f"outputs/{dataset}/args.csv", columns=["arg-id", "argument"])
+    arg_ids = arguments["arg-id"].to_list()
+    arg_texts = arguments["argument"].to_list()
     embeddings = []
     batch_size = 1000
-    for i in tqdm(range(0, len(arguments), batch_size)):
-        args = arguments["argument"].tolist()[i : i + batch_size]
+    for i in tqdm(range(0, len(arg_texts), batch_size)):
+        args = arg_texts[i : i + batch_size]
         embeds = request_to_embed(
             args,
             model,
@@ -31,5 +34,7 @@ def embedding(config):
             user_api_key=os.getenv("USER_API_KEY"),
         )
         embeddings.extend(embeds)
-    df = pd.DataFrame([{"arg-id": arguments.iloc[i]["arg-id"], "embedding": e} for i, e in enumerate(embeddings)])
-    df.to_pickle(path)
+    # list[dict] 形式で保存（polars互換）
+    embedding_data = [{"arg-id": arg_ids[i], "embedding": e} for i, e in enumerate(embeddings)]
+    with open(path, "wb") as f:
+        pickle.dump(embedding_data, f)

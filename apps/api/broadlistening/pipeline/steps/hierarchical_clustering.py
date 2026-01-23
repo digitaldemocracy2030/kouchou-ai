@@ -1,10 +1,11 @@
 """Cluster the arguments using UMAP + HDBSCAN and GPT-4."""
 
+import pickle
 from importlib import import_module
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
+import polars as pl
 import scipy.cluster.hierarchy as sch
 from sklearn.cluster import KMeans
 
@@ -16,9 +17,23 @@ def hierarchical_clustering(config):
 
     dataset = config["output_dir"]
     path = PIPELINE_DIR / f"outputs/{dataset}/hierarchical_clusters.csv"
-    arguments_df = pd.read_csv(PIPELINE_DIR / f"outputs/{dataset}/args.csv", usecols=["arg-id", "argument"])
-    embeddings_df = pd.read_pickle(PIPELINE_DIR / f"outputs/{dataset}/embeddings.pkl")
-    embeddings_array = np.asarray(embeddings_df["embedding"].values.tolist())
+    arguments_df = pl.read_csv(PIPELINE_DIR / f"outputs/{dataset}/args.csv", columns=["arg-id", "argument"])
+    
+    # embeddings.pkl を読み込み（list[dict] 形式）
+    with open(PIPELINE_DIR / f"outputs/{dataset}/embeddings.pkl", "rb") as f:
+        embeddings_data = pickle.load(f)
+    
+    # list[dict] 形式の場合の処理
+    if isinstance(embeddings_data, list) and len(embeddings_data) > 0 and isinstance(embeddings_data[0], dict):
+        embeddings_dict = {item["arg-id"]: item["embedding"] for item in embeddings_data}
+        # args.csv の順序に合わせて embeddings を取得
+        arg_ids = arguments_df["arg-id"].to_list()
+        embeddings_list = [embeddings_dict[arg_id] for arg_id in arg_ids]
+        embeddings_array = np.asarray(embeddings_list)
+    else:
+        # 旧形式（pandas DataFrame pickle）の互換性対応
+        embeddings_array = np.asarray([item["embedding"] for item in embeddings_data])
+    
     cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 
     n_samples = embeddings_array.shape[0]
@@ -41,19 +56,21 @@ def hierarchical_clustering(config):
         umap_embeds=umap_embeds,
         cluster_nums=cluster_nums,
     )
-    result_df = pd.DataFrame(
+    result_df = pl.DataFrame(
         {
-            "arg-id": arguments_df["arg-id"],
-            "argument": arguments_df["argument"],
-            "x": umap_embeds[:, 0],
-            "y": umap_embeds[:, 1],
+            "arg-id": arguments_df["arg-id"].to_list(),
+            "argument": arguments_df["argument"].to_list(),
+            "x": umap_embeds[:, 0].tolist(),
+            "y": umap_embeds[:, 1].tolist(),
         }
     )
 
     for cluster_level, final_labels in enumerate(cluster_results.values(), start=1):
-        result_df[f"cluster-level-{cluster_level}-id"] = [f"{cluster_level}_{label}" for label in final_labels]
+        result_df = result_df.with_columns(
+            pl.Series(name=f"cluster-level-{cluster_level}-id", values=[f"{cluster_level}_{label}" for label in final_labels])
+        )
 
-    result_df.to_csv(path, index=False)
+    result_df.write_csv(path)
 
 
 def generate_cluster_count_list(min_clusters: int, max_clusters: int):

@@ -1,7 +1,7 @@
 import os
 from typing import Any
 
-import pandas as pd
+import polars as pl
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
@@ -93,11 +93,11 @@ async def get_spreadsheet_data(file_name: str, api_key: str = Depends(verify_adm
         if not os.path.exists(input_path):
             raise HTTPException(status_code=404, detail=f"ファイル {file_name}.csv が見つかりません")
 
-        df = pd.read_csv(input_path)
+        df = pl.read_csv(input_path)
 
         # コメントデータをJSON形式に変換
         comments: list[dict[str, str | None]] = []
-        for _, row in df.iterrows():
+        for row in df.iter_rows(named=True):
             comment: dict[str, str | None] = {
                 "id": row.get("comment-id", f"id-{len(comments) + 1}"),
                 "comment": row.get("comment", ""),
@@ -111,10 +111,11 @@ async def get_spreadsheet_data(file_name: str, api_key: str = Depends(verify_adm
 
             # その他のカラムを属性として追加
             for col in df.columns:
-                if col not in ["comment-id", "comment", "source", "url"] and not pd.isna(row.get(col)):
+                col_value = row.get(col)
+                if col not in ["comment-id", "comment", "source", "url"] and col_value is not None:
                     # attribute_プレフィックスをつける
                     attribute_key = f"attribute_{col}" if not col.startswith("attribute_") else col
-                    comment[attribute_key] = str(row.get(col))
+                    comment[attribute_key] = str(col_value)
 
             comments.append(comment)
 

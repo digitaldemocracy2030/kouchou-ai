@@ -5,7 +5,7 @@ import os
 import re
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 
@@ -21,9 +21,9 @@ class ExtractionResponse(BaseModel):
     extractedOpinionList: list[str] = Field(..., description="抽出した意見のリスト")
 
 
-def _validate_property_columns(property_columns: list[str], comments: pd.DataFrame) -> None:
-    if not all(property in comments.columns for property in property_columns):
-        raise ValueError(f"Properties {property_columns} not found in comments. Columns are {comments.columns}")
+def _validate_property_columns(property_columns: list[str], columns: list[str]) -> None:
+    if not all(property in columns for property in property_columns):
+        raise ValueError(f"Properties {property_columns} not found in comments. Columns are {columns}")
 
 
 def extraction(config):
@@ -41,13 +41,21 @@ def extraction(config):
 
     # カラム名だけを読み込み、必要なカラムが含まれているか確認する
     input_path = PIPELINE_DIR / f"inputs/{config['input']}.csv"
-    comments = pd.read_csv(input_path, nrows=0)
-    _validate_property_columns(property_columns, comments)
+    comments_header = pl.read_csv(input_path, n_rows=0)
+    _validate_property_columns(property_columns, comments_header.columns)
     # エラーが出なかった場合、すべての行を読み込む
-    comments = pd.read_csv(input_path, usecols=["comment-id", "comment-body"] + config["extraction"]["properties"])
-    comment_ids = (comments["comment-id"].values)[:limit]
-    comments.set_index("comment-id", inplace=True)
-    results = pd.DataFrame()
+    comments = pl.read_csv(
+        input_path,
+        columns=["comment-id", "comment-body"] + config["extraction"]["properties"],
+    ).with_columns(pl.col("comment-id").cast(pl.Utf8).str.strip_chars().alias("comment-id"))
+    invalid_comment_ids = comments.filter(pl.col("comment-id").is_null() | (pl.col("comment-id") == ""))
+    if not invalid_comment_ids.is_empty():
+        example_ids = invalid_comment_ids["comment-id"].to_list()[:5]
+        raise RuntimeError(
+            f"comment-id に空文字列または欠損があります。入力CSVを修正してください。問題のID例: {example_ids}"
+        )
+    comment_ids = comments["comment-id"].to_list()[:limit]
+    comment_lookup = {row["comment-id"]: row for row in comments.iter_rows(named=True)}
     update_progress(config, total=len(comment_ids))
 
     argument_map = {}
@@ -55,7 +63,7 @@ def extraction(config):
 
     for i in tqdm(range(0, len(comment_ids), workers)):
         batch = comment_ids[i : i + workers]
-        batch_inputs = [comments.loc[id]["comment-body"] for id in batch]
+        batch_inputs = [comment_lookup[id]["comment-body"] for id in batch]
         batch_results = extract_batch(
             batch_inputs, prompt, model, workers, provider, config.get("local_llm_address"), config
         )
@@ -83,15 +91,15 @@ def extraction(config):
         update_progress(config, incr=len(batch))
 
     # DataFrame化
-    results = pd.DataFrame(argument_map.values())
-    relation_df = pd.DataFrame(relation_rows)
-
-    if results.empty:
+    if not argument_map:
         raise RuntimeError("result is empty, maybe bad prompt")
 
-    results.to_csv(path, index=False)
+    results = pl.DataFrame(list(argument_map.values()))
+    relation_df = pl.DataFrame(relation_rows)
+
+    results.write_csv(path)
     # comment-idとarg-idの関係を保存
-    relation_df.to_csv(PIPELINE_DIR / f"outputs/{dataset}/relations.csv", index=False)
+    relation_df.write_csv(PIPELINE_DIR / f"outputs/{dataset}/relations.csv")
 
 
 logging.basicConfig(level=logging.DEBUG)

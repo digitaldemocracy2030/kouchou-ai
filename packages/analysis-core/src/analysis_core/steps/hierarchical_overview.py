@@ -4,7 +4,7 @@ import json
 import os
 import re
 
-import pandas as pd
+import polars as pl
 from pydantic import BaseModel, Field
 
 from analysis_core.services.llm import request_to_chat_ai
@@ -19,18 +19,17 @@ def hierarchical_overview(config):
     output_base_dir = config.get("_output_base_dir", "outputs")
     path = f"{output_base_dir}/{dataset}/hierarchical_overview.txt"
 
-    hierarchical_label_df = pd.read_csv(f"{output_base_dir}/{dataset}/hierarchical_merge_labels.csv")
+    hierarchical_label_df = pl.read_csv(f"{output_base_dir}/{dataset}/hierarchical_merge_labels.csv")
 
     prompt = config["hierarchical_overview"]["prompt"]
     model = config["hierarchical_overview"]["model"]
 
     # TODO: level1で固定にしているが、設定で変えられるようにする
     target_level = 1
-    target_records = hierarchical_label_df[hierarchical_label_df["level"] == target_level]
+    target_records = hierarchical_label_df.filter(pl.col("level") == target_level)
     ids = target_records["id"].to_list()
     labels = target_records["label"].to_list()
     descriptions = target_records["description"].to_list()
-    target_records.set_index("id", inplace=True)
 
     input_text = ""
     for i, _ in enumerate(ids):

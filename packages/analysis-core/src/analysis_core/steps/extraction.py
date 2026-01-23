@@ -4,13 +4,13 @@ import logging
 import os
 import re
 
-import pandas as pd
+import polars as pl
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 
+from analysis_core.core import update_progress
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.parse_json_list import parse_extraction_response
-from analysis_core.core import update_progress
 
 COMMA_AND_SPACE_AND_RIGHT_BRACKET = re.compile(r",\s*(\])")
 
@@ -19,7 +19,7 @@ class ExtractionResponse(BaseModel):
     extractedOpinionList: list[str] = Field(..., description="抽出した意見のリスト")
 
 
-def _validate_property_columns(property_columns: list[str], comments: pd.DataFrame) -> None:
+def _validate_property_columns(property_columns: list[str], comments: pl.DataFrame) -> None:
     if not all(property in comments.columns for property in property_columns):
         raise ValueError(f"Properties {property_columns} not found in comments. Columns are {comments.columns}")
 
@@ -41,15 +41,14 @@ def extraction(config):
 
     # カラム名だけを読み込み、必要なカラムが含まれているか確認する
     input_path = f"{input_base_dir}/{config['input']}.csv"
-    comments = pd.read_csv(input_path, nrows=0)
+    comments = pl.read_csv(input_path, n_rows=0)
     _validate_property_columns(property_columns, comments)
     # エラーが出なかった場合、すべての行を読み込む
-    comments = pd.read_csv(
-        input_path, usecols=["comment-id", "comment-body"] + config["extraction"]["properties"]
+    comments = pl.read_csv(
+        input_path, columns=["comment-id", "comment-body"] + config["extraction"]["properties"]
     )
-    comment_ids = (comments["comment-id"].values)[:limit]
-    comments.set_index("comment-id", inplace=True)
-    results = pd.DataFrame()
+    comment_ids = comments["comment-id"].to_list()[:limit]
+    comments_lookup = {row["comment-id"]: row for row in comments.iter_rows(named=True)}
     update_progress(config, total=len(comment_ids))
 
     argument_map = {}
@@ -57,7 +56,7 @@ def extraction(config):
 
     for i in tqdm(range(0, len(comment_ids), workers)):
         batch = comment_ids[i : i + workers]
-        batch_inputs = [comments.loc[id]["comment-body"] for id in batch]
+        batch_inputs = [comments_lookup[id]["comment-body"] for id in batch]
         batch_results = extract_batch(
             batch_inputs, prompt, model, workers, provider, config.get("local_llm_address"), config
         )
@@ -85,15 +84,15 @@ def extraction(config):
         update_progress(config, incr=len(batch))
 
     # DataFrame化
-    results = pd.DataFrame(argument_map.values())
-    relation_df = pd.DataFrame(relation_rows)
+    results = pl.DataFrame(list(argument_map.values()))
+    relation_df = pl.DataFrame(relation_rows)
 
-    if results.empty:
+    if len(results) == 0:
         raise RuntimeError("result is empty, maybe bad prompt")
 
-    results.to_csv(path, index=False)
+    results.write_csv(path)
     # comment-idとarg-idの関係を保存
-    relation_df.to_csv(f"{output_base_dir}/{dataset}/relations.csv", index=False)
+    relation_df.write_csv(f"{output_base_dir}/{dataset}/relations.csv")
 
 
 logging.basicConfig(level=logging.DEBUG)

@@ -3,7 +3,7 @@ import re
 from io import StringIO
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 import requests
 
 from src.config import settings
@@ -31,7 +31,7 @@ def parse_spreadsheet_url(url: str) -> tuple[str, str | None]:
     return sheet_id, sheet_name
 
 
-def fetch_public_spreadsheet(sheet_id: str, sheet_name: str | None = None) -> pd.DataFrame:
+def fetch_public_spreadsheet(sheet_id: str, sheet_name: str | None = None) -> pl.DataFrame:
     # 公開スプレッドシートのCSVエクスポートURL
     base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export"
 
@@ -47,7 +47,7 @@ def fetch_public_spreadsheet(sheet_id: str, sheet_name: str | None = None) -> pd
         response.raise_for_status()
         response.encoding = "utf-8"
         csv_data = StringIO(response.text)
-        df = pd.read_csv(csv_data)
+        df = pl.read_csv(csv_data)
 
         if "comment" not in df.columns and "comment-body" not in df.columns:
             raise ValueError("スプレッドシートには 'comment' または 'comment-body' カラムが必要です")
@@ -55,12 +55,14 @@ def fetch_public_spreadsheet(sheet_id: str, sheet_name: str | None = None) -> pd
         # カラム名をcommentに統一
         if "comment-body" in df.columns:
             if "comment" not in df.columns:
-                df["comment"] = df["comment-body"]
-            df.drop(columns=["comment-body"], inplace=True)
+                df = df.with_columns(pl.col("comment-body").alias("comment"))
+            df = df.drop("comment-body")
 
         # comment-idがなければ作成
         if "comment-id" not in df.columns:
-            df["comment-id"] = [f"id-{i + 1}" for i in range(len(df))]
+            df = df.with_columns(
+                pl.Series(name="comment-id", values=[f"id-{i + 1}" for i in range(len(df))])
+            )
 
         return df
 
@@ -69,9 +71,9 @@ def fetch_public_spreadsheet(sheet_id: str, sheet_name: str | None = None) -> pd
         raise ValueError(f"スプレッドシートの取得に失敗しました: {e}") from e
 
 
-def save_as_csv(df: pd.DataFrame, file_name: str) -> Path:
+def save_as_csv(df: pl.DataFrame, file_name: str) -> Path:
     input_path = settings.INPUT_DIR / f"{file_name}.csv"
-    df.to_csv(input_path, index=False)
+    df.write_csv(input_path)
 
     return input_path
 
