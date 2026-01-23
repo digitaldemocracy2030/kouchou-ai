@@ -18,11 +18,11 @@ def hierarchical_clustering(config):
     dataset = config["output_dir"]
     path = PIPELINE_DIR / f"outputs/{dataset}/hierarchical_clusters.csv"
     arguments_df = pl.read_csv(PIPELINE_DIR / f"outputs/{dataset}/args.csv", columns=["arg-id", "argument"])
-    
+
     # embeddings.pkl を読み込み（list[dict] 形式）
     with open(PIPELINE_DIR / f"outputs/{dataset}/embeddings.pkl", "rb") as f:
         embeddings_data = pickle.load(f)
-    
+
     # list[dict] 形式の場合の処理
     if isinstance(embeddings_data, list) and len(embeddings_data) > 0 and isinstance(embeddings_data[0], dict):
         embeddings_dict = {item["arg-id"]: item["embedding"] for item in embeddings_data}
@@ -33,7 +33,7 @@ def hierarchical_clustering(config):
     else:
         # 旧形式（pandas DataFrame pickle）の互換性対応
         embeddings_array = np.asarray([item["embedding"] for item in embeddings_data])
-    
+
     cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 
     n_samples = embeddings_array.shape[0]
@@ -67,7 +67,9 @@ def hierarchical_clustering(config):
 
     for cluster_level, final_labels in enumerate(cluster_results.values(), start=1):
         result_df = result_df.with_columns(
-            pl.Series(name=f"cluster-level-{cluster_level}-id", values=[f"{cluster_level}_{label}" for label in final_labels])
+            pl.Series(
+                name=f"cluster-level-{cluster_level}-id", values=[f"{cluster_level}_{label}" for label in final_labels]
+            )
         )
 
     result_df.write_csv(path)

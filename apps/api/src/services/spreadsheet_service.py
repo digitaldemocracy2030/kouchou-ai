@@ -60,9 +60,7 @@ def fetch_public_spreadsheet(sheet_id: str, sheet_name: str | None = None) -> pl
 
         # comment-idがなければ作成
         if "comment-id" not in df.columns:
-            df = df.with_columns(
-                pl.Series(name="comment-id", values=[f"id-{i + 1}" for i in range(len(df))])
-            )
+            df = df.with_columns(pl.Series(name="comment-id", values=[f"id-{i + 1}" for i in range(len(df))]))
 
         return df
 

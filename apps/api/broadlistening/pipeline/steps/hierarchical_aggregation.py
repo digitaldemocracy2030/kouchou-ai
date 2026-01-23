@@ -172,9 +172,9 @@ def add_original_comments(labels, arguments, relation_df, clusters, config):
     )
 
     # arguments と clusters をマージ（カテゴリ情報付与）
-    merged = arguments.join(
-        clusters.select(["arg-id", "cluster-level-1-id"]), on="arg-id", how="inner"
-    ).join(labels_lv1, on="cluster-level-1-id", how="left")
+    merged = arguments.join(clusters.select(["arg-id", "cluster-level-1-id"]), on="arg-id", how="inner").join(
+        labels_lv1, on="cluster-level-1-id", how="left"
+    )
 
     # relation_df と結合
     merged = merged.join(relation_df, on="arg-id", how="left")
