@@ -260,9 +260,11 @@ def _build_arguments(
             cluster_ids.append(str(row[cluster_column]))  # Convert to string to ensure serializable
 
         # Create base argument
+        comment_id = arg_comment_map.get(row["arg-id"], "")
         argument: Argument = {
             "arg_id": str(row["arg-id"]),  # Convert to string to ensure serializable
             "argument": str(row["argument"]),
+            "comment_id": str(comment_id) if comment_id else "",
             "x": float(row["x"]),  # Convert to native float
             "y": float(row["y"]),  # Convert to native float
             "p": 0,  # NOTE: 一旦全部0でいれる

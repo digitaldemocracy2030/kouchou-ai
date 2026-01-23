@@ -178,8 +178,10 @@ def add_original_comments(labels, arguments, relation_df, clusters, config):
     input_base_dir = config.get("_input_base_dir", "inputs")
 
     # 大カテゴリ（cluster-level-1）に該当するラベルだけ抽出
-    labels_lv1 = labels.filter(pl.col("level") == 1).select(["id", "label"]).rename(
-        {"id": "cluster-level-1-id", "label": "category_label"}
+    labels_lv1 = (
+        labels.filter(pl.col("level") == 1)
+        .select(["id", "label"])
+        .rename({"id": "cluster-level-1-id", "label": "category_label"})
     )
 
     # arguments と clusters をマージ（カテゴリ情報付与）
@@ -253,7 +255,9 @@ def _build_arguments(
     arg_comment_map = {}
     if "comment-id" in relation_df.columns:
         relation_df_copy = relation_df.with_columns(pl.col("comment-id").cast(pl.Utf8))
-        arg_comment_map = dict(zip(relation_df_copy["arg-id"].to_list(), relation_df_copy["comment-id"].to_list(), strict=False))
+        arg_comment_map = dict(
+            zip(relation_df_copy["arg-id"].to_list(), relation_df_copy["comment-id"].to_list(), strict=False)
+        )
 
     # Find attribute columns in comments dataframe
     attribute_columns = [col for col in comments.columns if col.startswith("attribute_")]
@@ -269,9 +273,11 @@ def _build_arguments(
             cluster_ids.append(str(row[cluster_column]))  # Convert to string to ensure serializable
 
         # Create base argument
+        comment_id = arg_comment_map.get(row["arg-id"], "")
         argument: Argument = {
             "arg_id": str(row["arg-id"]),  # Convert to string to ensure serializable
             "argument": str(row["argument"]),
+            "comment_id": str(comment_id) if comment_id else "",
             "x": float(row["x"]),  # Convert to native float
             "y": float(row["y"]),  # Convert to native float
             "p": 0,  # NOTE: 一旦全部0でいれる

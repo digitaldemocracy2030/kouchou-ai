@@ -32,7 +32,9 @@ def hierarchical_clustering(config):
         embeddings_array = np.asarray(embeddings_list)
     else:
         # 旧形式（pandas DataFrame pickle）の互換性対応
-        embeddings_array = np.asarray([item["embedding"] for item in embeddings_data])
+        # pandas DataFrame は直接イテレートするとカラム名が返されるため、
+        # ["embedding"] カラムから値を取得する
+        embeddings_array = np.asarray(embeddings_data["embedding"].values.tolist())
 
     cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 
