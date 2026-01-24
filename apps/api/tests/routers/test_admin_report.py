@@ -158,7 +158,7 @@ class TestDownloadReportJson:
         slug_dir = report_dir / "test-slug"
         slug_dir.mkdir(parents=True)
         json_path = slug_dir / "hierarchical_result.json"
-        json_path.write_text("{\"foo\":\"bar\"}", encoding="utf-8")
+        json_path.write_text('{"foo":"bar"}', encoding="utf-8")
 
         with patch.object(admin_report.settings, "REPORT_DIR", report_dir):
             response = client.get("/admin/reports/test-slug/json", headers={"x-api-key": "test-api-key"})
@@ -166,7 +166,7 @@ class TestDownloadReportJson:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("application/json")
         assert "kouchou_test-slug.json" in response.headers["content-disposition"]
-        assert response.content == b"{\"foo\":\"bar\"}"
+        assert response.content == b'{"foo":"bar"}'
 
     def test_download_report_json_missing(self, client, tmp_path):
         report_dir = tmp_path / "reports"
