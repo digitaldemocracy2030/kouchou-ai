@@ -395,4 +395,4 @@ Markdown(f"## 分析結果\n\n{data['overview']}")
 
 ---
 
-CLIでの利用方法は [CLI_QUICKSTART.md](CLI_QUICKSTART.md) を参照してください。
+CLIでの利用方法は [CLIクイックスタート](cli-quickstart.md) を参照してください。
