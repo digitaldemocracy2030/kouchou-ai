@@ -222,7 +222,7 @@ pip install -e ".[all-plugins]"
 
 ## 既存プラグイン: YouTube
 
-参考実装として [apps/api/src/plugins/youtube.py](../apps/api/src/plugins/youtube.py) を参照してください。
+参考実装として `apps/api/src/plugins/youtube.py` を参照してください。
 
 **機能:**
 - YouTube動画URLからコメントを取得

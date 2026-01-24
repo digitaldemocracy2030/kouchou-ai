@@ -322,4 +322,4 @@ plt.show()
 
 ---
 
-詳細なAPIドキュメントは [packages/analysis-core/README.md](../README.md) を参照してください。
+詳細なAPIドキュメントは packages/analysis-core/README.md を参照してください。
