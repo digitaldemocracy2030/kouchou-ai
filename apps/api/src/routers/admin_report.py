@@ -78,7 +78,7 @@ def validate_path_within_report_dir(path) -> None:
         if not str(resolved).startswith(str(report_dir_resolved)):
             raise HTTPException(status_code=400, detail="Invalid path")
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid path")
+        raise HTTPException(status_code=400, detail="Invalid path") from None
 
 
 @router.get("/admin/reports")
