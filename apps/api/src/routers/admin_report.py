@@ -1,4 +1,5 @@
 import json
+import re
 
 import openai
 
@@ -45,6 +46,41 @@ async def verify_admin_api_key(api_key: str = Security(api_key_header)):
     return api_key
 
 
+# Slug validation pattern: alphanumeric, underscore, hyphen only
+SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def validate_slug(slug: str) -> None:
+    """Validate slug to prevent path traversal attacks.
+
+    Args:
+        slug: The slug to validate
+
+    Raises:
+        HTTPException: If slug contains invalid characters or path traversal attempts
+    """
+    if not slug or not SLUG_PATTERN.match(slug):
+        raise HTTPException(status_code=400, detail="Invalid slug format")
+
+
+def validate_path_within_report_dir(path) -> None:
+    """Validate that resolved path is within REPORT_DIR.
+
+    Args:
+        path: The path to validate
+
+    Raises:
+        HTTPException: If path escapes REPORT_DIR
+    """
+    try:
+        resolved = path.resolve()
+        report_dir_resolved = settings.REPORT_DIR.resolve()
+        if not str(resolved).startswith(str(report_dir_resolved)):
+            raise HTTPException(status_code=400, detail="Invalid path")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+
 @router.get("/admin/reports")
 async def get_reports(api_key: str = Depends(verify_admin_api_key)) -> list[Report]:
     return list(map(add_analysis_data, load_status_as_reports()))
@@ -74,7 +110,9 @@ async def create_report(
 
 @router.get("/admin/comments/{slug}/csv")
 async def download_comments_csv(slug: str, api_key: str = Depends(verify_admin_api_key)) -> FileResponse:
+    validate_slug(slug)
     csv_path = settings.REPORT_DIR / slug / "final_result_with_comments.csv"
+    validate_path_within_report_dir(csv_path)
     if not csv_path.exists():
         raise HTTPException(status_code=404, detail="CSV file not found")
     return FileResponse(path=str(csv_path), media_type="text/csv", filename=f"kouchou_{slug}.csv")
@@ -82,7 +120,9 @@ async def download_comments_csv(slug: str, api_key: str = Depends(verify_admin_a
 
 @router.get("/admin/reports/{slug}/json")
 async def download_report_json(slug: str, api_key: str = Depends(verify_admin_api_key)) -> FileResponse:
+    validate_slug(slug)
     json_path = settings.REPORT_DIR / slug / "hierarchical_result.json"
+    validate_path_within_report_dir(json_path)
     if not json_path.exists():
         raise HTTPException(status_code=404, detail="JSON file not found")
     return FileResponse(path=str(json_path), media_type="application/json", filename=f"kouchou_{slug}.json")
