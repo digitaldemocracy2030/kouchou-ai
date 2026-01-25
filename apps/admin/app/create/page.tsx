@@ -218,10 +218,17 @@ export default function Page() {
 
     const promptData = promptSettings.getPromptSettings();
 
+    // タイトルが空の場合は日時をデフォルト値として使用
+    const now = new Date();
+    const defaultTitle = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+    const question = basicInfo.question.trim() || defaultTitle;
+    // 調査概要が空の場合は空文字列を使用
+    const intro = basicInfo.intro.trim();
+
     const result = await createReport({
       input: basicInfo.input,
-      question: basicInfo.question,
-      intro: basicInfo.intro,
+      question,
+      intro,
       comments,
       cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
       provider: aiSettings.provider,
