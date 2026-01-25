@@ -44,9 +44,7 @@ def extraction(config):
     comments = pl.read_csv(input_path, n_rows=0)
     _validate_property_columns(property_columns, comments)
     # エラーが出なかった場合、すべての行を読み込む
-    comments = pl.read_csv(
-        input_path, columns=["comment-id", "comment-body"] + config["extraction"]["properties"]
-    )
+    comments = pl.read_csv(input_path, columns=["comment-id", "comment-body"] + config["extraction"]["properties"])
     comment_ids = comments["comment-id"].to_list()[:limit]
     comments_lookup = {row["comment-id"]: row for row in comments.iter_rows(named=True)}
     update_progress(config, total=len(comment_ids))
@@ -93,9 +91,6 @@ def extraction(config):
     results.write_csv(path)
     # comment-idとarg-idの関係を保存
     relation_df.write_csv(f"{output_base_dir}/{dataset}/relations.csv")
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_address=None, config=None):
