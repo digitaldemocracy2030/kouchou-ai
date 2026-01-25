@@ -8,6 +8,7 @@ import { useState } from "react";
 import { createReport } from "./api/createReport";
 import { AISettingsSection } from "./components/AISettingsSection";
 import { BasicInfoSection } from "./components/BasicInfoSection";
+import { ClusterSettingsSection } from "./components/ClusterSettingsSection";
 import { CsvFileTab } from "./components/CsvFileTab";
 import { EnvironmentCheckDialog } from "./components/EnvironmentCheckDialog/EnvironmentCheckDialog";
 import { PluginTab } from "./components/PluginTab";
@@ -38,6 +39,8 @@ export default function Page() {
   const aiSettings = useAISettings();
   const inputData = useInputData(clusterSettings.setRecommended);
   const pluginData = usePluginData(clusterSettings.setRecommended);
+  const activePluginId = inputData.inputType.startsWith("plugin:") ? inputData.inputType.replace("plugin:", "") : null;
+  const activePluginState = activePluginId ? pluginData.getPluginState(activePluginId) : undefined;
 
   /**
    * タブ切り替え時の処理
@@ -354,6 +357,17 @@ export default function Page() {
                     />
                   </Presence>
                 ))}
+
+                {inputData.inputType.startsWith("plugin:") && activePluginState?.imported && (
+                  <ClusterSettingsSection
+                    clusterLv1={clusterSettings.clusterLv1}
+                    clusterLv2={clusterSettings.clusterLv2}
+                    recommendedClusters={clusterSettings.recommendedClusters}
+                    autoAdjusted={clusterSettings.autoAdjusted}
+                    onLv1Change={clusterSettings.handleLv1Change}
+                    onLv2Change={clusterSettings.handleLv2Change}
+                  />
+                )}
               </Box>
             </Tabs.Root>
           </Field.Root>
