@@ -6,6 +6,7 @@ from fastapi.security.api_key import APIKeyHeader
 from pydantic import ValidationError
 
 from src.config import settings
+from src.routers.admin_report import validate_slug
 from src.schemas.report import Report, ReportStatus, ReportVisibility
 from src.schemas.visualization_config import DEFAULT_REPORT_DISPLAY_CONFIG, ReportDisplayConfig
 from src.services.report_status import load_status_as_reports
@@ -34,6 +35,7 @@ async def reports() -> list[Report]:
 
 @router.get("/reports/{slug}")
 async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> dict:
+    validate_slug(slug)
     report_path = settings.REPORT_DIR / slug / "hierarchical_result.json"
     all_reports = load_status_as_reports()
     target_report_status = next((report for report in all_reports if report.slug == slug), None)
