@@ -79,22 +79,21 @@ export function validateFormValues({
   pluginImported?: boolean;
   pluginSelectedCommentColumn?: string;
 }): { isValid: boolean; errorMessage?: string } {
-  // 共通チェック
-  const commonCheck = [
-    isValidId(input),
-    question.length > 0,
-    intro.length > 0,
-    clusterLv1 > 0,
-    clusterLv2 > 0,
-    model.length > 0,
-    extractionPrompt.length > 0,
-  ].every(Boolean);
-
-  if (!commonCheck) {
-    return {
-      isValid: false,
-      errorMessage: "全ての項目が入力されているか確認してください",
-    };
+  // 共通チェック（question と intro は省略可能）
+  if (!isValidId(input)) {
+    return { isValid: false, errorMessage: "IDが無効です" };
+  }
+  if (clusterLv1 <= 0) {
+    return { isValid: false, errorMessage: "第1階層の意見グループ数を設定してください" };
+  }
+  if (clusterLv2 <= 0) {
+    return { isValid: false, errorMessage: "第2階層の意見グループ数を設定してください" };
+  }
+  if (model.length === 0) {
+    return { isValid: false, errorMessage: "モデルを選択してください" };
+  }
+  if (extractionPrompt.length === 0) {
+    return { isValid: false, errorMessage: "抽出プロンプトが設定されていません" };
   }
 
   // 入力ソースのチェック
