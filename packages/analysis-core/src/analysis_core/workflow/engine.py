@@ -75,9 +75,7 @@ class WorkflowEngine:
         # Validate workflow
         errors = validate_dependencies(workflow)
         if errors:
-            raise WorkflowExecutionError(
-                f"Invalid workflow: {'; '.join(errors)}"
-            )
+            raise WorkflowExecutionError(f"Invalid workflow: {'; '.join(errors)}")
 
         # Resolve execution order
         execution_order = resolve_execution_order(workflow)
@@ -115,9 +113,7 @@ class WorkflowEngine:
                     )
                     continue
                 else:
-                    raise WorkflowExecutionError(
-                        f"Plugin '{step.plugin}' not found for step '{step_id}'"
-                    )
+                    raise WorkflowExecutionError(f"Plugin '{step.plugin}' not found for step '{step_id}'")
 
             # Build step inputs from previous step artifacts
             step_artifacts = {}
@@ -219,6 +215,7 @@ class WorkflowEngine:
         Returns:
             Resolved configuration with variables replaced
         """
+
         def resolve_value(value: Any) -> Any:
             if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
                 # Extract path: ${config.extraction.limit} -> extraction.limit

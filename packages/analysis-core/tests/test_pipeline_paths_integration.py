@@ -40,14 +40,16 @@ class TestPipelinePathsIntegration:
     def sample_input_csv(self, temp_dirs):
         """Create a sample input CSV file."""
         input_file = temp_dirs["input_dir"] / "test_input.csv"
-        df = pd.DataFrame({
-            "comment-id": ["1", "2", "3"],
-            "comment-body": [
-                "This is a test comment about AI",
-                "Another comment about technology",
-                "A third comment about innovation",
-            ],
-        })
+        df = pd.DataFrame(
+            {
+                "comment-id": ["1", "2", "3"],
+                "comment-body": [
+                    "This is a test comment about AI",
+                    "Another comment about technology",
+                    "A third comment about innovation",
+                ],
+            }
+        )
         df.to_csv(input_file, index=False)
         return input_file
 
@@ -158,14 +160,14 @@ class TestPipelinePathsIntegration:
         expected_input_path = f"{temp_dirs['input_dir']}/test_input.csv"
         input_reads = [c for c in read_csv_calls if "test_input.csv" in c]
         assert len(input_reads) > 0, f"Input file not read. Calls: {read_csv_calls}"
-        assert expected_input_path in input_reads[0], \
+        assert expected_input_path in input_reads[0], (
             f"Wrong input path. Expected {expected_input_path}, got {input_reads[0]}"
+        )
 
         # Verify hardcoded 'inputs/' was NOT used
         for call in read_csv_calls:
             if "test_input.csv" in call:
-                assert not call.startswith("inputs/"), \
-                    f"Hardcoded 'inputs/' path used: {call}"
+                assert not call.startswith("inputs/"), f"Hardcoded 'inputs/' path used: {call}"
 
     def test_embedding_step_uses_config_paths(self, temp_dirs, sample_config):
         """Test that embedding step uses paths from config."""
@@ -176,10 +178,12 @@ class TestPipelinePathsIntegration:
         output_subdir.mkdir(parents=True)
 
         # Create args.csv that embedding needs
-        args_df = pd.DataFrame({
-            "arg-id": ["arg1", "arg2"],
-            "argument": ["Test argument 1", "Test argument 2"],
-        })
+        args_df = pd.DataFrame(
+            {
+                "arg-id": ["arg1", "arg2"],
+                "argument": ["Test argument 1", "Test argument 2"],
+            }
+        )
         args_df.to_csv(output_subdir / "args.csv", index=False)
 
         # Mock the embedding call
@@ -206,18 +210,23 @@ class TestPipelinePathsIntegration:
         output_subdir.mkdir(parents=True)
 
         # Create required input files
-        args_df = pd.DataFrame({
-            "arg-id": [f"arg{i}" for i in range(20)],
-            "argument": [f"Test argument {i}" for i in range(20)],
-        })
+        args_df = pd.DataFrame(
+            {
+                "arg-id": [f"arg{i}" for i in range(20)],
+                "argument": [f"Test argument {i}" for i in range(20)],
+            }
+        )
         args_df.to_csv(output_subdir / "args.csv", index=False)
 
         # Create embeddings with enough dimensions for UMAP
         import numpy as np
-        embeddings_df = pd.DataFrame({
-            "arg-id": [f"arg{i}" for i in range(20)],
-            "embedding": [np.random.rand(100).tolist() for _ in range(20)],
-        })
+
+        embeddings_df = pd.DataFrame(
+            {
+                "arg-id": [f"arg{i}" for i in range(20)],
+                "embedding": [np.random.rand(100).tolist() for _ in range(20)],
+            }
+        )
         embeddings_df.to_pickle(output_subdir / "embeddings.pkl")
 
         # Add clustering config

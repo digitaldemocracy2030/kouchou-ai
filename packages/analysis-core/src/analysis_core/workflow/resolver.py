@@ -90,9 +90,7 @@ def resolve_execution_order(workflow: WorkflowDefinition) -> list[str]:
     for step in workflow.steps:
         for dep_id in step.depends_on:
             if dep_id not in step_map:
-                raise MissingDependencyError(
-                    f"Step '{step.id}' depends on non-existent step '{dep_id}'"
-                )
+                raise MissingDependencyError(f"Step '{step.id}' depends on non-existent step '{dep_id}'")
 
     # Build adjacency list and in-degree count
     # in_degree[step_id] = number of steps this step depends on
@@ -124,9 +122,7 @@ def resolve_execution_order(workflow: WorkflowDefinition) -> list[str]:
     if len(execution_order) != len(step_ids):
         # Find steps involved in cycle
         unprocessed = [step_id for step_id in step_ids if step_id not in execution_order]
-        raise CyclicDependencyError(
-            f"Cyclic dependency detected involving steps: {unprocessed}"
-        )
+        raise CyclicDependencyError(f"Cyclic dependency detected involving steps: {unprocessed}")
 
     return execution_order
 

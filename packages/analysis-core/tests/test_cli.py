@@ -52,11 +52,15 @@ class TestCLI:
         """Test CLI --dry-run shows plan without execution."""
         # Create config file
         config_path = tmp_path / "test_config.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test question?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test question?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         # Create input directory
         input_dir = tmp_path / "inputs"
@@ -67,11 +71,16 @@ class TestCLI:
 
         result = subprocess.run(
             [
-                sys.executable, "-m", "analysis_core",
-                "--config", str(config_path),
+                sys.executable,
+                "-m",
+                "analysis_core",
+                "--config",
+                str(config_path),
                 "--dry-run",
-                "--input-dir", str(input_dir),
-                "--output-dir", str(output_dir),
+                "--input-dir",
+                str(input_dir),
+                "--output-dir",
+                str(output_dir),
             ],
             capture_output=True,
             text=True,

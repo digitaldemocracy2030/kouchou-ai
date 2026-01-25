@@ -4,10 +4,10 @@ Pipeline configuration management.
 This module handles loading, validation, and management of pipeline configurations.
 """
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-import json
 
 
 @dataclass

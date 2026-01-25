@@ -29,9 +29,7 @@ from .schemas import HierarchicalResult
 class TestPipelineE2E:
     """End-to-end tests for the complete pipeline."""
 
-    def test_full_pipeline_produces_valid_output(
-        self, api_key, temp_dirs, small_comments_csv, pipeline_config
-    ):
+    def test_full_pipeline_produces_valid_output(self, api_key, temp_dirs, small_comments_csv, pipeline_config):
         """Test that the full pipeline produces valid hierarchical_result.json.
 
         This test:
@@ -95,9 +93,7 @@ class TestPipelineE2E:
         assert len(hierarchical_result.arguments) > 0, "Should have extracted at least 1 argument"
         assert len(hierarchical_result.clusters) > 1, "Should have at least 2 clusters (root + 1)"
 
-    def test_extraction_produces_arguments(
-        self, api_key, temp_dirs, small_comments_csv, pipeline_config
-    ):
+    def test_extraction_produces_arguments(self, api_key, temp_dirs, small_comments_csv, pipeline_config):
         """Test that extraction step produces valid args.csv."""
         from analysis_core import PipelineOrchestrator
 
@@ -119,6 +115,7 @@ class TestPipelineE2E:
 
         # Only register extraction step
         from analysis_core.steps import extraction
+
         orchestrator.steps = ["extraction"]
         orchestrator.register_step("extraction", extraction)
 
@@ -141,12 +138,9 @@ class TestPipelineE2E:
 
         # Verify arguments are non-empty strings
         for _, row in args_df.iterrows():
-            assert isinstance(row["argument"], str) and len(row["argument"]) > 0, \
-                f"Invalid argument: {row['argument']}"
+            assert isinstance(row["argument"], str) and len(row["argument"]) > 0, f"Invalid argument: {row['argument']}"
 
-    def test_clustering_produces_hierarchy(
-        self, api_key, temp_dirs, small_comments_csv, pipeline_config
-    ):
+    def test_clustering_produces_hierarchy(self, api_key, temp_dirs, small_comments_csv, pipeline_config):
         """Test that clustering step produces valid hierarchical structure."""
         from analysis_core import PipelineOrchestrator
 
@@ -164,6 +158,7 @@ class TestPipelineE2E:
 
         # Run only up to clustering
         from analysis_core.steps import embedding, extraction, hierarchical_clustering
+
         orchestrator.steps = ["extraction", "embedding", "hierarchical_clustering"]
         orchestrator.register_step("extraction", extraction)
         orchestrator.register_step("embedding", embedding)
@@ -191,9 +186,7 @@ class TestPipelineE2E:
 class TestOutputSchemaValidation:
     """Tests for validating output schema compliance."""
 
-    def test_hierarchical_result_schema(
-        self, api_key, temp_dirs, small_comments_csv, pipeline_config
-    ):
+    def test_hierarchical_result_schema(self, api_key, temp_dirs, small_comments_csv, pipeline_config):
         """Test that hierarchical_result.json conforms to schema."""
         from analysis_core import PipelineOrchestrator
 
@@ -239,9 +232,7 @@ class TestOutputSchemaValidation:
         # Validate overview is non-empty
         assert len(hierarchical_result.overview.strip()) > 0, "overview should not be empty"
 
-    def test_args_csv_schema(
-        self, api_key, temp_dirs, small_comments_csv, pipeline_config
-    ):
+    def test_args_csv_schema(self, api_key, temp_dirs, small_comments_csv, pipeline_config):
         """Test that args.csv conforms to expected schema."""
         from analysis_core import PipelineOrchestrator
 
@@ -258,6 +249,7 @@ class TestOutputSchemaValidation:
         )
 
         from analysis_core.steps import extraction
+
         orchestrator.steps = ["extraction"]
         orchestrator.register_step("extraction", extraction)
 

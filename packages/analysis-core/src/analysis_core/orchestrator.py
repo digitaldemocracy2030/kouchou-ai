@@ -205,20 +205,24 @@ class PipelineOrchestrator:
                         output_base_dir=self.output_base_dir,
                     )
                     step_duration = (datetime.now() - step_start).total_seconds()
-                    step_results.append(StepResult(
-                        step_name=step_name,
-                        success=True,
-                        duration_seconds=step_duration,
-                        token_usage=self.config.get("total_token_usage", 0),
-                    ))
+                    step_results.append(
+                        StepResult(
+                            step_name=step_name,
+                            success=True,
+                            duration_seconds=step_duration,
+                            token_usage=self.config.get("total_token_usage", 0),
+                        )
+                    )
                 except Exception as e:
                     step_duration = (datetime.now() - step_start).total_seconds()
-                    step_results.append(StepResult(
-                        step_name=step_name,
-                        success=False,
-                        duration_seconds=step_duration,
-                        error=str(e),
-                    ))
+                    step_results.append(
+                        StepResult(
+                            step_name=step_name,
+                            success=False,
+                            duration_seconds=step_duration,
+                            error=str(e),
+                        )
+                    )
                     raise
 
             # Finalize successfully
@@ -300,10 +304,7 @@ class PipelineOrchestrator:
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Create a simple plan (all steps run)
-        normalized["plan"] = [
-            {"step": step, "run": True, "reason": "new run"}
-            for step in cls.DEFAULT_STEPS
-        ]
+        normalized["plan"] = [{"step": step, "run": True, "reason": "new run"} for step in cls.DEFAULT_STEPS]
 
         # Skip visualization if requested
         if normalized.get("without_html", True):

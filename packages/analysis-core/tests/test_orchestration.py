@@ -1,8 +1,9 @@
 """Tests for orchestration module."""
 
 import json
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 class TestInitialization:
@@ -14,11 +15,15 @@ class TestInitialization:
 
         # Create a minimal config file
         config_path = tmp_path / "test_job.json"
-        config_path.write_text(json.dumps({
-            "input": "test_input",
-            "question": "What are the main themes?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test_input",
+                    "question": "What are the main themes?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         # Create input and output directories
         input_dir = tmp_path / "inputs"
@@ -45,15 +50,19 @@ class TestInitialization:
 
     def test_initialization_loads_specs(self, tmp_path):
         """Test that initialization loads step specs."""
-        from analysis_core.core import initialization, get_specs
+        from analysis_core.core import get_specs, initialization
 
         # Create config file
         config_path = tmp_path / "job.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         input_dir = tmp_path / "inputs"
         output_dir = tmp_path / "outputs"
@@ -78,11 +87,15 @@ class TestInitialization:
         from analysis_core.core import initialization
 
         config_path = tmp_path / "job.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         input_dir = tmp_path / "inputs"
         output_dir = tmp_path / "outputs"
@@ -108,11 +121,15 @@ class TestInitialization:
         from analysis_core.core import initialization
 
         config_path = tmp_path / "job.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         input_dir = tmp_path / "inputs"
         output_dir = tmp_path / "outputs"
@@ -133,11 +150,15 @@ class TestInitialization:
         from analysis_core.core import initialization
 
         config_path = tmp_path / "job.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         input_dir = tmp_path / "inputs"
         output_dir = tmp_path / "outputs"
@@ -158,11 +179,15 @@ class TestInitialization:
         from analysis_core.core import initialization
 
         config_path = tmp_path / "job.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         input_dir = tmp_path / "inputs"
         output_dir = tmp_path / "outputs"
@@ -184,7 +209,7 @@ class TestValidateConfig:
 
     def test_validate_config_missing_input(self):
         """Test validation fails for missing input."""
-        from analysis_core.core import validate_config, load_specs
+        from analysis_core.core import load_specs, validate_config
         from analysis_core.core.orchestration import _PACKAGE_DIR
 
         specs = load_specs(_PACKAGE_DIR / "specs" / "hierarchical_specs.json")
@@ -194,7 +219,7 @@ class TestValidateConfig:
 
     def test_validate_config_missing_question(self):
         """Test validation fails for missing question."""
-        from analysis_core.core import validate_config, load_specs
+        from analysis_core.core import load_specs, validate_config
         from analysis_core.core.orchestration import _PACKAGE_DIR
 
         specs = load_specs(_PACKAGE_DIR / "specs" / "hierarchical_specs.json")
@@ -204,18 +229,21 @@ class TestValidateConfig:
 
     def test_validate_config_valid(self):
         """Test validation passes for valid config."""
-        from analysis_core.core import validate_config, load_specs
+        from analysis_core.core import load_specs, validate_config
         from analysis_core.core.orchestration import _PACKAGE_DIR
 
         specs = load_specs(_PACKAGE_DIR / "specs" / "hierarchical_specs.json")
 
         # Should not raise
-        validate_config({
-            "input": "test",
-            "question": "Test?",
-            "model": "gpt-4o-mini",
-            "provider": "openai",
-        }, specs)
+        validate_config(
+            {
+                "input": "test",
+                "question": "Test?",
+                "model": "gpt-4o-mini",
+                "provider": "openai",
+            },
+            specs,
+        )
 
 
 class TestDecideWhatToRun:
@@ -291,11 +319,15 @@ class TestPipelineOrchestrator:
 
         # Create config file
         config_path = tmp_path / "job.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         input_dir = tmp_path / "inputs"
         output_dir = tmp_path / "outputs"

@@ -2,7 +2,7 @@
 
 import pytest
 
-from analysis_core.compat import normalize_config, create_step_context_from_config
+from analysis_core.compat import create_step_context_from_config, normalize_config
 
 
 class TestNormalizeConfig:
