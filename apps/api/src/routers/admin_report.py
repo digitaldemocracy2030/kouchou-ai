@@ -46,8 +46,8 @@ async def verify_admin_api_key(api_key: str = Security(api_key_header)):
     return api_key
 
 
-# Slug validation pattern: word characters (including Unicode), hyphen, dot
-SLUG_PATTERN = re.compile(r"^[\w\-.]+$", re.UNICODE)
+# Slug validation pattern: alphanumeric, underscore, hyphen only
+SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def validate_slug(slug: str) -> None:
