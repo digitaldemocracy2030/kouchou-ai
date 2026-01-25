@@ -130,6 +130,7 @@ async def download_report_json(slug: str, api_key: str = Depends(verify_admin_ap
 
 @router.get("/admin/reports/{slug}/status/step-json", dependencies=[Depends(verify_admin_api_key)])
 async def get_current_step(slug: str) -> dict:
+    validate_slug(slug)
     status_file = settings.REPORT_DIR / slug / "hierarchical_status.json"
     try:
         # ステータスファイルが存在しない場合は "loading" を返す
@@ -178,6 +179,7 @@ async def get_current_step(slug: str) -> dict:
 
 @router.delete("/admin/reports/{slug}")
 async def delete_report(slug: str, api_key: str = Depends(verify_admin_api_key)) -> ORJSONResponse:
+    validate_slug(slug)
     try:
         set_status(slug, ReportStatus.DELETED.value)
         return ORJSONResponse(
@@ -199,6 +201,7 @@ async def delete_report(slug: str, api_key: str = Depends(verify_admin_api_key))
 async def update_report_visibility(
     slug: str, visibility_update: ReportVisibilityUpdate, api_key: str = Depends(verify_admin_api_key)
 ) -> dict:
+    validate_slug(slug)
     try:
         visibility = update_report_visibility_state(slug, visibility_update.visibility)
 
@@ -225,6 +228,7 @@ async def update_report_config_endpoint(
     Returns:
         更新後のレポート情報
     """
+    validate_slug(slug)
     try:
         # 中間ファイル（config.json）を更新
         config_repo = ConfigRepository(slug)
@@ -255,6 +259,7 @@ async def update_report_config_endpoint(
 
 @router.get("/admin/reports/{slug}/cluster-labels")
 async def get_clusters(slug: str, api_key: str = Depends(verify_admin_api_key)) -> dict[str, list[ClusterResponse]]:
+    validate_slug(slug)
     try:
         repo = ClusterRepository(slug)
         return {
@@ -273,6 +278,7 @@ async def get_clusters(slug: str, api_key: str = Depends(verify_admin_api_key)) 
 async def update_cluster_label(
     slug: str, updated_cluster: ClusterUpdate, api_key: str = Depends(verify_admin_api_key)
 ) -> dict[str, bool]:
+    validate_slug(slug)
     # FIXME: error handlingを共通化するタイミングで、error handlingを切り出す
     # issue: https://github.com/digitaldemocracy2030/kouchou-ai/issues/546
     repo = ClusterRepository(slug)
@@ -301,6 +307,7 @@ async def get_visualization_config(slug: str, api_key: str = Depends(verify_admi
     Returns:
         可視化設定
     """
+    validate_slug(slug)
     visualization_config_path = settings.REPORT_DIR / slug / "visualization_config.json"
     if not visualization_config_path.exists():
         return {"visualizationConfig": None}
@@ -329,6 +336,7 @@ async def update_visualization_config(
     Returns:
         更新後の可視化設定
     """
+    validate_slug(slug)
     try:
         report_dir = settings.REPORT_DIR / slug
         if not report_dir.exists():
