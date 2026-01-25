@@ -25,23 +25,25 @@ export function BasicInfoSection({
   return (
     <>
       <Field.Root>
-        <Field.Label>タイトル</Field.Label>
+        <Field.Label>タイトル（省略可）</Field.Label>
         <Input
           value={question}
           onChange={onQuestionChange}
           placeholder="例：人類が人工知能を開発・展開する上で、最優先すべき課題は何でしょうか？"
         />
-        <Field.HelperText>レポートのタイトルを記載します</Field.HelperText>
+        <Field.HelperText>レポートのタイトルを記載します（省略時は作成日時が使用されます）</Field.HelperText>
       </Field.Root>
 
       <Field.Root>
-        <Field.Label>調査概要</Field.Label>
+        <Field.Label>調査概要（省略可）</Field.Label>
         <Input
           value={intro}
           onChange={onIntroChange}
           placeholder="例：このAI生成レポートは、パブリックコメントにおいて寄せられた意見に基づいています。"
         />
-        <Field.HelperText>コメントの集計期間や、コメントの収集元など、調査の概要を記載します</Field.HelperText>
+        <Field.HelperText>
+          コメントの集計期間や、コメントの収集元など、調査の概要を記載します（省略可）
+        </Field.HelperText>
       </Field.Root>
 
       <Field.Root>

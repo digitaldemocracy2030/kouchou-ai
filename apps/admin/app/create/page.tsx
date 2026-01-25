@@ -8,6 +8,7 @@ import { useState } from "react";
 import { createReport } from "./api/createReport";
 import { AISettingsSection } from "./components/AISettingsSection";
 import { BasicInfoSection } from "./components/BasicInfoSection";
+import { ClusterSettingsSection } from "./components/ClusterSettingsSection";
 import { CsvFileTab } from "./components/CsvFileTab";
 import { EnvironmentCheckDialog } from "./components/EnvironmentCheckDialog/EnvironmentCheckDialog";
 import { PluginTab } from "./components/PluginTab";
@@ -38,6 +39,8 @@ export default function Page() {
   const aiSettings = useAISettings();
   const inputData = useInputData(clusterSettings.setRecommended);
   const pluginData = usePluginData(clusterSettings.setRecommended);
+  const activePluginId = inputData.inputType.startsWith("plugin:") ? inputData.inputType.replace("plugin:", "") : null;
+  const activePluginState = activePluginId ? pluginData.getPluginState(activePluginId) : undefined;
 
   /**
    * タブ切り替え時の処理
@@ -215,10 +218,17 @@ export default function Page() {
 
     const promptData = promptSettings.getPromptSettings();
 
+    // タイトルが空の場合は日時をデフォルト値として使用
+    const now = new Date();
+    const defaultTitle = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+    const question = basicInfo.question.trim() || defaultTitle;
+    // 調査概要が空の場合は空文字列を使用
+    const intro = basicInfo.intro.trim();
+
     const result = await createReport({
       input: basicInfo.input,
-      question: basicInfo.question,
-      intro: basicInfo.intro,
+      question,
+      intro,
       comments,
       cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
       provider: aiSettings.provider,
@@ -347,6 +357,17 @@ export default function Page() {
                     />
                   </Presence>
                 ))}
+
+                {inputData.inputType.startsWith("plugin:") && activePluginState?.imported && (
+                  <ClusterSettingsSection
+                    clusterLv1={clusterSettings.clusterLv1}
+                    clusterLv2={clusterSettings.clusterLv2}
+                    recommendedClusters={clusterSettings.recommendedClusters}
+                    autoAdjusted={clusterSettings.autoAdjusted}
+                    onLv1Change={clusterSettings.handleLv1Change}
+                    onLv2Change={clusterSettings.handleLv2Change}
+                  />
+                )}
               </Box>
             </Tabs.Root>
           </Field.Root>
