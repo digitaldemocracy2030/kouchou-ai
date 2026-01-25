@@ -1,9 +1,10 @@
 """Cluster the arguments using UMAP + HDBSCAN and GPT-4."""
 
+import pickle
 from importlib import import_module
 
 import numpy as np
-import pandas as pd
+import polars as pl
 import scipy.cluster.hierarchy as sch
 from sklearn.cluster import KMeans
 
@@ -14,9 +15,35 @@ def hierarchical_clustering(config):
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
     path = f"{output_base_dir}/{dataset}/hierarchical_clusters.csv"
-    arguments_df = pd.read_csv(f"{output_base_dir}/{dataset}/args.csv", usecols=["arg-id", "argument"])
-    embeddings_df = pd.read_pickle(f"{output_base_dir}/{dataset}/embeddings.pkl")
-    embeddings_array = np.asarray(embeddings_df["embedding"].values.tolist())
+    arguments_df = pl.read_csv(f"{output_base_dir}/{dataset}/args.csv", columns=["arg-id", "argument"])
+    arg_ids = arguments_df["arg-id"].to_list()
+
+    with open(f"{output_base_dir}/{dataset}/embeddings.pkl", "rb") as f:
+        embeddings_data = pickle.load(f)
+
+    # Handle both old (pandas DataFrame) and new (list[dict]) formats
+    if isinstance(embeddings_data, list):
+        # list[dict] 形式の場合、arg-id で並べ替えて順序を保証
+        if embeddings_data and "arg-id" in embeddings_data[0]:
+            embed_by_id = {item["arg-id"]: item["embedding"] for item in embeddings_data}
+            missing = [arg_id for arg_id in arg_ids if arg_id not in embed_by_id]
+            if missing:
+                raise ValueError(f"embeddings.pkl に存在しない arg-id があります: {missing[:5]} ...")
+            embeddings_array = np.asarray([embed_by_id[arg_id] for arg_id in arg_ids])
+        else:
+            embeddings_array = np.asarray([item["embedding"] for item in embeddings_data])
+    else:
+        # Old pandas DataFrame format for backward compatibility
+        # pandas DataFrame は直接イテレートするとカラム名が返されるため、
+        # ["embedding"] カラムから値を取得する
+        embeddings_array = np.asarray(embeddings_data["embedding"].values.tolist())
+
+    # 件数一致の検証
+    if embeddings_array.shape[0] != len(arg_ids):
+        raise ValueError(
+            f"args.csv と embeddings.pkl の件数が一致しません: args={len(arg_ids)}, embeddings={embeddings_array.shape[0]}"
+        )
+
     cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 
     n_samples = embeddings_array.shape[0]
@@ -39,19 +66,23 @@ def hierarchical_clustering(config):
         umap_embeds=umap_embeds,
         cluster_nums=cluster_nums,
     )
-    result_df = pd.DataFrame(
+    result_df = pl.DataFrame(
         {
-            "arg-id": arguments_df["arg-id"],
-            "argument": arguments_df["argument"],
-            "x": umap_embeds[:, 0],
-            "y": umap_embeds[:, 1],
+            "arg-id": arguments_df["arg-id"].to_list(),
+            "argument": arguments_df["argument"].to_list(),
+            "x": umap_embeds[:, 0].tolist(),
+            "y": umap_embeds[:, 1].tolist(),
         }
     )
 
     for cluster_level, final_labels in enumerate(cluster_results.values(), start=1):
-        result_df[f"cluster-level-{cluster_level}-id"] = [f"{cluster_level}_{label}" for label in final_labels]
+        result_df = result_df.with_columns(
+            pl.Series(
+                name=f"cluster-level-{cluster_level}-id", values=[f"{cluster_level}_{label}" for label in final_labels]
+            )
+        )
 
-    result_df.to_csv(path, index=False)
+    result_df.write_csv(path)
 
 
 def generate_cluster_count_list(min_clusters: int, max_clusters: int):

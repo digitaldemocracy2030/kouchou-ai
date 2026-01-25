@@ -5,7 +5,7 @@ from functools import partial
 from pathlib import Path
 from typing import TypedDict
 
-import pandas as pd
+import polars as pl
 from pydantic import BaseModel, Field
 
 from services.llm import request_to_chat_ai
@@ -36,7 +36,7 @@ def hierarchical_initial_labelling(config: dict) -> None:
     """
     dataset = config["output_dir"]
     path = PIPELINE_DIR / f"outputs/{dataset}/hierarchical_initial_labels.csv"
-    clusters_argument_df = pd.read_csv(PIPELINE_DIR / f"outputs/{dataset}/hierarchical_clusters.csv")
+    clusters_argument_df = pl.read_csv(PIPELINE_DIR / f"outputs/{dataset}/hierarchical_clusters.csv")
 
     cluster_id_columns = [col for col in clusters_argument_df.columns if col.startswith("cluster-level-")]
     initial_cluster_id_column = cluster_id_columns[-1]
@@ -59,31 +59,31 @@ def hierarchical_initial_labelling(config: dict) -> None:
         config,  # configを渡して、トークン使用量を累積できるようにする
     )
     print("start initial labelling")
-    initial_clusters_argument_df = clusters_argument_df.merge(
+    initial_clusters_argument_df = clusters_argument_df.join(
         initial_label_df,
         left_on=initial_cluster_id_column,
         right_on="cluster_id",
         how="left",
     ).rename(
-        columns={
+        {
             "label": f"{initial_cluster_id_column.replace('-id', '')}-label",
             "description": f"{initial_cluster_id_column.replace('-id', '')}-description",
         }
     )
     print("end initial labelling")
-    initial_clusters_argument_df.to_csv(path, index=False)
+    initial_clusters_argument_df.write_csv(path)
 
 
 def initial_labelling(
     prompt: str,
-    clusters_df: pd.DataFrame,
+    clusters_df: pl.DataFrame,
     sampling_num: int,
     model: str,
     workers: int,
     provider: str = "openai",
     local_llm_address: str | None = None,
     config: dict | None = None,  # configを追加
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """各クラスタに対して初期ラベリングを実行する
 
     Args:
@@ -101,7 +101,7 @@ def initial_labelling(
     """
     cluster_columns = [col for col in clusters_df.columns if col.startswith("cluster-level-")]
     initial_cluster_column = cluster_columns[-1]
-    cluster_ids = clusters_df[initial_cluster_column].unique()
+    cluster_ids = clusters_df[initial_cluster_column].unique().to_list()
     process_func = partial(
         process_initial_labelling,
         df=clusters_df,
@@ -115,7 +115,7 @@ def initial_labelling(
     )
     with ThreadPoolExecutor(max_workers=workers) as executor:
         results = list(executor.map(process_func, cluster_ids))
-    return pd.DataFrame(results)
+    return pl.DataFrame(results)
 
 
 class LabellingFromat(BaseModel):
@@ -127,7 +127,7 @@ class LabellingFromat(BaseModel):
 
 def process_initial_labelling(
     cluster_id: str,
-    df: pd.DataFrame,
+    df: pl.DataFrame,
     prompt: str,
     sampling_num: int,
     target_column: str,
@@ -152,10 +152,10 @@ def process_initial_labelling(
     Returns:
         クラスタのラベリング結果
     """
-    cluster_data = df[df[target_column] == cluster_id]
+    cluster_data = df.filter(pl.col(target_column) == cluster_id)
     sampling_num = min(sampling_num, len(cluster_data))
-    cluster = cluster_data.sample(sampling_num)
-    input = "\n".join(cluster["argument"].values)
+    cluster = cluster_data.sample(n=sampling_num)
+    input = "\n".join(cluster["argument"].to_list())
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},

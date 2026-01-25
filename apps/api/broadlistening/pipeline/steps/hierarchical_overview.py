@@ -5,7 +5,7 @@ import os
 import re
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 from pydantic import BaseModel, Field
 
 from services.llm import request_to_chat_ai
@@ -21,18 +21,17 @@ def hierarchical_overview(config):
     dataset = config["output_dir"]
     path = PIPELINE_DIR / f"outputs/{dataset}/hierarchical_overview.txt"
 
-    hierarchical_label_df = pd.read_csv(PIPELINE_DIR / f"outputs/{dataset}/hierarchical_merge_labels.csv")
+    hierarchical_label_df = pl.read_csv(PIPELINE_DIR / f"outputs/{dataset}/hierarchical_merge_labels.csv")
 
     prompt = config["hierarchical_overview"]["prompt"]
     model = config["hierarchical_overview"]["model"]
 
     # TODO: level1で固定にしているが、設定で変えられるようにする
     target_level = 1
-    target_records = hierarchical_label_df[hierarchical_label_df["level"] == target_level]
+    target_records = hierarchical_label_df.filter(pl.col("level") == target_level)
     ids = target_records["id"].to_list()
     labels = target_records["label"].to_list()
     descriptions = target_records["description"].to_list()
-    target_records.set_index("id", inplace=True)
 
     input_text = ""
     for i, _ in enumerate(ids):

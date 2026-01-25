@@ -17,7 +17,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "pandas>=2.2.3",
+    "polars>=1.37.1",
     "numpy>=1.26.0",
     "openai>=1.77.0",
     "sentence-transformers>=2.7.0",

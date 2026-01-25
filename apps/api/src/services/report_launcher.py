@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
+import polars as pl
 
 from src.config import settings
 from src.schemas.admin_report import ReportInput
@@ -96,8 +96,8 @@ def save_input_file(report_input: ReportInput) -> Path:
 
     input_path = settings.INPUT_DIR / f"{report_input.input}.csv"
     input_path.parent.mkdir(parents=True, exist_ok=True)
-    df = pd.DataFrame(comments)
-    df.to_csv(input_path, index=False)
+    df = pl.DataFrame(comments)
+    df.write_csv(input_path)
     return input_path
 
 
