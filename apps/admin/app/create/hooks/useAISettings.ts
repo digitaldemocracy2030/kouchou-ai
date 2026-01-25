@@ -27,6 +27,9 @@ const STORAGE_KEYS = {
 // LocalLLMのデフォルトアドレスを定数化
 const DEFAULT_LOCAL_LLM_ADDRESS = process.env.NEXT_PUBLIC_LOCAL_LLM_ADDRESS || "ollama:11434";
 
+// USE_AZUREがtrueの場合はAzure OpenAIをデフォルトにする
+const DEFAULT_PROVIDER: Provider = process.env.NEXT_PUBLIC_USE_AZURE === "true" ? "azure" : "openai";
+
 const OPENAI_MODELS: ModelOption[] = [
   { value: "gpt-4o-mini", label: "GPT-4o mini" },
   { value: "gpt-4o", label: "GPT-4o" },
@@ -113,7 +116,7 @@ function saveToStorage<T>(key: string, value: T): void {
  * AIモデル設定を管理するカスタムフック
  */
 export function useAISettings() {
-  const [provider, setProvider] = useState<Provider>(() => getFromStorage<Provider>(STORAGE_KEYS.PROVIDER, "openai"));
+  const [provider, setProvider] = useState<Provider>(() => getFromStorage<Provider>(STORAGE_KEYS.PROVIDER, DEFAULT_PROVIDER));
   const [model, setModel] = useState<string>(() => getFromStorage<string>(STORAGE_KEYS.MODEL, "gpt-4o-mini"));
   const [workers, setWorkers] = useState<number>(() => getFromStorage<number>(STORAGE_KEYS.WORKERS, 30));
   const [isPubcomMode, setIsPubcomMode] = useState<boolean>(true);
@@ -355,7 +358,7 @@ export function useAISettings() {
    * AI設定をリセット
    */
   const resetAISettings = () => {
-    setProvider("openai");
+    setProvider(DEFAULT_PROVIDER);
     setModel("gpt-4o-mini");
     setWorkers(30);
     setIsPubcomMode(true);
@@ -366,7 +369,7 @@ export function useAISettings() {
     setOpenRouterModels([]);
     setLocalLLMModels([]);
 
-    saveToStorage(STORAGE_KEYS.PROVIDER, "openai");
+    saveToStorage(STORAGE_KEYS.PROVIDER, DEFAULT_PROVIDER);
     saveToStorage(STORAGE_KEYS.MODEL, "gpt-4o-mini");
     saveToStorage(STORAGE_KEYS.WORKERS, 30);
     saveToStorage(STORAGE_KEYS.LOCAL_LLM_ADDRESS, DEFAULT_LOCAL_LLM_ADDRESS);
