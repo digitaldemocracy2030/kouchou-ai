@@ -20,8 +20,8 @@ pre-push:
     api-ruff-check:
       root: "apps/api/"
       glob: "apps/api/**/*.py"
-      run: "cd apps/api && rye run ruff check ."
+      run: "rye run ruff check ."
     api-ruff-format:
       root: "apps/api/"
       glob: "apps/api/**/*.py"
-      run: "cd apps/api && rye run ruff format . --check"
+      run: "rye run ruff format . --check"
