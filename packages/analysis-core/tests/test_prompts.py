@@ -85,11 +85,15 @@ class TestPromptsInConfig:
 
         # Create minimal config without prompts
         config_path = tmp_path / "test.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test question?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test question?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         config = initialization(
             config_path=config_path,
@@ -112,14 +116,18 @@ class TestPromptsInConfig:
 
         # Create config with custom prompt
         config_path = tmp_path / "test.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test question?",
-            "provider": "openai",
-            "extraction": {
-                "prompt": custom_prompt,
-            },
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test question?",
+                    "provider": "openai",
+                    "extraction": {
+                        "prompt": custom_prompt,
+                    },
+                }
+            )
+        )
 
         config = initialization(
             config_path=config_path,

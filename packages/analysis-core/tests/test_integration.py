@@ -32,6 +32,7 @@ class TestPipelineIntegration:
         def mock_step(name):
             def _step(config):
                 executed_steps.append(name)
+
             return _step
 
         # Create orchestrator with limited steps
@@ -47,8 +48,10 @@ class TestPipelineIntegration:
 
         # Mock run_step to just call the step function
         with patch("analysis_core.orchestrator.run_step") as mock_run_step:
+
             def side_effect(step, func, config, output_base_dir):
                 func(config)
+
             mock_run_step.side_effect = side_effect
 
             with patch("analysis_core.orchestrator.termination"):
@@ -81,8 +84,10 @@ class TestPipelineIntegration:
 
         # Mock run_step to call the step function directly
         with patch("analysis_core.orchestrator.run_step") as mock_run_step:
+
             def side_effect(step, func, config, output_base_dir):
                 func(config)
+
             mock_run_step.side_effect = side_effect
 
             with patch("analysis_core.orchestrator.termination"):
@@ -98,11 +103,15 @@ class TestPipelineIntegration:
         """Test that all 8 steps are planned for execution."""
         # Create config file
         config_path = tmp_path / "test.json"
-        config_path.write_text(json.dumps({
-            "input": "test",
-            "question": "Test question?",
-            "provider": "openai",
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test question?",
+                    "provider": "openai",
+                }
+            )
+        )
 
         input_dir = tmp_path / "inputs"
         output_dir = tmp_path / "outputs"
@@ -157,8 +166,10 @@ class TestPipelineIntegration:
         orchestrator.register_step("extraction", step_with_status)
 
         with patch("analysis_core.orchestrator.run_step") as mock_run_step:
+
             def side_effect(step, func, config, output_base_dir):
                 func(config)
+
             mock_run_step.side_effect = side_effect
 
             with patch("analysis_core.orchestrator.termination"):

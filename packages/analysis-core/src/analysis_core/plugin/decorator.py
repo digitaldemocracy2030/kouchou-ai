@@ -15,7 +15,6 @@ from analysis_core.plugin.interface import (
     StepOutputs,
 )
 
-
 StepFunction = Callable[[StepContext, StepInputs, dict[str, Any]], StepOutputs]
 
 

@@ -21,8 +21,8 @@ Example (Workflow mode):
 
 __version__ = "0.1.0"
 
-from analysis_core.orchestrator import PipelineOrchestrator, PipelineResult, StepResult
 from analysis_core.config import PipelineConfig
+from analysis_core.orchestrator import PipelineOrchestrator, PipelineResult, StepResult
 
 __all__ = [
     "__version__",

@@ -50,6 +50,7 @@ class TestWorkflowEngineValidation:
 
     def test_validates_missing_inputs(self, test_ctx, test_registry):
         """Test that missing required inputs cause validation failure."""
+
         # Create a plugin that requires an input
         @step_plugin(
             id="test.requires_input",
@@ -57,9 +58,7 @@ class TestWorkflowEngineValidation:
             inputs=["required_data"],
             outputs=["result"],
         )
-        def requires_input_plugin(
-            ctx: StepContext, inputs: StepInputs, config: dict
-        ) -> StepOutputs:
+        def requires_input_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
             # This should not be called if validation fails
             return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
 
@@ -101,9 +100,7 @@ class TestWorkflowEngineValidation:
                     outputs=["result"],
                 )
 
-            def run(
-                self, ctx: StepContext, inputs: StepInputs, config: dict
-            ) -> StepOutputs:
+            def run(self, ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
                 return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
 
             def validate_config(self, config: dict) -> list[str]:
@@ -137,15 +134,14 @@ class TestWorkflowEngineValidation:
 
     def test_optional_step_validation_failure_continues(self, test_ctx, test_registry):
         """Test that optional step validation failure allows workflow to continue."""
+
         @step_plugin(
             id="test.optional_step",
             version="1.0.0",
             inputs=["missing_input"],
             outputs=["optional_result"],
         )
-        def optional_step_plugin(
-            ctx: StepContext, inputs: StepInputs, config: dict
-        ) -> StepOutputs:
+        def optional_step_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
             return StepOutputs(artifacts={"optional_result": ctx.output_dir / "opt.txt"})
 
         @step_plugin(
@@ -154,9 +150,7 @@ class TestWorkflowEngineValidation:
             inputs=[],
             outputs=["final_result"],
         )
-        def final_step_plugin(
-            ctx: StepContext, inputs: StepInputs, config: dict
-        ) -> StepOutputs:
+        def final_step_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
             (ctx.output_dir / "final.txt").write_text("done")
             return StepOutputs(artifacts={"final_result": ctx.output_dir / "final.txt"})
 
@@ -192,15 +186,14 @@ class TestWorkflowEngineValidation:
 
     def test_valid_inputs_passes_validation(self, test_ctx, test_registry):
         """Test that valid inputs allow step to run."""
+
         @step_plugin(
             id="test.producer",
             version="1.0.0",
             inputs=[],
             outputs=["data"],
         )
-        def producer_plugin(
-            ctx: StepContext, inputs: StepInputs, config: dict
-        ) -> StepOutputs:
+        def producer_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
             data_file = ctx.output_dir / "data.txt"
             data_file.write_text("produced data")
             return StepOutputs(artifacts={"data": data_file})
@@ -211,9 +204,7 @@ class TestWorkflowEngineValidation:
             inputs=["data"],
             outputs=["result"],
         )
-        def consumer_plugin(
-            ctx: StepContext, inputs: StepInputs, config: dict
-        ) -> StepOutputs:
+        def consumer_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
             # Should receive the data artifact
             assert "data" in inputs.artifacts
             result_file = ctx.output_dir / "result.txt"
@@ -256,9 +247,7 @@ class TestWorkflowEngineValidation:
             inputs=["nonexistent"],
             outputs=["data"],
         )
-        def failing_step_plugin(
-            ctx: StepContext, inputs: StepInputs, config: dict
-        ) -> StepOutputs:
+        def failing_step_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
             return StepOutputs(artifacts={"data": ctx.output_dir / "data.txt"})
 
         @step_plugin(
@@ -267,9 +256,7 @@ class TestWorkflowEngineValidation:
             inputs=["data"],
             outputs=["result"],
         )
-        def downstream_step_plugin(
-            ctx: StepContext, inputs: StepInputs, config: dict
-        ) -> StepOutputs:
+        def downstream_step_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
             call_count["downstream"] += 1
             return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
 
@@ -337,9 +324,7 @@ class TestWorkflowEngineOutputDir:
                 inputs=[],
                 outputs=["artifact"],
             )
-            def output_dir_plugin(
-                ctx: StepContext, inputs: StepInputs, config: dict
-            ) -> StepOutputs:
+            def output_dir_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
                 # Write to ctx.output_dir (correct behavior)
                 artifact_path = ctx.output_dir / "test_artifact.txt"
                 artifact_path.write_text("test content")
@@ -399,9 +384,7 @@ class TestWorkflowEngineOutputDir:
                 inputs=[],
                 outputs=["file1"],
             )
-            def step1_plugin(
-                ctx: StepContext, inputs: StepInputs, config: dict
-            ) -> StepOutputs:
+            def step1_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
                 path = ctx.output_dir / "file1.txt"
                 path.write_text("step1")
                 return StepOutputs(artifacts={"file1": path})
@@ -412,9 +395,7 @@ class TestWorkflowEngineOutputDir:
                 inputs=["file1"],
                 outputs=["file2"],
             )
-            def step2_plugin(
-                ctx: StepContext, inputs: StepInputs, config: dict
-            ) -> StepOutputs:
+            def step2_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
                 path = ctx.output_dir / "file2.txt"
                 path.write_text("step2")
                 return StepOutputs(artifacts={"file2": path})

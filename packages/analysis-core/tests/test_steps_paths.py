@@ -55,13 +55,9 @@ class TestStepFunctionsUsePaths:
                     for value in node.values:
                         if isinstance(value, ast.Constant) and isinstance(value.value, str):
                             if value.value.startswith("outputs/") or value.value.startswith("outputs\\"):
-                                violations.append(
-                                    f"{module_name}: Found hardcoded 'outputs/' in f-string"
-                                )
+                                violations.append(f"{module_name}: Found hardcoded 'outputs/' in f-string")
                             if value.value.startswith("inputs/") or value.value.startswith("inputs\\"):
-                                violations.append(
-                                    f"{module_name}: Found hardcoded 'inputs/' in f-string"
-                                )
+                                violations.append(f"{module_name}: Found hardcoded 'inputs/' in f-string")
 
                 # Check for regular string with hardcoded paths
                 if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -71,13 +67,9 @@ class TestStepFunctionsUsePaths:
                         continue
                     # Check for problematic patterns
                     if val.startswith("outputs/") or val.startswith("outputs\\"):
-                        violations.append(
-                            f"{module_name}: Found hardcoded path string starting with 'outputs/'"
-                        )
+                        violations.append(f"{module_name}: Found hardcoded path string starting with 'outputs/'")
                     if val.startswith("inputs/") or val.startswith("inputs\\"):
-                        violations.append(
-                            f"{module_name}: Found hardcoded path string starting with 'inputs/'"
-                        )
+                        violations.append(f"{module_name}: Found hardcoded path string starting with 'inputs/'")
 
         assert not violations, "Found hardcoded path patterns:\n" + "\n".join(violations)
 
@@ -87,8 +79,8 @@ class TestStepFunctionsUsePaths:
 
         # Check source code for proper config.get pattern
         source = inspect.getsource(extraction)
-        assert '_output_base_dir' in source, "extraction should use _output_base_dir"
-        assert '_input_base_dir' in source, "extraction should use _input_base_dir"
+        assert "_output_base_dir" in source, "extraction should use _output_base_dir"
+        assert "_input_base_dir" in source, "extraction should use _input_base_dir"
         assert 'config.get("_output_base_dir"' in source, "extraction should get _output_base_dir from config"
         assert 'config.get("_input_base_dir"' in source, "extraction should get _input_base_dir from config"
 
@@ -97,7 +89,7 @@ class TestStepFunctionsUsePaths:
         from analysis_core.steps.embedding import embedding
 
         source = inspect.getsource(embedding)
-        assert '_output_base_dir' in source, "embedding should use _output_base_dir"
+        assert "_output_base_dir" in source, "embedding should use _output_base_dir"
         assert 'config.get("_output_base_dir"' in source, "embedding should get _output_base_dir from config"
 
     def test_hierarchical_clustering_uses_configurable_paths(self):
@@ -105,42 +97,54 @@ class TestStepFunctionsUsePaths:
         from analysis_core.steps.hierarchical_clustering import hierarchical_clustering
 
         source = inspect.getsource(hierarchical_clustering)
-        assert '_output_base_dir' in source, "hierarchical_clustering should use _output_base_dir"
-        assert 'config.get("_output_base_dir"' in source, "hierarchical_clustering should get _output_base_dir from config"
+        assert "_output_base_dir" in source, "hierarchical_clustering should use _output_base_dir"
+        assert 'config.get("_output_base_dir"' in source, (
+            "hierarchical_clustering should get _output_base_dir from config"
+        )
 
     def test_hierarchical_initial_labelling_uses_configurable_paths(self):
         """Test that hierarchical_initial_labelling function uses config paths."""
         from analysis_core.steps.hierarchical_initial_labelling import hierarchical_initial_labelling
 
         source = inspect.getsource(hierarchical_initial_labelling)
-        assert '_output_base_dir' in source, "hierarchical_initial_labelling should use _output_base_dir"
-        assert 'config.get("_output_base_dir"' in source, "hierarchical_initial_labelling should get _output_base_dir from config"
+        assert "_output_base_dir" in source, "hierarchical_initial_labelling should use _output_base_dir"
+        assert 'config.get("_output_base_dir"' in source, (
+            "hierarchical_initial_labelling should get _output_base_dir from config"
+        )
 
     def test_hierarchical_merge_labelling_uses_configurable_paths(self):
         """Test that hierarchical_merge_labelling function uses config paths."""
         from analysis_core.steps.hierarchical_merge_labelling import hierarchical_merge_labelling
 
         source = inspect.getsource(hierarchical_merge_labelling)
-        assert '_output_base_dir' in source, "hierarchical_merge_labelling should use _output_base_dir"
-        assert 'config.get("_output_base_dir"' in source, "hierarchical_merge_labelling should get _output_base_dir from config"
+        assert "_output_base_dir" in source, "hierarchical_merge_labelling should use _output_base_dir"
+        assert 'config.get("_output_base_dir"' in source, (
+            "hierarchical_merge_labelling should get _output_base_dir from config"
+        )
 
     def test_hierarchical_overview_uses_configurable_paths(self):
         """Test that hierarchical_overview function uses config paths."""
         from analysis_core.steps.hierarchical_overview import hierarchical_overview
 
         source = inspect.getsource(hierarchical_overview)
-        assert '_output_base_dir' in source, "hierarchical_overview should use _output_base_dir"
-        assert 'config.get("_output_base_dir"' in source, "hierarchical_overview should get _output_base_dir from config"
+        assert "_output_base_dir" in source, "hierarchical_overview should use _output_base_dir"
+        assert 'config.get("_output_base_dir"' in source, (
+            "hierarchical_overview should get _output_base_dir from config"
+        )
 
     def test_hierarchical_aggregation_uses_configurable_paths(self):
         """Test that hierarchical_aggregation function uses config paths."""
         from analysis_core.steps.hierarchical_aggregation import hierarchical_aggregation
 
         source = inspect.getsource(hierarchical_aggregation)
-        assert '_output_base_dir' in source, "hierarchical_aggregation should use _output_base_dir"
-        assert '_input_base_dir' in source, "hierarchical_aggregation should use _input_base_dir"
-        assert 'config.get("_output_base_dir"' in source, "hierarchical_aggregation should get _output_base_dir from config"
-        assert 'config.get("_input_base_dir"' in source, "hierarchical_aggregation should get _input_base_dir from config"
+        assert "_output_base_dir" in source, "hierarchical_aggregation should use _output_base_dir"
+        assert "_input_base_dir" in source, "hierarchical_aggregation should use _input_base_dir"
+        assert 'config.get("_output_base_dir"' in source, (
+            "hierarchical_aggregation should get _output_base_dir from config"
+        )
+        assert 'config.get("_input_base_dir"' in source, (
+            "hierarchical_aggregation should get _input_base_dir from config"
+        )
 
     def test_no_undefined_pipeline_dir(self):
         """Test that no function uses undefined pipeline_dir variable."""

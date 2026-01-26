@@ -45,14 +45,16 @@ def hierarchical_aggregation_plugin(
 
     # Build legacy config - aggregation needs many fields from full config
     legacy_config = inputs.config.copy() if inputs.config else {}
-    legacy_config.update({
-        "output_dir": ctx.dataset,
-        "input": inputs.config.get("input", ctx.dataset),
-        "provider": ctx.provider,
-        "hierarchical_aggregation": {
-            "hidden_properties": step_config.get("hidden_properties", {}),
-        },
-    })
+    legacy_config.update(
+        {
+            "output_dir": ctx.dataset,
+            "input": inputs.config.get("input", ctx.dataset),
+            "provider": ctx.provider,
+            "hierarchical_aggregation": {
+                "hidden_properties": step_config.get("hidden_properties", {}),
+            },
+        }
+    )
 
     # Ensure required fields exist
     if "extraction" not in legacy_config:

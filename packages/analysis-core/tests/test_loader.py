@@ -136,7 +136,7 @@ class TestLoadPluginFromDirectory:
         with open(temp_plugin_dir / "manifest.yaml", "w") as f:
             yaml.dump(manifest, f)
 
-        plugin_code = '''
+        plugin_code = """
 from analysis_core.plugin import step_plugin, StepContext, StepInputs, StepOutputs
 
 @step_plugin(
@@ -147,7 +147,7 @@ from analysis_core.plugin import step_plugin, StepContext, StepInputs, StepOutpu
 )
 def example_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
     return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
-'''
+"""
         with open(temp_plugin_dir / "plugin.py", "w") as f:
             f.write(plugin_code)
 
@@ -214,7 +214,7 @@ class TestLoadPluginsFromDirectory:
             with open(plugin_dir / "manifest.yaml", "w") as f:
                 yaml.dump(manifest, f)
 
-            plugin_code = f'''
+            plugin_code = f"""
 from analysis_core.plugin import step_plugin, StepContext, StepInputs, StepOutputs
 
 @step_plugin(
@@ -223,7 +223,7 @@ from analysis_core.plugin import step_plugin, StepContext, StepInputs, StepOutpu
 )
 def the_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
     return StepOutputs()
-'''
+"""
             with open(plugin_dir / "plugin.py", "w") as f:
                 f.write(plugin_code)
 
@@ -266,13 +266,13 @@ def the_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutput
         valid_dir.mkdir()
         with open(valid_dir / "manifest.yaml", "w") as f:
             yaml.dump({"id": "test.valid", "version": "1.0.0", "entry": "plugin:p"}, f)
-        valid_code = '''
+        valid_code = """
 from analysis_core.plugin import step_plugin, StepContext, StepInputs, StepOutputs
 
 @step_plugin(id="test.valid", version="1.0.0")
 def p(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
     return StepOutputs()
-'''
+"""
         (valid_dir / "plugin.py").write_text(valid_code)
 
         # Create an invalid plugin (missing module)

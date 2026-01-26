@@ -8,7 +8,7 @@ class TestCoreImports:
 
     def test_main_package_imports(self):
         """Test main package exports."""
-        from analysis_core import PipelineOrchestrator, PipelineConfig, __version__
+        from analysis_core import PipelineConfig, PipelineOrchestrator, __version__
 
         assert __version__ == "0.1.0"
         assert PipelineOrchestrator is not None
@@ -17,15 +17,15 @@ class TestCoreImports:
     def test_core_module_imports(self):
         """Test core orchestration utilities."""
         from analysis_core.core import (
-            load_specs,
-            get_specs,
-            validate_config,
             decide_what_to_run,
-            update_status,
-            update_progress,
-            run_step,
+            get_specs,
             initialization,
+            load_specs,
+            run_step,
             termination,
+            update_progress,
+            update_status,
+            validate_config,
         )
 
         assert load_specs is not None
@@ -41,11 +41,11 @@ class TestCoreImports:
     def test_core_utils_imports(self):
         """Test core utility functions."""
         from analysis_core.core import (
-            typed_message,
-            messages,
-            format_token_count,
-            estimate_tokens,
             chunk_text,
+            estimate_tokens,
+            format_token_count,
+            messages,
+            typed_message,
         )
 
         assert typed_message is not None
@@ -127,13 +127,13 @@ class TestStepImports:
     def test_all_steps_from_init(self):
         """Test all steps can be imported from steps module."""
         from analysis_core.steps import (
-            extraction,
             embedding,
+            extraction,
+            hierarchical_aggregation,
             hierarchical_clustering,
             hierarchical_initial_labelling,
             hierarchical_merge_labelling,
             hierarchical_overview,
-            hierarchical_aggregation,
             hierarchical_visualization,
         )
 

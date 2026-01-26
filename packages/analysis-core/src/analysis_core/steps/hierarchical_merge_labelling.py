@@ -234,9 +234,11 @@ def process_merge_labelling(
 
     def filter_previous_values(df: pl.DataFrame, previous_columns: ClusterColumns) -> list[ClusterValues]:
         """前のレベルのクラスタ情報を取得する"""
-        previous_records = df.filter(pl.col(current_columns.id) == target_cluster_id).select(
-            [previous_columns.label, previous_columns.description]
-        ).unique()
+        previous_records = (
+            df.filter(pl.col(current_columns.id) == target_cluster_id)
+            .select([previous_columns.label, previous_columns.description])
+            .unique()
+        )
         previous_values = [
             ClusterValues(
                 label=row[previous_columns.label],
@@ -310,9 +312,9 @@ def calculate_cluster_density(melted_df: pl.DataFrame, config: dict):
     ids = melted_df["id"].to_list()
     densities = []
     for level, c_id in zip(levels, ids, strict=False):
-        cluster_embeds = hierarchical_cluster_df.filter(
-            pl.col(f"cluster-level-{level}-id") == c_id
-        ).select(["x", "y"]).to_numpy()
+        cluster_embeds = (
+            hierarchical_cluster_df.filter(pl.col(f"cluster-level-{level}-id") == c_id).select(["x", "y"]).to_numpy()
+        )
         density = calculate_density(cluster_embeds)
         densities.append(density)
 

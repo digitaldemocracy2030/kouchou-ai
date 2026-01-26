@@ -122,7 +122,9 @@ def decide_what_to_run(
         next_params = config.get(step["step"], {})
         diff = [key for key in keys if prev.get(key, None) != next_params.get(key, None)]
         for key in diff:
-            print(f"(!) {step['step']} step parameter '{key}' changed from '{prev.get(key)}' to '{next_params.get(key)}'")
+            print(
+                f"(!) {step['step']} step parameter '{key}' changed from '{prev.get(key)}' to '{next_params.get(key)}'"
+            )
         return diff
 
     # Figure out which steps need to run
