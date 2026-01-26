@@ -285,9 +285,14 @@ class PipelineOrchestrator:
             Initialized PipelineOrchestrator
         """
         from analysis_core.compat import normalize_config
+        from analysis_core.core.orchestration import validate_api_keys
 
         # Normalize config with defaults
         normalized = normalize_config(config.copy())
+
+        # Validate API keys early (fail-fast)
+        provider = normalized.get("provider", "openai")
+        validate_api_keys(provider)
 
         # Set output directory
         normalized["output_dir"] = output_dir or config.get("name", "analysis")
