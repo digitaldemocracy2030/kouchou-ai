@@ -292,7 +292,8 @@ class PipelineOrchestrator:
 
         # Validate API keys early (fail-fast)
         provider = normalized.get("provider", "openai")
-        validate_api_keys(provider)
+        user_api_key = normalized.get("user_api_key")
+        validate_api_keys(provider, user_api_key)
 
         # Set output directory
         normalized["output_dir"] = output_dir or config.get("name", "analysis")

@@ -15,9 +15,6 @@ from typing import Any, Callable
 
 from dotenv import load_dotenv
 
-# Load environment variables from .env file if present
-load_dotenv()
-
 # Default specs - can be overridden
 _specs: list[dict[str, Any]] = []
 
@@ -52,6 +49,8 @@ def validate_api_keys(provider: str, user_api_key: str | None = None) -> None:
     Raises:
         RuntimeError: If required API keys are not set
     """
+    load_dotenv(override=False)
+
     if provider == "openai":
         api_key = user_api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:

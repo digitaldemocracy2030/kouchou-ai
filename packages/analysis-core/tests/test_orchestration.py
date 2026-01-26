@@ -210,7 +210,8 @@ class TestValidateApiKeys:
         """Test validation fails for missing OpenAI API key."""
         from analysis_core.core.orchestration import validate_api_keys
 
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        # Set to empty string to prevent load_dotenv from loading it
+        monkeypatch.setenv("OPENAI_API_KEY", "")
 
         with pytest.raises(RuntimeError, match="OPENAI_API_KEY environment variable is not set"):
             validate_api_keys("openai")
@@ -227,7 +228,8 @@ class TestValidateApiKeys:
         """Test validation passes with user-provided API key."""
         from analysis_core.core.orchestration import validate_api_keys
 
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        # Set to empty string to prevent load_dotenv from loading it
+        monkeypatch.setenv("OPENAI_API_KEY", "")
 
         validate_api_keys("openai", user_api_key="user-provided-key")
 
@@ -235,7 +237,8 @@ class TestValidateApiKeys:
         """Test validation fails for missing Gemini API key."""
         from analysis_core.core.orchestration import validate_api_keys
 
-        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        # Set to empty string to prevent load_dotenv from loading it
+        monkeypatch.setenv("GEMINI_API_KEY", "")
 
         with pytest.raises(RuntimeError, match="GEMINI_API_KEY environment variable is not set"):
             validate_api_keys("gemini")
@@ -244,10 +247,11 @@ class TestValidateApiKeys:
         """Test validation fails for missing Azure environment variables."""
         from analysis_core.core.orchestration import validate_api_keys
 
-        monkeypatch.delenv("AZURE_CHATCOMPLETION_ENDPOINT", raising=False)
-        monkeypatch.delenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME", raising=False)
-        monkeypatch.delenv("AZURE_CHATCOMPLETION_API_KEY", raising=False)
-        monkeypatch.delenv("AZURE_CHATCOMPLETION_VERSION", raising=False)
+        # Set to empty strings instead of deleting to prevent load_dotenv from loading them
+        monkeypatch.setenv("AZURE_CHATCOMPLETION_ENDPOINT", "")
+        monkeypatch.setenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME", "")
+        monkeypatch.setenv("AZURE_CHATCOMPLETION_API_KEY", "")
+        monkeypatch.setenv("AZURE_CHATCOMPLETION_VERSION", "")
 
         with pytest.raises(RuntimeError, match="Azure OpenAI environment variables not set"):
             validate_api_keys("azure")
@@ -256,7 +260,8 @@ class TestValidateApiKeys:
         """Test validation fails for missing OpenRouter API key."""
         from analysis_core.core.orchestration import validate_api_keys
 
-        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        # Set to empty string to prevent load_dotenv from loading it
+        monkeypatch.setenv("OPENROUTER_API_KEY", "")
 
         with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY environment variable is not set"):
             validate_api_keys("openrouter")
