@@ -222,6 +222,9 @@ analysis-core の標準ワークフローは、次のステップでファイル
 
 `config.is_pubcom = true` の場合、以下のCSVが生成されます。
 
+> 注: **このCSVのみ** `arg_id` / `category_id` のように snake_case に変換されます（他のCSVは基本的に `arg-id` などの kebab-case）。  
+> 元データ（`args.csv`, `hierarchical_clusters.csv`）は kebab-case のままです。
+
 | カラム名 | 説明 |
 |---|---|
 | `comment-id` | 元コメントID |
