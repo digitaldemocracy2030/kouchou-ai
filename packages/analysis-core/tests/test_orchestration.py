@@ -1,7 +1,6 @@
 """Tests for orchestration module."""
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -20,7 +19,7 @@ class TestInitialization:
                 {
                     "input": "test_input",
                     "question": "What are the main themes?",
-                    "provider": "openai",
+                    "provider": "local",
                 }
             )
         )
@@ -59,7 +58,7 @@ class TestInitialization:
                 {
                     "input": "test",
                     "question": "Test?",
-                    "provider": "openai",
+                    "provider": "local",
                 }
             )
         )
@@ -92,7 +91,7 @@ class TestInitialization:
                 {
                     "input": "test",
                     "question": "Test?",
-                    "provider": "openai",
+                    "provider": "local",
                 }
             )
         )
@@ -126,7 +125,7 @@ class TestInitialization:
                 {
                     "input": "test",
                     "question": "Test?",
-                    "provider": "openai",
+                    "provider": "local",
                 }
             )
         )
@@ -155,7 +154,7 @@ class TestInitialization:
                 {
                     "input": "test",
                     "question": "Test?",
-                    "provider": "openai",
+                    "provider": "local",
                 }
             )
         )
@@ -184,7 +183,7 @@ class TestInitialization:
                 {
                     "input": "test",
                     "question": "Test?",
-                    "provider": "openai",
+                    "provider": "local",
                 }
             )
         )
@@ -202,6 +201,83 @@ class TestInitialization:
         )
 
         assert config.get("without-html") is True
+
+
+class TestValidateApiKeys:
+    """Test API key validation."""
+
+    def test_validate_api_keys_openai_missing(self, monkeypatch):
+        """Test validation fails for missing OpenAI API key."""
+        from analysis_core.core.orchestration import validate_api_keys
+
+        # Set to empty string to prevent load_dotenv from loading it
+        monkeypatch.setenv("OPENAI_API_KEY", "")
+
+        with pytest.raises(RuntimeError, match="OPENAI_API_KEY environment variable is not set"):
+            validate_api_keys("openai")
+
+    def test_validate_api_keys_openai_with_env(self, monkeypatch):
+        """Test validation passes when OpenAI API key is set."""
+        from analysis_core.core.orchestration import validate_api_keys
+
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+        validate_api_keys("openai")
+
+    def test_validate_api_keys_openai_with_user_key(self, monkeypatch):
+        """Test validation passes with user-provided API key."""
+        from analysis_core.core.orchestration import validate_api_keys
+
+        # Set to empty string to prevent load_dotenv from loading it
+        monkeypatch.setenv("OPENAI_API_KEY", "")
+
+        validate_api_keys("openai", user_api_key="user-provided-key")
+
+    def test_validate_api_keys_gemini_missing(self, monkeypatch):
+        """Test validation fails for missing Gemini API key."""
+        from analysis_core.core.orchestration import validate_api_keys
+
+        # Set to empty string to prevent load_dotenv from loading it
+        monkeypatch.setenv("GEMINI_API_KEY", "")
+
+        with pytest.raises(RuntimeError, match="GEMINI_API_KEY environment variable is not set"):
+            validate_api_keys("gemini")
+
+    def test_validate_api_keys_azure_missing(self, monkeypatch):
+        """Test validation fails for missing Azure environment variables."""
+        from analysis_core.core.orchestration import validate_api_keys
+
+        # Set to empty strings instead of deleting to prevent load_dotenv from loading them
+        monkeypatch.setenv("AZURE_CHATCOMPLETION_ENDPOINT", "")
+        monkeypatch.setenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME", "")
+        monkeypatch.setenv("AZURE_CHATCOMPLETION_API_KEY", "")
+        monkeypatch.setenv("AZURE_CHATCOMPLETION_VERSION", "")
+
+        with pytest.raises(RuntimeError, match="Azure OpenAI environment variables not set"):
+            validate_api_keys("azure")
+
+    def test_validate_api_keys_openrouter_missing(self, monkeypatch):
+        """Test validation fails for missing OpenRouter API key."""
+        from analysis_core.core.orchestration import validate_api_keys
+
+        # Set to empty string to prevent load_dotenv from loading it
+        monkeypatch.setenv("OPENROUTER_API_KEY", "")
+
+        with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY environment variable is not set"):
+            validate_api_keys("openrouter")
+
+    def test_validate_api_keys_local_no_key_needed(self):
+        """Test validation passes for local provider without any keys."""
+        from analysis_core.core.orchestration import validate_api_keys
+
+        validate_api_keys("local")
+
+    def test_validate_api_keys_unknown_provider(self):
+        """Test validation fails for unknown provider."""
+        from analysis_core.core.orchestration import validate_api_keys
+
+        with pytest.raises(RuntimeError, match="Unknown provider"):
+            validate_api_keys("unknown_provider")
 
 
 class TestValidateConfig:
@@ -324,7 +400,7 @@ class TestPipelineOrchestrator:
                 {
                     "input": "test",
                     "question": "Test?",
-                    "provider": "openai",
+                    "provider": "local",
                 }
             )
         )
