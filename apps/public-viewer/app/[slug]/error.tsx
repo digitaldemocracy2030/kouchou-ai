@@ -1,6 +1,7 @@
 "use client";
 
-import { Button } from "@chakra-ui/react";
+import { ApiConnectionError } from "@/components/ApiConnectionError";
+import { Box, Button } from "@chakra-ui/react";
 import { useEffect } from "react";
 
 type Props = {
@@ -13,14 +14,14 @@ export default function ErrorPage({ error, reset }: Props) {
     console.error(error);
   }, [error]);
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASEPATH || "";
+
   return (
     <>
-      <p>
-        エラー：データの取得に失敗しました
-        <br />
-        Error: fetch failed to {process.env.NEXT_PUBLIC_API_BASEPATH}.
-      </p>
-      <Button onClick={reset}>リトライする</Button>
+      <ApiConnectionError apiUrl={apiUrl} errorMessage={error.message} isServerSide={false} />
+      <Box textAlign="center" mb={8}>
+        <Button onClick={reset}>リトライする</Button>
+      </Box>
     </>
   );
 }
