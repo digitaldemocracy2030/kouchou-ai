@@ -16,7 +16,7 @@ from src.config import settings
 from src.core.exceptions import ClusterCSVParseError, ClusterFileNotFound
 from src.repositories.cluster_repository import ClusterRepository
 from src.repositories.config_repository import ConfigRepository
-from src.schemas.admin_report import ReportInput, ReportVisibilityUpdate
+from src.schemas.admin_report import ReportDuplicateRequest, ReportInput, ReportVisibilityUpdate
 from src.schemas.cluster import ClusterResponse, ClusterUpdate
 from src.schemas.report import Report, ReportStatus
 from src.schemas.report_config import ReportConfigUpdate
@@ -24,6 +24,7 @@ from src.schemas.visualization_config import ReportDisplayConfig
 from src.services.llm_models import get_models_by_provider
 from src.services.llm_pricing import LLMPricing
 from src.services.report_launcher import execute_aggregation, launch_report_generation
+from src.services.report_duplicate import duplicate_report
 from src.services.report_status import (
     add_analysis_data,
     invalidate_report_cache,
@@ -106,6 +107,45 @@ async def create_report(
     except Exception as e:
         slogger.error(f"Exception: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+@router.post("/admin/reports/{slug}/duplicate")
+async def duplicate_report_endpoint(
+    slug: str,
+    payload: ReportDuplicateRequest,
+    request: Request,
+    api_key: str = Depends(verify_admin_api_key),
+) -> ORJSONResponse:
+    validate_slug(slug)
+    if payload.new_slug and payload.new_slug.strip():
+        validate_slug(payload.new_slug)
+
+    # source status check
+    reports = load_status_as_reports(include_deleted=True)
+    source_report = next((r for r in reports if r.slug == slug), None)
+    if source_report is None:
+        raise HTTPException(status_code=404, detail="Source report not found")
+    if source_report.status == ReportStatus.DELETED:
+        raise HTTPException(status_code=409, detail="Source report is deleted")
+    if source_report.status not in (ReportStatus.READY, ReportStatus.ERROR):
+        raise HTTPException(status_code=409, detail="Source report is not duplicatable")
+
+    user_api_key = request.headers.get("x-user-api-key")
+    new_slug = duplicate_report(slug, payload, user_api_key)
+
+    return ORJSONResponse(
+        content={
+            "success": True,
+            "report": {
+                "slug": new_slug,
+                "status": "processing",
+            },
+        },
+        headers={
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
 
 
 @router.get("/admin/comments/{slug}/csv")
