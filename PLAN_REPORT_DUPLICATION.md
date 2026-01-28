@@ -30,6 +30,38 @@
 4. `hierarchical_result.json` を削除し、集計は必ず再実行。
 5. `analysis-core` を新 config で起動する (ReportInput は不要)。
 
+## 詳細実装計画 (最優先: 要約プロンプト修正で再生成)
+狙い: 既存成果物を最大限再利用しつつ、**要約/解説プロンプト変更時は概要だけ再生成**できる状態を最短で実現する。
+
+### フェーズ 1: 最短到達 (要約プロンプト変更フローを動かす)
+1. API: `POST /admin/reports/{slug}/duplicate` を実装し、`overrides` で「要約/解説プロンプト」だけ差し替え可能にする。
+2. 複製処理:
+   - `configs/{source}.json` を読み込み `overrides` を適用して `configs/{new}.json` を作成。
+   - `inputs/{new}.csv` をコピーし、`outputs/{new}/` に必要成果物をコピー。
+   - `hierarchical_status.json` をコピーして `previous` 判定を有効化。
+   - **複製時は常に `hierarchical_overview.txt` を削除**して再生成を強制。
+   - `hierarchical_result.json` は常に削除し、集計は必ず再実行。
+3. UI: 管理画面の複製ダイアログに「要約/解説プロンプト」入力欄を用意。
+4. UI: 「この変更で再実行されるステップ」を表示 (overview は常に再実行されることを明示)。
+
+### フェーズ 2: 再利用の安定化 (差分判定の明確化)
+1. 変更差分から再実行ステップを算出するロジックを追加。
+   - 入力/設定が変わっていなければ再利用する (analysis-core と同じ判定に合わせる)。
+   - 差分がある場合は UI に「再実行ステップ」を明示する (トグルは出さない)。
+2. overview は常に再実行する (複製時に `hierarchical_overview.txt` を削除)。
+   - `analysis-core` の params 判定に合致することを確認し、overview 再生成が確実に走るようにする。
+3. 再実行判定の根拠をログ/レスポンスに含め、運用上トレースできるようにする。
+
+### フェーズ 3: 競合・運用・UXの強化
+1. TOCTOU 対策のロック/マーカーを実装 (newSlug 単位の原子チェック)。
+2. `source_slug` を保存し、一覧で複製元を追跡可能にする。
+3. ストレージ利用状況の可視化 + ゴミ箱一括削除を追加。
+
+### 実装ポイント (要約プロンプト変更の最短経路)
+- 再利用ファイルは保持し、**削除は overview と result のみに限定**する。
+- 既存成果物がローカルに無い場合はストレージから取得してから複製を行う。
+- `reuse.enabled` は既定 ON とし、UI では「overview は常に再実行」と表示する。
+
 ## API 設計
 エンドポイント:
 - `POST /admin/reports/{slug}/duplicate`
@@ -46,8 +78,7 @@
     "provider": "openai"
   },
   "reuse": {
-    "enabled": true,
-    "forceOverview": false
+    "enabled": true
   }
 }
 ```
@@ -66,7 +97,7 @@
 補足:
 - `overrides` は source config に部分適用する。
 - `reuse.enabled=false` の場合は成果物コピーなしでフル再実行。
-- `reuse.forceOverview=true` の場合は `hierarchical_overview.txt` を削除して再生成。
+- 複製時は常に `hierarchical_overview.txt` を削除して再生成する (トグルは設けない)。
 - 冪等キーによる再利用はサポートしない。`newSlug` が既に存在する場合は常に HTTP 409 (UI はエラー表示) とする。
 
 ## ユーザーの実行フロー (解説プロンプトだけ再生成したい場合)
@@ -76,9 +107,8 @@
 2. 新しい slug を入力する (例: `{slug}-overview-rev1`)。空欄の場合は自動生成する (例: `{slug}-copy-{YYYYMMDD}`)。
 3. 複製ダイアログの「解説/概要プロンプト」欄に新しいプロンプトを入力する。
 4. 再利用トグルは ON にする (既存成果物を最大限再利用)。既定値も ON とする。
-5. 概要再生成トグルは ON にする (`hierarchical_overview.txt` を削除して再生成)。 # このオプションは必要ない、常にON
-6. 送信すると新しいレポートが `processing` で作成され、概要ステップだけが再実行される。
-7. 完了後、新しいレポートで解説が更新されていることを確認する (元レポートは変更されない)。
+5. 送信すると新しいレポートが `processing` で作成され、概要ステップだけが再実行される。
+6. 完了後、新しいレポートで解説が更新されていることを確認する (元レポートは変更されない)。
 
 補足:
 - 解説/概要プロンプトの差し替えのみであれば、抽出/埋め込み/クラスタ等は再利用される想定。
@@ -122,7 +152,7 @@
 - `outputs/{source}/hierarchical_status.json` を `outputs/{new}/` にコピー。
 - 必要な成果物を `outputs/{new}/` にコピー。
 - `hierarchical_result.json` を削除し、集計を強制実行。
-- `forceOverview=true` の場合は `hierarchical_overview.txt` も削除。
+- 複製時は常に `hierarchical_overview.txt` を削除して再生成する。
 
 再利用の優先度:
 - 入力取得が高コストなケース (特に Twitter 取得) では入力データの再利用を最優先する。
@@ -169,20 +199,43 @@
 3. `newSlug` が未使用かつ安全な形式かを確認。
 4. 競合防止のため `newSlug` に紐づくロック/マーカーを原子的に作成する (例: `outputs/{newSlug}/.duplicate.lock` か DB のユニーク行)。
    - 既に存在する場合は TOCTOU (Time Of Check / Time Of Use: 「存在確認」と「作成」の間に他リクエストが割り込む競合) とみなし即座に 409 を返す (同一リクエストの再送でも再利用しない)。
-4. `configs/{source}.json` を読み込み。
-5. `overrides` を適用し `name` と `input` を `newSlug` に更新。
-5.1 `source_slug` を config と status に記録する。
-6. 入力ファイル存在を確認 (必要ならストレージから取得)。
-7. `inputs/{newSlug}.csv` を作成 (source をコピー)。
-8. `outputs/{newSlug}/` を作成し、必要成果物をコピー。
-9. `hierarchical_status.json` をコピーして再利用を有効化。
-10. `hierarchical_result.json` を削除 (必要なら `hierarchical_overview.txt` も削除)。
-11. `report_status.json` に `status=processing` で追加 (ロック取得後にのみ書き込む)。
-12. config path を受け取る新 helper で `analysis-core` を起動。
+5. `configs/{source}.json` を読み込み。
+6. `overrides` を適用し `name` と `input` を `newSlug` に更新。
+6.1 `source_slug` を config と status に記録する。
+7. 入力ファイル存在を確認 (必要ならストレージから取得)。
+8. `inputs/{newSlug}.csv` を作成 (source をコピー)。
+9. `outputs/{newSlug}/` を作成し、必要成果物をコピー。
+10. `hierarchical_status.json` をコピーして再利用を有効化。
+11. `hierarchical_result.json` と `hierarchical_overview.txt` を削除 (概要は常に再生成)。
+12. `report_status.json` に `status=processing` で追加 (ロック取得後にのみ書き込む)。
+13. config path を受け取る新 helper で `analysis-core` を起動。
+
+### ロック機構の詳細 (TOCTOU 対策)
+- ロック作成失敗時の処理:
+  - ロック/マーカー作成が失敗した場合は **即座に 409** を返す。
+  - 冪等キーによる再利用は行わないため、再送でも成功扱いにしない。
+- ロック保持期間:
+  - ロックは「複製準備 (コピー/削除/ステータス更新) の排他」にのみ使用し、`analysis-core` 起動の成否が確定した時点で解放する。
+  - TTL を設定し (例: 10 分)、作成時刻をロックに記録する。
+- クラッシュ時のクリーンアップ:
+  - 既存ロックが TTL 超過の場合は「古いロック」とみなし、**部分成果物を削除してからロックを解除**して再実行を許可する。
+  - 部分成果物には `configs/{newSlug}.json`, `inputs/{newSlug}.csv`, `outputs/{newSlug}/` を含む。
+
+### エラーハンドリング
+- 複製元が想定外の状態の場合:
+  - `ready` / `error` 以外 (例: `processing`, `deleted`) は **409** を返し、UI はエラー表示とする。
+- ファイルコピー途中での失敗:
+  - 途中失敗時は **部分成果物を削除**し、ロックを解放して 500 を返す。
+  - `report_status.json` が作成済みの場合は `error` に更新し、失敗理由を記録する。
+- `analysis-core` 起動失敗時:
+  - `report_status.json` を `error` に更新し、失敗理由を記録する。
+  - ロックを解放する (以後の再実行は削除→再作成で対応)。
 
 ## バックエンド変更点
 - 新スキーマ: `ReportDuplicateRequest` / `ReportDuplicateResponse`。
 - `Report` メタデータに `source_slug` を追加 (複製元の slug、通常作成時は `null`)。
+- ストレージ利用状況取得 API を追加 (利用可能容量 / 使用容量 / ゴミ箱占有量)。
+- ゴミ箱一括削除 API を追加 (削除済みレポートの成果物を一括削除)。
 - 新サービス: `duplicate_report()` を `apps/api/src/services/report_launcher.py` か新規ファイルに追加。
 - `apps/api/src/services/report_status.py` に `add_new_report_to_status_from_config()` を追加。
 - `apps/api/src/routers/admin_report.py` に複製エンドポイントを追加。
@@ -193,19 +246,19 @@
 - レポート一覧で `source_slug` がある場合は「複製済み」を示すアイコンを表示し、ホバー/クリックで複製元の slug を確認できるようにする。
   - 例: コピーアイコン + tooltip に `source_slug` を表示。
   - クリック時は複製元レポート詳細に遷移できる導線を用意する。
+- ストレージ利用状況の表示:
+  - 利用可能容量 / 使用容量 / ゴミ箱占有量を表示する。
+  - 「ゴミ箱を空にする」操作を追加し、削除済みレポートの成果物を一括削除できる。
 - 複製ダイアログ:
   - 新 slug (例: `"{slug}-copy-{YYYYMMDD}"`)
   - タイトル/概要
   - クラスタ数
   - model/provider
-  - 再利用トグル、概要再生成トグル
+  - 再利用トグル
     - 再利用トグル:
       - ON: 既存成果物をコピーし、`analysis-core` のスキップ機構を活かす (`reuse.enabled=true`)。
       - OFF: 入力はコピーするが成果物はコピーせず、フル再実行 (`reuse.enabled=false`)。
-    - 概要再生成トグル:
-      - ON: `hierarchical_overview.txt` を削除して再生成 (`reuse.forceOverview=true`)。
-      - OFF: 既存の概要を再利用 (`reuse.forceOverview=false`)。
-    - デフォルトは再利用=ON / 概要再生成=OFF (コスト削減優先) とする。
+    - デフォルトは再利用=ON (コスト削減優先) とする。
 - 送信後は `processing` 表示で既存進捗UIを利用。
 
 ## テスト
@@ -225,10 +278,14 @@
 - 元レポートのファイルが変更されない。
 - `error` レポートから複製した場合でも、存在する成果物は再利用される。
 - `extraction`/`embedding` 成果物が存在する場合は、それらを再利用してコスト削減できる。
+- 管理画面でストレージの利用可能容量・使用容量・ゴミ箱占有量が確認できる。
+- 管理画面からゴミ箱を空にでき、削除済みレポートの成果物が削除される。
 
 ## 未決事項
-- 再利用のデフォルト範囲 (全再利用か選択制か)。
-- 中間成果物の保持期間と削除ポリシー。
-- `error` レポートから複製する際の最小必須成果物 (どこまで揃っていれば再利用するか)。
-- `extraction`/`embedding` の成果物が欠けている場合の再実行方針 (段階的に再実行するか)。
-- UI で「概要再生成」「抽出再実行」などの詳細オプションを出すか。
+## 仕様決定
+- 再利用のデフォルト範囲: 設定/入力が変わっていない限り再利用する (analysis-core と同じ自動判定に従う)。
+- 中間成果物の保持期間: 再利用に必要なファイルは基本は無期限で保持する。削除ポリシーは「容量逼迫時のみ別途判断」とする。
+- `extraction`/`embedding` の成果物が欠けている場合: 欠けているステップは再実行する。
+- UI の詳細オプション: 「概要再生成」「抽出再実行」などの手動トグルは出さない。
+  - `previous` と入力/設定の差分に基づき、どのステップが再実行されるかを UI 上でわかりやすく表示する。
+  - 例: 「この変更により再実行されるステップ: extraction → embedding → clustering → overview」
