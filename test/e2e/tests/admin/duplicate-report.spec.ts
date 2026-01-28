@@ -6,11 +6,11 @@ test.describe("管理画面 - レポート複製", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByTestId("report-actions-test-report").click();
-    await page.getByText("複製").click();
-    await page.waitForLoadState("networkidle");
+    await page.getByRole("menuitem", { name: "複製" }).click();
+    await expect(page.getByRole("heading", { name: "レポートを複製" })).toBeVisible();
 
     await expect(page.getByText("再実行されるステップ")).toBeVisible();
-    await expect(page.getByText("overview")).toBeVisible();
+    await expect(page.getByText("overview", { exact: true })).toBeVisible();
 
     await page.getByPlaceholder("未入力の場合は元のプロンプトを再利用します").fill("new overview prompt");
 

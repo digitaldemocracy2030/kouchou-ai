@@ -2,7 +2,7 @@ import json
 import os
 import shutil
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -118,7 +118,7 @@ def _slug_exists_anywhere(slug: str) -> bool:
 
 
 def _generate_slug(source_slug: str) -> str:
-    date_str = datetime.now(UTC).strftime("%Y%m%d")
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
     base = f"{source_slug}-copy-{date_str}"
     if not _slug_exists_anywhere(base):
         return base
