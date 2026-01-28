@@ -33,7 +33,7 @@ if [ "$BUILD_TYPE" = "root" ]; then
   API_BASEPATH=http://localhost:8002 \
   NEXT_PUBLIC_PUBLIC_API_KEY=public \
   NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="" \
-  npm run build:static
+  pnpm run build:static
 
   echo ">>> 静的ビルド完了: apps/public-viewer/out"
 
@@ -49,7 +49,7 @@ elif [ "$BUILD_TYPE" = "subdir" ]; then
   API_BASEPATH=http://localhost:8002 \
   NEXT_PUBLIC_PUBLIC_API_KEY=public \
   NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="/kouchou-ai" \
-  npm run build:static
+  pnpm run build:static
 
   # ビルド結果をout-subdirに移動
   if [ -d "out" ]; then

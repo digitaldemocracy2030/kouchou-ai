@@ -153,6 +153,6 @@ test.describe("管理画面 - パフォーマンス", () => {
  * 注意事項:
  * - 上記のテストは実際のUIコード（apps/admin/app）に基づいて作成されています
  * - サーバーが http://localhost:4000 で起動している必要があります
- * - テストを実行する前に `docker compose up` または `cd apps/admin && npm run dev` でサーバーを起動してください
+ * - テストを実行する前に `docker compose up` または `cd apps/admin && pnpm run dev` でサーバーを起動してください
  * - 一部のテストはAPI応答に依存するため、APIサーバー（port 8000）も起動している必要があります
  */

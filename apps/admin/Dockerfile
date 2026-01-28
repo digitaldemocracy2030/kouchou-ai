@@ -35,6 +35,7 @@ RUN pnpm --filter @kouchou-ai/admin build
 FROM node:22-alpine AS runner
 
 WORKDIR /repo
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
 ARG NEXT_PUBLIC_CLIENT_BASEPATH
 ARG NEXT_PUBLIC_ADMIN_API_KEY
@@ -59,4 +60,4 @@ COPY --from=builder /repo /repo
 
 WORKDIR /repo/apps/admin
 EXPOSE 4000
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]

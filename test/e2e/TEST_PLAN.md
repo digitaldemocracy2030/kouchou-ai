@@ -12,7 +12,7 @@
 
 ### 前提条件
 
-- Node.js と npm/pnpm がインストールされていること
+- Node.js と pnpm がインストールされていること
 - Docker Compose で全サービスが起動していること（`make client-dev -j 3` または `docker compose up`）
 - 管理画面が http://localhost:4000 でアクセス可能であること
 - APIサーバーが http://localhost:8000 で稼働していること
@@ -24,16 +24,16 @@
 cd test/e2e
 
 # すべてのテストを実行
-npm test
+pnpm test
 
 # UIモードでテストを実行
-npm run test:ui
+pnpm run test:ui
 
 # デバッグモードでテストを実行
-npm run test:debug
+pnpm run test:debug
 
 # 特定のテストファイルのみ実行
-npx playwright test tests/admin/create-report.spec.ts
+pnpm exec playwright test tests/admin/create-report.spec.ts
 ```
 
 ## テストカテゴリ
@@ -181,15 +181,15 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
       - name: Install dependencies
-        run: cd test/e2e && npm install
+        run: cd test/e2e && pnpm install
       - name: Install Playwright browsers
-        run: cd test/e2e && npx playwright install --with-deps
+        run: cd test/e2e && pnpm exec playwright install --with-deps
       - name: Start services
         run: docker compose up -d
       - name: Wait for services
         run: sleep 30
       - name: Run E2E tests
-        run: cd test/e2e && npm test
+        run: cd test/e2e && pnpm test
       - uses: actions/upload-artifact@v3
         if: always()
         with:

@@ -7,7 +7,7 @@ import { test, expect } from "@playwright/test";
  * http://localhost:3001 で http-server により静的ファイルが提供されます。
  *
  * 注意:
- * - 静的ビルドは事前に生成されている必要があります（cd apps/public-viewer && npm run build:static）
+ * - 静的ビルドは事前に生成されている必要があります（cd apps/public-viewer && pnpm run build:static）
  * - 静的HTMLなので、APIサーバーへのリクエストは発生しません
  * - ビルド時に埋め込まれたデータが表示されます
  */
@@ -113,7 +113,7 @@ test.describe("Client Static - パフォーマンス", () => {
 /**
  * 注意事項:
  * - このテストは静的ビルド（apps/public-viewer/out）を http-server でホスティングした環境をテストします
- * - 静的ビルドは事前に生成されている必要があります: cd apps/public-viewer && npm run build:static
+ * - 静的ビルドは事前に生成されている必要があります: cd apps/public-viewer && pnpm run build:static
  * - ビルド時にダミーAPIサーバー（port 8002）からデータを取得してHTMLに埋め込みます
  * - 環境変数: NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 で静的ビルドを生成
  */

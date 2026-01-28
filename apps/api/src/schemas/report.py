@@ -24,6 +24,7 @@ class AnalysisData(SchemaBaseModel):
 
 class Report(SchemaBaseModel):
     slug: str
+    source_slug: str | None = None
     title: str
     description: str
     status: ReportStatus

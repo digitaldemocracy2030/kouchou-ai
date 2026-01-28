@@ -16,7 +16,7 @@
 静的ビルドは**ビルド時**にAPIサーバーからデータを取得してHTMLに埋め込みます：
 
 ```
-ビルド時（npm run build:static）:
+ビルド時（pnpm run build:static）:
   Next.js
     ↓ HTTPリクエスト
   APIサーバー（http://localhost:8002）
@@ -216,7 +216,7 @@ NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
 API_BASEPATH=http://localhost:8002 \
 NEXT_PUBLIC_PUBLIC_API_KEY=public \
 NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="" \
-npm run build:static
+pnpm run build:static
 ```
 
 ### 2. Subdirectory ホスティング用ビルド
@@ -232,7 +232,7 @@ NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
 API_BASEPATH=http://localhost:8002 \
 NEXT_PUBLIC_PUBLIC_API_KEY=public \
 NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="/kouchou-ai" \
-npm run build:static
+pnpm run build:static
 ```
 
 ## テスト実装のアプローチ
@@ -273,7 +273,7 @@ webServer: [
   },
   // Root用の静的ビルドを生成
   {
-    command: "cd ../../client && NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 API_BASEPATH=http://localhost:8002 NEXT_PUBLIC_PUBLIC_API_KEY=public NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH=\"\" npm run build:static",
+    command: "cd ../../client && NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 API_BASEPATH=http://localhost:8002 NEXT_PUBLIC_PUBLIC_API_KEY=public NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH=\"\" pnpm run build:static",
     // ビルド完了を待つ
   },
   // Root用のhttp-serverを起動

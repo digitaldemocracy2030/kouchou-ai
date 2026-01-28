@@ -78,6 +78,7 @@ def add_new_report_to_status(report_input: ReportInput) -> None:
     with _lock:
         _report_status[report_input.input] = {
             "slug": report_input.input,
+            "source_slug": None,
             "status": "processing",
             "title": report_input.question,
             "description": report_input.intro,
@@ -92,6 +93,39 @@ def add_new_report_to_status(report_input: ReportInput) -> None:
             "model": None,  # LLMモデルを初期化
         }
         save_status()
+
+
+def add_new_report_to_status_from_config(slug: str, config: dict, source_slug: str | None = None) -> None:
+    with _lock:
+        _report_status[slug] = {
+            "slug": slug,
+            "source_slug": source_slug,
+            "status": "processing",
+            "title": config.get("question", ""),
+            "description": config.get("intro", ""),
+            "is_pubcom": config.get("is_pubcom", False),
+            "visibility": ReportVisibility.UNLISTED.value,
+            "created_at": datetime.now(UTC).isoformat(),
+            "token_usage": 0,
+            "token_usage_input": 0,
+            "token_usage_output": 0,
+            "estimated_cost": 0.0,
+            "provider": config.get("provider"),
+            "model": config.get("model"),
+        }
+        save_status()
+
+
+def slug_exists(slug: str) -> bool:
+    load_status()
+    return slug in _report_status
+
+
+def delete_report_from_status(slug: str) -> None:
+    with _lock:
+        if slug in _report_status:
+            del _report_status[slug]
+            save_status()
 
 
 def set_status(slug: str, status: str) -> None:

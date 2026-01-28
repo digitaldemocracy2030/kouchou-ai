@@ -22,7 +22,7 @@ app.use(express.json());
 app.post("/build", async (req, res) => {
   try {
     console.log("Build request received");
-    const { stdout, stderr } = await execAsync("npm run build:static", {
+    const { stdout, stderr } = await execAsync("pnpm run build:static", {
       cwd: clientDir,
       env: {
         ...process.env,

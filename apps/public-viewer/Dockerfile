@@ -23,6 +23,7 @@ RUN pnpm --filter @kouchou-ai/report-schema build
 
 FROM node:22-alpine AS runner
 WORKDIR /repo
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 ARG NEXT_PUBLIC_API_BASEPATH
 ARG NEXT_PUBLIC_PUBLIC_API_KEY
 ARG NEXT_PUBLIC_SITE_URL
