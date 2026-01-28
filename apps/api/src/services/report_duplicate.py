@@ -2,7 +2,7 @@ import json
 import os
 import shutil
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -76,7 +76,7 @@ def acquire_duplicate_lock(slug: str) -> Path:
     try:
         _write_lock(lock_path)
         return lock_path
-    except FileExistsError:
+    except FileExistsError as err:
         if _lock_expired(lock_path):
             # stale lock: if report exists in status, do not delete artifacts
             if slug_exists(slug):
@@ -84,7 +84,7 @@ def acquire_duplicate_lock(slug: str) -> Path:
                     lock_path.unlink()
                 except Exception:
                     pass
-                raise HTTPException(status_code=409, detail="newSlug already exists")
+                raise HTTPException(status_code=409, detail="newSlug already exists") from err
             # cleanup partial artifacts and retry
             _cleanup_partial_artifacts(slug)
             try:
@@ -93,7 +93,7 @@ def acquire_duplicate_lock(slug: str) -> Path:
                 pass
             _write_lock(lock_path)
             return lock_path
-        raise HTTPException(status_code=409, detail="Duplicate in progress")
+        raise HTTPException(status_code=409, detail="Duplicate in progress") from err
 
 
 def release_duplicate_lock(lock_path: Path) -> None:
@@ -118,7 +118,7 @@ def _slug_exists_anywhere(slug: str) -> bool:
 
 
 def _generate_slug(source_slug: str) -> str:
-    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    date_str = datetime.now(UTC).strftime("%Y%m%d")
     base = f"{source_slug}-copy-{date_str}"
     if not _slug_exists_anywhere(base):
         return base
