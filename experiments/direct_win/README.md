@@ -32,7 +32,7 @@ copy .env.example .env
 
 ```
 node -v
-npm -v
+pnpm -v
 ```
 
 * 未インストールの場合は、[Node.js LTS](https://nodejs.org/ja) をインストールしてください。
@@ -50,7 +50,7 @@ python --version
 
 ```
 cd apps/public-viewer
-npm install
+pnpm install
 cd ..
 ```
 
@@ -58,7 +58,7 @@ cd ..
 
 ```
 cd apps/admin
-npm install
+pnpm install
 cd ..
 ```
 

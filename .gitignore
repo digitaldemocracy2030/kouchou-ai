@@ -22,6 +22,7 @@ test-results/
 /playwright.config.ts
 
 # Package managers
+**/package-lock.json
 
 # Build outputs
 apps/public-viewer/issues-kouchou-ai/

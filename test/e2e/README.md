@@ -6,12 +6,12 @@
 
 1. 依存関係のインストール:
    ```
-   npm install
+   pnpm install
    ```
 
 2. Playwrightブラウザのインストール:
    ```
-   npx playwright install
+   pnpm exec playwright install
    ```
 
 3. 環境変数の設定:
@@ -35,44 +35,44 @@ Playwrightの`webServer`機能により、テスト実行時に必要なサー�
 
 すべてのテストを実行:
 ```bash
-npm test
+pnpm test
 ```
 
 管理画面のテストのみ実行:
 ```bash
-npx playwright test --project=admin
+pnpm exec playwright test --project=admin
 ```
 
 Clientのテストのみ実行:
 ```bash
-npx playwright test --project=client
+pnpm exec playwright test --project=client
 ```
 
 Client静的ビルドのテストのみ実行:
 ```bash
 # Root ホスティング用（basePath なし）
-npx playwright test --project=client-static-root
+pnpm exec playwright test --project=client-static-root
 
 # Subdirectory ホスティング用（basePath="/kouchou-ai"）
-npx playwright test --project=client-static-subdir
+pnpm exec playwright test --project=client-static-subdir
 
 # 両方実行
-npx playwright test --project=client-static-root --project=client-static-subdir
+pnpm exec playwright test --project=client-static-root --project=client-static-subdir
 ```
 
 UIモードでテストを実行:
 ```bash
-npm run test:ui
+pnpm run test:ui
 ```
 
 デバッグモードでテストを実行:
 ```bash
-npm run test:debug
+pnpm run test:debug
 ```
 
 テストレポートを表示:
 ```bash
-npm run report
+pnpm run report
 ```
 
 ## ディレクトリ構造とテストファイル

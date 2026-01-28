@@ -83,7 +83,7 @@ export default defineConfig({
     },
     // Admin tests: 管理画面サーバーを起動（ダミーAPIサーバーを参照）
     {
-      command: "cd ../../apps/admin && npm run dev",
+      command: "cd ../../apps/admin && pnpm run dev",
       port: 4000,
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
