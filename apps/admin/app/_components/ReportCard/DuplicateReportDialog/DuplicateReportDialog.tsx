@@ -10,9 +10,10 @@ import {
   DialogRoot,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
-import { Box, Button, Checkbox, Input, Portal, Text, Textarea, VStack } from "@chakra-ui/react";
+import { Box, Button, Input, Portal, Text, Textarea, VStack } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { type Dispatch, type FormEvent, type SetStateAction, useMemo, useState } from "react";
 import { duplicateReport } from "./actions";
