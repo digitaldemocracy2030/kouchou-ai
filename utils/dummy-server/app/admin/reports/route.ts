@@ -10,8 +10,22 @@ export async function GET(request: Request) {
 
   // E2E_TEST環境変数が設定されている場合はテストフィクスチャを使用
   if (process.env.E2E_TEST === "true") {
-    // 管理画面用の空のレポートリストを返す
-    return NextResponse.json([]);
+    return NextResponse.json([
+      {
+        slug: "test-report",
+        status: "ready",
+        title: "E2E Test Report",
+        description: "E2Eテスト用レポート",
+        isPubcom: false,
+        visibility: "unlisted",
+        createdAt: new Date().toISOString(),
+        analysis: {
+          commentNum: 10,
+          argumentsNum: 5,
+          clusterNum: 2,
+        },
+      },
+    ]);
   }
 
   // 通常のダミーデータ

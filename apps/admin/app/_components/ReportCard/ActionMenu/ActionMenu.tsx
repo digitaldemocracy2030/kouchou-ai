@@ -5,7 +5,7 @@ import { MenuContent, MenuItem, MenuPositioner, MenuRoot, MenuTrigger, MenuTrigg
 import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
 import { IconButton, Portal } from "@chakra-ui/react";
-import { Ellipsis, Eye, FileSpreadsheet, FileText, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
+import { Copy, Ellipsis, Eye, FileSpreadsheet, FileText, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import { useBuildDownload } from "../../BuildDownloadButton/useBuildDownload";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
@@ -18,6 +18,7 @@ type Props = {
   setIsEditDialogOpen: Dispatch<SetStateAction<boolean>>;
   setIsClusterEditDialogOpen: Dispatch<SetStateAction<boolean>>;
   setIsVisualizationConfigDialogOpen: Dispatch<SetStateAction<boolean>>;
+  setIsDuplicateDialogOpen: Dispatch<SetStateAction<boolean>>;
 };
 
 export function ActionMenu({
@@ -25,6 +26,7 @@ export function ActionMenu({
   setIsEditDialogOpen,
   setIsClusterEditDialogOpen,
   setIsVisualizationConfigDialogOpen,
+  setIsDuplicateDialogOpen,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const { exportStaticHTML } = useBuildDownload();
@@ -34,12 +36,35 @@ export function ActionMenu({
     <>
       <MenuRoot>
         <MenuTrigger asChild>
-          <IconButton variant="ghost" size="lg" _hover={{ bg: "blue.50" }} _expanded={{ bg: "blue.50" }}>
+          <IconButton
+            variant="ghost"
+            size="lg"
+            aria-label="report-actions"
+            data-testid={`report-actions-${report.slug}`}
+            _hover={{ bg: "blue.50" }}
+            _expanded={{ bg: "blue.50" }}
+          >
             <Ellipsis />
           </IconButton>
         </MenuTrigger>
         <Portal>
           <MenuContent>
+            {(report.status === "ready" || report.status === "error") && (
+              <MenuItem
+                value="duplicate"
+                textStyle="body/md/bold"
+                onClick={() => {
+                  setIsDuplicateDialogOpen(true);
+                }}
+                _icon={{
+                  w: 5,
+                  h: 5,
+                }}
+              >
+                <Copy />
+                複製
+              </MenuItem>
+            )}
             <MenuItem
               value="edit"
               textStyle="body/md/bold"
