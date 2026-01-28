@@ -16,8 +16,8 @@ cd apps/api && rye run pytest tests/
 cd packages/analysis-core && rye run pytest tests/
 
 # フロントエンド (TypeScript)
-cd apps/public-viewer && npm test
-cd apps/admin && npm test
+cd apps/public-viewer && pnpm test
+cd apps/admin && pnpm test
 ```
 
 ### 2. 統合テスト (Integration Tests)
@@ -36,8 +36,8 @@ cd packages/analysis-core && rye run pytest tests/test_pipeline_paths_integratio
 Playwrightを使用したブラウザ操作のテストです。
 
 ```bash
-cd test/e2e && npm test
-cd test/e2e && npm run test:ui  # UIモードで実行
+cd test/e2e && pnpm test
+cd test/e2e && pnpm run test:ui  # UIモードで実行
 ```
 
 詳細は [test/e2e/CLAUDE.md](/test/e2e/CLAUDE.md) を参照してください。

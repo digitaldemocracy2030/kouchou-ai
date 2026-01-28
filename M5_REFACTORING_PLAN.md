@@ -325,7 +325,7 @@
   - `client-admin` -> `apps/admin`
   - `client-static-build` -> `apps/client-static`
 - docker compose / Makefile / scripts / docs を新パスに更新。
-- 必要に応じてワークスペース（pnpm or npm）導入。
+- 必要に応じて pnpm ワークスペースを導入。
 
 ### Phase 2: Analysis Core 抽出
 - `packages/analysis-core` を作成:
