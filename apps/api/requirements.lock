@@ -161,6 +161,7 @@ numba==0.61.2
     # via umap-learn
 numpy==2.2.5
     # via numba
+    # via pandas
     # via scikit-learn
     # via scipy
     # via transformers
@@ -175,6 +176,8 @@ packaging==25.0
     # via plotly
     # via pytest
     # via transformers
+pandas==3.0.0
+    # via server
 pillow==11.2.1
     # via sentence-transformers
 plotly==6.0.1
@@ -223,6 +226,8 @@ pyparsing==3.3.1
     # via httplib2
 pytest==8.3.5
     # via server
+python-dateutil==2.9.0.post0
+    # via pandas
 python-dotenv==1.1.0
     # via litellm
     # via pydantic-settings
@@ -266,6 +271,7 @@ setuptools==80.3.1
     # via torch
 six==1.17.0
     # via azure-core
+    # via python-dateutil
 sniffio==1.3.1
     # via anyio
     # via openai
