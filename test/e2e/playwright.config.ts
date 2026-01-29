@@ -1,7 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  globalSetup: require.resolve("./scripts/global-setup.ts"),
   testDir: "./tests",
   timeout: 30 * 1000,
   expect: {
@@ -58,7 +57,7 @@ export default defineConfig({
       testMatch: "**/client-static/subdir/**/*.spec.ts",
       use: {
         ...devices["Desktop Chrome"],
-        baseURL: "http://localhost:3002/kouchou-ai",
+        baseURL: "http://localhost:3002/kouchou-ai/",
       },
     },
     {
@@ -70,53 +69,56 @@ export default defineConfig({
     },
   ],
   webServer: [
-    // ダミーAPIサーバーを起動（最初に起動する必要がある）
+    // Dummy API server: admin/public tests depend on this
     {
-      command: "cd ../../utils/dummy-server && PUBLIC_API_KEY=public E2E_TEST=true npx next dev -p 8002",
-      port: 8002,
+      command: "cd ../../utils/dummy-server && pnpm exec next dev -p 8002",
+      url: "http://localhost:8002/",
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
       env: {
-        E2E_TEST: "true",
         PUBLIC_API_KEY: "public",
+        ADMIN_API_KEY: "public",
+        E2E_TEST: "true",
       },
     },
     // Admin tests: 管理画面サーバーを起動（ダミーAPIサーバーを参照）
     {
       command: "cd ../../apps/admin && pnpm run dev",
-      port: 4000,
-      timeout: 120 * 1000,
+      url: "http://localhost:4000/",
+      timeout: 180 * 1000,
       reuseExistingServer: !process.env.CI,
       env: {
         NEXT_PUBLIC_API_BASEPATH: "http://localhost:8002",
         NEXT_PUBLIC_ADMIN_API_KEY: "public",
       },
     },
+    // Public viewer静的ビルドテスト用（Root）: 静的ファイルをホスティング（port 3001）
+    {
+      command:
+        "./scripts/build-static.sh root && cd ../../apps/public-viewer && pnpm exec http-server out-root -p 3001 --cors --silent",
+      url: "http://localhost:3001/",
+      timeout: 120 * 1000,
+      reuseExistingServer: !process.env.CI,
+    },
+    // Public viewer静的ビルドテスト用（Subdirectory）: 静的ファイルをホスティング（port 3002）
+    {
+      command:
+        "./scripts/build-static.sh subdir && cd ../../apps/public-viewer && pnpm exec http-server out-subdir -p 3002 --cors --silent",
+      url: "http://localhost:3002/kouchou-ai/",
+      timeout: 120 * 1000,
+      reuseExistingServer: !process.env.CI,
+    },
     // Public viewer tests: フロントエンドサーバーを起動（ダミーAPIサーバーを参照）
     {
-      command: "cd ../../apps/public-viewer && npx next dev -p 3000",
-      port: 3000,
-      timeout: 120 * 1000,
+      command: "cd ../../apps/public-viewer && pnpm run dev",
+      url: "http://localhost:3000/",
+      timeout: 180 * 1000,
       reuseExistingServer: !process.env.CI,
       env: {
         NEXT_PUBLIC_API_BASEPATH: "http://localhost:8002",
         API_BASEPATH: "http://localhost:8002",
         NEXT_PUBLIC_PUBLIC_API_KEY: "public",
       },
-    },
-    // Public viewer静的ビルドテスト用（Root）: 静的ファイルをホスティング（port 3001）
-    {
-      command: "cd ../../apps/public-viewer && npx http-server out -p 3001 --cors --silent",
-      port: 3001,
-      timeout: 30 * 1000,
-      reuseExistingServer: !process.env.CI,
-    },
-    // Public viewer静的ビルドテスト用（Subdirectory）: 静的ファイルをホスティング（port 3002）
-    {
-      command: "cd ../../apps/public-viewer && npx http-server out-subdir -p 3002 --cors --silent",
-      port: 3002,
-      timeout: 30 * 1000,
-      reuseExistingServer: !process.env.CI,
     },
   ],
 });
