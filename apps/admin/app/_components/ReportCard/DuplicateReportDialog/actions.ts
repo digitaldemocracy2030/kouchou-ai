@@ -11,6 +11,11 @@ type DuplicateParams = {
 type DuplicateResult = { success: true; slug: string } | { success: false; error: string };
 
 export async function duplicateReport(sourceSlug: string, params: DuplicateParams): Promise<DuplicateResult> {
+  const adminApiKey = process.env.ADMIN_API_KEY;
+  if (!adminApiKey) {
+    throw new Error("ADMIN_API_KEY is not set");
+  }
+
   const body: Record<string, unknown> = {
     reuse: { enabled: params.reuseEnabled },
   };
@@ -31,7 +36,7 @@ export async function duplicateReport(sourceSlug: string, params: DuplicateParam
     const response = await fetch(`${getApiBaseUrl()}/admin/reports/${sourceSlug}/duplicate`, {
       method: "POST",
       headers: {
-        "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
+        "x-api-key": adminApiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
