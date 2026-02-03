@@ -5,12 +5,12 @@
 ## セットアップ
 
 1. 依存関係のインストール:
-   ```
+   ```bash
    pnpm install
    ```
 
 2. Playwrightブラウザのインストール:
-   ```
+   ```bash
    pnpm exec playwright install
    ```
 
