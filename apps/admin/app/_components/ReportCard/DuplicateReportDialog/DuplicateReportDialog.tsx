@@ -351,21 +351,21 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   </Text>
                 </Box>
                 <Box>
-                  <Text mb={2} fontWeight="bold">
+                  <Box mb={2} fontWeight="bold">
                     {renderLabel("タイトル", config ? isSame(question, config.question) : false)}
-                  </Text>
+                  </Box>
                   <Input value={question} onChange={(event) => setQuestion(event.target.value)} />
                 </Box>
                 <Box>
-                  <Text mb={2} fontWeight="bold">
+                  <Box mb={2} fontWeight="bold">
                     {renderLabel("調査概要", config ? isSame(intro, config.intro) : false)}
-                  </Text>
+                  </Box>
                   <Textarea value={intro} onChange={(event) => setIntro(event.target.value)} />
                 </Box>
                 <Box>
-                  <Text mb={2} fontWeight="bold">
+                  <Box mb={2} fontWeight="bold">
                     {renderLabel("AIプロバイダー", config ? isSame(provider, config.provider || "openai") : false)}
-                  </Text>
+                  </Box>
                   <NativeSelect.Root w={"60%"}>
                   <NativeSelect.Field
                     value={provider}
@@ -390,9 +390,9 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   </NativeSelect.Root>
                 </Box>
                 <Box>
-                  <Text mb={2} fontWeight="bold">
+                  <Box mb={2} fontWeight="bold">
                     {renderLabel("AIモデル", config ? isSame(model, config.model) : false)}
-                  </Text>
+                  </Box>
                   {provider === "local" ? (
                     <Input value={model} onChange={(event) => setModel(event.target.value)} />
                   ) : (
@@ -414,12 +414,12 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   )}
                 </Box>
                 <Box>
-                  <Text mb={2} fontWeight="bold">
+                  <Box mb={2} fontWeight="bold">
                     {renderLabel(
                       "意見グループ数設定",
                       config ? isSameCluster(clusterLv1, clusterLv2, config.hierarchical_clustering?.cluster_nums) : false,
                     )}
-                  </Text>
+                  </Box>
                   <ClusterSettingsSection
                     clusterLv1={clusterLv1}
                     clusterLv2={clusterLv2}
@@ -430,12 +430,12 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   />
                 </Box>
                 <Box>
-                  <Text mb={2} fontWeight="bold">
+                  <Box mb={2} fontWeight="bold">
                     {renderLabel(
                       "抽出プロンプト",
                       config ? isSame(extractionPrompt, config.extraction?.prompt) : false,
                     )}
-                  </Text>
+                  </Box>
                   <Textarea
                     h={"150px"}
                     value={extractionPrompt}
@@ -444,12 +444,12 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   />
                 </Box>
                 <Box>
-                  <Text mb={2} fontWeight="bold">
+                  <Box mb={2} fontWeight="bold">
                     {renderLabel(
                       "初期ラベリングプロンプト",
                       config ? isSame(initialLabellingPrompt, config.hierarchical_initial_labelling?.prompt) : false,
                     )}
-                  </Text>
+                  </Box>
                   <Textarea
                     h={"150px"}
                     value={initialLabellingPrompt}
@@ -458,12 +458,12 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   />
                 </Box>
                 <Box>
-                  <Text mb={2} fontWeight="bold">
+                  <Box mb={2} fontWeight="bold">
                     {renderLabel(
                       "統合ラベリングプロンプト",
                       config ? isSame(mergeLabellingPrompt, config.hierarchical_merge_labelling?.prompt) : false,
                     )}
-                  </Text>
+                  </Box>
                   <Textarea
                     h={"150px"}
                     value={mergeLabellingPrompt}
@@ -472,12 +472,12 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   />
                 </Box>
                 <Box>
-                  <Text mb={2} fontWeight="bold">
+                  <Box mb={2} fontWeight="bold">
                     {renderLabel(
                       "要約プロンプト",
                       config ? isSame(overviewPrompt, config.hierarchical_overview?.prompt) : false,
                     )}
-                  </Text>
+                  </Box>
                   <Textarea
                     h={"150px"}
                     value={overviewPrompt}
