@@ -164,7 +164,7 @@ export default function Page({ params }: PageProps) {
 
     loadConfig();
     return () => controller.abort();
-  }, [params.slug, aiSettings, clusterSettings, promptSettings]);
+  }, [params.slug]);
 
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
