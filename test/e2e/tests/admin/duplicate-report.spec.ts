@@ -12,7 +12,7 @@ test.describe("管理画面 - レポート複製", () => {
     await expect(page.getByText("再実行されるステップ")).toBeVisible();
     await expect(page.getByText("overview", { exact: true })).toBeVisible();
 
-    await page.getByPlaceholder("未入力の場合は元のプロンプトを再利用します").fill("new overview prompt");
+    await page.getByLabel("要約プロンプト").fill("new overview prompt");
 
     await page.getByRole("button", { name: "複製を開始" }).click();
     await page.waitForLoadState("networkidle");

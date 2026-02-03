@@ -4,8 +4,20 @@ import { getApiBaseUrl } from "@/app/utils/api";
 
 type DuplicateParams = {
   newSlug?: string;
-  overviewPrompt?: string;
   reuseEnabled: boolean;
+  overrides?: {
+    question?: string;
+    intro?: string;
+    provider?: string;
+    model?: string;
+    cluster?: number[];
+    prompt?: {
+      extraction?: string;
+      initial_labelling?: string;
+      merge_labelling?: string;
+      overview?: string;
+    };
+  };
 };
 
 type DuplicateResult = { success: true; slug: string } | { success: false; error: string };
@@ -24,12 +36,8 @@ export async function duplicateReport(sourceSlug: string, params: DuplicateParam
     body.newSlug = params.newSlug;
   }
 
-  if (params.overviewPrompt) {
-    body.overrides = {
-      prompt: {
-        overview: params.overviewPrompt,
-      },
-    };
+  if (params.overrides) {
+    body.overrides = params.overrides;
   }
 
   try {

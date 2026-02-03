@@ -306,6 +306,24 @@ async def update_report_config_endpoint(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
+@router.get("/admin/reports/{slug}/config")
+async def get_report_config_endpoint(
+    slug: str, api_key: str = Depends(verify_admin_api_key)
+) -> dict:
+    """レポートの設定(config.json)を取得するエンドポイント"""
+    validate_slug(slug)
+    try:
+        config_repo = ConfigRepository(slug)
+        config = config_repo.read_from_json()
+        return {"config": config.model_dump()}
+    except ValueError as e:
+        slogger.error(f"ValueError: {e}", exc_info=True)
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        slogger.error(f"Exception: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
 @router.get("/admin/reports/{slug}/cluster-labels")
 async def get_clusters(slug: str, api_key: str = Depends(verify_admin_api_key)) -> dict[str, list[ClusterResponse]]:
     validate_slug(slug)
