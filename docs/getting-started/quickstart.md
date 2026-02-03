@@ -57,6 +57,61 @@ docker compose up
 | 管理画面 | http://localhost:4000 | レポートの作成・管理 |
 | API | http://localhost:8000 | バックエンド API |
 
+## ローカル開発（Dockerを使わずに起動）
+
+Dockerを使わずに `apps/api` と `apps/admin` を個別に起動する場合は、以下を実行します。
+
+### 1. API 側の環境変数
+
+```bash
+cp apps/api/.env.example apps/api/.env
+```
+
+`apps/api/.env` に最低限以下を設定します：
+
+```ini
+ADMIN_API_KEY=admin
+PUBLIC_API_KEY=public
+OPENAI_API_KEY=sk-your-api-key-here
+LOG_FILE=apps/api/error.log
+```
+
+### 2. API 依存のセットアップと起動
+
+```bash
+cd apps/api
+rye sync
+rye run python -m ensurepip --upgrade
+rye run python -m pip install -e ../../packages/analysis-core
+make run
+```
+
+!!! note "analysis-core について"
+    analysis-core が未インストールだと `No module named analysis_core` で失敗します。上記の editable install を必ず実行してください。
+
+### 3. 管理画面（admin）の環境変数
+
+```bash
+cp apps/admin/.env.example apps/admin/.env
+```
+
+`apps/admin/.env` を以下のように設定します：
+
+```ini
+NEXT_PUBLIC_API_BASEPATH=http://localhost:8000
+NEXT_PUBLIC_ADMIN_API_KEY=admin
+```
+
+### 4. 管理画面の起動
+
+```bash
+cd apps/admin
+pnpm dev
+```
+
+!!! tip "APIのエラー確認"
+    `LOG_FILE` を設定している場合は `apps/api/error.log` にエラーが出力されます。
+
 ## 基本的な使い方
 
 ### レポートの作成
