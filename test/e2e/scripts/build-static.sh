@@ -40,10 +40,12 @@ if [ "$BUILD_TYPE" = "root" ]; then
   NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="" \
   pnpm run build:static
 
-  if [ -d "out" ]; then
-    echo ">>> ビルド結果をout-rootに移動中..."
-    mv out out-root
+  if [ ! -d "out" ]; then
+    echo "エラー: out ディレクトリが生成されませんでした"
+    exit 1
   fi
+  echo ">>> ビルド結果をout-rootに移動中..."
+  mv out out-root
 
   echo ">>> 静的ビルド完了: apps/public-viewer/out-root"
 
@@ -67,11 +69,13 @@ elif [ "$BUILD_TYPE" = "subdir" ]; then
   pnpm run build:static
 
   # ビルド結果をout-subdir/kouchou-aiに移動
-  if [ -d "out" ]; then
-    echo ">>> ビルド結果をout-subdir/kouchou-aiに移動中..."
-    mkdir -p out-subdir
-    mv out out-subdir/kouchou-ai
+  if [ ! -d "out" ]; then
+    echo "エラー: out ディレクトリが生成されませんでした"
+    exit 1
   fi
+  echo ">>> ビルド結果をout-subdir/kouchou-aiに移動中..."
+  mkdir -p out-subdir
+  mv out out-subdir/kouchou-ai
 
   echo ">>> 静的ビルド完了: apps/public-viewer/out-subdir"
 

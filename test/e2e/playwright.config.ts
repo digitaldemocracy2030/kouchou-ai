@@ -90,6 +90,7 @@ export default defineConfig({
       env: {
         NEXT_PUBLIC_API_BASEPATH: "http://localhost:8002",
         NEXT_PUBLIC_ADMIN_API_KEY: "public",
+        ADMIN_API_KEY: "public",
       },
     },
     // Public viewer静的ビルドテスト用（Root）: 静的ファイルをホスティング（port 3001）

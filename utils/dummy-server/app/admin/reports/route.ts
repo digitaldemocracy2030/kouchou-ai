@@ -15,6 +15,7 @@ export async function GET(request: Request) {
 
   // E2E_TEST環境変数が設定されている場合はテストフィクスチャを使用
   if (process.env.E2E_TEST === "true") {
+    const createdAt = "2025-01-15T10:00:00Z";
     return NextResponse.json([
       {
         slug: "test-report",
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
         description: "E2Eテスト用レポート",
         isPubcom: false,
         visibility: "unlisted",
-        createdAt: new Date().toISOString(),
+        createdAt,
         analysis: {
           commentNum: 10,
           argumentsNum: 5,

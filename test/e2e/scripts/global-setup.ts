@@ -18,14 +18,15 @@ export default async function globalSetup() {
 
   const scriptDir = __dirname;
   const buildScript = path.join(scriptDir, "build-static.sh");
-  const dummyServerUrl = "http://localhost:8002";
+  const dummyServerUrl =
+    process.env.NEXT_PUBLIC_API_BASEPATH ?? process.env.API_BASEPATH ?? "http://localhost:8002";
 
   const isServerReady = async (url: string) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 1000);
     try {
       const response = await fetch(url, { cache: "no-store", signal: controller.signal });
-      return response.ok;
+      return response.status < 500;
     } catch {
       return false;
     } finally {

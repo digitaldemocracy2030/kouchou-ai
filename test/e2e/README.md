@@ -178,10 +178,10 @@ Clientテストを実行する前に、検証テストを実行することを�
 
 ```bash
 # ダミーサーバーの動作確認
-npx playwright test tests/verify-dummy-server.spec.ts --project=verify
+pnpm exec playwright test tests/verify-dummy-server.spec.ts --project=verify
 
 # 環境変数と設定の確認
-npx playwright test tests/verify-environment.spec.ts --project=verify
+pnpm exec playwright test tests/verify-environment.spec.ts --project=verify
 ```
 
 **なぜ検証テストが重要か:**
@@ -205,8 +205,8 @@ npx playwright test tests/verify-environment.spec.ts --project=verify
 
 ```bash
 # まず検証テストで基本的な環境を確認
-npx playwright test tests/verify-dummy-server.spec.ts --project=verify
-npx playwright test tests/verify-environment.spec.ts --project=verify
+pnpm exec playwright test tests/verify-dummy-server.spec.ts --project=verify
+pnpm exec playwright test tests/verify-environment.spec.ts --project=verify
 ```
 
 これらが失敗する場合、サーバーの起動状態や環境変数の設定を確認してください。
@@ -214,7 +214,7 @@ npx playwright test tests/verify-environment.spec.ts --project=verify
 ### 1. 接続確認
 
 ```bash
-npx playwright test tests/simple.spec.ts
+pnpm exec playwright test tests/simple.spec.ts
 ```
 
 - ページが200 OKで返ってくるか確認
@@ -223,7 +223,7 @@ npx playwright test tests/simple.spec.ts
 ### 2. 要素確認
 
 ```bash
-npx playwright test tests/debug.spec.ts
+pnpm exec playwright test tests/debug.spec.ts
 ```
 
 - ページ内の全ての見出し、ボタン、画像を表示
@@ -232,7 +232,7 @@ npx playwright test tests/debug.spec.ts
 ### 3. ブラウザで確認
 
 ```bash
-npx playwright test --headed --debug
+pnpm exec playwright test --headed --debug
 ```
 
 - ブラウザを表示してステップ実行
@@ -251,9 +251,9 @@ npx playwright test --headed --debug
 
 ```bash
 # サーバーは自動起動されるので、テストを直接実行できます
-npx playwright test --project=admin
+pnpm exec playwright test --project=admin
 # または
-npx playwright test tests/admin/
+pnpm exec playwright test tests/admin/
 ```
 
 **注意**: `playwright.config.ts`の`webServer`設定により、adminサーバーは自動的に起動されます。手動起動は不要です。
@@ -279,14 +279,14 @@ npx playwright test tests/admin/
 
 ```bash
 # サーバーは自動起動されるので、テストを直接実行できます
-npx playwright test --project=client
+pnpm exec playwright test --project=client
 # または個別のテストファイルを実行
-npx playwright test tests/client/reports.spec.ts
-npx playwright test tests/client/report-detail.spec.ts
+pnpm exec playwright test tests/client/reports.spec.ts
+pnpm exec playwright test tests/client/report-detail.spec.ts
 
 # 推奨: まず検証テストを実行して環境を確認
-npx playwright test tests/verify-dummy-server.spec.ts --project=verify
-npx playwright test tests/verify-environment.spec.ts --project=verify
+pnpm exec playwright test tests/verify-dummy-server.spec.ts --project=verify
+pnpm exec playwright test tests/verify-environment.spec.ts --project=verify
 ```
 
 **注意**:
@@ -380,11 +380,11 @@ E2E_TEST環境変数が設定されていない場合は、通常のダミーデ
 
 ```bash
 # Root と Subdirectory の両方のビルドが自動生成されます
-npx playwright test --project=client-static-root
-npx playwright test --project=client-static-subdir
+pnpm exec playwright test --project=client-static-root
+pnpm exec playwright test --project=client-static-subdir
 
 # または両方同時に実行
-npx playwright test --project=client-static-root --project=client-static-subdir
+pnpm exec playwright test --project=client-static-root --project=client-static-subdir
 ```
 
 **自動ビルドの仕組み:**
@@ -404,24 +404,24 @@ cd test/e2e
 ./scripts/build-static.sh subdir    # Subdirectory用
 
 # 2. 自動ビルドをスキップしてテスト実行
-SKIP_STATIC_BUILD=true npx playwright test --project=client-static-root
+SKIP_STATIC_BUILD=true pnpm exec playwright test --project=client-static-root
 ```
 
 ### テスト実行
 
 ```bash
 # Root ホスティング用テスト
-npx playwright test --project=client-static-root
+pnpm exec playwright test --project=client-static-root
 
 # Subdirectory ホスティング用テスト
-npx playwright test --project=client-static-subdir
+pnpm exec playwright test --project=client-static-subdir
 
 # 両方実行
-npx playwright test --project=client-static-root --project=client-static-subdir
+pnpm exec playwright test --project=client-static-root --project=client-static-subdir
 
 # 個別のテストファイルを実行
-npx playwright test tests/client-static/root/reports.spec.ts
-npx playwright test tests/client-static/subdir/reports.spec.ts
+pnpm exec playwright test tests/client-static/root/reports.spec.ts
+pnpm exec playwright test tests/client-static/subdir/reports.spec.ts
 ```
 
 **注意**:

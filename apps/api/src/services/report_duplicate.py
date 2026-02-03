@@ -86,6 +86,8 @@ def acquire_duplicate_lock(slug: str) -> Path:
                     pass
                 raise HTTPException(status_code=409, detail="newSlug already exists") from err
             # cleanup partial artifacts and retry
+            # NOTE: We only do a single retry here by design; high-concurrency duplicate
+            # requests are rare in this service, so a minimal safeguard is sufficient.
             _cleanup_partial_artifacts(slug)
             try:
                 lock_path.unlink()

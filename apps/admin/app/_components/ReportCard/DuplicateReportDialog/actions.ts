@@ -48,7 +48,12 @@ export async function duplicateReport(sourceSlug: string, params: DuplicateParam
     }
 
     const data = await response.json();
-    return { success: true, slug: data?.report?.slug || params.newSlug || "unknown" };
+    const slug = data?.report?.slug || params.newSlug;
+    if (!slug) {
+      console.warn("Duplicate succeeded but no slug returned from API", data);
+      return { success: false, error: "複製は成功しましたが、新しいレポートのIDを取得できませんでした" };
+    }
+    return { success: true, slug };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "レポートの複製に失敗しました";
     return { success: false, error: errorMessage };

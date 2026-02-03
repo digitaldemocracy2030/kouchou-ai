@@ -109,43 +109,52 @@ async def create_report(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.post("/admin/reports/{slug}/duplicate")
+@router.post("/admin/reports/{slug}/duplicate", status_code=202)
 async def duplicate_report_endpoint(
     slug: str,
     payload: ReportDuplicateRequest,
     request: Request,
     api_key: str = Depends(verify_admin_api_key),
 ) -> ORJSONResponse:
-    validate_slug(slug)
-    if payload.new_slug and payload.new_slug.strip():
-        validate_slug(payload.new_slug)
+    try:
+        validate_slug(slug)
+        if payload.new_slug and payload.new_slug.strip():
+            validate_slug(payload.new_slug)
 
-    # source status check
-    reports = load_status_as_reports(include_deleted=True)
-    source_report = next((r for r in reports if r.slug == slug), None)
-    if source_report is None:
-        raise HTTPException(status_code=404, detail="Source report not found")
-    if source_report.status == ReportStatus.DELETED:
-        raise HTTPException(status_code=409, detail="Source report is deleted")
-    if source_report.status not in (ReportStatus.READY, ReportStatus.ERROR):
-        raise HTTPException(status_code=409, detail="Source report is not duplicatable")
+        # source status check
+        reports = load_status_as_reports(include_deleted=True)
+        source_report = next((r for r in reports if r.slug == slug), None)
+        if source_report is None:
+            raise HTTPException(status_code=404, detail="Source report not found")
+        if source_report.status == ReportStatus.DELETED:
+            raise HTTPException(status_code=409, detail="Source report is deleted")
+        if source_report.status not in (ReportStatus.READY, ReportStatus.ERROR):
+            raise HTTPException(status_code=409, detail="Source report is not duplicatable")
 
-    user_api_key = request.headers.get("x-user-api-key")
-    new_slug = duplicate_report(slug, payload, user_api_key)
+        user_api_key = request.headers.get("x-user-api-key")
+        new_slug = duplicate_report(slug, payload, user_api_key)
 
-    return ORJSONResponse(
-        content={
-            "success": True,
-            "report": {
-                "slug": new_slug,
-                "status": "processing",
+        return ORJSONResponse(
+            content={
+                "success": True,
+                "report": {
+                    "slug": new_slug,
+                    "status": "processing",
+                },
             },
-        },
-        headers={
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-        },
-    )
+            headers={
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        slogger.error(f"ValueError: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        slogger.error(f"Exception: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/admin/comments/{slug}/csv")

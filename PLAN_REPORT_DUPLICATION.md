@@ -210,8 +210,7 @@
 5. 競合防止のため `newSlug` に紐づくロック/マーカーを原子的に作成する (例: `outputs/{newSlug}/.duplicate.lock` か DB のユニーク行)。
    - 既に存在する場合は TOCTOU (Time Of Check / Time Of Use: 「存在確認」と「作成」の間に他リクエストが割り込む競合) とみなし即座に 409 を返す (同一リクエストの再送でも再利用しない)。
 6. `configs/{source}.json` を読み込み。
-7. `overrides` を適用し `name` と `input` を `newSlug` に更新。
-7.1 `source_slug` を config と status に記録する。
+7. `overrides` を適用し `name` と `input` を `newSlug` に更新し、`source_slug` を config と status に記録する。
 8. 入力ファイル存在を確認 (必要ならストレージから取得)。
 9. `inputs/{newSlug}.csv` を作成 (source をコピー)。
 10. `outputs/{newSlug}/` を作成し、必要成果物をコピー。
@@ -257,6 +256,18 @@
 - `apps/api/src/services/report_status.py` に `add_new_report_to_status_from_config()` を追加。
 - `apps/api/src/routers/admin_report.py` に複製エンドポイントを追加。
 - `ReportSyncService` に成果物保持/取得を追加。
+
+## レビュー指摘の意思決定（要点）
+- ロック競合の厳密リトライは採用しない（同時複製は低頻度と判断）。最小限の安全策で十分とする旨を `report_duplicate.py` にコメントで残す。
+- dummy-server の dev port は 8002 に修正（将来混乱回避のため）。
+- admin 系の API キーは ADMIN_API_KEY を正とし、PUBLIC_API_KEY へのフォールバックは採用しない（E2E は ADMIN_API_KEY を必ず設定する）。
+- 複製成功時に slug が返らないケースはエラー扱い（"unknown" を返さない）。
+- E2Eの安定化（env 上書き可能な dummyServerUrl / readiness 判定の緩和 / static build fail-fast）を採用。
+- dummy-server の admin reports は fixture 置換を行わず、管理画面用の最小レスポンスを維持（スキーマ不整合の懸念）。
+- dummy-server の 409 再現（usedSlugs の in-memory 管理）は並列テスト汚染の懸念があるため採用しない。
+- Chakra Checkbox の compound API 変更は現状の UI コンポーネントに合致しているため見送り。
+- ドキュメントの npx→pnpm exec 置換と、Windowsガイドのコードフェンス言語指定は実施。
+- rye/ruff スクリプト拡張は今回は見送り（運用に影響しないため）。
 
 ## フロントエンド計画 (管理画面)
 - `apps/admin/app/_components/ReportCard/ActionMenu/ActionMenu.tsx` に「複製」アクション追加。
