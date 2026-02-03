@@ -1,6 +1,4 @@
 import json
-import re
-
 import openai
 
 try:  # pragma: no cover - optional dependency
@@ -34,6 +32,7 @@ from src.services.report_status import (
     update_report_visibility_state,
 )
 from src.utils.logger import setup_logger
+from src.utils.slug_utils import validate_slug
 
 slogger = setup_logger()
 router = APIRouter()
@@ -45,23 +44,6 @@ async def verify_admin_api_key(api_key: str = Security(api_key_header)):
     if not api_key or api_key != settings.ADMIN_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
     return api_key
-
-
-# Slug validation pattern: alphanumeric, underscore, hyphen only
-SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
-
-
-def validate_slug(slug: str) -> None:
-    """Validate slug to prevent path traversal attacks.
-
-    Args:
-        slug: The slug to validate
-
-    Raises:
-        HTTPException: If slug contains invalid characters or path traversal attempts
-    """
-    if not slug or not SLUG_PATTERN.match(slug):
-        raise HTTPException(status_code=400, detail="Invalid slug format")
 
 
 def validate_path_within_report_dir(path) -> None:

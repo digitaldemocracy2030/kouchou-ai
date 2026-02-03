@@ -6,7 +6,7 @@ from fastapi.security.api_key import APIKeyHeader
 from pydantic import ValidationError
 
 from src.config import settings
-from src.routers.admin_report import validate_slug
+from src.utils.slug_utils import validate_slug
 from src.schemas.report import Report, ReportStatus, ReportVisibility
 from src.schemas.visualization_config import DEFAULT_REPORT_DISPLAY_CONFIG, ReportDisplayConfig
 from src.services.report_status import load_status_as_reports
