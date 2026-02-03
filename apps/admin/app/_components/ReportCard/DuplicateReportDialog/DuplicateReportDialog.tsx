@@ -333,28 +333,7 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
             <DialogTitle>レポートを再利用</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
-            <DialogBody
-              maxH="70vh"
-              overflowY="scroll"
-              pr={4}
-              sx={{
-                scrollbarGutter: "stable",
-                scrollbarWidth: "auto",
-                scrollbarColor: "#94a3b8 #e2e8f0",
-                "&::-webkit-scrollbar": {
-                  width: "12px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "#e2e8f0",
-                  borderRadius: "9999px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "#94a3b8",
-                  borderRadius: "9999px",
-                  border: "2px solid #e2e8f0",
-                },
-              }}
-            >
+            <DialogBody maxH="70vh" overflowY="scroll" pr={4}>
               <VStack gap={4} align="stretch">
                 <Text fontSize="sm" color="gray.500">
                   変更されていない項目は再利用されます。可視性は再利用時に非公開（unlisted）で作成されます。
