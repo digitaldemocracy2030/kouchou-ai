@@ -15,9 +15,9 @@ import { validateReportId } from "@/app/create/utils/validation";
 import { duplicateReport } from "@/app/_components/ReportCard/DuplicateReportDialog/actions";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 
 type ReportConfig = {
@@ -81,7 +81,8 @@ export default function Page({ params }: PageProps) {
   const [config, setConfig] = useState<ReportConfig | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
 
-  const [newSlug, setNewSlug] = useState(() => `${params.slug}-copy-${formatDate()}`);
+  const [slug, setSlug] = useState("");
+  const [newSlug, setNewSlug] = useState("");
   const [isSlugValid, setIsSlugValid] = useState(true);
   const [slugErrorMessage, setSlugErrorMessage] = useState("");
   const reuseEnabled = true;
@@ -96,11 +97,27 @@ export default function Page({ params }: PageProps) {
   const modelDescription = useMemo(() => aiSettings.getModelDescription(), [aiSettings]);
 
   useEffect(() => {
+    let active = true;
+    const resolveSlug = async () => {
+      const resolved = (await params).slug;
+      if (active) {
+        setSlug(resolved);
+        setNewSlug(`${resolved}-copy-${formatDate()}`);
+      }
+    };
+    resolveSlug();
+    return () => {
+      active = false;
+    };
+  }, [params]);
+
+  useEffect(() => {
+    if (!slug) return;
     const controller = new AbortController();
     const loadConfig = async () => {
       setConfigError(null);
       try {
-        const response = await fetch(`/api/admin/reports/${params.slug}/config`, {
+        const response = await fetch(`/api/admin/reports/${slug}/config`, {
           signal: controller.signal,
         });
 
@@ -159,7 +176,7 @@ export default function Page({ params }: PageProps) {
 
     loadConfig();
     return () => controller.abort();
-  }, [params.slug]);
+  }, [slug]);
 
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -240,7 +257,7 @@ export default function Page({ params }: PageProps) {
         overrides.prompt = promptOverride;
       }
 
-      const result = await duplicateReport(params.slug, {
+      const result = await duplicateReport(slug, {
         newSlug: newSlug.trim() || undefined,
         reuseEnabled,
         overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
@@ -280,7 +297,7 @@ export default function Page({ params }: PageProps) {
           レポートを再利用
         </Heading>
         <Text textAlign="center" color="gray.600" mb={8}>
-          再利用元: {params.slug}
+          再利用元: {slug}
         </Text>
 
         <VStack gap={6} align="stretch">
@@ -290,7 +307,7 @@ export default function Page({ params }: PageProps) {
               w={"40%"}
               value={newSlug}
               onChange={handleSlugChange}
-              placeholder={`${params.slug}-copy-YYYYMMDD`}
+              placeholder={`${slug}-copy-YYYYMMDD`}
               aria-invalid={!isSlugValid}
               borderColor={!isSlugValid ? "red.300" : undefined}
               _hover={!isSlugValid ? { borderColor: "red.400" } : undefined}
