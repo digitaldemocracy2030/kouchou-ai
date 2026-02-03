@@ -3,6 +3,7 @@
 import { Header } from "@/components/Header";
 import { toaster } from "@/components/ui/toaster";
 import { Box, Button, Field, HStack, Heading, Presence, Tabs, Text, VStack, useDisclosure } from "@chakra-ui/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createReport } from "./api/createReport";
@@ -423,9 +424,14 @@ export default function Page() {
           <VStack mt="11" gap="6">
             <EnvironmentCheckDialog provider={aiSettings.provider} />
             {/* 送信ボタン */}
-            <Button className={"gradientBg shadow"} size={"2xl"} w={"300px"} onClick={onSubmit} loading={loading}>
-              レポート作成を開始
-            </Button>
+            <HStack gap="4">
+              <Button variant="outline" size={"2xl"} w={"140px"} asChild>
+                <Link href="/">キャンセル</Link>
+              </Button>
+              <Button className={"gradientBg shadow"} size={"2xl"} w={"300px"} onClick={onSubmit} loading={loading}>
+                レポート作成を開始
+              </Button>
+            </HStack>
             <Text textStyle="body/sm" color="font.secondary">
               有料のAIプロバイダーの場合は作成する度にAPI利用料がかかります。
             </Text>
