@@ -237,10 +237,10 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
   };
 
   const renderLabel = (label: string, reused: boolean) => (
-    <HStack justify="space-between">
-      <Text>{label}</Text>
+    <HStack as="span" justify="space-between" w="full">
+      <Text as="span">{label}</Text>
       {reused && (
-        <Text color="gray.500" fontSize="xs">
+        <Text as="span" color="gray.500" fontSize="xs">
           再利用
         </Text>
       )}
