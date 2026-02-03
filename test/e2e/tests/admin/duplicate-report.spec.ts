@@ -9,7 +9,7 @@ test.describe("管理画面 - レポート複製", () => {
     await page.getByRole("menuitem", { name: "複製" }).click();
     await expect(page.getByRole("heading", { name: "レポートを複製" })).toBeVisible();
 
-    await expect(page.getByText("再実行されるステップ")).toBeVisible();
+    await expect(page.getByText("再利用されるステップ")).toBeVisible();
     await expect(page.getByText("overview", { exact: true })).toBeVisible();
 
     await page.getByLabel("要約プロンプト").fill("new overview prompt");
