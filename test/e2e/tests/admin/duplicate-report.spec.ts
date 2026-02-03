@@ -5,7 +5,7 @@ test.describe("管理画面 - レポート再利用", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await page.getByTestId("report-actions-test-report").click();
+    await page.getByTestId("report-actions-test-report-1").click();
     await page.getByRole("menuitem", { name: "再利用" }).click();
     await expect(page.getByRole("heading", { name: "レポートを再利用" })).toBeVisible();
     await page.getByRole("button", { name: "レポート生成設定" }).click();
@@ -13,6 +13,6 @@ test.describe("管理画面 - レポート再利用", () => {
 
     await page.getByRole("button", { name: "再利用を開始" }).click();
     await page.waitForURL(/\/$/);
-    await expect(page.getByTestId("report-actions-test-report")).toBeVisible();
+    await expect(page.getByTestId("report-actions-test-report-1")).toBeVisible();
   });
 });
