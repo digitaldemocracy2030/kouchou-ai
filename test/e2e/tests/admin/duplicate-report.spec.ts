@@ -12,7 +12,7 @@ test.describe("管理画面 - レポート再利用", () => {
     await page.getByLabel("要約プロンプト").fill("new overview prompt");
 
     await page.getByRole("button", { name: "再利用を開始" }).click();
-    await page.waitForLoadState("networkidle");
-    await expect(page.getByText("再利用を開始しました")).toBeVisible();
+    await page.waitForURL(/\/$/);
+    await expect(page.getByTestId("report-actions-test-report")).toBeVisible();
   });
 });
