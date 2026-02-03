@@ -164,7 +164,6 @@ numba==0.61.0
     # via umap-learn
 numpy==1.26.4
     # via numba
-    # via pandas
     # via scikit-learn
     # via scipy
     # via transformers
@@ -179,14 +178,16 @@ packaging==24.2
     # via plotly
     # via pytest
     # via transformers
-pandas==2.2.3
-    # via server
 pillow==11.2.1
     # via sentence-transformers
 plotly==6.0.0
     # via server
 pluggy==1.5.0
     # via pytest
+polars==1.37.1
+    # via server
+polars-runtime-32==1.37.1
+    # via polars
 propcache==0.3.0
     # via aiohttp
     # via yarl
@@ -229,14 +230,10 @@ pytest==8.3.5
     # via server
 pytest-asyncio==1.3.0
 pytest-cov==6.0.0
-python-dateutil==2.9.0.post0
-    # via pandas
 python-dotenv==1.0.1
     # via litellm
     # via pydantic-settings
     # via server
-pytz==2025.1
-    # via pandas
 pyyaml==6.0.2
     # via huggingface-hub
     # via transformers
@@ -277,7 +274,6 @@ setuptools==80.3.1
     # via torch
 six==1.17.0
     # via azure-core
-    # via python-dateutil
 sniffio==1.3.1
     # via anyio
     # via openai
@@ -323,8 +319,6 @@ typing-extensions==4.12.2
     # via referencing
     # via sentence-transformers
     # via torch
-tzdata==2025.1
-    # via pandas
 umap-learn==0.5.7
     # via server
 uritemplate==4.2.0
