@@ -162,6 +162,17 @@ docker compose version
 
 `.env` ファイルの `OPENAI_API_KEY` が正しく設定されているか確認してください。
 
+### 管理画面のレポートリンクが `undefined` になる
+
+管理画面のレポートリンクが `http://localhost:4000/undefined/...` になる場合は、
+`apps/admin/.env` に `NEXT_PUBLIC_CLIENT_BASEPATH` が未設定です。
+
+```ini
+NEXT_PUBLIC_CLIENT_BASEPATH=http://localhost:3000
+```
+
+設定後に `pnpm dev` を再起動してください。
+
 ### ポートが使用中
 
 他のアプリケーションが同じポートを使用している場合は、該当するアプリケーションを停止するか、`.env` でポート番号を変更してください。
