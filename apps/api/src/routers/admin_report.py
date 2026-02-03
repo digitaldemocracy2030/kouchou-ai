@@ -1,4 +1,5 @@
 import json
+
 import openai
 
 try:  # pragma: no cover - optional dependency
