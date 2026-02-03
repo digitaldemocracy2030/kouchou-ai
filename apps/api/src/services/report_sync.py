@@ -211,6 +211,7 @@ class ReportSyncService:
         remote_input_file_path = f"{self.REMOTE_INPUT_DIR_PREFIX}/{slug}.csv"
         local_input_file_path = settings.INPUT_DIR / f"{slug}.csv"
         try:
+            local_input_file_path.parent.mkdir(parents=True, exist_ok=True)
             self.storage_service.download_file(remote_input_file_path, str(local_input_file_path))
             return local_input_file_path.exists()
         except Exception as e:
@@ -219,6 +220,7 @@ class ReportSyncService:
 
     def download_report_artifacts(self, slug: str, patterns: list[str] | tuple[str, ...]) -> bool:
         """指定した成果物のみストレージからダウンロードする"""
+        (settings.REPORT_DIR / slug).mkdir(parents=True, exist_ok=True)
         return self._download_directory_from_storage(
             f"{self.REMOTE_REPORT_DIR_PREFIX}/{slug}",
             settings.REPORT_DIR / slug,
