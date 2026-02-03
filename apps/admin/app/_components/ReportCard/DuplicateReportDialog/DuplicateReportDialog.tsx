@@ -136,7 +136,7 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
     }
     if (provider === "gemini") {
       if (model === "gemini-2.5-flash") {
-        return "Gemini 1.5 Flash：高速かつコスト効率の高いモデルです。価格の詳細はGoogleが公開しているAPI料金のページをご参照ください。";
+        return "Gemini 2.5 Flash：高速かつコスト効率の高いモデルです。価格の詳細はGoogleが公開しているAPI料金のページをご参照ください。";
       }
       if (model === "gemini-1.5-flash") {
         return "Gemini 1.5 Flash：旧モデルです。価格の詳細はGoogleが公開しているAPI料金のページをご参照ください。";
