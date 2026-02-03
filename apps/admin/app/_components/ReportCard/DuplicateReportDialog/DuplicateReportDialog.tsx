@@ -207,6 +207,7 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
     return () => controller.abort();
   }, [isOpen, report.slug]);
 
+
   const isSame = (value: string, original?: string | null) => value === (original ?? "");
   const isSameCluster = (lv1: number, lv2: number, original?: number[]) =>
     Array.isArray(original) && original[0] === lv1 && original[1] === lv2;
@@ -332,7 +333,28 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
             <DialogTitle>レポートを再利用</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
-            <DialogBody>
+            <DialogBody
+              maxH="70vh"
+              overflowY="scroll"
+              pr={4}
+              sx={{
+                scrollbarGutter: "stable",
+                scrollbarWidth: "auto",
+                scrollbarColor: "#94a3b8 #e2e8f0",
+                "&::-webkit-scrollbar": {
+                  width: "12px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "#e2e8f0",
+                  borderRadius: "9999px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "#94a3b8",
+                  borderRadius: "9999px",
+                  border: "2px solid #e2e8f0",
+                },
+              }}
+            >
               <VStack gap={4} align="stretch">
                 <Text fontSize="sm" color="gray.500">
                   変更されていない項目は再利用されます。可視性は再利用時に非公開（unlisted）で作成されます。
