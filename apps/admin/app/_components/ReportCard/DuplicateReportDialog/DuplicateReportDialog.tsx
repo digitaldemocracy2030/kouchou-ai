@@ -13,8 +13,7 @@ import {
 import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
 import { ClusterSettingsSection } from "@/app/create/components/ClusterSettingsSection";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Box, Button, HStack, Input, NativeSelect, Portal, Text, Textarea, VStack } from "@chakra-ui/react";
+import { Box, Button, Checkbox, HStack, Input, NativeSelect, Portal, Text, Textarea, VStack } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { type Dispatch, type FormEvent, type SetStateAction, useEffect, useMemo, useState } from "react";
 import { duplicateReport } from "./actions";
@@ -491,15 +490,14 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   />
                 </Box>
                 <Box>
-                  <Checkbox
+                  <Checkbox.Root
                     checked={reuseEnabled}
-                    onCheckedChange={(details) => {
-                      if (details.checked === "indeterminate") return;
-                      setReuseEnabled(details.checked);
-                    }}
+                    onCheckedChange={(e) => setReuseEnabled(!!e.checked)}
                   >
-                    中間成果物を再利用する
-                  </Checkbox>
+                    <Checkbox.HiddenInput />
+                    <Checkbox.Control />
+                    <Checkbox.Label>中間成果物を再利用する</Checkbox.Label>
+                  </Checkbox.Root>
                   <Text color="gray.500" fontSize="sm" mt={1}>
                     OFFにすると extraction から再実行されます
                   </Text>

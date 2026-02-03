@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+const usedSlugs = new Set<string>();
+
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   const requestApiKey = request.headers.get("x-api-key");
   const validApiKey = process.env.ADMIN_API_KEY;
@@ -16,6 +18,11 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   const body = await request.json().catch(() => ({}));
   const { slug } = await context.params;
   const newSlug = body?.newSlug || `${slug}-copy-20250101`;
+
+  if (usedSlugs.has(newSlug)) {
+    return NextResponse.json({ error: "newSlug already exists" }, { status: 409, headers: corsHeaders });
+  }
+  usedSlugs.add(newSlug);
 
   return NextResponse.json(
     {

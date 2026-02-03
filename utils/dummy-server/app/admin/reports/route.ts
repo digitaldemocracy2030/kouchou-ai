@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -15,23 +17,10 @@ export async function GET(request: Request) {
 
   // E2E_TEST環境変数が設定されている場合はテストフィクスチャを使用
   if (process.env.E2E_TEST === "true") {
-    const createdAt = "2025-01-15T10:00:00Z";
-    return NextResponse.json([
-      {
-        slug: "test-report",
-        status: "ready",
-        title: "E2E Test Report",
-        description: "E2Eテスト用レポート",
-        isPubcom: false,
-        visibility: "unlisted",
-        createdAt,
-        analysis: {
-          commentNum: 10,
-          argumentsNum: 5,
-          clusterNum: 2,
-        },
-      },
-    ], { headers: corsHeaders });
+    const fixturePath = resolve(process.cwd(), "../../test/e2e/fixtures/client/reports.json");
+    const fixtureJson = await readFile(fixturePath, "utf-8");
+    const reports = JSON.parse(fixtureJson);
+    return NextResponse.json(reports, { headers: corsHeaders });
   }
 
   // 通常のダミーデータ
