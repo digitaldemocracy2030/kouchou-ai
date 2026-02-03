@@ -237,14 +237,14 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
   };
 
   const renderLabel = (label: string, reused: boolean) => (
-    <HStack as="span" justify="space-between" w="full">
-      <Text as="span">{label}</Text>
+    <Box as="span" display="inline-flex" alignItems="center" justifyContent="space-between" w="full">
+      <Box as="span">{label}</Box>
       {reused && (
-        <Text as="span" color="gray.500" fontSize="xs">
+        <Box as="span" color="gray.500" fontSize="xs">
           再利用
-        </Text>
+        </Box>
       )}
-    </HStack>
+    </Box>
   );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
