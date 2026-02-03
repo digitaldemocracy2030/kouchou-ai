@@ -62,7 +62,7 @@ export function ActionMenu({
                 }}
               >
                 <Copy />
-                複製
+                再利用
               </MenuItem>
             )}
             <MenuItem

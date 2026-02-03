@@ -253,8 +253,8 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
     if (!config) {
       toaster.create({
         type: "error",
-        title: "複製エラー",
-        description: "設定の取得に失敗したため複製できません",
+        title: "再利用エラー",
+        description: "設定の取得に失敗したため再利用できません",
       });
       return;
     }
@@ -304,7 +304,7 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
     if (result.success) {
       toaster.create({
         type: "success",
-        title: "複製を開始しました",
+        title: "再利用を開始しました",
         description: `新しいレポート: ${result.slug}`,
       });
       setIsOpen(false);
@@ -314,8 +314,8 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
     } else {
       toaster.create({
         type: "error",
-        title: "複製エラー",
-        description: result.error || "複製に失敗しました",
+        title: "再利用エラー",
+        description: result.error || "再利用に失敗しました",
       });
     }
 
@@ -329,13 +329,13 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
         <DialogContent>
           <DialogCloseTrigger onClick={() => setIsOpen(false)} />
           <DialogHeader>
-            <DialogTitle>レポートを複製</DialogTitle>
+            <DialogTitle>レポートを再利用</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <DialogBody>
               <VStack gap={4} align="stretch">
                 <Text fontSize="sm" color="gray.500">
-                  変更されていない項目は再利用されます。可視性は複製時に非公開（unlisted）で作成されます。
+                  変更されていない項目は再利用されます。可視性は再利用時に非公開（unlisted）で作成されます。
                 </Text>
                 <Box>
                   <Text mb={2} fontWeight="bold">
@@ -510,7 +510,7 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   </Text>
                   <Text color="gray.600">{rerunSteps}</Text>
                   <Text color="gray.500" fontSize="sm" mt={1}>
-                    複製時は overview を常に再生成します
+                    再利用時は overview を常に再生成します
                   </Text>
                 </Box>
               </VStack>
@@ -520,7 +520,7 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                 キャンセル
               </Button>
               <Button ml={3} type="submit" loading={isSubmitting} disabled={isLoadingConfig || !!configError}>
-                複製を開始
+                再利用を開始
               </Button>
             </DialogFooter>
           </form>

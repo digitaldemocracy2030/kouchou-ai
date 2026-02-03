@@ -52,18 +52,18 @@ export async function duplicateReport(sourceSlug: string, params: DuplicateParam
 
     if (!response.ok) {
       const errorData = await response.json();
-      return { success: false, error: errorData.detail || "レポートの複製に失敗しました" };
+      return { success: false, error: errorData.detail || "レポートの再利用に失敗しました" };
     }
 
     const data = await response.json();
     const slug = data?.report?.slug || params.newSlug;
     if (!slug) {
       console.warn("Duplicate succeeded but no slug returned from API", data);
-      return { success: false, error: "複製は成功しましたが、新しいレポートのIDを取得できませんでした" };
+      return { success: false, error: "再利用は成功しましたが、新しいレポートのIDを取得できませんでした" };
     }
     return { success: true, slug };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "レポートの複製に失敗しました";
+    const errorMessage = error instanceof Error ? error.message : "レポートの再利用に失敗しました";
     return { success: false, error: errorMessage };
   }
 }
