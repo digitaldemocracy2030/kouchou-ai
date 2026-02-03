@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from src.config import settings
 from src.schemas.admin_report import ReportDuplicateOverrides, ReportDuplicateRequest
+from src.routers.admin_report import validate_slug
 from src.services.report_launcher import launch_report_generation_from_config
 from src.services.report_status import add_new_report_to_status_from_config, delete_report_from_status, slug_exists
 from src.services.report_sync import ReportSyncService
@@ -190,6 +191,7 @@ def duplicate_report(
 ) -> str:
     requested_slug = (payload.new_slug or "").strip()
     new_slug = requested_slug or _generate_slug(source_slug)
+    validate_slug(new_slug)
 
     lock_path = acquire_duplicate_lock(new_slug)
     created_any = False
