@@ -16,13 +16,17 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
   }
 
   const { slug } = await context.params;
-  const response = await fetch(`${baseUrl}/admin/reports/${slug}/config`, {
-    headers: {
-      "x-api-key": adminApiKey,
-      "Content-Type": "application/json",
-    },
-  });
+  try {
+    const response = await fetch(`${baseUrl}/admin/reports/${slug}/config`, {
+      headers: {
+        "x-api-key": adminApiKey,
+      },
+    });
 
-  const data = await response.json().catch(() => ({}));
-  return NextResponse.json(data, { status: response.status });
+    const data = await response.json().catch(() => ({}));
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch report config";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

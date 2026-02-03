@@ -199,62 +199,77 @@ export default function Page({ params }: PageProps) {
 
     setLoading(true);
 
-    const overrides: DuplicateOverrides = {};
-    if (!isSame(question, config.question)) {
-      overrides.question = question;
-    }
-    if (!isSame(intro, config.intro)) {
-      overrides.intro = intro;
-    }
-    if (!isSame(aiSettings.provider, config.provider || "openai")) {
-      overrides.provider = aiSettings.provider;
-    }
-    if (!isSame(aiSettings.model, config.model || "")) {
-      overrides.model = aiSettings.model;
-    }
-    if (!isSameCluster(clusterSettings.clusterLv1, clusterSettings.clusterLv2, config.hierarchical_clustering?.cluster_nums || null)) {
-      overrides.cluster = [clusterSettings.clusterLv1, clusterSettings.clusterLv2];
-    }
+    try {
+      const overrides: DuplicateOverrides = {};
+      if (!isSame(question, config.question)) {
+        overrides.question = question;
+      }
+      if (!isSame(intro, config.intro)) {
+        overrides.intro = intro;
+      }
+      if (!isSame(aiSettings.provider, config.provider || "openai")) {
+        overrides.provider = aiSettings.provider;
+      }
+      if (!isSame(aiSettings.model, config.model || "")) {
+        overrides.model = aiSettings.model;
+      }
+      if (
+        !isSameCluster(
+          clusterSettings.clusterLv1,
+          clusterSettings.clusterLv2,
+          config.hierarchical_clustering?.cluster_nums || null,
+        )
+      ) {
+        overrides.cluster = [clusterSettings.clusterLv1, clusterSettings.clusterLv2];
+      }
 
-    const promptOverride: DuplicateOverrides["prompt"] = {};
-    if (!isSame(promptSettings.extraction, config.extraction?.prompt || "")) {
-      promptOverride.extraction = promptSettings.extraction;
-    }
-    if (!isSame(promptSettings.initialLabelling, config.hierarchical_initial_labelling?.prompt || "")) {
-      promptOverride.initial_labelling = promptSettings.initialLabelling;
-    }
-    if (!isSame(promptSettings.mergeLabelling, config.hierarchical_merge_labelling?.prompt || "")) {
-      promptOverride.merge_labelling = promptSettings.mergeLabelling;
-    }
-    if (!isSame(promptSettings.overview, config.hierarchical_overview?.prompt || "")) {
-      promptOverride.overview = promptSettings.overview;
-    }
-    if (Object.keys(promptOverride).length > 0) {
-      overrides.prompt = promptOverride;
-    }
+      const promptOverride: DuplicateOverrides["prompt"] = {};
+      if (!isSame(promptSettings.extraction, config.extraction?.prompt || "")) {
+        promptOverride.extraction = promptSettings.extraction;
+      }
+      if (!isSame(promptSettings.initialLabelling, config.hierarchical_initial_labelling?.prompt || "")) {
+        promptOverride.initial_labelling = promptSettings.initialLabelling;
+      }
+      if (!isSame(promptSettings.mergeLabelling, config.hierarchical_merge_labelling?.prompt || "")) {
+        promptOverride.merge_labelling = promptSettings.mergeLabelling;
+      }
+      if (!isSame(promptSettings.overview, config.hierarchical_overview?.prompt || "")) {
+        promptOverride.overview = promptSettings.overview;
+      }
+      if (Object.keys(promptOverride).length > 0) {
+        overrides.prompt = promptOverride;
+      }
 
-    const result = await duplicateReport(params.slug, {
-      newSlug: newSlug.trim() || undefined,
-      reuseEnabled,
-      overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
-    });
-
-    if (result.success) {
-      toaster.create({
-        type: "success",
-        title: "再利用を開始しました",
-        description: `新しいレポート: ${result.slug}`,
+      const result = await duplicateReport(params.slug, {
+        newSlug: newSlug.trim() || undefined,
+        reuseEnabled,
+        overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
       });
-      router.push("/");
-    } else {
+
+      if (result.success) {
+        toaster.create({
+          type: "success",
+          title: "再利用を開始しました",
+          description: `新しいレポート: ${result.slug}`,
+        });
+        router.push("/");
+      } else {
+        toaster.create({
+          type: "error",
+          title: "再利用エラー",
+          description: result.error || "再利用に失敗しました",
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "再利用に失敗しました";
       toaster.create({
         type: "error",
         title: "再利用エラー",
-        description: result.error || "再利用に失敗しました",
+        description: message,
       });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (

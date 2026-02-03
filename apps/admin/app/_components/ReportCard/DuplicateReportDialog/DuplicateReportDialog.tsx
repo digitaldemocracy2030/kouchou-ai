@@ -257,65 +257,74 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
 
     setIsSubmitting(true);
 
-    const overrides: DuplicateOverrides = {};
-    if (!isSame(question, config.question)) {
-      overrides.question = question;
-    }
-    if (!isSame(intro, config.intro)) {
-      overrides.intro = intro;
-    }
-    if (!isSame(provider, config.provider || "openai")) {
-      overrides.provider = provider;
-    }
-    if (!isSame(model, config.model)) {
-      overrides.model = model;
-    }
-    if (!isSameCluster(clusterLv1, clusterLv2, config.hierarchical_clustering?.cluster_nums)) {
-      overrides.cluster = [clusterLv1, clusterLv2];
-    }
+    try {
+      const overrides: DuplicateOverrides = {};
+      if (!isSame(question, config.question)) {
+        overrides.question = question;
+      }
+      if (!isSame(intro, config.intro)) {
+        overrides.intro = intro;
+      }
+      if (!isSame(provider, config.provider || "openai")) {
+        overrides.provider = provider;
+      }
+      if (!isSame(model, config.model)) {
+        overrides.model = model;
+      }
+      if (!isSameCluster(clusterLv1, clusterLv2, config.hierarchical_clustering?.cluster_nums)) {
+        overrides.cluster = [clusterLv1, clusterLv2];
+      }
 
-    const promptOverride: DuplicateOverrides["prompt"] = {};
-    if (!isSame(extractionPrompt, config.extraction?.prompt)) {
-      promptOverride.extraction = extractionPrompt;
-    }
-    if (!isSame(initialLabellingPrompt, config.hierarchical_initial_labelling?.prompt)) {
-      promptOverride.initial_labelling = initialLabellingPrompt;
-    }
-    if (!isSame(mergeLabellingPrompt, config.hierarchical_merge_labelling?.prompt)) {
-      promptOverride.merge_labelling = mergeLabellingPrompt;
-    }
-    if (!isSame(overviewPrompt, config.hierarchical_overview?.prompt)) {
-      promptOverride.overview = overviewPrompt;
-    }
-    if (Object.keys(promptOverride).length > 0) {
-      overrides.prompt = promptOverride;
-    }
+      const promptOverride: DuplicateOverrides["prompt"] = {};
+      if (!isSame(extractionPrompt, config.extraction?.prompt)) {
+        promptOverride.extraction = extractionPrompt;
+      }
+      if (!isSame(initialLabellingPrompt, config.hierarchical_initial_labelling?.prompt)) {
+        promptOverride.initial_labelling = initialLabellingPrompt;
+      }
+      if (!isSame(mergeLabellingPrompt, config.hierarchical_merge_labelling?.prompt)) {
+        promptOverride.merge_labelling = mergeLabellingPrompt;
+      }
+      if (!isSame(overviewPrompt, config.hierarchical_overview?.prompt)) {
+        promptOverride.overview = overviewPrompt;
+      }
+      if (Object.keys(promptOverride).length > 0) {
+        overrides.prompt = promptOverride;
+      }
 
-    const result = await duplicateReport(report.slug, {
-      newSlug: newSlug.trim() || undefined,
-      reuseEnabled,
-      overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
-    });
-
-    if (result.success) {
-      toaster.create({
-        type: "success",
-        title: "再利用を開始しました",
-        description: `新しいレポート: ${result.slug}`,
+      const result = await duplicateReport(report.slug, {
+        newSlug: newSlug.trim() || undefined,
+        reuseEnabled,
+        overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
       });
-      setIsOpen(false);
-      setNewSlug("");
-      setReuseEnabled(true);
-      router.refresh();
-    } else {
+
+      if (result.success) {
+        toaster.create({
+          type: "success",
+          title: "再利用を開始しました",
+          description: `新しいレポート: ${result.slug}`,
+        });
+        setIsOpen(false);
+        setNewSlug("");
+        setReuseEnabled(true);
+        router.refresh();
+      } else {
+        toaster.create({
+          type: "error",
+          title: "再利用エラー",
+          description: result.error || "再利用に失敗しました",
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "再利用に失敗しました";
       toaster.create({
         type: "error",
         title: "再利用エラー",
-        description: result.error || "再利用に失敗しました",
+        description: message,
       });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   }
 
   return (
@@ -515,7 +524,12 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
               <Button variant="outline" onClick={() => setIsOpen(false)}>
                 キャンセル
               </Button>
-              <Button ml={3} type="submit" loading={isSubmitting} disabled={isLoadingConfig || !!configError}>
+              <Button
+                ml={3}
+                type="submit"
+                loading={isSubmitting}
+                disabled={!config || isLoadingConfig || !!configError}
+              >
                 再利用を開始
               </Button>
             </DialogFooter>
