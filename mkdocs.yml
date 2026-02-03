@@ -81,6 +81,7 @@ nav:
       - コントリビューション: development/contributing.md
       - npmではなくpnpmを使う理由: development/why-pnpm.md
       - プラグインガイド: development/plugin-guide.md
+      - プラグイン出力データ構造: development/plugin-output-data-structures.md
       - プラグインシステムの設計思想: development/why-plugin-system.md
       - PyPI公開: development/pypi-release.md
       - コードレビューガイドライン: development/code-review-guidelines.md
