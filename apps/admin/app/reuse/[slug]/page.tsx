@@ -13,7 +13,6 @@ import { useClusterSettings } from "@/app/create/hooks/useClusterSettings";
 import { usePromptSettings } from "@/app/create/hooks/usePromptSettings";
 import { validateReportId } from "@/app/create/utils/validation";
 import { duplicateReport } from "@/app/_components/ReportCard/DuplicateReportDialog/actions";
-import { getApiBaseUrl } from "@/app/utils/api";
 
 type PageProps = {
   params: {
@@ -101,11 +100,7 @@ export default function Page({ params }: PageProps) {
     const loadConfig = async () => {
       setConfigError(null);
       try {
-        const response = await fetch(`${getApiBaseUrl()}/admin/reports/${params.slug}/config`, {
-          headers: {
-            "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
-            "Content-Type": "application/json",
-          },
+        const response = await fetch(`/api/admin/reports/${params.slug}/config`, {
           signal: controller.signal,
         });
 

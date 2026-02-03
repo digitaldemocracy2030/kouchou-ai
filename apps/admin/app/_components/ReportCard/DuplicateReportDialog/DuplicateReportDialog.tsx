@@ -18,7 +18,6 @@ import { Box, Button, HStack, Input, NativeSelect, Portal, Text, Textarea, VStac
 import { useRouter } from "next/navigation";
 import { type Dispatch, type FormEvent, type SetStateAction, useEffect, useMemo, useState } from "react";
 import { duplicateReport } from "./actions";
-import { getApiBaseUrl } from "@/app/utils/api";
 
 type Props = {
   report: Report;
@@ -160,11 +159,7 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
       setIsLoadingConfig(true);
       setConfigError(null);
       try {
-        const response = await fetch(`${getApiBaseUrl()}/admin/reports/${report.slug}/config`, {
-          headers: {
-            "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
-            "Content-Type": "application/json",
-          },
+        const response = await fetch(`/api/admin/reports/${report.slug}/config`, {
           signal: controller.signal,
         });
 
