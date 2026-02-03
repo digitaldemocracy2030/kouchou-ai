@@ -326,7 +326,7 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
     <DialogRoot placement="center" open={isOpen} onOpenChange={({ open }) => setIsOpen(open)}>
       <Portal>
         <DialogBackdrop />
-        <DialogContent>
+        <DialogContent maxW="800px" w="full">
           <DialogCloseTrigger onClick={() => setIsOpen(false)} />
           <DialogHeader>
             <DialogTitle>レポートを再利用</DialogTitle>
