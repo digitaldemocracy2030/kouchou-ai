@@ -209,7 +209,7 @@ def duplicate_report(
 
         config["name"] = new_slug
         config["input"] = new_slug
-        config["source_slug"] = source_slug
+        # Keep source_slug in status only; analysis-core config schema doesn't accept it.
         config = _apply_overrides(config, payload.overrides)
 
         new_config_path = settings.CONFIG_DIR / f"{new_slug}.json"
