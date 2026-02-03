@@ -7,6 +7,7 @@ import type { Report } from "@/type";
 import { IconButton, Portal } from "@chakra-ui/react";
 import { Copy, Ellipsis, Eye, FileSpreadsheet, FileText, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
 import { type Dispatch, type SetStateAction, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useBuildDownload } from "../../BuildDownloadButton/useBuildDownload";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
 import { csvDownload } from "./csvDownload";
@@ -18,7 +19,6 @@ type Props = {
   setIsEditDialogOpen: Dispatch<SetStateAction<boolean>>;
   setIsClusterEditDialogOpen: Dispatch<SetStateAction<boolean>>;
   setIsVisualizationConfigDialogOpen: Dispatch<SetStateAction<boolean>>;
-  setIsDuplicateDialogOpen: Dispatch<SetStateAction<boolean>>;
 };
 
 export function ActionMenu({
@@ -26,11 +26,11 @@ export function ActionMenu({
   setIsEditDialogOpen,
   setIsClusterEditDialogOpen,
   setIsVisualizationConfigDialogOpen,
-  setIsDuplicateDialogOpen,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const { exportStaticHTML } = useBuildDownload();
   const isVisible = report.visibility === "public";
+  const router = useRouter();
 
   return (
     <>
@@ -54,7 +54,8 @@ export function ActionMenu({
                 value="duplicate"
                 textStyle="body/md/bold"
                 onClick={() => {
-                  setIsDuplicateDialogOpen(true);
+                  setIsOpen(false);
+                  router.push(`/reuse/${report.slug}`);
                 }}
                 _icon={{
                   w: 5,

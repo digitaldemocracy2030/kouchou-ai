@@ -7,7 +7,6 @@ import { useState } from "react";
 import { ActionMenu } from "./ActionMenu/ActionMenu";
 import { ClusterEditDialog } from "./ClusterEditDialog/ClusterEditDialog";
 import { DeleteButton } from "./DeleteButton";
-import { DuplicateReportDialog } from "./DuplicateReportDialog/DuplicateReportDialog";
 import { NumberDisplay } from "./NumberDisplay";
 import { ProgressSteps } from "./ProgressSteps/ProgressSteps";
 import { ReportCreatedAt } from "./ReportCreatedAt";
@@ -27,7 +26,6 @@ function ReportDataAndActions({ report }: Props) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isClusterEditDialogOpen, setIsClusterEditDialogOpen] = useState(false);
   const [isVisualizationConfigDialogOpen, setIsVisualizationConfigDialogOpen] = useState(false);
-  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   return (
     <LayoutGroup>
       <AnimatePresence mode="wait">
@@ -71,7 +69,6 @@ function ReportDataAndActions({ report }: Props) {
                 setIsEditDialogOpen={setIsEditDialogOpen}
                 setIsClusterEditDialogOpen={setIsClusterEditDialogOpen}
                 setIsVisualizationConfigDialogOpen={setIsVisualizationConfigDialogOpen}
-                setIsDuplicateDialogOpen={setIsDuplicateDialogOpen}
               />
             </GridItem>
             <GridItem>
@@ -91,11 +88,6 @@ function ReportDataAndActions({ report }: Props) {
               report={report}
               isOpen={isVisualizationConfigDialogOpen}
               setIsVisualizationConfigDialogOpen={setIsVisualizationConfigDialogOpen}
-            />
-            <DuplicateReportDialog
-              report={report}
-              isOpen={isDuplicateDialogOpen}
-              setIsOpen={setIsDuplicateDialogOpen}
             />
           </motion.div>
         )}
