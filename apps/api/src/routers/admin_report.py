@@ -307,9 +307,7 @@ async def update_report_config_endpoint(
 
 
 @router.get("/admin/reports/{slug}/config")
-async def get_report_config_endpoint(
-    slug: str, api_key: str = Depends(verify_admin_api_key)
-) -> dict:
+async def get_report_config_endpoint(slug: str, api_key: str = Depends(verify_admin_api_key)) -> dict:
     """レポートの設定(config.json)を取得するエンドポイント"""
     validate_slug(slug)
     try:
