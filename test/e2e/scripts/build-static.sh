@@ -32,6 +32,11 @@ if [ "$BUILD_TYPE" = "root" ]; then
     echo ">>> 既存のoutディレクトリを削除中..."
     rm -rf out
   fi
+  # 既存の.nextディレクトリを削除（basePath切り替え時のキャッシュを避ける）
+  if [ -d ".next" ]; then
+    echo ">>> 既存の.nextディレクトリを削除中..."
+    rm -rf .next
+  fi
 
   echo ">>> Root ホスティング用のビルドを実行中..."
   NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
@@ -59,6 +64,11 @@ elif [ "$BUILD_TYPE" = "subdir" ]; then
   if [ -d "out" ]; then
     echo ">>> 既存のoutディレクトリを削除中..."
     rm -rf out
+  fi
+  # 既存の.nextディレクトリを削除（basePath切り替え時のキャッシュを避ける）
+  if [ -d ".next" ]; then
+    echo ">>> 既存の.nextディレクトリを削除中..."
+    rm -rf .next
   fi
 
   echo ">>> Subdirectory ホスティング用のビルドを実行中..."
