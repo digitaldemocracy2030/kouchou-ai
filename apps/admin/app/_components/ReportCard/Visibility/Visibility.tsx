@@ -40,24 +40,24 @@ export function Visibility({ report }: Props) {
   const visibility = report.visibility || "private"; // fallback to 'private'
 
   return (
-    <Tooltip showArrow openDelay={300} closeDelay={100} content={iconStyles[visibility].text}>
-      <MenuRoot
-        onSelect={async (e) => {
-          if (e.value === report.visibility) return;
+    <MenuRoot
+      onSelect={async (e) => {
+        if (e.value === report.visibility) return;
 
-          const result = await updateReportVisibility(report.slug, e.value as ReportVisibility);
+        const result = await updateReportVisibility(report.slug, e.value as ReportVisibility);
 
-          if (result.success) {
-            router.refresh();
-          } else {
-            toaster.create({
-              type: "error",
-              title: "更新エラー",
-              description: result.error,
-            });
-          }
-        }}
-      >
+        if (result.success) {
+          router.refresh();
+        } else {
+          toaster.create({
+            type: "error",
+            title: "更新エラー",
+            description: result.error,
+          });
+        }
+      }}
+    >
+      <Tooltip showArrow openDelay={300} closeDelay={100} content={iconStyles[visibility].text}>
         <MenuTrigger asChild>
           <IconButton
             size="lg"
@@ -74,32 +74,32 @@ export function Visibility({ report }: Props) {
             {iconStyles[visibility].icon}
           </IconButton>
         </MenuTrigger>
-        <Portal>
-          <MenuContent>
-            {Object.entries(iconStyles).map(([key, style]) => (
-              <MenuItem
-                key={key}
-                value={key}
-                color={style.color}
-                textStyle="body/md/bold"
-                border="1px solid"
-                borderColor="transparent"
-                _icon={{
-                  w: 5,
-                  h: 5,
-                }}
-                _hover={{
-                  borderColor: style.borderColor,
-                  bg: style.bg,
-                }}
-              >
-                {style.icon}
-                {style.text}
-              </MenuItem>
-            ))}
-          </MenuContent>
-        </Portal>
-      </MenuRoot>
-    </Tooltip>
+      </Tooltip>
+      <Portal>
+        <MenuContent>
+          {Object.entries(iconStyles).map(([key, style]) => (
+            <MenuItem
+              key={key}
+              value={key}
+              color={style.color}
+              textStyle="body/md/bold"
+              border="1px solid"
+              borderColor="transparent"
+              _icon={{
+                w: 5,
+                h: 5,
+              }}
+              _hover={{
+                borderColor: style.borderColor,
+                bg: style.bg,
+              }}
+            >
+              {style.icon}
+              {style.text}
+            </MenuItem>
+          ))}
+        </MenuContent>
+      </Portal>
+    </MenuRoot>
   );
 }
