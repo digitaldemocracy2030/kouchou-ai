@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 指定されたタグのキャッシュを破棄
-    revalidateTag(tag, "max");
+    revalidateTag(tag);
     console.log(`Revalidated tag: ${tag}`);
 
     return NextResponse.json({
