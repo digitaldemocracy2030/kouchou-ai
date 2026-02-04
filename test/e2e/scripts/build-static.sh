@@ -22,6 +22,7 @@ cd "$PUBLIC_VIEWER_DIR" || exit 1
 echo ">>> 現在のディレクトリ: $(pwd)"
 
 if [ "$BUILD_TYPE" = "root" ]; then
+  DIST_DIR=".next-static-root"
   # 既存のout-rootディレクトリを削除
   if [ -d "out-root" ]; then
     echo ">>> 既存のout-rootディレクトリを削除中..."
@@ -33,29 +34,34 @@ if [ "$BUILD_TYPE" = "root" ]; then
     rm -rf out
   fi
   # 既存のdistDirを削除（basePath切り替え時のキャッシュを避ける）
-  if [ -d ".next-static-root" ]; then
-    echo ">>> 既存の.next-static-rootディレクトリを削除中..."
-    rm -rf .next-static-root
+  if [ -d "$DIST_DIR" ]; then
+    echo ">>> 既存の${DIST_DIR}ディレクトリを削除中..."
+    rm -rf "$DIST_DIR"
   fi
 
   echo ">>> Root ホスティング用のビルドを実行中..."
   NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
   API_BASEPATH=http://localhost:8002 \
   NEXT_PUBLIC_PUBLIC_API_KEY=public \
-  STATIC_EXPORT_DIST_DIR=.next-static-root \
+  STATIC_EXPORT_DIST_DIR=$DIST_DIR \
   NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="" \
   pnpm run build:static
 
-  if [ ! -d "out" ]; then
+  if [ -d "$DIST_DIR" ]; then
+    echo ">>> ビルド結果をout-rootに移動中..."
+    mv "$DIST_DIR" out-root
+  elif [ -d "out" ]; then
+    echo ">>> ビルド結果をout-rootに移動中..."
+    mv out out-root
+  else
     echo "エラー: out ディレクトリが生成されませんでした"
     exit 1
   fi
-  echo ">>> ビルド結果をout-rootに移動中..."
-  mv out out-root
 
   echo ">>> 静的ビルド完了: apps/public-viewer/out-root"
 
 elif [ "$BUILD_TYPE" = "subdir" ]; then
+  DIST_DIR=".next-static-subdir"
   # 既存のout-subdirディレクトリを削除
   if [ -d "out-subdir" ]; then
     echo ">>> 既存のout-subdirディレクトリを削除中..."
@@ -67,27 +73,31 @@ elif [ "$BUILD_TYPE" = "subdir" ]; then
     rm -rf out
   fi
   # 既存のdistDirを削除（basePath切り替え時のキャッシュを避ける）
-  if [ -d ".next-static-subdir" ]; then
-    echo ">>> 既存の.next-static-subdirディレクトリを削除中..."
-    rm -rf .next-static-subdir
+  if [ -d "$DIST_DIR" ]; then
+    echo ">>> 既存の${DIST_DIR}ディレクトリを削除中..."
+    rm -rf "$DIST_DIR"
   fi
 
   echo ">>> Subdirectory ホスティング用のビルドを実行中..."
   NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
   API_BASEPATH=http://localhost:8002 \
   NEXT_PUBLIC_PUBLIC_API_KEY=public \
-  STATIC_EXPORT_DIST_DIR=.next-static-subdir \
+  STATIC_EXPORT_DIST_DIR=$DIST_DIR \
   NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="/kouchou-ai" \
   pnpm run build:static
 
   # ビルド結果をout-subdir/kouchou-aiに移動
-  if [ ! -d "out" ]; then
+  mkdir -p out-subdir
+  if [ -d "$DIST_DIR" ]; then
+    echo ">>> ビルド結果をout-subdir/kouchou-aiに移動中..."
+    mv "$DIST_DIR" out-subdir/kouchou-ai
+  elif [ -d "out" ]; then
+    echo ">>> ビルド結果をout-subdir/kouchou-aiに移動中..."
+    mv out out-subdir/kouchou-ai
+  else
     echo "エラー: out ディレクトリが生成されませんでした"
     exit 1
   fi
-  echo ">>> ビルド結果をout-subdir/kouchou-aiに移動中..."
-  mkdir -p out-subdir
-  mv out out-subdir/kouchou-ai
 
   echo ">>> 静的ビルド完了: apps/public-viewer/out-subdir/kouchou-ai"
 
