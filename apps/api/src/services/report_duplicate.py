@@ -144,6 +144,16 @@ def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -
         config["model"] = overrides.model
     if overrides.provider is not None:
         config["provider"] = overrides.provider
+    if overrides.workers is not None:
+        config.setdefault("extraction", {})["workers"] = overrides.workers
+    if overrides.is_pubcom is not None:
+        config["is_pubcom"] = overrides.is_pubcom
+    if overrides.enable_source_link is not None:
+        config["enable_source_link"] = overrides.enable_source_link
+    if overrides.is_embedded_at_local is not None:
+        config["is_embedded_at_local"] = overrides.is_embedded_at_local
+    if overrides.local_llm_address is not None:
+        config["local_llm_address"] = overrides.local_llm_address
     if overrides.cluster is not None:
         config.setdefault("hierarchical_clustering", {})["cluster_nums"] = overrides.cluster
 
@@ -263,7 +273,14 @@ def duplicate_report(
     except Exception:
         # Best-effort cleanup on failure only if we created artifacts
         if created_any and cleanup_on_failure:
-            _cleanup_partial_artifacts(new_slug)
+            try:
+                _cleanup_partial_artifacts(new_slug)
+            except Exception as cleanup_error:
+                logger.warning(
+                    "Failed to cleanup partial artifacts",
+                    slug=new_slug,
+                    error=str(cleanup_error),
+                )
         raise
     finally:
         release_duplicate_lock(lock_path)

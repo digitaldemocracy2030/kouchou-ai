@@ -494,7 +494,7 @@ async def verify_api_key(
             "error_detail": str(e),
             "error_type": "rate_limit_error",
         }
-    except Exception as e:  # noqa: PIE786
+    except Exception as e:
         if google_exceptions is not None and isinstance(e, google_exceptions.Unauthenticated):
             return {
                 "success": False,

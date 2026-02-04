@@ -52,6 +52,11 @@ type DuplicateOverrides = {
   intro?: string;
   provider?: string;
   model?: string;
+  workers?: number;
+  is_pubcom?: boolean;
+  enable_source_link?: boolean;
+  is_embedded_at_local?: boolean;
+  local_llm_address?: string;
   cluster?: number[];
   prompt?: {
     extraction?: string;
@@ -234,6 +239,21 @@ export default function Page({ params }: PageProps) {
       }
       if (!isSame(aiSettings.model, config.model || "")) {
         overrides.model = aiSettings.model;
+      }
+      if (aiSettings.workers !== (config.extraction?.workers ?? undefined)) {
+        overrides.workers = aiSettings.workers;
+      }
+      if (aiSettings.isPubcomMode !== (config.is_pubcom ?? false)) {
+        overrides.is_pubcom = aiSettings.isPubcomMode;
+      }
+      if (aiSettings.enableSourceLink !== (config.enable_source_link ?? false)) {
+        overrides.enable_source_link = aiSettings.enableSourceLink;
+      }
+      if (aiSettings.isEmbeddedAtLocal !== (config.is_embedded_at_local ?? false)) {
+        overrides.is_embedded_at_local = aiSettings.isEmbeddedAtLocal;
+      }
+      if ((aiSettings.localLLMAddress || "") !== (config.local_llm_address || "")) {
+        overrides.local_llm_address = aiSettings.localLLMAddress || "";
       }
       if (
         !isSameCluster(

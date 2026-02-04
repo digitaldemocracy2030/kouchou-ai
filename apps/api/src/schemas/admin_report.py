@@ -69,6 +69,11 @@ class ReportDuplicateOverrides(SchemaBaseModel):
     cluster: list[int] | None = None
     model: str | None = None
     provider: str | None = None
+    workers: int | None = None
+    is_pubcom: bool | None = None
+    enable_source_link: bool | None = None
+    is_embedded_at_local: bool | None = None
+    local_llm_address: str | None = None
     prompt: PromptOverride | None = None
 
 

@@ -12,7 +12,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   };
 
   if (!requestApiKey || requestApiKey !== validApiKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    return NextResponse.json({ error: "Unauthorized", detail: "Unauthorized" }, { status: 401, headers: corsHeaders });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -20,7 +20,10 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   const newSlug = body?.newSlug || `${slug}-copy-20250101`;
 
   if (usedSlugs.has(newSlug)) {
-    return NextResponse.json({ error: "newSlug already exists" }, { status: 409, headers: corsHeaders });
+    return NextResponse.json(
+      { error: "newSlug already exists", detail: "newSlug already exists" },
+      { status: 409, headers: corsHeaders }
+    );
   }
   usedSlugs.add(newSlug);
 

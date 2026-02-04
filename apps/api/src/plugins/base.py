@@ -9,7 +9,7 @@ Each plugin must:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +18,7 @@ import pandas as pd
 from src.config import settings
 
 
-class SettingType(str, Enum):
+class SettingType(StrEnum):
     """Type of plugin setting."""
 
     STRING = "string"
