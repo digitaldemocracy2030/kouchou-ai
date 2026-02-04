@@ -7,12 +7,12 @@ const getAdminBaseUrl = () => {
 export async function GET(_: Request, context: { params: Promise<{ slug: string }> }) {
   const adminApiKey = process.env.ADMIN_API_KEY;
   if (!adminApiKey) {
-    return NextResponse.json({ error: "ADMIN_API_KEY is not set" }, { status: 500 });
+    return NextResponse.json({ detail: "ADMIN_API_KEY is not set" }, { status: 500 });
   }
 
   const baseUrl = getAdminBaseUrl();
   if (!baseUrl) {
-    return NextResponse.json({ error: "API base URL is not configured" }, { status: 500 });
+    return NextResponse.json({ detail: "API base URL is not configured" }, { status: 500 });
   }
 
   const { slug } = await context.params;
@@ -27,6 +27,6 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch report config";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ detail: message }, { status: 500 });
   }
 }

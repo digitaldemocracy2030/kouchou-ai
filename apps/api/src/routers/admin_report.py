@@ -12,7 +12,12 @@ from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.security.api_key import APIKeyHeader
 
 from src.config import settings
-from src.core.exceptions import ClusterCSVParseError, ClusterFileNotFound
+from src.core.exceptions import (
+    ClusterCSVParseError,
+    ClusterFileNotFound,
+    ConfigFileNotFound,
+    ConfigJSONParseError,
+)
 from src.repositories.cluster_repository import ClusterRepository
 from src.repositories.config_repository import ConfigRepository
 from src.schemas.admin_report import ReportDuplicateRequest, ReportInput, ReportVisibilityUpdate
@@ -221,9 +226,12 @@ async def delete_report(slug: str, api_key: str = Depends(verify_admin_api_key))
                 "Access-Control-Allow-Origin": "*",
             },
         )
-    except ValueError as e:
-        slogger.error(f"ValueError: {e}", exc_info=True)
+    except ConfigFileNotFound as e:
+        slogger.error(f"ConfigFileNotFound: {e}", exc_info=True)
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except ConfigJSONParseError as e:
+        slogger.error(f"ConfigJSONParseError: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         slogger.error(f"Exception: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
@@ -241,6 +249,12 @@ async def update_report_visibility(
     except ValueError as e:
         slogger.error(f"ValueError: {e}", exc_info=True)
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except ConfigFileNotFound as e:
+        slogger.error(f"ConfigFileNotFound: {e}", exc_info=True)
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ConfigJSONParseError as e:
+        slogger.error(f"ConfigJSONParseError: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         slogger.error(f"Exception: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e

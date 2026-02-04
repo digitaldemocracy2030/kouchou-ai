@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import shutil
@@ -9,6 +10,7 @@ from fastapi import HTTPException
 
 from src.config import settings
 from src.schemas.admin_report import ReportDuplicateOverrides, ReportDuplicateRequest
+from src.schemas.report_config import ReportConfig
 from src.services.report_launcher import launch_report_generation_from_config
 from src.services.report_status import add_new_report_to_status_from_config, delete_report_from_status, slug_exists
 from src.services.report_sync import ReportSyncService
@@ -120,6 +122,69 @@ def _slug_exists_anywhere(slug: str) -> bool:
     return False
 
 
+def _load_report_result(slug: str) -> dict:
+    """Load hierarchical_result.json for a slug, downloading it from storage if needed."""
+    result_path = settings.REPORT_DIR / slug / "hierarchical_result.json"
+    if not result_path.exists():
+        ReportSyncService().download_report_artifacts(slug, ("hierarchical_result.json",))
+    if not result_path.exists():
+        raise HTTPException(status_code=404, detail="Source report result not found")
+    try:
+        with open(result_path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read source report result: {e}") from e
+
+
+def _build_analysis_core_config_from_embedded_config(embedded_config: dict) -> dict:
+    """Build a valid analysis-core config dict from embedded config in hierarchical_result.json."""
+    try:
+        parsed = ReportConfig(**embedded_config)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Invalid source embedded config: {e}") from e
+
+    config = parsed.model_dump()
+
+    # Keep enable_source_link if available (analysis-core supports it, but our ReportConfig schema may ignore it).
+    enable_source_link = embedded_config.get("enable_source_link")
+    if isinstance(enable_source_link, bool):
+        config["enable_source_link"] = enable_source_link
+
+    return config
+
+
+def _write_input_csv_from_arguments(arguments: list, output_path: Path) -> int:
+    """Create an input CSV from hierarchical_result.json 'arguments' as a fallback."""
+    rows: list[dict[str, str]] = []
+    for i, arg in enumerate(arguments):
+        if not isinstance(arg, dict):
+            continue
+        text = arg.get("argument")
+        if not isinstance(text, str) or not text.strip():
+            continue
+        arg_id = arg.get("arg_id") or arg.get("arg-id") or str(i)
+        url = arg.get("url")
+        rows.append(
+            {
+                "comment-id": str(arg_id),
+                "comment-body": text,
+                "source": "reuse-argument",
+                "url": str(url) if isinstance(url, str) else "",
+            }
+        )
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="Source input file not found (no arguments to reconstruct input)")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["comment-id", "comment-body", "source", "url"])
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return len(rows)
+
+
 def _generate_slug(source_slug: str) -> str:
     date_str = datetime.now(UTC).strftime("%Y%m%d")
     base = f"{source_slug}-copy-{date_str}"
@@ -210,30 +275,51 @@ def duplicate_report(
         if _slug_exists_anywhere(new_slug):
             raise HTTPException(status_code=409, detail="newSlug already exists")
 
+        source_result: dict | None = None
+
         config_path = settings.CONFIG_DIR / f"{source_slug}.json"
         if not config_path.exists():
             ReportSyncService().download_all_config_files_from_storage()
-        if not config_path.exists():
-            raise HTTPException(status_code=404, detail="Source config not found")
+        if config_path.exists():
+            with open(config_path, encoding="utf-8") as f:
+                config = json.load(f)
+        else:
+            source_result = _load_report_result(source_slug)
+            embedded_config = source_result.get("config")
+            if not isinstance(embedded_config, dict):
+                raise HTTPException(status_code=404, detail="Source config not found")
+            config = _build_analysis_core_config_from_embedded_config(embedded_config)
 
-        with open(config_path, encoding="utf-8") as f:
-            config = json.load(f)
+        new_input_path = settings.INPUT_DIR / f"{new_slug}.csv"
+        new_input_path.parent.mkdir(parents=True, exist_ok=True)
+
+        source_input_path = settings.INPUT_DIR / f"{source_slug}.csv"
+        if not source_input_path.exists():
+            ReportSyncService().download_input_file(source_slug)
+
+        input_limit_override: int | None = None
+        if source_input_path.exists():
+            shutil.copy2(source_input_path, new_input_path)
+        else:
+            if source_result is None:
+                source_result = _load_report_result(source_slug)
+            input_limit_override = _write_input_csv_from_arguments(
+                source_result.get("arguments") or [],
+                new_input_path,
+            )
+        created_any = True
 
         config["name"] = new_slug
         config["input"] = new_slug
         # Keep source_slug in status only; analysis-core config schema doesn't accept it.
         config = _apply_overrides(config, payload.overrides)
+        if input_limit_override is not None:
+            config.setdefault("extraction", {})["limit"] = input_limit_override
 
         new_config_path = settings.CONFIG_DIR / f"{new_slug}.json"
         new_config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(new_config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
-        created_any = True
-
-        source_input_path = _ensure_source_input(source_slug)
-        new_input_path = settings.INPUT_DIR / f"{new_slug}.csv"
-        new_input_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_input_path, new_input_path)
 
         output_dir = settings.REPORT_DIR / new_slug
         output_dir.mkdir(parents=True, exist_ok=True)
