@@ -9,7 +9,7 @@ lint/format:
 
 lint/ci:
 	@echo "Running linter with all rules including type hints..."
-	rye run ruff check . --ignore I
+	ruff check . --ignore I
 	@echo "Showing type hint issues only (for reference)..."
-	rye run ruff check . --select ANN --statistics || true
-	rye run ruff format . --diff
+	ruff check . --select ANN --statistics || true
+	ruff format . --diff
