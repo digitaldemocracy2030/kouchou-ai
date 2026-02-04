@@ -35,7 +35,8 @@ node -v
 pnpm -v
 ```
 
-* 未インストールの場合は、[Node.js LTS](https://nodejs.org/ja) をインストールしてください。
+* Node.jsが未インストールの場合は、[Node.js LTS](https://nodejs.org/ja) をインストールしてください。
+* pnpmが未インストールの場合は `pnpm -v` で確認し、未導入なら `npm install -g pnpm` もしくは [pnpm インストールページ](https://pnpm.io/ja/installation) から導入してください。
 
 #### 4. Python の確認（api用）
 
