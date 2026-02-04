@@ -46,11 +46,15 @@ test.describe("Client Static (Subdirectory) - レポート一覧", () => {
     await page.waitForLoadState("networkidle");
 
     // すべての静的リソースが /kouchou-ai プレフィックス付きで読み込まれることを確認
-    const hasCorrectBasePath = requests.every(
-      (url) => url.includes("/kouchou-ai/_next") || url.includes("/kouchou-ai/images") || !url.includes("localhost"),
+    const invalidUrls = requests.filter(
+      (url) =>
+        url.includes("localhost") && !url.includes("/kouchou-ai/_next") && !url.includes("/kouchou-ai/images"),
     );
 
-    expect(hasCorrectBasePath).toBe(true);
+    expect(
+      invalidUrls,
+      invalidUrls.length > 0 ? `Invalid basePath URLs:\n${invalidUrls.join("\n")}` : undefined,
+    ).toHaveLength(0);
   });
 
   test("レポートの作成日時が表示される", async ({ page }) => {

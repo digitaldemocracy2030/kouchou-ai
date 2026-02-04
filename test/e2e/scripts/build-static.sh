@@ -32,16 +32,17 @@ if [ "$BUILD_TYPE" = "root" ]; then
     echo ">>> 既存のoutディレクトリを削除中..."
     rm -rf out
   fi
-  # 既存の.nextディレクトリを削除（basePath切り替え時のキャッシュを避ける）
-  if [ -d ".next" ]; then
-    echo ">>> 既存の.nextディレクトリを削除中..."
-    rm -rf .next
+  # 既存のdistDirを削除（basePath切り替え時のキャッシュを避ける）
+  if [ -d ".next-static-root" ]; then
+    echo ">>> 既存の.next-static-rootディレクトリを削除中..."
+    rm -rf .next-static-root
   fi
 
   echo ">>> Root ホスティング用のビルドを実行中..."
   NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
   API_BASEPATH=http://localhost:8002 \
   NEXT_PUBLIC_PUBLIC_API_KEY=public \
+  STATIC_EXPORT_DIST_DIR=.next-static-root \
   NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="" \
   pnpm run build:static
 
@@ -65,16 +66,17 @@ elif [ "$BUILD_TYPE" = "subdir" ]; then
     echo ">>> 既存のoutディレクトリを削除中..."
     rm -rf out
   fi
-  # 既存の.nextディレクトリを削除（basePath切り替え時のキャッシュを避ける）
-  if [ -d ".next" ]; then
-    echo ">>> 既存の.nextディレクトリを削除中..."
-    rm -rf .next
+  # 既存のdistDirを削除（basePath切り替え時のキャッシュを避ける）
+  if [ -d ".next-static-subdir" ]; then
+    echo ">>> 既存の.next-static-subdirディレクトリを削除中..."
+    rm -rf .next-static-subdir
   fi
 
   echo ">>> Subdirectory ホスティング用のビルドを実行中..."
   NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
   API_BASEPATH=http://localhost:8002 \
   NEXT_PUBLIC_PUBLIC_API_KEY=public \
+  STATIC_EXPORT_DIST_DIR=.next-static-subdir \
   NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="/kouchou-ai" \
   pnpm run build:static
 
