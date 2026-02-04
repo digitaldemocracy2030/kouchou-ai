@@ -46,10 +46,7 @@ test.describe("Client Static (Subdirectory) - レポート一覧", () => {
     await page.waitForLoadState("networkidle");
 
     // すべての静的リソースが /kouchou-ai プレフィックス付きで読み込まれることを確認
-    const invalidUrls = requests.filter(
-      (url) =>
-        url.includes("localhost") && !url.includes("/kouchou-ai/_next") && !url.includes("/kouchou-ai/images"),
-    );
+    const invalidUrls = requests.filter((url) => url.includes("localhost") && !url.includes("/kouchou-ai/"));
 
     expect(
       invalidUrls,
