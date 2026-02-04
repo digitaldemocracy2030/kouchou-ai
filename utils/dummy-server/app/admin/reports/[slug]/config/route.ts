@@ -43,11 +43,17 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
   }
 
   const { slug } = await context.params;
-  if (slug !== "test-report") {
+  if (!slug.startsWith("test-report")) {
     return NextResponse.json({ error: "Not Found" }, { status: 404, headers: corsHeaders });
   }
 
-  return NextResponse.json({ config: SAMPLE_CONFIG }, { headers: corsHeaders });
+  const config = {
+    ...SAMPLE_CONFIG,
+    name: slug,
+    input: slug,
+  };
+
+  return NextResponse.json({ config }, { headers: corsHeaders });
 }
 
 export async function OPTIONS() {

@@ -11,6 +11,7 @@ test.describe("管理画面 - レポート再利用", () => {
     await page.getByRole("button", { name: "レポート生成設定" }).click();
     await page.getByLabel("要約プロンプト").fill("new overview prompt");
 
+    await expect(page.getByRole("button", { name: "再利用を開始" })).toBeEnabled();
     await page.getByRole("button", { name: "再利用を開始" }).click();
     await page.waitForURL(/\/$/);
     await expect(page.getByTestId("report-actions-test-report-1")).toBeVisible();

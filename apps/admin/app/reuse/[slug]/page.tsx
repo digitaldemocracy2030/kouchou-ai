@@ -80,6 +80,7 @@ export default function Page({ params }: PageProps) {
   const [loading, setLoading] = useState(false);
   const [config, setConfig] = useState<ReportConfig | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   const [slug, setSlug] = useState("");
   const [newSlug, setNewSlug] = useState("");
@@ -115,7 +116,9 @@ export default function Page({ params }: PageProps) {
     if (!slug) return;
     const controller = new AbortController();
     const loadConfig = async () => {
+      setIsLoadingConfig(true);
       setConfigError(null);
+      setConfig(null);
       try {
         const response = await fetch(`/api/admin/reports/${slug}/config`, {
           signal: controller.signal,
@@ -171,6 +174,8 @@ export default function Page({ params }: PageProps) {
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setConfigError(error instanceof Error ? error.message : "設定の取得に失敗しました");
+      } finally {
+        setIsLoadingConfig(false);
       }
     };
 
@@ -407,7 +412,14 @@ export default function Page({ params }: PageProps) {
 
           <VStack mt="8" gap="6">
             <EnvironmentCheckDialog provider={aiSettings.provider} />
-            <Button className={"gradientBg shadow"} size={"2xl"} w={"300px"} onClick={onSubmit} loading={loading}>
+            <Button
+              className={"gradientBg shadow"}
+              size={"2xl"}
+              w={"300px"}
+              onClick={onSubmit}
+              loading={loading}
+              disabled={loading || isLoadingConfig || !config}
+            >
               再利用を開始
             </Button>
           </VStack>
