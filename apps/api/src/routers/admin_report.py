@@ -311,9 +311,12 @@ async def get_report_config_endpoint(slug: str, api_key: str = Depends(verify_ad
         config_repo = ConfigRepository(slug)
         config = config_repo.read_from_json()
         return {"config": config.model_dump()}
-    except ValueError as e:
-        slogger.error(f"ValueError: {e}", exc_info=True)
+    except ConfigFileNotFound as e:
+        slogger.error(f"ConfigFileNotFound: {e}", exc_info=True)
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except ConfigJSONParseError as e:
+        slogger.error(f"ConfigJSONParseError: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         slogger.error(f"Exception: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e

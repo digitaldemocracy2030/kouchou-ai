@@ -66,6 +66,8 @@ type DuplicateOverrides = {
   };
 };
 
+const DEFAULT_WORKERS = 30;
+
 const formatDate = () => {
   const now = new Date();
   const y = now.getFullYear();
@@ -240,7 +242,7 @@ export default function Page({ params }: PageProps) {
       if (!isSame(aiSettings.model, config.model || "")) {
         overrides.model = aiSettings.model;
       }
-      if (aiSettings.workers !== (config.extraction?.workers ?? undefined)) {
+      if (aiSettings.workers !== (config.extraction?.workers ?? DEFAULT_WORKERS)) {
         overrides.workers = aiSettings.workers;
       }
       if (aiSettings.isPubcomMode !== (config.is_pubcom ?? false)) {
