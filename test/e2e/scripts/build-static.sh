@@ -87,7 +87,7 @@ elif [ "$BUILD_TYPE" = "subdir" ]; then
   mkdir -p out-subdir
   mv out out-subdir/kouchou-ai
 
-  echo ">>> 静的ビルド完了: apps/public-viewer/out-subdir"
+  echo ">>> 静的ビルド完了: apps/public-viewer/out-subdir/kouchou-ai"
 
 else
   echo "エラー: 無効なビルドタイプ: $BUILD_TYPE"
