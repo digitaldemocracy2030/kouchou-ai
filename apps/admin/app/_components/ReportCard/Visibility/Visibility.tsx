@@ -1,3 +1,5 @@
+"use client";
+
 import { MenuContent, MenuItem, MenuRoot, MenuTrigger } from "@/components/ui/menu";
 import { toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -5,6 +7,7 @@ import type { Report, ReportVisibility } from "@/type";
 import { IconButton, Portal } from "@chakra-ui/react";
 import { Eye, EyeClosedIcon, LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { updateReportVisibility } from "./actions";
 
 type Props = {
@@ -17,6 +20,7 @@ const iconStyles = {
     color: "font.public",
     borderColor: "border.public",
     text: "公開",
+    ariaLabel: "公開設定を変更",
     icon: <Eye />,
   },
   unlisted: {
@@ -24,6 +28,7 @@ const iconStyles = {
     color: "font.limitedPublic",
     borderColor: "border.limitedPublic",
     text: "限定公開",
+    ariaLabel: "公開設定を変更",
     icon: <LockKeyhole />,
   },
   private: {
@@ -31,6 +36,7 @@ const iconStyles = {
     color: "font.private",
     borderColor: "border.private",
     text: "非公開",
+    ariaLabel: "公開設定を変更",
     icon: <EyeClosedIcon />,
   },
 };
@@ -38,9 +44,11 @@ const iconStyles = {
 export function Visibility({ report }: Props) {
   const router = useRouter();
   const visibility = report.visibility || "private"; // fallback to 'private'
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <MenuRoot
+      onOpenChange={(details) => setIsMenuOpen(details.open)}
       onSelect={async (e) => {
         if (e.value === report.visibility) return;
 
@@ -57,11 +65,12 @@ export function Visibility({ report }: Props) {
         }
       }}
     >
-      <Tooltip showArrow openDelay={300} closeDelay={100} content={iconStyles[visibility].text}>
+      <Tooltip showArrow openDelay={300} closeDelay={100} content={iconStyles[visibility].text} disabled={isMenuOpen}>
         <MenuTrigger asChild>
           <IconButton
             size="lg"
             border="1px solid"
+            aria-label={iconStyles[visibility].ariaLabel}
             {...iconStyles[visibility]}
             _icon={{
               w: 5,
