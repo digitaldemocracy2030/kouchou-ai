@@ -12,7 +12,6 @@ from analysis_core.plugin import (
     PluginRegistry,
     StepContext,
     StepInputs,
-    StepOutputs,
     get_registry,
 )
 from analysis_core.workflow.definition import (

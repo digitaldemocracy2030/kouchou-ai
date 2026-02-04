@@ -12,11 +12,11 @@ from pydantic import BaseModel
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 try:  # Optional dependency
-    import google.generativeai as genai
-    from google.api_core import exceptions as google_exceptions
+    from google import genai
+    from google.genai import errors as genai_errors
 except ModuleNotFoundError:  # pragma: no cover - library might be unavailable in tests
     genai = None
-    google_exceptions = None
+    genai_errors = None
 
 # Load environment variables from .env file if present
 # Look in current directory first, then parent directories
@@ -213,26 +213,23 @@ def request_to_gemini_chatcompletion(
     token_usage_output = 0
     token_usage_total = 0
 
-    if genai is None or google_exceptions is None:  # pragma: no cover - optional dependency
-        raise RuntimeError("google-generativeai is required for Gemini provider")
+    if genai is None or genai_errors is None:  # pragma: no cover - optional dependency
+        raise RuntimeError("google-genai is required for Gemini provider")
 
     api_key = user_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY environment variable is not set")
-    genai.configure(api_key=api_key)
+
+    client = genai.Client(api_key=api_key)
 
     system_instruction = "\n".join(m["content"] for m in messages if m.get("role") == "system") or None
 
-    history = [
-        {
-            "role": "user" if m.get("role") == "user" else "model",
-            "parts": [m.get("content", "")],
-        }
-        for m in messages
-        if m.get("role") != "system"
-    ]
-
-    model_client = genai.GenerativeModel(model, system_instruction=system_instruction)
+    contents = []
+    for m in messages:
+        if m.get("role") == "system":
+            continue
+        role = "user" if m.get("role") == "user" else "model"
+        contents.append({"role": role, "parts": [{"text": m.get("content", "")}]})
 
     def _remove_title_keys(obj: dict | list) -> dict | list:
         """Recursively remove `title` keys from JSON schema objects (non-destructive)."""
@@ -267,40 +264,41 @@ def request_to_gemini_chatcompletion(
                 inner.pop("strict", None)
             return inner, False
 
-        # 既に“素のスキーマ”が来ているケースはそのまま（後で title 削除）
+        # 既に"素のスキーマ"が来ているケースはそのまま（後で title 削除）
         return schema, False
 
-    generation_config = None
+    config: dict[str, Any] = {}
+    if system_instruction:
+        config["system_instruction"] = system_instruction
+
     # Pydantic → 素のJSONスキーマ化
     if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
         schema = json_schema.model_json_schema()
         schema = _remove_title_keys(schema)
-        generation_config = genai.GenerationConfig(
-            response_mime_type="application/json",
-            response_schema=schema,
-        )
+        config["response_mime_type"] = "application/json"
+        config["response_schema"] = schema
 
     # dict → OpenAIラッパーを剥がしてからセット
     elif isinstance(json_schema, dict):
         raw_schema, json_only = _normalize_openai_response_format(json_schema)
-        if json_only:
-            generation_config = genai.GenerationConfig(response_mime_type="application/json")
-        else:
-            schema = _remove_title_keys(raw_schema) if raw_schema else None
-            generation_config = genai.GenerationConfig(
-                response_mime_type="application/json",
-                **({"response_schema": schema} if schema else {}),
-            )
+        config["response_mime_type"] = "application/json"
+        if not json_only and raw_schema:
+            schema = _remove_title_keys(raw_schema)
+            config["response_schema"] = schema
 
     elif is_json:
-        generation_config = genai.GenerationConfig(response_mime_type="application/json")
+        config["response_mime_type"] = "application/json"
 
     max_retries = 5
     base_wait = 8
 
     for attempt in range(max_retries):
         try:
-            response = model_client.generate_content(history, generation_config=generation_config)
+            response = client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config if config else None,
+            )
             usage = getattr(response, "usage_metadata", None)
             if usage:
                 token_usage_input = getattr(usage, "prompt_token_count", 0) or 0
@@ -349,49 +347,44 @@ def request_to_gemini_chatcompletion(
                     token_usage_total,
                 )
             return text, token_usage_input, token_usage_output, token_usage_total
-        except google_exceptions.Unauthenticated as e:
-            logging.error(f"Gemini API authentication error: {e}")
+        except genai_errors.ClientError as e:
+            error_code = getattr(e, "code", None)
+            if error_code == 401:
+                logging.error(f"Gemini API authentication error: {e}")
+                raise
+            if error_code == 400:
+                logging.error(f"Gemini API bad request error: {e}")
+                raise
+            if error_code == 429:
+                pass  # Handle rate limit below
+            else:
+                logging.error(f"Gemini API client error: {e}")
+                raise
+        except genai_errors.ServerError as e:
+            logging.error(f"Gemini API server error: {e}")
             raise
-        except google_exceptions.InvalidArgument as e:
-            logging.error(f"Gemini API bad request error: {e}")
-            raise
-        except google_exceptions.GoogleAPICallError as e:
-            status_code = getattr(e, "code", None)
-            is_rate_limit = (status_code == 429) or isinstance(e, google_exceptions.ResourceExhausted)
+        except Exception as e:
+            error_code = getattr(e, "code", None)
+            is_rate_limit = error_code == 429
 
             if not is_rate_limit:
                 logging.error(f"Gemini API error: {e}")
                 raise
 
-            retry_delay: int | str | None = getattr(e, "retry_delay", None)
-            response_data = getattr(e, "response", None)
-            if retry_delay is None and isinstance(response_data, dict):
-                retry_delay = (
-                    response_data.get("error", {}).get("details", [{}])[0].get("metadata", {}).get("retry_delay")
-                )
+        # Rate limit handling with exponential backoff
+        # ジッターを含む指数バックオフ: base * 2^attempt * (0.5 ~ 1.5)
+        jitter = 0.5 + random.random()  # 0.5 ~ 1.5 の範囲
+        wait_time = min(int(base_wait * (2**attempt) * jitter), 60)
 
-            wait_time: int
-            if isinstance(retry_delay, str) and retry_delay.endswith("s"):
-                retry_delay = retry_delay[:-1]
-            try:
-                wait_time = int(retry_delay) if retry_delay is not None else 0
-            except (TypeError, ValueError):
-                wait_time = 0
-
-            if wait_time <= 0:
-                # ジッターを含む指数バックオフ: base * 2^attempt * (0.5 ~ 1.5)
-                jitter = 0.5 + random.random()  # 0.5 ~ 1.5 の範囲
-                wait_time = min(int(base_wait * (2**attempt) * jitter), 60)
-
-            if attempt >= max_retries - 1:
-                logging.error(
-                    f"Gemini API rate limit exceeded repeatedly after {max_retries} attempts. "
-                    f"Error: {e}. Free tier allows 15 requests per minute per model. "
-                    "Consider upgrading to a paid plan."
-                )
-                raise
-            logging.info(f"Rate limit hit, retrying after {wait_time} seconds (attempt {attempt + 1}/{max_retries})")
-            time.sleep(wait_time)
+        if attempt >= max_retries - 1:
+            logging.error(
+                f"Gemini API rate limit exceeded repeatedly after {max_retries} attempts. "
+                "Free tier allows 15 requests per minute per model. "
+                "Consider upgrading to a paid plan."
+            )
+            raise RuntimeError("Gemini API rate limit exceeded after retries")
+        logging.info(f"Rate limit hit, retrying after {wait_time} seconds (attempt {attempt + 1}/{max_retries})")
+        time.sleep(wait_time)
 
     raise RuntimeError("Gemini API call failed after retries")
 
@@ -666,20 +659,20 @@ def extract_embedding_values(response: Any) -> list[float] | None:
 
 def request_to_gemini_embed(args, model, user_api_key: str | None = None):
     if genai is None:
-        raise RuntimeError("google-generativeai is required for Gemini provider")
+        raise RuntimeError("google-genai is required for Gemini provider")
 
     api_key = user_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY environment variable is not set")
 
-    genai.configure(api_key=api_key)
+    client = genai.Client(api_key=api_key)
 
     if isinstance(args, str):
         args = [args]
 
     embeds: list[list[float]] = []
     for text in args:
-        response = genai.embed_content(model=model, content=text)
+        response = client.models.embed_content(model=model, contents=text)
         values = extract_embedding_values(response)
         if not isinstance(values, list):
             # ここでキー一覧などをログに残すと調査が楽
