@@ -15,14 +15,14 @@
 
 #### 1. リポジトリのクローン
 
-```
+```bash
 git clone https://github.com/digitaldemocracy2030/kouchou-ai.git
 cd kouchou-ai
 ```
 
 #### 2. .env ファイルの作成
 
-```
+```bash
 copy .env.example .env
 ```
 
@@ -30,16 +30,17 @@ copy .env.example .env
 
 #### 3. Node.js の確認（public-viewer / admin用）
 
-```
+```bash
 node -v
-npm -v
+pnpm -v
 ```
 
-* 未インストールの場合は、[Node.js LTS](https://nodejs.org/ja) をインストールしてください。
+* Node.jsが未インストールの場合は、[Node.js LTS](https://nodejs.org/ja) をインストールしてください。
+* pnpmが未インストールの場合は `pnpm -v` で確認し、未導入なら `npm install -g pnpm` もしくは [pnpm インストールページ](https://pnpm.io/ja/installation) から導入してください。
 
 #### 4. Python の確認（api用）
 
-```
+```bash
 python --version
 ```
 
@@ -48,23 +49,23 @@ python --version
   
 #### 5. public-viewer 側ライブラリのインストール
 
-```
+```bash
 cd apps/public-viewer
-npm install
+pnpm install
 cd ..
 ```
 
 #### 6. admin 側ライブラリのインストール
 
-```
+```bash
 cd apps/admin
-npm install
+pnpm install
 cd ..
 ```
 
 #### 7. api 側ライブラリのインストール（PDM + 仮想環境）
 
-```
+```bash
 cd apps/api
 pip install pdm
 pdm install
@@ -75,7 +76,7 @@ cd ..
 
 * Windows用のバッチスクリプト `direct_start_win.bat` をkouchou-ai配下にコピーしダブルクリックまたはコマンドラインで実行
 
-```
+```bash
 copy experiments\direct_win\direct_start_win.bat .\
 direct_start_win.bat
 ```

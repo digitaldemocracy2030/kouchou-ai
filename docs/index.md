@@ -90,6 +90,7 @@ docker compose up
 - **[ユーザーガイド](user-guide/how-to-use.md)**: 詳細な操作方法
 - **[開発者向け](development/contributing.md)**: コントリビューション方法、プラグイン開発
 - **[デプロイ](deployment/azure.md)**: Azure、GitHub Pages へのデプロイ方法
+- **[技術解説資料](https://www.docswell.com/s/tokoroten/ZL1M88-2025-06-14-014546)**: プロジェクトの技術的背景と設計思想（外部リンク）
 
 ## 免責事項
 

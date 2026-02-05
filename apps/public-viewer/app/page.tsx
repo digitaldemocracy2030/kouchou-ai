@@ -1,6 +1,7 @@
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Reporter } from "@/components/reporter/Reporter";
+import { ApiConnectionError } from "@/components/ApiConnectionError";
 import type { Meta, Report } from "@/type";
 import { Box, Card, HStack, Heading, Image, Text, VStack } from "@chakra-ui/react";
 import type { Metadata } from "next";
@@ -107,14 +108,10 @@ export default async function Page() {
         <Footer meta={meta} />
       </>
     );
-  } catch (_e) {
-    return (
-      <p>
-        エラー：データの取得に失敗しました
-        <br />
-        Error: fetch failed to {process.env.NEXT_PUBLIC_API_BASEPATH}.
-      </p>
-    );
+  } catch (e) {
+    const apiUrl = getApiBaseUrl();
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    return <ApiConnectionError apiUrl={apiUrl} errorMessage={errorMessage} isServerSide={true} />;
   }
 }
 

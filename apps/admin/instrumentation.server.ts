@@ -35,7 +35,7 @@ export function checkEnvOverrides() {
     console.warn("\nTo fix this, either:");
     console.warn("  1. Unset the shell environment variables: unset API_BASEPATH NEXT_PUBLIC_API_BASEPATH");
     console.warn("  2. Or start in a new terminal session");
-    console.warn("  3. Or explicitly set correct values when starting: API_BASEPATH=http://localhost:8000 npm run dev\n");
+    console.warn("  3. Or explicitly set correct values when starting: API_BASEPATH=http://localhost:8000 pnpm run dev\n");
   }
 }
 

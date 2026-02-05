@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,7 +11,8 @@ from fastapi.testclient import TestClient
 
 from src.routers import admin_report
 from src.routers.admin_report import router, verify_admin_api_key
-from src.schemas.report import ReportVisibility
+from src.schemas.report import Report, ReportStatus, ReportVisibility
+from src.services import report_duplicate, report_launcher, report_status, report_sync
 
 
 @pytest.fixture
@@ -177,3 +179,139 @@ class TestDownloadReportJson:
 
         assert response.status_code == 404
         assert response.json()["detail"] == "JSON file not found"
+
+
+class TestDuplicateReport:
+    def _setup_duplicate_env(self, tmp_path: Path, source_slug: str) -> dict:
+        config_dir = tmp_path / "configs"
+        input_dir = tmp_path / "inputs"
+        report_dir = tmp_path / "outputs"
+        data_dir = tmp_path / "data"
+        config_dir.mkdir(parents=True)
+        input_dir.mkdir(parents=True)
+        report_dir.mkdir(parents=True)
+        data_dir.mkdir(parents=True)
+
+        status_file = data_dir / "report_status.json"
+        status_file.write_text("{}", encoding="utf-8")
+
+        source_config = {
+            "name": source_slug,
+            "input": source_slug,
+            "question": "Q",
+            "intro": "I",
+            "model": "gpt-4o-mini",
+            "provider": "openai",
+            "is_pubcom": False,
+            "extraction": {"prompt": "ex", "workers": 1, "limit": 1},
+            "hierarchical_clustering": {"cluster_nums": [5]},
+            "hierarchical_initial_labelling": {"prompt": "il", "sampling_num": 30, "workers": 1},
+            "hierarchical_merge_labelling": {"prompt": "ml", "sampling_num": 30, "workers": 1},
+            "hierarchical_overview": {"prompt": "ov"},
+            "hierarchical_aggregation": {"sampling_num": 1},
+        }
+
+        (config_dir / f"{source_slug}.json").write_text(json.dumps(source_config), encoding="utf-8")
+        (input_dir / f"{source_slug}.csv").write_text("comment-id,comment-body\n1,hello\n", encoding="utf-8")
+
+        source_output = report_dir / source_slug
+        source_output.mkdir(parents=True)
+        for name in (
+            "args.csv",
+            "relations.csv",
+            "embeddings.pkl",
+            "hierarchical_clusters.csv",
+            "hierarchical_initial_labels.csv",
+            "hierarchical_merge_labels.csv",
+            "hierarchical_status.json",
+            "hierarchical_overview.txt",
+            "hierarchical_result.json",
+        ):
+            (source_output / name).write_text("x", encoding="utf-8")
+
+        return {
+            "config_dir": config_dir,
+            "input_dir": input_dir,
+            "report_dir": report_dir,
+            "data_dir": data_dir,
+            "status_file": status_file,
+        }
+
+    def _patch_settings(self, env: dict):
+        return (
+            patch.object(admin_report.settings, "CONFIG_DIR", env["config_dir"]),
+            patch.object(admin_report.settings, "INPUT_DIR", env["input_dir"]),
+            patch.object(admin_report.settings, "REPORT_DIR", env["report_dir"]),
+            patch.object(admin_report.settings, "DATA_DIR", env["data_dir"]),
+            patch.object(report_duplicate.settings, "CONFIG_DIR", env["config_dir"]),
+            patch.object(report_duplicate.settings, "INPUT_DIR", env["input_dir"]),
+            patch.object(report_duplicate.settings, "REPORT_DIR", env["report_dir"]),
+            patch.object(report_duplicate.settings, "DATA_DIR", env["data_dir"]),
+            patch.object(report_launcher.settings, "CONFIG_DIR", env["config_dir"]),
+            patch.object(report_launcher.settings, "INPUT_DIR", env["input_dir"]),
+            patch.object(report_launcher.settings, "REPORT_DIR", env["report_dir"]),
+            patch.object(report_sync.settings, "REPORT_DIR", env["report_dir"]),
+            patch.object(report_sync.settings, "INPUT_DIR", env["input_dir"]),
+            patch.object(report_sync.settings, "CONFIG_DIR", env["config_dir"]),
+            patch.object(report_status.settings, "DATA_DIR", env["data_dir"]),
+            patch.object(report_status, "STATE_FILE", env["status_file"]),
+        )
+
+    def test_duplicate_report_slug_conflict_returns_409(self, client, tmp_path):
+        source_slug = "source-slug"
+        env = self._setup_duplicate_env(tmp_path, source_slug)
+
+        new_slug = "source-slug-copy"
+        (env["config_dir"] / f"{new_slug}.json").write_text("{}", encoding="utf-8")
+
+        source_report = Report(
+            slug=source_slug,
+            title="t",
+            description="d",
+            status=ReportStatus.READY,
+            visibility=ReportVisibility.UNLISTED,
+        )
+
+        with ExitStack() as stack:
+            for cm in self._patch_settings(env):
+                stack.enter_context(cm)
+            stack.enter_context(patch("src.routers.admin_report.load_status_as_reports", return_value=[source_report]))
+            stack.enter_context(patch("src.services.report_duplicate.launch_report_generation_from_config"))
+            response = client.post(
+                f"/admin/reports/{source_slug}/duplicate",
+                json={"newSlug": new_slug, "reuse": {"enabled": True}},
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 409
+
+    def test_duplicate_report_removes_overview_and_result(self, client, tmp_path):
+        source_slug = "source-slug"
+        env = self._setup_duplicate_env(tmp_path, source_slug)
+
+        new_slug = "source-slug-copy"
+
+        source_report = Report(
+            slug=source_slug,
+            title="t",
+            description="d",
+            status=ReportStatus.READY,
+            visibility=ReportVisibility.UNLISTED,
+        )
+
+        with ExitStack() as stack:
+            for cm in self._patch_settings(env):
+                stack.enter_context(cm)
+            stack.enter_context(patch("src.routers.admin_report.load_status_as_reports", return_value=[source_report]))
+            stack.enter_context(patch("src.services.report_duplicate.launch_report_generation_from_config"))
+            response = client.post(
+                f"/admin/reports/{source_slug}/duplicate",
+                json={"newSlug": new_slug, "reuse": {"enabled": True}},
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 200
+        new_output = env["report_dir"] / new_slug
+        assert not (new_output / "hierarchical_overview.txt").exists()
+        assert not (new_output / "hierarchical_result.json").exists()
+        assert (new_output / "args.csv").exists()
