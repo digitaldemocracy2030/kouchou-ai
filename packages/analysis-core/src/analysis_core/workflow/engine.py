@@ -220,6 +220,7 @@ class WorkflowEngine:
             if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
                 # Extract path: ${config.extraction.limit} -> extraction.limit
                 path = value[2:-1]
+                original_path = path
                 if path.startswith("config."):
                     path = path[7:]  # Remove "config." prefix
 
@@ -227,7 +228,11 @@ class WorkflowEngine:
                 result = full_config
                 for key in path.split("."):
                     if isinstance(result, dict):
-                        result = result.get(key)
+                        if key not in result:
+                            raise WorkflowExecutionError(
+                                f"Configuration key '{key}' not found while resolving '${{{original_path}}}'"
+                            )
+                        result = result[key]
                     else:
                         return value  # Can't resolve, return original
                 return result
