@@ -280,16 +280,54 @@ class YouTubePlugin(InputPlugin):
             else:
                 raise ValueError(f"YouTube APIエラー: {e}") from e
 
-        if not all_comments:
-            return pl.DataFrame(
-                {
-                    "comment-id": [],
-                    "comment-body": [],
-                    "source": [],
-                    "url": [],
-                }
-            )
+        expected_columns: list[tuple[str, pl.DataType, object]] = [
+            ("comment-id", pl.Utf8, ""),
+            ("comment-body", pl.Utf8, ""),
+            ("source", pl.Utf8, ""),
+            ("url", pl.Utf8, ""),
+            ("attribute_author", pl.Utf8, ""),
+            ("attribute_published_at", pl.Utf8, None),
+            ("attribute_like_count", pl.Int64, 0),
+            ("attribute_video_title", pl.Utf8, ""),
+        ]
+        if include_replies:
+            expected_columns.append(("attribute_is_reply", pl.Boolean, False))
 
-        result = pl.concat(all_comments, how="vertical")
+        def normalize_comment_frame(df: pl.DataFrame) -> pl.DataFrame:
+            if df.is_empty() and df.width == 0:
+                return pl.DataFrame(
+                    {name: pl.Series(name, [], dtype=dtype) for name, dtype, _ in expected_columns}
+                )
+
+            exprs: list[pl.Expr] = []
+            for name, dtype, default in expected_columns:
+                if name not in df.columns:
+                    exprs.append(pl.lit(default, dtype=dtype).alias(name))
+                    continue
+
+                if name == "attribute_is_reply":
+                    exprs.append(
+                        pl.when(
+                            pl.col(name)
+                            .cast(pl.Utf8, strict=False)
+                            .str.to_lowercase()
+                            .is_in(["true", "1", "yes"])
+                            .fill_null(False)
+                        )
+                        .then(True)
+                        .otherwise(False)
+                        .alias(name)
+                    )
+                    continue
+
+                exprs.append(pl.col(name).cast(dtype, strict=False).alias(name))
+
+            return df.with_columns(exprs).select([name for name, _, _ in expected_columns])
+
+        if not all_comments:
+            return normalize_comment_frame(pl.DataFrame())
+
+        normalized_comments = [normalize_comment_frame(df) for df in all_comments]
+        result = pl.concat(normalized_comments, how="vertical")
         logger.info(f"Fetched {len(result)} total comments from playlist {playlist_id}")
         return result.head(max_results)
