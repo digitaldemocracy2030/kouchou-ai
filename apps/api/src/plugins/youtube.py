@@ -295,9 +295,7 @@ class YouTubePlugin(InputPlugin):
 
         def normalize_comment_frame(df: pl.DataFrame) -> pl.DataFrame:
             if df.is_empty() and df.width == 0:
-                return pl.DataFrame(
-                    {name: pl.Series(name, [], dtype=dtype) for name, dtype, _ in expected_columns}
-                )
+                return pl.DataFrame({name: pl.Series(name, [], dtype=dtype) for name, dtype, _ in expected_columns})
 
             exprs: list[pl.Expr] = []
             for name, dtype, default in expected_columns:
