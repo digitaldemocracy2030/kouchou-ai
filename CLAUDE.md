@@ -62,19 +62,19 @@ make build
 make client-build-static
 
 # Client development builds
-cd apps/public-viewer && npm run build
-cd apps/admin && npm run build
+cd apps/public-viewer && pnpm run build
+cd apps/admin && pnpm run build
 ```
 
 ### Code Quality & Linting
 ```bash
 # Root level (all projects)
-npm run lint
-npm run format
+pnpm run lint
+pnpm run format
 
 # Individual projects
-cd apps/public-viewer && npm run lint
-cd apps/admin && npm run lint
+cd apps/public-viewer && pnpm run lint
+cd apps/admin && pnpm run lint
 cd apps/api && rye run ruff check .
 ```
 
@@ -86,12 +86,12 @@ make test/api
 cd apps/api && rye run pytest tests/
 
 # Client tests
-cd apps/public-viewer && npm test
+cd apps/public-viewer && pnpm test
 
 # E2E tests
-cd test/e2e && npm test
-cd test/e2e && npm run test:ui  # with UI
-cd test/e2e && npm run test:debug  # debug mode
+cd test/e2e && pnpm test
+cd test/e2e && pnpm run test:ui  # with UI
+cd test/e2e && pnpm run test:debug  # debug mode
 ```
 
 ### Server Development

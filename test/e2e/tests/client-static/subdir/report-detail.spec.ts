@@ -15,7 +15,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Client Static (Subdirectory) - レポート詳細", () => {
   test("正常系 - basePath付きでレポート詳細が表示される", async ({ page }) => {
-    await page.goto("/test-report-1");
+    await page.goto("./test-report-1");
     await page.waitForLoadState("networkidle");
 
     // レポートタイトル（config.question）が表示される
@@ -29,7 +29,7 @@ test.describe("Client Static (Subdirectory) - レポート詳細", () => {
   });
 
   test("クラスタ情報が表示される", async ({ page }) => {
-    await page.goto("/test-report-1");
+    await page.goto("./test-report-1");
     await page.waitForLoadState("networkidle");
 
     // クラスタのラベルが表示される
@@ -37,7 +37,7 @@ test.describe("Client Static (Subdirectory) - レポート詳細", () => {
   });
 
   test("戻るボタンが表示される", async ({ page }) => {
-    await page.goto("/test-report-1");
+    await page.goto("./test-report-1");
     await page.waitForLoadState("networkidle");
 
     // 戻るボタンが表示されることを確認
@@ -46,7 +46,7 @@ test.describe("Client Static (Subdirectory) - レポート詳細", () => {
   });
 
   test("戻るボタンをクリックするとトップページに戻る（basePath付き）", async ({ page }) => {
-    await page.goto("/test-report-1");
+    await page.goto("./test-report-1");
     await page.waitForLoadState("networkidle");
 
     // 戻るボタンをクリック
@@ -59,15 +59,20 @@ test.describe("Client Static (Subdirectory) - レポート詳細", () => {
   });
 
   test("異常系 - 存在しないレポートで404エラーが表示される", async ({ page }) => {
-    await page.goto("/non-existent-report");
+    const response = await page.goto("./non-existent-report");
     await page.waitForLoadState("networkidle");
+
+    // 静的ホスティングでは 404 ボディが空のことがあるので、ステータスで判定する
+    if (response?.status() === 404) {
+      return;
+    }
 
     // 404ページまたはNot Foundメッセージが表示される
     await expect(page.getByText(/404|Not Found|見つかりません/)).toBeVisible();
   });
 
   test("コメント数が表示される", async ({ page }) => {
-    await page.goto("/test-report-1");
+    await page.goto("./test-report-1");
     await page.waitForLoadState("networkidle");
 
     // コメント数（100件）が表示される
@@ -86,7 +91,7 @@ test.describe("Client Static (Subdirectory) - レポート詳細のレスポン�
     test(`${viewport.name}サイズでレポート詳細が表示される（basePath付き）`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
-      await page.goto("/test-report-1");
+      await page.goto("./test-report-1");
       await page.waitForLoadState("networkidle");
 
       // レポートタイトルが表示される
@@ -101,7 +106,7 @@ test.describe("Client Static (Subdirectory) - レポート詳細のレスポン�
 test.describe("Client Static (Subdirectory) - パフォーマンス", () => {
   test("レポート詳細の初期読み込み時間（basePath付き）", async ({ page }) => {
     const startTime = Date.now();
-    await page.goto("/test-report-1");
+    await page.goto("./test-report-1");
     await page.waitForLoadState("networkidle");
     await expect(page.getByText("AIと著作権について、どのような意見が寄せられているのか？")).toBeVisible();
     const loadTime = Date.now() - startTime;

@@ -1,5 +1,4 @@
 import json
-import re
 
 import openai
 
@@ -13,16 +12,22 @@ from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.security.api_key import APIKeyHeader
 
 from src.config import settings
-from src.core.exceptions import ClusterCSVParseError, ClusterFileNotFound
+from src.core.exceptions import (
+    ClusterCSVParseError,
+    ClusterFileNotFound,
+    ConfigFileNotFound,
+    ConfigJSONParseError,
+)
 from src.repositories.cluster_repository import ClusterRepository
 from src.repositories.config_repository import ConfigRepository
-from src.schemas.admin_report import ReportInput, ReportVisibilityUpdate
+from src.schemas.admin_report import ReportDuplicateRequest, ReportInput, ReportVisibilityUpdate
 from src.schemas.cluster import ClusterResponse, ClusterUpdate
 from src.schemas.report import Report, ReportStatus
 from src.schemas.report_config import ReportConfigUpdate
 from src.schemas.visualization_config import ReportDisplayConfig
 from src.services.llm_models import get_models_by_provider
 from src.services.llm_pricing import LLMPricing
+from src.services.report_duplicate import duplicate_report
 from src.services.report_launcher import execute_aggregation, launch_report_generation
 from src.services.report_status import (
     add_analysis_data,
@@ -33,6 +38,7 @@ from src.services.report_status import (
     update_report_visibility_state,
 )
 from src.utils.logger import setup_logger
+from src.utils.slug_utils import validate_slug
 
 slogger = setup_logger()
 router = APIRouter()
@@ -44,23 +50,6 @@ async def verify_admin_api_key(api_key: str = Security(api_key_header)):
     if not api_key or api_key != settings.ADMIN_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
     return api_key
-
-
-# Slug validation pattern: alphanumeric, underscore, hyphen only
-SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
-
-
-def validate_slug(slug: str) -> None:
-    """Validate slug to prevent path traversal attacks.
-
-    Args:
-        slug: The slug to validate
-
-    Raises:
-        HTTPException: If slug contains invalid characters or path traversal attempts
-    """
-    if not slug or not SLUG_PATTERN.match(slug):
-        raise HTTPException(status_code=400, detail="Invalid slug format")
 
 
 def validate_path_within_report_dir(path) -> None:
@@ -100,6 +89,54 @@ async def create_report(
                 "Access-Control-Allow-Origin": "*",
             },
         )
+    except ValueError as e:
+        slogger.error(f"ValueError: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        slogger.error(f"Exception: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+@router.post("/admin/reports/{slug}/duplicate", status_code=202)
+async def duplicate_report_endpoint(
+    slug: str,
+    payload: ReportDuplicateRequest,
+    request: Request,
+    api_key: str = Depends(verify_admin_api_key),
+) -> ORJSONResponse:
+    try:
+        validate_slug(slug)
+        if payload.new_slug and payload.new_slug.strip():
+            validate_slug(payload.new_slug)
+
+        # source status check
+        reports = load_status_as_reports(include_deleted=True)
+        source_report = next((r for r in reports if r.slug == slug), None)
+        if source_report is None:
+            raise HTTPException(status_code=404, detail="Source report not found")
+        if source_report.status == ReportStatus.DELETED:
+            raise HTTPException(status_code=409, detail="Source report is deleted")
+        if source_report.status not in (ReportStatus.READY, ReportStatus.ERROR):
+            raise HTTPException(status_code=409, detail="Source report is not duplicatable")
+
+        user_api_key = request.headers.get("x-user-api-key")
+        new_slug = duplicate_report(slug, payload, user_api_key)
+
+        return ORJSONResponse(
+            content={
+                "success": True,
+                "report": {
+                    "slug": new_slug,
+                    "status": "processing",
+                },
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+    except HTTPException:
+        raise
     except ValueError as e:
         slogger.error(f"ValueError: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -189,9 +226,12 @@ async def delete_report(slug: str, api_key: str = Depends(verify_admin_api_key))
                 "Access-Control-Allow-Origin": "*",
             },
         )
-    except ValueError as e:
-        slogger.error(f"ValueError: {e}", exc_info=True)
+    except ConfigFileNotFound as e:
+        slogger.error(f"ConfigFileNotFound: {e}", exc_info=True)
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except ConfigJSONParseError as e:
+        slogger.error(f"ConfigJSONParseError: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         slogger.error(f"Exception: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
@@ -209,6 +249,12 @@ async def update_report_visibility(
     except ValueError as e:
         slogger.error(f"ValueError: {e}", exc_info=True)
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except ConfigFileNotFound as e:
+        slogger.error(f"ConfigFileNotFound: {e}", exc_info=True)
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ConfigJSONParseError as e:
+        slogger.error(f"ConfigJSONParseError: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         slogger.error(f"Exception: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
@@ -252,6 +298,25 @@ async def update_report_config_endpoint(
     except ValueError as e:
         slogger.error(f"ValueError: {e}", exc_info=True)
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        slogger.error(f"Exception: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+@router.get("/admin/reports/{slug}/config")
+async def get_report_config_endpoint(slug: str, api_key: str = Depends(verify_admin_api_key)) -> dict:
+    """レポートの設定(config.json)を取得するエンドポイント"""
+    validate_slug(slug)
+    try:
+        config_repo = ConfigRepository(slug)
+        config = config_repo.read_from_json()
+        return {"config": config.model_dump()}
+    except ConfigFileNotFound as e:
+        slogger.error(f"ConfigFileNotFound: {e}", exc_info=True)
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ConfigJSONParseError as e:
+        slogger.error(f"ConfigJSONParseError: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         slogger.error(f"Exception: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
@@ -446,7 +511,7 @@ async def verify_api_key(
             "error_detail": str(e),
             "error_type": "rate_limit_error",
         }
-    except Exception as e:  # noqa: PIE786
+    except Exception as e:
         if google_exceptions is not None and isinstance(e, google_exceptions.Unauthenticated):
             return {
                 "success": False,
