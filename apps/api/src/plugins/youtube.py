@@ -16,7 +16,7 @@ import re
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-import pandas as pd
+import polars as pl
 
 from src.plugins.base import InputPlugin, PluginManifest, PluginSetting, SettingType
 from src.plugins.registry import PluginRegistry
@@ -102,7 +102,7 @@ class YouTubePlugin(InputPlugin):
             return False, "無効なYouTube URLです。動画またはプレイリストのURLを入力してください。"
         return True, None
 
-    def fetch_data(self, source: str, **options: Any) -> pd.DataFrame:
+    def fetch_data(self, source: str, **options: Any) -> pl.DataFrame:
         """
         Fetch comments from a YouTube video or playlist.
 
@@ -139,7 +139,7 @@ class YouTubePlugin(InputPlugin):
 
     def _fetch_video_comments(
         self, video_id: str, api_key: str, max_results: int, include_replies: bool
-    ) -> pd.DataFrame:
+    ) -> pl.DataFrame:
         """Fetch comments from a single video."""
         try:
             from googleapiclient.discovery import build
@@ -228,11 +228,11 @@ class YouTubePlugin(InputPlugin):
                 raise ValueError(f"YouTube APIエラー: {e}") from e
 
         logger.info(f"Fetched {len(comments)} comments from YouTube video {video_id}")
-        return pd.DataFrame(comments)
+        return pl.DataFrame(comments)
 
     def _fetch_playlist_comments(
         self, playlist_id: str, api_key: str, max_results: int, include_replies: bool
-    ) -> pd.DataFrame:
+    ) -> pl.DataFrame:
         """Fetch comments from all videos in a playlist."""
         try:
             from googleapiclient.discovery import build
@@ -281,8 +281,15 @@ class YouTubePlugin(InputPlugin):
                 raise ValueError(f"YouTube APIエラー: {e}") from e
 
         if not all_comments:
-            return pd.DataFrame(columns=["comment-id", "comment-body", "source", "url"])
+            return pl.DataFrame(
+                {
+                    "comment-id": [],
+                    "comment-body": [],
+                    "source": [],
+                    "url": [],
+                }
+            )
 
-        result = pd.concat(all_comments, ignore_index=True)
+        result = pl.concat(all_comments, how="vertical")
         logger.info(f"Fetched {len(result)} total comments from playlist {playlist_id}")
         return result.head(max_results)

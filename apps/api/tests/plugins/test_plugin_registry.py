@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-import pandas as pd
+import polars as pl
 import pytest
 
 from src.plugins.base import InputPlugin, PluginConfigError, PluginManifest, PluginSetting, SettingType
@@ -188,7 +188,7 @@ class TestPluginRegistry:
             )
 
             def fetch_data(self, source, **options):
-                return pd.DataFrame()
+                return pl.DataFrame()
 
         PluginRegistry.register(TestPlugin)
 
@@ -205,7 +205,7 @@ class TestPluginRegistry:
             )
 
             def fetch_data(self, source, **options):
-                return pd.DataFrame()
+                return pl.DataFrame()
 
         PluginRegistry.register(TestPlugin)
 
@@ -230,7 +230,7 @@ class TestPluginRegistry:
             )
 
             def fetch_data(self, source, **options):
-                return pd.DataFrame()
+                return pl.DataFrame()
 
         class UnavailablePlugin(InputPlugin):
             manifest = PluginManifest(
@@ -248,7 +248,7 @@ class TestPluginRegistry:
             )
 
             def fetch_data(self, source, **options):
-                return pd.DataFrame()
+                return pl.DataFrame()
 
         PluginRegistry.register(AvailablePlugin)
         PluginRegistry.register(UnavailablePlugin)
@@ -283,7 +283,7 @@ class TestInputPlugin:
             )
 
             def fetch_data(self, source, **options):
-                return pd.DataFrame()
+                return pl.DataFrame()
 
         plugin = TestPlugin()
 
@@ -306,7 +306,7 @@ class TestInputPlugin:
             )
 
             def fetch_data(self, source, **options):
-                return pd.DataFrame()
+                return pl.DataFrame()
 
         plugin = TestPlugin()
         is_valid, error = plugin.validate_source("any-source")
