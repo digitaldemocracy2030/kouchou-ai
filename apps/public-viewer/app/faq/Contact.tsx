@@ -1,3 +1,4 @@
+import { getImageFromServerSrc } from "@/app/utils/image-src";
 import { Button } from "@/components/ui/button";
 import { Box, Flex, Heading, Image, Text, VStack } from "@chakra-ui/react";
 import { ArrowUpRight } from "lucide-react";
@@ -15,7 +16,7 @@ export function Contact() {
       >
         <Box bg="white" borderRadius="12px" p={{ base: "6", md: "8" }}>
           <Flex gap="8" flexDirection={{ base: "column-reverse", lg: "row" }} alignItems="center">
-            <Image maxW={{ base: "auto", md: "440px" }} src="/images/contact-hello.webp" alt="" />
+            <Image maxW={{ base: "auto", md: "440px" }} src={getImageFromServerSrc("/images/contact-hello.webp")} alt="" />
             <VStack alignItems={{ base: "center", lg: "flex-start" }} gap="4">
               <Text textStyle="body/md">
                 このページで解決できなかった内容や、その他のご質問がございましたら、

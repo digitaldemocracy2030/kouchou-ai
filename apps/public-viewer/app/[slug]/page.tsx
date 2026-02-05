@@ -1,3 +1,4 @@
+import { ApiConnectionError } from "@/components/ApiConnectionError";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Analysis } from "@/components/report/Analysis";
@@ -102,16 +103,26 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function Page({ params }: PageProps) {
   const slug = (await params).slug;
-  const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`, {
-    next: { tags: ["meta"] },
-  });
-  const resultResponse = await fetch(`${getApiBaseUrl()}/reports/${slug}`, {
-    headers: {
-      "x-api-key": process.env.NEXT_PUBLIC_PUBLIC_API_KEY || "",
-      "Content-Type": "application/json",
-    },
-    next: { tags: [`report-${slug}`] },
-  });
+  const apiUrl = getApiBaseUrl();
+
+  let metaResponse: Response;
+  let resultResponse: Response;
+
+  try {
+    metaResponse = await fetch(`${apiUrl}/meta/metadata.json`, {
+      next: { tags: ["meta"] },
+    });
+    resultResponse = await fetch(`${apiUrl}/reports/${slug}`, {
+      headers: {
+        "x-api-key": process.env.NEXT_PUBLIC_PUBLIC_API_KEY || "",
+        "Content-Type": "application/json",
+      },
+      next: { tags: [`report-${slug}`] },
+    });
+  } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    return <ApiConnectionError apiUrl={apiUrl} errorMessage={errorMessage} isServerSide={true} />;
+  }
 
   if (metaResponse.status === 404 || resultResponse.status === 404) {
     notFound();

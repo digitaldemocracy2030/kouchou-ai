@@ -6,9 +6,9 @@
   "scripts": {
     "lint": "biome check .",
     "format": "biome check --write .",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:report": "playwright show-report",
+    "test:e2e": "pnpm --filter @kouchou-ai/e2e-tests test",
+    "test:e2e:ui": "pnpm --filter @kouchou-ai/e2e-tests test:ui",
+    "test:e2e:report": "pnpm --filter @kouchou-ai/e2e-tests report",
     "build:packages": "pnpm --filter './packages/*' build",
     "clean": "pnpm -r exec rm -rf node_modules dist .next"
   },

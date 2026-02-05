@@ -108,11 +108,11 @@ start "api" cmd /k "cd apps\api && %PYTHON_EXECUTABLE% -m uvicorn src.main:app -
 
 rem --- Start client (frontend) ---
 echo [STEP 3] Starting public-viewer (frontend) in a new window...
-start "public-viewer" cmd /k "cd apps\public-viewer && npm run dev"
+start "public-viewer" cmd /k "cd apps\public-viewer && pnpm run dev"
 
 rem --- Start admin (admin panel) ---
 echo [STEP 4] Starting admin (admin panel) in a new window...
-start "admin" cmd /k "cd apps\admin && npm run dev"
+start "admin" cmd /k "cd apps\admin && pnpm run dev"
 
 echo [DONE] All services launched. Close each window to stop.
 pause

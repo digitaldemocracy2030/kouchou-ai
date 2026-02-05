@@ -5,8 +5,9 @@ import { MenuContent, MenuItem, MenuPositioner, MenuRoot, MenuTrigger, MenuTrigg
 import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
 import { IconButton, Portal } from "@chakra-ui/react";
-import { Ellipsis, Eye, FileSpreadsheet, FileText, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
+import { Copy, Ellipsis, Eye, FileSpreadsheet, FileText, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
 import { type Dispatch, type SetStateAction, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useBuildDownload } from "../../BuildDownloadButton/useBuildDownload";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
 import { csvDownload } from "./csvDownload";
@@ -29,17 +30,42 @@ export function ActionMenu({
   const [isOpen, setIsOpen] = useState(false);
   const { exportStaticHTML } = useBuildDownload();
   const isVisible = report.visibility === "public";
+  const router = useRouter();
 
   return (
     <>
       <MenuRoot>
         <MenuTrigger asChild>
-          <IconButton variant="ghost" size="lg" _hover={{ bg: "blue.50" }} _expanded={{ bg: "blue.50" }}>
+          <IconButton
+            variant="ghost"
+            size="lg"
+            aria-label="report-actions"
+            data-testid={`report-actions-${report.slug}`}
+            _hover={{ bg: "blue.50" }}
+            _expanded={{ bg: "blue.50" }}
+          >
             <Ellipsis />
           </IconButton>
         </MenuTrigger>
         <Portal>
           <MenuContent>
+            {(report.status === "ready" || report.status === "error") && (
+              <MenuItem
+                value="duplicate"
+                textStyle="body/md/bold"
+                onClick={() => {
+                  setIsOpen(false);
+                  router.push(`/reuse/${report.slug}`);
+                }}
+                _icon={{
+                  w: 5,
+                  h: 5,
+                }}
+              >
+                <Copy />
+                再利用
+              </MenuItem>
+            )}
             <MenuItem
               value="edit"
               textStyle="body/md/bold"
