@@ -1,7 +1,7 @@
-import { ApiConnectionError } from "@/components/ApiConnectionError";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Reporter } from "@/components/reporter/Reporter";
+import { ApiConnectionError } from "@/components/ApiConnectionError";
 import type { Meta, Report } from "@/type";
 import { Box, Card, HStack, Heading, Image, Text, VStack } from "@chakra-ui/react";
 import type { Metadata } from "next";
@@ -113,6 +113,7 @@ export default async function Page() {
     const errorMessage = e instanceof Error ? e.message : String(e);
     return <ApiConnectionError apiUrl={apiUrl} errorMessage={errorMessage} isServerSide={true} />;
   }
+}
 }
 
 const EmptyState = () => {

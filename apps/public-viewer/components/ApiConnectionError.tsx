@@ -105,11 +105,17 @@ export function ApiConnectionError({ apiUrl, errorMessage, isServerSide = true }
           <Text fontWeight="bold" mb={1}>
             管理者向け情報
           </Text>
-          <Text color="gray.700">
-            このエラーはサーバーサイドレンダリング時にAPIへの接続に失敗した場合に表示されます。 環境変数
-            <Code>API_BASEPATH</Code>（サーバーサイド用）と
-            <Code>NEXT_PUBLIC_API_BASEPATH</Code>（クライアントサイド用）が 正しく設定されているか確認してください。
-          </Text>
+          {isServerSide ? (
+            <Text color="gray.700">
+              このエラーはサーバー側でAPIへの接続に失敗した場合に表示されます。環境変数
+              <Code>API_BASEPATH</Code>が正しいか確認してください。
+            </Text>
+          ) : (
+            <Text color="gray.700">
+              このエラーはブラウザからAPIへの接続に失敗した場合に表示されます。環境変数
+              <Code>NEXT_PUBLIC_API_BASEPATH</Code>が正しいか確認してください。
+            </Text>
+          )}
         </Box>
       </VStack>
     </Box>

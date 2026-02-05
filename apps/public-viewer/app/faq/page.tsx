@@ -1,5 +1,6 @@
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { ApiConnectionError } from "@/components/ApiConnectionError";
 import type { Meta } from "@/type";
 import { Box } from "@chakra-ui/react";
 import { getApiBaseUrl } from "../utils/api";
@@ -26,12 +27,8 @@ export default async function Page() {
       </>
     );
   } catch (e) {
-    return (
-      <p>
-        エラー：データの取得に失敗しました
-        <br />
-        Error: fetch failed to {process.env.NEXT_PUBLIC_API_BASEPATH}.
-      </p>
-    );
+    const apiUrl = getApiBaseUrl();
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    return <ApiConnectionError apiUrl={apiUrl} errorMessage={errorMessage} isServerSide={true} />;
   }
 }
