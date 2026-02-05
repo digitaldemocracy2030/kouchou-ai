@@ -114,7 +114,6 @@ export default async function Page() {
     return <ApiConnectionError apiUrl={apiUrl} errorMessage={errorMessage} isServerSide={true} />;
   }
 }
-}
 
 const EmptyState = () => {
   return (

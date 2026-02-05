@@ -1,6 +1,5 @@
 "use client";
 
-import { Box, Button } from "@chakra-ui/react";
 import { ApiConnectionError } from "@/components/ApiConnectionError";
 import { Box, Button } from "@chakra-ui/react";
 import { useEffect } from "react";
