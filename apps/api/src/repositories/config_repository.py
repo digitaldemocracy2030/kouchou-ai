@@ -17,7 +17,23 @@ class ConfigRepository:
         """中間ファイル（CSVファイル）からクラスタのラベル・説明を読み込む"""
 
         if not self.config_path.exists():
-            raise ConfigFileNotFound(f"File not found: {self.config_path}")
+            # Backward compatibility:
+            # Some legacy reports may not have configs/<slug>.json but embed config in hierarchical_result.json.
+            result_path = settings.REPORT_DIR / self.slug / "hierarchical_result.json"
+            if not result_path.exists():
+                raise ConfigFileNotFound(f"File not found: {self.config_path}")
+            try:
+                with open(result_path, encoding="utf-8") as jsonfile:
+                    result = json.load(jsonfile)
+                embedded_config = result.get("config")
+                if not isinstance(embedded_config, dict):
+                    raise ConfigJSONParseError(f"Embedded config is missing or invalid: {result_path}")
+                return ReportConfig(**embedded_config)
+            except ConfigJSONParseError:
+                raise
+            except Exception as e:
+                slogger.error(f"Error reading embedded config from report result: {e}")
+                raise ConfigJSONParseError(f"Error reading embedded config from report result: {e}") from e
 
         try:
             with open(self.config_path, encoding="utf-8") as jsonfile:
