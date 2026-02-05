@@ -1,9 +1,13 @@
+"use client";
+
 import { MenuContent, MenuItem, MenuRoot, MenuTrigger } from "@/components/ui/menu";
 import { toaster } from "@/components/ui/toaster";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { Report, ReportVisibility } from "@/type";
-import { IconButton, Portal } from "@chakra-ui/react";
+import { Box, IconButton } from "@chakra-ui/react";
 import { Eye, EyeClosedIcon, LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { updateReportVisibility } from "./actions";
 
 type Props = {
@@ -16,6 +20,7 @@ const iconStyles = {
     color: "font.public",
     borderColor: "border.public",
     text: "公開",
+    ariaLabel: "公開設定を変更",
     icon: <Eye />,
   },
   unlisted: {
@@ -23,6 +28,7 @@ const iconStyles = {
     color: "font.limitedPublic",
     borderColor: "border.limitedPublic",
     text: "限定公開",
+    ariaLabel: "公開設定を変更",
     icon: <LockKeyhole />,
   },
   private: {
@@ -30,6 +36,7 @@ const iconStyles = {
     color: "font.private",
     borderColor: "border.private",
     text: "非公開",
+    ariaLabel: "公開設定を変更",
     icon: <EyeClosedIcon />,
   },
 };
@@ -37,9 +44,11 @@ const iconStyles = {
 export function Visibility({ report }: Props) {
   const router = useRouter();
   const visibility = report.visibility || "private"; // fallback to 'private'
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <MenuRoot
+      onOpenChange={(details) => setIsMenuOpen(details.open)}
       onSelect={async (e) => {
         if (e.value === report.visibility) return;
 
@@ -56,47 +65,50 @@ export function Visibility({ report }: Props) {
         }
       }}
     >
-      <MenuTrigger asChild>
-        <IconButton
-          size="lg"
-          border="1px solid"
-          {...iconStyles[visibility]}
-          _icon={{
-            w: 5,
-            h: 5,
-          }}
-          _hover={{
-            shadow: "inset 0 0 0 44px rgba(0, 0, 0, 0.06)",
-          }}
-        >
-          {iconStyles[visibility].icon}
-        </IconButton>
-      </MenuTrigger>
-      <Portal>
-        <MenuContent>
-          {Object.entries(iconStyles).map(([key, style]) => (
-            <MenuItem
-              key={key}
-              value={key}
-              color={style.color}
-              textStyle="body/md/bold"
+      <Tooltip showArrow openDelay={300} closeDelay={100} content={iconStyles[visibility].text} disabled={isMenuOpen}>
+        <Box display="inline-flex">
+          <MenuTrigger asChild>
+            <IconButton
+              size="lg"
               border="1px solid"
-              borderColor="transparent"
+              aria-label={iconStyles[visibility].ariaLabel}
+              {...iconStyles[visibility]}
               _icon={{
                 w: 5,
                 h: 5,
               }}
               _hover={{
-                borderColor: style.borderColor,
-                bg: style.bg,
+                shadow: "inset 0 0 0 44px rgba(0, 0, 0, 0.06)",
               }}
             >
-              {style.icon}
-              {style.text}
-            </MenuItem>
-          ))}
-        </MenuContent>
-      </Portal>
+              {iconStyles[visibility].icon}
+            </IconButton>
+          </MenuTrigger>
+        </Box>
+      </Tooltip>
+      <MenuContent>
+        {Object.entries(iconStyles).map(([key, style]) => (
+          <MenuItem
+            key={key}
+            value={key}
+            color={style.color}
+            textStyle="body/md/bold"
+            border="1px solid"
+            borderColor="transparent"
+            _icon={{
+              w: 5,
+              h: 5,
+            }}
+            _hover={{
+              borderColor: style.borderColor,
+              bg: style.bg,
+            }}
+          >
+            {style.icon}
+            {style.text}
+          </MenuItem>
+        ))}
+      </MenuContent>
     </MenuRoot>
   );
 }
