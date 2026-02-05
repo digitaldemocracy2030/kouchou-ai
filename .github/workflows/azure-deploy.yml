@@ -82,6 +82,12 @@ jobs:
       - name: Azure環境のデプロイ
         run: |
           set -euo pipefail
+          # ルートコンテキスト化に伴い .env.azure を一時退避
+          ENV_AZURE_TMP="${RUNNER_TEMP}/.env.azure"
+          if [ -f .env.azure ]; then
+            mv .env.azure "$ENV_AZURE_TMP"
+          fi
+
           # レポートのバックアップを取得
           if [ -n "$API_DOMAIN" ]; then
             echo "レポートのバックアップを取得中..."
@@ -139,6 +145,11 @@ jobs:
           for pid in "${push_pids[@]}"; do
             wait "$pid"
           done
+
+          # make 用に .env.azure を復元
+          if [ -f "$ENV_AZURE_TMP" ]; then
+            mv "$ENV_AZURE_TMP" .env.azure
+          fi
 
           # ヘルスプローブとポリシーの適用
           make azure-apply-policies || echo "ポリシー適用をスキップ"
