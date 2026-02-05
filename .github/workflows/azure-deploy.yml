@@ -94,15 +94,18 @@ jobs:
           # 全イメージを並列ビルド
           build_pids=()
           docker build --platform linux/amd64 \
+            -f ./apps/api/Dockerfile \
             -t ${AZURE_ACR_NAME}.azurecr.io/api:latest \
-            ./apps/api & build_pids+=("$!")
+            . & build_pids+=("$!")
           docker build --platform linux/amd64 \
+            -f ./apps/public-viewer/Dockerfile \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
             --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
             -t ${AZURE_ACR_NAME}.azurecr.io/public-viewer:latest \
-            ./apps/public-viewer & build_pids+=("$!")
+            . & build_pids+=("$!")
           docker build --platform linux/amd64 \
+            -f ./apps/admin/Dockerfile \
             --build-arg NEXT_PUBLIC_CLIENT_BASEPATH="https://${PUBLIC_VIEWER_DOMAIN}" \
             --build-arg NEXT_PUBLIC_ADMIN_API_KEY="${ADMIN_API_KEY}" \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
@@ -111,7 +114,7 @@ jobs:
             --build-arg BASIC_AUTH_PASSWORD="${BASIC_AUTH_PASSWORD}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
             -t ${AZURE_ACR_NAME}.azurecr.io/admin:latest \
-            ./apps/admin & build_pids+=("$!")
+            . & build_pids+=("$!")
           docker build --platform linux/amd64 \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
             --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
