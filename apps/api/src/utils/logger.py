@@ -61,6 +61,9 @@ def setup_logger(
         if log_level is None:
             log_level = os.environ.get("LOG_LEVEL", DEFAULT_LOG_LEVEL).upper()
 
+        if log_file is None:
+            log_file = os.environ.get("LOG_FILE") or None
+
         # ログレベル文字列を数値に変換
         try:
             level = getattr(logging, log_level)

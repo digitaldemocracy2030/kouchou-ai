@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
+from dotenv import load_dotenv
+
 # Default specs - can be overridden
 _specs: list[dict[str, Any]] = []
 
@@ -31,6 +33,71 @@ def load_specs(specs_path: Path) -> list[dict[str, Any]]:
 def get_specs() -> list[dict[str, Any]]:
     """Get the currently loaded specs."""
     return _specs
+
+
+def validate_api_keys(provider: str, user_api_key: str | None = None) -> None:
+    """
+    Validate that required API keys are set for the specified provider.
+
+    This function performs fail-fast validation to ensure API keys are configured
+    before starting the pipeline, rather than failing after N API calls.
+
+    Args:
+        provider: The LLM provider name (openai, azure, gemini, local, openrouter)
+        user_api_key: Optional user-provided API key (overrides environment variable)
+
+    Raises:
+        RuntimeError: If required API keys are not set
+    """
+    load_dotenv(override=False)
+
+    if provider == "openai":
+        api_key = user_api_key or os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY environment variable is not set. "
+                "Please set it in your .env file or environment."
+            )
+
+    elif provider == "azure":
+        missing_vars = []
+        if not os.getenv("AZURE_CHATCOMPLETION_ENDPOINT"):
+            missing_vars.append("AZURE_CHATCOMPLETION_ENDPOINT")
+        if not os.getenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME"):
+            missing_vars.append("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME")
+        if not (user_api_key or os.getenv("AZURE_CHATCOMPLETION_API_KEY")):
+            missing_vars.append("AZURE_CHATCOMPLETION_API_KEY")
+        if not os.getenv("AZURE_CHATCOMPLETION_VERSION"):
+            missing_vars.append("AZURE_CHATCOMPLETION_VERSION")
+
+        if missing_vars:
+            raise RuntimeError(
+                f"Azure OpenAI environment variables not set: {', '.join(missing_vars)}. "
+                f"Note: Use AZURE_CHATCOMPLETION_* variables, not AZURE_OPENAI_*. "
+                f"See .env.example for correct variable names."
+            )
+
+    elif provider == "gemini":
+        api_key = user_api_key or os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "GEMINI_API_KEY environment variable is not set. "
+                "Please set it in your .env file or environment."
+            )
+
+    elif provider == "openrouter":
+        api_key = user_api_key or os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "OPENROUTER_API_KEY environment variable is not set. "
+                "Please set it in your .env file or environment."
+            )
+
+    elif provider == "local":
+        pass
+
+    else:
+        raise RuntimeError(f"Unknown provider: {provider}")
 
 
 def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None = None) -> None:
@@ -348,6 +415,11 @@ def initialization(
 
     # Validate config
     validate_config(config, specs)
+
+    # Validate API keys early (fail-fast)
+    # This ensures we catch missing API keys before starting any pipeline steps
+    provider = config.get("provider", "openai")
+    validate_api_keys(provider)
 
     # Set output directory
     config["output_dir"] = job_name

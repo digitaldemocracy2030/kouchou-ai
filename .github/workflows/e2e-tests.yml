@@ -41,7 +41,7 @@ jobs:
 
     - name: Install dependencies (dummy-server)
       working-directory: ./utils/dummy-server
-      run: npm ci
+      run: pnpm install
 
     - name: Install Playwright browsers
       run: pnpm --filter @kouchou-ai/e2e-tests exec playwright install --with-deps chromium

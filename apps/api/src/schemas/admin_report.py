@@ -54,3 +54,34 @@ class ReportVisibilityUpdate(SchemaBaseModel):
     """レポートの可視性更新用スキーマ"""
 
     visibility: ReportVisibility  # レポートの可視性
+
+
+class PromptOverride(SchemaBaseModel):
+    extraction: str | None = None
+    initial_labelling: str | None = None
+    merge_labelling: str | None = None
+    overview: str | None = None
+
+
+class ReportDuplicateOverrides(SchemaBaseModel):
+    question: str | None = None
+    intro: str | None = None
+    cluster: list[int] | None = None
+    model: str | None = None
+    provider: str | None = None
+    workers: int | None = None
+    is_pubcom: bool | None = None
+    enable_source_link: bool | None = None
+    is_embedded_at_local: bool | None = None
+    local_llm_address: str | None = None
+    prompt: PromptOverride | None = None
+
+
+class ReportDuplicateReuse(SchemaBaseModel):
+    enabled: bool = True
+
+
+class ReportDuplicateRequest(SchemaBaseModel):
+    new_slug: str | None = None
+    overrides: ReportDuplicateOverrides | None = None
+    reuse: ReportDuplicateReuse | None = None

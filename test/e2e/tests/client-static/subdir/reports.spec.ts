@@ -15,7 +15,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Client Static (Subdirectory) - レポート一覧", () => {
   test("正常系 - basePath付きでレポート一覧が表示される", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("./");
     await page.waitForLoadState("networkidle");
 
     // レポート作成者名が表示される
@@ -42,19 +42,20 @@ test.describe("Client Static (Subdirectory) - レポート一覧", () => {
       }
     });
 
-    await page.goto("/");
+    await page.goto("./");
     await page.waitForLoadState("networkidle");
 
     // すべての静的リソースが /kouchou-ai プレフィックス付きで読み込まれることを確認
-    const hasCorrectBasePath = requests.every(
-      (url) => url.includes("/kouchou-ai/_next") || url.includes("/kouchou-ai/images") || !url.includes("localhost"),
-    );
+    const invalidUrls = requests.filter((url) => url.includes("localhost") && !url.includes("/kouchou-ai/"));
 
-    expect(hasCorrectBasePath).toBe(true);
+    expect(
+      invalidUrls,
+      invalidUrls.length > 0 ? `Invalid basePath URLs:\n${invalidUrls.join("\n")}` : undefined,
+    ).toHaveLength(0);
   });
 
   test("レポートの作成日時が表示される", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("./");
     await page.waitForLoadState("networkidle");
 
     // 作成日時が表示される
@@ -74,7 +75,7 @@ test.describe("Client Static (Subdirectory) - レスポンシブデザイン", (
     test(`${viewport.name}サイズでレポート一覧が表示される（basePath付き）`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
-      await page.goto("/");
+      await page.goto("./");
       await page.waitForLoadState("networkidle");
 
       // レポート一覧が表示される

@@ -20,7 +20,7 @@
     "iconv-lite": "^0.6.3",
     "lucide-react": "^0.474.0",
     "motion": "^12.23.0",
-    "next": "^15.2.6",
+    "next": "^16.1.5",
     "next-themes": "^0.4.4",
     "papaparse": "^5.5.2",
     "react": "^19.2.1",

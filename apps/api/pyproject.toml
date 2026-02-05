@@ -11,6 +11,7 @@ dependencies = [
     "fastapi>=0.115.8",
     "pydantic-settings>=2.7.1",
     "polars>=1.37.1",
+    "pandas>=2.2.3",
     "openai>=1.77.0",
     "google-generativeai>=0.8.4",
     "litellm>=1.58.2",
@@ -60,6 +61,9 @@ dev-dependencies = [
     "pytest-cov>=6.0.0",
     "pytest-asyncio>=0.24.0",
 ]
+
+[tool.rye.scripts]
+ruff = "ruff"
 
 [tool.hatch.metadata]
 allow-direct-references = true
