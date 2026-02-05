@@ -190,6 +190,37 @@ def launch_report_generation(report_input: ReportInput, user_api_key: str | None
         raise e
 
 
+def launch_report_generation_from_config(config_path: Path, slug: str, user_api_key: str | None = None) -> None:
+    """
+    既存のconfigファイルからanalysis-coreを起動する関数。
+    """
+    try:
+        cmd = [
+            "python",
+            "-m",
+            "analysis_core",
+            "--config",
+            str(config_path),
+            "--output-dir",
+            str(settings.REPORT_DIR),
+            "--input-dir",
+            str(settings.INPUT_DIR),
+            "--skip-interaction",
+            "--without-html",
+        ]
+
+        env = os.environ.copy()
+        if user_api_key:
+            env["USER_API_KEY"] = user_api_key
+
+        process = subprocess.Popen(cmd, env=env)
+        threading.Thread(target=_monitor_process, args=(process, slug), daemon=True).start()
+    except Exception as e:
+        set_status(slug, "error")
+        logger.error(f"Error launching report generation from config: {e}")
+        raise e
+
+
 def execute_aggregation(slug: str, user_api_key: str | None = None) -> bool:
     """
     analysis-core パッケージの集約処理のみ実行する関数
