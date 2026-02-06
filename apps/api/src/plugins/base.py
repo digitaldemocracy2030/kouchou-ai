@@ -13,7 +13,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
+import polars as pl
 
 from src.config import settings
 
@@ -188,7 +188,7 @@ class InputPlugin(ABC):
     manifest: PluginManifest
 
     @abstractmethod
-    def fetch_data(self, source: str, **options: Any) -> pd.DataFrame:
+    def fetch_data(self, source: str, **options: Any) -> pl.DataFrame:
         """
         Fetch data from the source.
 
@@ -218,7 +218,7 @@ class InputPlugin(ABC):
         """
         return True, None
 
-    def save_to_csv(self, df: pd.DataFrame, file_name: str) -> Path:
+    def save_to_csv(self, df: pl.DataFrame, file_name: str) -> Path:
         """
         Save DataFrame to CSV in the input directory.
 
@@ -230,7 +230,7 @@ class InputPlugin(ABC):
             Path to the saved file
         """
         input_path = settings.INPUT_DIR / f"{file_name}.csv"
-        df.to_csv(input_path, index=False)
+        df.write_csv(input_path)
         return input_path
 
     def ensure_configured(self) -> None:
