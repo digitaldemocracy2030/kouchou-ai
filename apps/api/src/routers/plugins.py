@@ -153,7 +153,7 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
             success=True,
             filePath=str(file_path),
             commentCount=len(df),
-            comments=df.to_dict(orient="records"),
+            comments=df.to_dicts(),
             error=None,
         )
 
@@ -219,7 +219,7 @@ async def preview_data(plugin_id: str, request: PreviewRequest) -> PreviewRespon
 
         return PreviewResponse(
             success=True,
-            comments=df.head(request.limit or 10).to_dict(orient="records"),
+            comments=df.head(request.limit or 10).to_dicts(),
             totalCount=len(df),
             error=None,
         )
