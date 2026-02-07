@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 # 起動時に全て削除した上でbuildしなおす
 if [ -d ".next" ]; then
   rm -rf .next

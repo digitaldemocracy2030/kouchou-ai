@@ -247,6 +247,10 @@ jobs:
             echo "❌ APIドメインが取得できませんでした"
             exit 1
           fi
+          if [ -z "$PUBLIC_VIEWER_DOMAIN" ]; then
+            echo "❌ Public-viewerドメインが取得できませんでした"
+            exit 1
+          fi
 
           # リトライ付きヘルスチェック
           RETRY_COUNT=6
@@ -254,8 +258,17 @@ jobs:
 
           for i in $(seq 1 $RETRY_COUNT); do
             echo "ヘルスチェック試行 $i/$RETRY_COUNT..."
+            api_ok=0
+            viewer_ok=0
             if curl -f "https://$API_DOMAIN/" --max-time 10 > /dev/null 2>&1; then
+              api_ok=1
+            fi
+            if curl -f "https://$PUBLIC_VIEWER_DOMAIN/" --max-time 10 > /dev/null 2>&1; then
+              viewer_ok=1
+            fi
+            if [ "$api_ok" -eq 1 ] && [ "$viewer_ok" -eq 1 ]; then
               echo "✅ デプロイ成功: https://$API_DOMAIN"
+              echo "✅ デプロイ成功: https://$PUBLIC_VIEWER_DOMAIN"
               exit 0
             fi
             [ $i -lt $RETRY_COUNT ] && sleep $RETRY_INTERVAL
