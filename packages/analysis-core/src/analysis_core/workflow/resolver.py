@@ -8,7 +8,7 @@ based on their dependencies using topological sorting.
 from collections import deque
 from typing import Any
 
-from analysis_core.workflow.definition import WorkflowDefinition, WorkflowStep
+from analysis_core.workflow.definition import WorkflowDefinition
 
 
 class DependencyError(Exception):
