@@ -14,7 +14,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 try:  # Optional dependency
     from google import genai
     from google.genai import errors as genai_errors
-except ModuleNotFoundError:  # pragma: no cover - library might be unavailable in tests
+except (ModuleNotFoundError, ImportError):  # pragma: no cover - library might be unavailable in tests
     genai = None
     genai_errors = None
 

@@ -1,5 +1,4 @@
 import os
-import sys
 import types
 from unittest.mock import MagicMock, patch
 
@@ -814,10 +813,11 @@ class TestLLMService:
         ]
         model = "gemini-2.5-flash"
 
-        # google.generativeai モジュールをモック化
-        genai_module = types.ModuleType("google.generativeai")
-        configure_mock = MagicMock()
-        gen_model_instance = MagicMock()
+        # google-genai SDK をモック化
+        genai_module = types.SimpleNamespace()
+        mock_client = MagicMock()
+        mock_models = MagicMock()
+        mock_client.models = mock_models
         mock_response = MagicMock()
         mock_response.text = "Hi! How can I help you today?"
         usage_metadata = MagicMock()
@@ -825,23 +825,16 @@ class TestLLMService:
         usage_metadata.candidates_token_count = 10
         usage_metadata.total_token_count = 30
         mock_response.usage_metadata = usage_metadata
-        gen_model_instance.generate_content.return_value = mock_response
-        generative_model_mock = MagicMock(return_value=gen_model_instance)
-        genai_module.configure = configure_mock
-        genai_module.GenerativeModel = generative_model_mock
+        mock_models.generate_content.return_value = mock_response
+        genai_module.Client = MagicMock(return_value=mock_client)
 
-        google_excs = types.SimpleNamespace(
-            Unauthenticated=Exception,
-            InvalidArgument=Exception,
-            GoogleAPICallError=Exception,
-            ResourceExhausted=Exception,
-        )
+        genai_errors = types.SimpleNamespace(ClientError=Exception, ServerError=Exception)
 
         env_vars = {"GEMINI_API_KEY": "test-api-key"}
         with patch.dict(os.environ, env_vars):
             with (
                 patch("broadlistening.pipeline.services.llm.genai", genai_module),
-                patch("broadlistening.pipeline.services.llm.google_exceptions", google_excs),
+                patch("broadlistening.pipeline.services.llm.genai_errors", genai_errors),
             ):
                 response, token_input, token_output, token_total = request_to_chat_ai(
                     messages=messages, model=model, provider="gemini"
@@ -851,14 +844,12 @@ class TestLLMService:
         assert token_input == 20
         assert token_output == 10
         assert token_total == 30
-        configure_mock.assert_called_once_with(api_key="test-api-key")
-        expected_messages = [
-            {"role": "user", "parts": ["Hello!"]},
-        ]
-        generative_model_mock.assert_called_once_with(model, system_instruction="You are a helpful assistant.")
-        args, kwargs = gen_model_instance.generate_content.call_args
-        assert args[0] == expected_messages
-        assert kwargs.get("generation_config") is None
+        genai_module.Client.assert_called_once_with(api_key="test-api-key")
+        mock_models.generate_content.assert_called_once_with(
+            model=model,
+            contents=[{"role": "user", "parts": [{"text": "Hello!"}]}],
+            config={"system_instruction": "You are a helpful assistant."},
+        )
 
     def test_request_to_chat_ai_use_gemini_without_env(self):
         """Geminiの環境変数が設定されていない場合のテスト"""
@@ -868,10 +859,17 @@ class TestLLMService:
         ]
         model = "gemini-2.5-flash"
 
-        with patch.dict(os.environ, {}, clear=True):
+        genai_module = types.SimpleNamespace()
+        genai_errors = types.SimpleNamespace(ClientError=Exception, ServerError=Exception)
+
+        with (
+            patch("broadlistening.pipeline.services.llm.genai", genai_module),
+            patch("broadlistening.pipeline.services.llm.genai_errors", genai_errors),
+            patch.dict(os.environ, {}, clear=True),
+        ):
             with pytest.raises(RuntimeError) as excinfo:
                 request_to_chat_ai(messages=messages, model=model, provider="gemini")
-            assert "GEMINI_API_KEY environment variable is not set" in str(excinfo.value)
+        assert "GEMINI_API_KEY environment variable is not set" in str(excinfo.value)
 
     def test_request_to_chat_ai_use_gemini_rate_limit(self):
         """Geminiのレート制限エラーのテスト"""
@@ -881,59 +879,54 @@ class TestLLMService:
         ]
         model = "gemini-2.5-flash"
 
-        genai_module = types.ModuleType("google.generativeai")
-        configure_mock = MagicMock()
-        gen_model_instance = MagicMock()
+        genai_module = types.SimpleNamespace()
+        mock_client = MagicMock()
+        mock_models = MagicMock()
+        mock_client.models = mock_models
 
         class RateLimitError(Exception):
-            pass
+            def __init__(self, message: str):
+                super().__init__(message)
+                self.code = 429
 
-        gen_model_instance.generate_content.side_effect = RateLimitError("Rate limit exceeded")
-        genai_module.configure = configure_mock
-        genai_module.GenerativeModel = MagicMock(return_value=gen_model_instance)
-        google_module = types.ModuleType("google")
-        google_module.generativeai = genai_module
-
-        google_excs = types.SimpleNamespace(
-            Unauthenticated=Exception,
-            InvalidArgument=Exception,
-            GoogleAPICallError=Exception,
-            ResourceExhausted=Exception,
-        )
+        mock_models.generate_content.side_effect = RateLimitError("Rate limit exceeded")
+        genai_module.Client = MagicMock(return_value=mock_client)
+        genai_errors = types.SimpleNamespace(ClientError=RateLimitError, ServerError=Exception)
 
         env_vars = {"GEMINI_API_KEY": "test-api-key"}
         with patch.dict(os.environ, env_vars):
             with (
                 patch("broadlistening.pipeline.services.llm.genai", genai_module),
-                patch("broadlistening.pipeline.services.llm.google_exceptions", google_excs),
+                patch("broadlistening.pipeline.services.llm.genai_errors", genai_errors),
+                patch("broadlistening.pipeline.services.llm.time.sleep", return_value=None),
             ):
-                with pytest.raises(RateLimitError):
+                with pytest.raises(RuntimeError) as excinfo:
                     request_to_chat_ai(messages=messages, model=model, provider="gemini")
+        assert "Gemini API rate limit exceeded" in str(excinfo.value)
 
     def test_request_to_embed_use_gemini(self):
         """Geminiの埋め込みを使用するテストケース"""
         args = ["hello", "world"]
         model = "models/embedding-001"
 
-        genai_module = types.ModuleType("google.generativeai")
-        configure_mock = MagicMock()
+        genai_module = types.SimpleNamespace()
+        mock_client = MagicMock()
+        mock_models = MagicMock()
+        mock_client.models = mock_models
         embed_content_mock = MagicMock(side_effect=[{"embedding": [0.1, 0.2]}, {"embedding": [0.3, 0.4]}])
-        genai_module.configure = configure_mock
-        genai_module.embed_content = embed_content_mock
-        google_module = types.ModuleType("google")
-        google_module.generativeai = genai_module
+        mock_models.embed_content = embed_content_mock
+        genai_module.Client = MagicMock(return_value=mock_client)
 
         env_vars = {"GEMINI_API_KEY": "test-api-key"}
-        with patch.dict(sys.modules, {"google": google_module, "google.generativeai": genai_module}):
+        with patch.dict(os.environ, env_vars):
             with patch("broadlistening.pipeline.services.llm.genai", genai_module):
-                with patch.dict(os.environ, env_vars):
-                    embeds = request_to_embed(args, model, provider="gemini")
+                embeds = request_to_embed(args, model, provider="gemini")
 
         assert embeds == [[0.1, 0.2], [0.3, 0.4]]
-        configure_mock.assert_called_once_with(api_key="test-api-key")
+        genai_module.Client.assert_called_once_with(api_key="test-api-key")
         assert embed_content_mock.call_count == 2
-        embed_content_mock.assert_any_call(model=model, content="hello")
-        embed_content_mock.assert_any_call(model=model, content="world")
+        embed_content_mock.assert_any_call(model=model, contents="hello")
+        embed_content_mock.assert_any_call(model=model, contents="world")
 
     def test_extract_embedding_values_genai_object(self):
         """extract_embedding_values: genai SDKオブジェクト（response.embedding.values）を抽出できる"""
