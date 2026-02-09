@@ -82,6 +82,12 @@ jobs:
       - name: Azure環境のデプロイ
         run: |
           set -euo pipefail
+          # ルートコンテキスト化に伴い .env.azure を一時退避
+          ENV_AZURE_TMP="${RUNNER_TEMP}/.env.azure"
+          if [ -f .env.azure ]; then
+            mv .env.azure "$ENV_AZURE_TMP"
+          fi
+
           # レポートのバックアップを取得
           if [ -n "$API_DOMAIN" ]; then
             echo "レポートのバックアップを取得中..."
@@ -94,15 +100,18 @@ jobs:
           # 全イメージを並列ビルド
           build_pids=()
           docker build --platform linux/amd64 \
+            -f ./apps/api/Dockerfile \
             -t ${AZURE_ACR_NAME}.azurecr.io/api:latest \
-            ./apps/api & build_pids+=("$!")
+            . & build_pids+=("$!")
           docker build --platform linux/amd64 \
+            -f ./apps/public-viewer/Dockerfile \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
             --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
             -t ${AZURE_ACR_NAME}.azurecr.io/public-viewer:latest \
-            ./apps/public-viewer & build_pids+=("$!")
+            . & build_pids+=("$!")
           docker build --platform linux/amd64 \
+            -f ./apps/admin/Dockerfile \
             --build-arg NEXT_PUBLIC_CLIENT_BASEPATH="https://${PUBLIC_VIEWER_DOMAIN}" \
             --build-arg NEXT_PUBLIC_ADMIN_API_KEY="${ADMIN_API_KEY}" \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
@@ -111,7 +120,7 @@ jobs:
             --build-arg BASIC_AUTH_PASSWORD="${BASIC_AUTH_PASSWORD}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
             -t ${AZURE_ACR_NAME}.azurecr.io/admin:latest \
-            ./apps/admin & build_pids+=("$!")
+            . & build_pids+=("$!")
           docker build --platform linux/amd64 \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
             --build-arg NEXT_PUBLIC_PUBLIC_API_KEY="${PUBLIC_API_KEY}" \
@@ -136,6 +145,11 @@ jobs:
           for pid in "${push_pids[@]}"; do
             wait "$pid"
           done
+
+          # make 用に .env.azure を復元
+          if [ -f "$ENV_AZURE_TMP" ]; then
+            mv "$ENV_AZURE_TMP" .env.azure
+          fi
 
           # ヘルスプローブとポリシーの適用
           make azure-apply-policies || echo "ポリシー適用をスキップ"
@@ -233,19 +247,37 @@ jobs:
             echo "❌ APIドメインが取得できませんでした"
             exit 1
           fi
+          if [ -z "$PUBLIC_VIEWER_DOMAIN" ]; then
+            echo "❌ Public-viewerドメインが取得できませんでした"
+            exit 1
+          fi
 
           # リトライ付きヘルスチェック
-          RETRY_COUNT=6
+          # public-viewer は起動時に next build を実行するため、初回起動が数分かかる場合がある
+          RETRY_COUNT=15
           RETRY_INTERVAL=20
 
           for i in $(seq 1 $RETRY_COUNT); do
             echo "ヘルスチェック試行 $i/$RETRY_COUNT..."
-            if curl -f "https://$API_DOMAIN/" --max-time 10 > /dev/null 2>&1; then
+            api_code="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://$API_DOMAIN/" || true)"
+            viewer_code="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://$PUBLIC_VIEWER_DOMAIN/" || true)"
+            api_code="${api_code:-000}"
+            viewer_code="${viewer_code:-000}"
+            echo "  API=$api_code viewer=$viewer_code"
+
+            if [ "$api_code" -ge 200 ] && [ "$api_code" -lt 400 ] && [ "$viewer_code" -ge 200 ] && [ "$viewer_code" -lt 400 ]; then
               echo "✅ デプロイ成功: https://$API_DOMAIN"
+              echo "✅ デプロイ成功: https://$PUBLIC_VIEWER_DOMAIN"
               exit 0
             fi
             [ $i -lt $RETRY_COUNT ] && sleep $RETRY_INTERVAL
           done
 
           echo "❌ ヘルスチェック失敗"
+          echo "API revision status:"
+          az containerapp revision list --name api --resource-group ${AZURE_RESOURCE_GROUP} \
+            --query "sort_by(@,&properties.createdTime)[-1].{name:name,health:properties.healthState,running:properties.runningState,details:properties.runningStateDetails}" -o json || true
+          echo "public-viewer revision status:"
+          az containerapp revision list --name public-viewer --resource-group ${AZURE_RESOURCE_GROUP} \
+            --query "sort_by(@,&properties.createdTime)[-1].{name:name,health:properties.healthState,running:properties.runningState,details:properties.runningStateDetails}" -o json || true
           exit 1

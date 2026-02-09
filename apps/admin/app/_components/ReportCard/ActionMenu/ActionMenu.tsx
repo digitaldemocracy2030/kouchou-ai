@@ -1,10 +1,10 @@
 "use client";
 
 import { downloadFile } from "@/app/utils/downloadFile";
-import { MenuContent, MenuItem, MenuPositioner, MenuRoot, MenuTrigger, MenuTriggerItem } from "@/components/ui/menu";
+import { MenuContent, MenuItem, MenuRoot, MenuTrigger, MenuTriggerItem } from "@/components/ui/menu";
 import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
-import { IconButton, Portal } from "@chakra-ui/react";
+import { IconButton } from "@chakra-ui/react";
 import { Copy, Ellipsis, Eye, FileSpreadsheet, FileText, FolderDown, Pencil, TextIcon, Trash2 } from "lucide-react";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -47,184 +47,178 @@ export function ActionMenu({
             <Ellipsis />
           </IconButton>
         </MenuTrigger>
-        <Portal>
-          <MenuContent>
-            {(report.status === "ready" || report.status === "error") && (
-              <MenuItem
-                value="duplicate"
-                textStyle="body/md/bold"
-                onClick={() => {
-                  setIsOpen(false);
-                  router.push(`/reuse/${report.slug}`);
-                }}
-                _icon={{
-                  w: 5,
-                  h: 5,
-                }}
-              >
-                <Copy />
-                再利用
-              </MenuItem>
-            )}
+        <MenuContent>
+          <MenuItem
+            value="edit"
+            textStyle="body/md/bold"
+            onClick={() => {
+              setIsEditDialogOpen(true);
+            }}
+            _icon={{
+              w: 5,
+              h: 5,
+            }}
+          >
+            <Pencil />
+            レポート名編集
+          </MenuItem>
+          {(report.status === "ready" || report.status === "error") && (
             <MenuItem
-              value="edit"
+              value="duplicate"
               textStyle="body/md/bold"
               onClick={() => {
-                setIsEditDialogOpen(true);
+                setIsOpen(false);
+                router.push(`/reuse/${report.slug}`);
               }}
               _icon={{
                 w: 5,
                 h: 5,
               }}
             >
-              <Pencil />
-              レポート名編集
+              <Copy />
+              再利用
             </MenuItem>
-            {report.status === "ready" && (
-              <MenuItem
-                value="edit-cluster"
+          )}
+          {report.status === "ready" && (
+            <MenuItem
+              value="edit-cluster"
+              textStyle="body/md/bold"
+              onClick={() => {
+                setIsClusterEditDialogOpen(true);
+              }}
+              _icon={{
+                w: 5,
+                h: 5,
+              }}
+            >
+              <TextIcon />
+              意見グループ編集
+            </MenuItem>
+          )}
+          {report.status === "ready" && (
+            <MenuItem
+              value="visualization-config"
+              textStyle="body/md/bold"
+              onClick={() => {
+                setIsVisualizationConfigDialogOpen(true);
+              }}
+              _icon={{
+                w: 5,
+                h: 5,
+              }}
+            >
+              <Eye />
+              可視化設定
+            </MenuItem>
+          )}
+          {report.status === "ready" && report.isPubcom && (
+            <MenuRoot positioning={{ placement: "right-start", gutter: 4 }}>
+              <MenuTriggerItem
+                value="csv-download-list"
                 textStyle="body/md/bold"
-                onClick={() => {
-                  setIsClusterEditDialogOpen(true);
-                }}
                 _icon={{
                   w: 5,
                   h: 5,
                 }}
               >
-                <TextIcon />
-                意見グループ編集
-              </MenuItem>
-            )}
-            {report.status === "ready" && (
-              <MenuItem
-                value="visualization-config"
-                textStyle="body/md/bold"
-                onClick={() => {
-                  setIsVisualizationConfigDialogOpen(true);
-                }}
-                _icon={{
-                  w: 5,
-                  h: 5,
-                }}
-              >
-                <Eye />
-                可視化設定
-              </MenuItem>
-            )}
-            {report.status === "ready" && report.isPubcom && (
-              <MenuRoot positioning={{ placement: "right-start", gutter: 4 }}>
-                <MenuTriggerItem
-                  value="csv-download-list"
+                <FileSpreadsheet />
+                CSVダウンロード
+              </MenuTriggerItem>
+              <MenuContent>
+                <MenuItem
+                  value="csv-download"
                   textStyle="body/md/bold"
-                  _icon={{
-                    w: 5,
-                    h: 5,
+                  onClick={async () => {
+                    const result = await csvDownload(report.slug);
+                    if (result.success) {
+                      downloadFile(result);
+                    } else {
+                      toaster.create({
+                        title: "エラー",
+                        type: "error",
+                        description: result.error,
+                      });
+                    }
                   }}
                 >
-                  <FileSpreadsheet />
                   CSVダウンロード
-                </MenuTriggerItem>
-                <Portal>
-                  <MenuPositioner>
-                    <MenuContent>
-                      <MenuItem
-                        value="csv-download"
-                        textStyle="body/md/bold"
-                        onClick={async () => {
-                          const result = await csvDownload(report.slug);
-                          if (result.success) {
-                            downloadFile(result);
-                          } else {
-                            toaster.create({
-                              title: "エラー",
-                              type: "error",
-                              description: result.error,
-                            });
-                          }
-                        }}
-                      >
-                        CSVダウンロード
-                      </MenuItem>
-                      <MenuItem
-                        value="csv-download-for-windows"
-                        textStyle="body/md/bold"
-                        onClick={async () => {
-                          const result = await csvDownloadForWindows(report.slug);
-                          if (result.success) {
-                            downloadFile(result);
-                          } else {
-                            toaster.create({
-                              title: "エラー",
-                              type: "error",
-                              description: result.error,
-                            });
-                          }
-                        }}
-                      >
-                        CSV for Excelダウンロード
-                      </MenuItem>
-                    </MenuContent>
-                  </MenuPositioner>
-                </Portal>
-              </MenuRoot>
-            )}
-            {report.status === "ready" && (
-              <MenuItem
-                value="json-download"
-                textStyle="body/md/bold"
-                onClick={async () => {
-                  const result = await jsonDownload(report.slug);
-                  if (result.success) {
-                    downloadFile(result);
-                  } else {
-                    toaster.create({
-                      title: "エラー",
-                      type: "error",
-                      description: result.error,
-                    });
-                  }
-                }}
-                _icon={{
-                  w: 5,
-                  h: 5,
-                }}
-              >
-                <FileText />
-                JSONダウンロード
-              </MenuItem>
-            )}
+                </MenuItem>
+                <MenuItem
+                  value="csv-download-for-windows"
+                  textStyle="body/md/bold"
+                  onClick={async () => {
+                    const result = await csvDownloadForWindows(report.slug);
+                    if (result.success) {
+                      downloadFile(result);
+                    } else {
+                      toaster.create({
+                        title: "エラー",
+                        type: "error",
+                        description: result.error,
+                      });
+                    }
+                  }}
+                >
+                  CSV for Excelダウンロード
+                </MenuItem>
+              </MenuContent>
+            </MenuRoot>
+          )}
+          {report.status === "ready" && (
             <MenuItem
-              value="static-export"
+              value="json-download"
               textStyle="body/md/bold"
-              onClick={() => {
-                if (!isVisible) return;
-                exportStaticHTML([report.slug]);
+              onClick={async () => {
+                const result = await jsonDownload(report.slug);
+                if (result.success) {
+                  downloadFile(result);
+                } else {
+                  toaster.create({
+                    title: "エラー",
+                    type: "error",
+                    description: result.error,
+                  });
+                }
               }}
               _icon={{
                 w: 5,
                 h: 5,
               }}
-              disabled={!isVisible}
             >
-              <FolderDown />
-              HTML書き出し
+              <FileText />
+              JSONダウンロード
             </MenuItem>
-            <MenuItem
-              value="delete"
-              color="fg.error"
-              textStyle="body/md/bold"
-              _icon={{
-                w: 5,
-                h: 5,
-              }}
-              onClick={() => setIsOpen(true)}
-            >
-              <Trash2 />
-              削除
-            </MenuItem>
-          </MenuContent>
-        </Portal>
+          )}
+          <MenuItem
+            value="static-export"
+            textStyle="body/md/bold"
+            onClick={() => {
+              if (!isVisible) return;
+              exportStaticHTML([report.slug]);
+            }}
+            _icon={{
+              w: 5,
+              h: 5,
+            }}
+            disabled={!isVisible}
+          >
+            <FolderDown />
+            HTML書き出し
+          </MenuItem>
+          <MenuItem
+            value="delete"
+            color="fg.error"
+            textStyle="body/md/bold"
+            _icon={{
+              w: 5,
+              h: 5,
+            }}
+            onClick={() => setIsOpen(true)}
+          >
+            <Trash2 />
+            削除
+          </MenuItem>
+        </MenuContent>
       </MenuRoot>
       <DeleteDialog isOpen={isOpen} setIsOpen={setIsOpen} report={report} />
     </>
