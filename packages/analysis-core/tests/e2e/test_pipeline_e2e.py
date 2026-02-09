@@ -19,7 +19,7 @@ import json
 import shutil
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 import pytest
 
 from .schemas import HierarchicalResult
@@ -126,7 +126,7 @@ class TestPipelineE2E:
         args_path = output_dir / "args.csv"
         assert args_path.exists(), "args.csv not created"
 
-        args_df = pd.read_csv(args_path)
+        args_df = pl.read_csv(args_path)
 
         # Verify required columns exist
         required_columns = ["arg-id", "argument"]
@@ -137,8 +137,9 @@ class TestPipelineE2E:
         assert len(args_df) > 0, "No arguments extracted"
 
         # Verify arguments are non-empty strings
-        for _, row in args_df.iterrows():
-            assert isinstance(row["argument"], str) and len(row["argument"]) > 0, f"Invalid argument: {row['argument']}"
+        for row in args_df.iter_rows(named=True):
+            argument = row["argument"]
+            assert isinstance(argument, str) and len(argument) > 0, f"Invalid argument: {argument}"
 
     def test_clustering_produces_hierarchy(self, api_key, temp_dirs, small_comments_csv, pipeline_config):
         """Test that clustering step produces valid hierarchical structure."""
@@ -172,7 +173,7 @@ class TestPipelineE2E:
         clusters_path = output_dir / "hierarchical_clusters.csv"
         assert clusters_path.exists(), "hierarchical_clusters.csv not created"
 
-        clusters_df = pd.read_csv(clusters_path)
+        clusters_df = pl.read_csv(clusters_path)
 
         # Verify we have cluster assignments
         assert len(clusters_df) > 0, "No cluster assignments"
@@ -258,14 +259,14 @@ class TestOutputSchemaValidation:
 
         # Load and validate args.csv
         output_dir = temp_dirs["output_dir"] / pipeline_config["output_dir"]
-        args_df = pd.read_csv(output_dir / "args.csv")
+        args_df = pl.read_csv(output_dir / "args.csv")
 
         # Required columns
         assert "arg-id" in args_df.columns, "Missing arg-id column"
         assert "argument" in args_df.columns, "Missing argument column"
 
         # Validate data types
-        for idx, row in args_df.iterrows():
-            assert pd.notna(row["arg-id"]), f"arg-id should not be null at row {idx}"
-            assert pd.notna(row["argument"]), f"argument should not be null at row {idx}"
+        for idx, row in enumerate(args_df.iter_rows(named=True)):
+            assert row["arg-id"] is not None, f"arg-id should not be null at row {idx}"
+            assert row["argument"] is not None, f"argument should not be null at row {idx}"
             assert len(str(row["argument"])) > 0, f"argument should not be empty at row {idx}"
