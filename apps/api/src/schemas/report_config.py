@@ -32,7 +32,7 @@ class HierarchicalAggregationConfig(SchemaBaseModel):
 
 
 class ReportConfig(SchemaBaseModel):
-    name: str
+    name: str | None = None  # CLI実行時は未設定の場合あり、inputから導出可能
     input: str
     question: str
     intro: str
