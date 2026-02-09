@@ -84,6 +84,8 @@ export const OpImage = async (slug: string) => {
   const result: Result = await apiResponse.json();
 
   const clusterNum = getClusterNum(result);
+  const level1ClusterNum = clusterNum[1] ?? 0;
+  const level2ClusterNum = clusterNum[2];
   const pageTitle = result.config.question;
 
   return new ImageResponse(
@@ -259,7 +261,8 @@ function Stats({
             <path d="m9 14 2 2 4-4" />
           </svg>
           <div style={{ display: "flex" }}>
-            {clusterNum[1].toLocaleString()}→{clusterNum[2].toLocaleString()}
+            {level1ClusterNum.toLocaleString()}
+            {level2ClusterNum !== undefined ? `→${level2ClusterNum.toLocaleString()}` : ""}
           </div>
         </div>
         <div style={{ fontSize: 18, marginLeft: "40px" }}>集約した意見グループ数</div>
