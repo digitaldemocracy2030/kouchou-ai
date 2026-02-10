@@ -15,7 +15,7 @@
 ## 前提条件
 
 - 一般ユーザー向け：
-  - 安定版リリースをダウンロード（[Windows](./docs/windows-setup.md)/[Mac](./docs/mac-setup.md)/[Linux](./docs/linux-setup.md)の各ガイドを参照）
+- 安定版リリースをダウンロード（[Windows](./docs/getting-started/windows-setup.md)/[Mac](./docs/getting-started/mac-setup.md)/[Linux](./docs/getting-started/linux-setup.md)の各ガイドを参照）
   - Docker（各ガイドに従ってインストール）
   - OpenAI API キー
 - 開発者向け：
@@ -47,9 +47,9 @@
 
 - 開発者でない方は以下のユーザーガイドを参照してください：
 
-  - [Windows 環境でのユーザーガイド](./docs/windows-setup.md)
-  - [Mac 環境でのユーザーガイド](./docs/mac-setup.md)
-  - [Linux 環境でのユーザーガイド](./docs/linux-setup.md)
+  - [Windows 環境でのユーザーガイド](./docs/getting-started/windows-setup.md)
+  - [Mac 環境でのユーザーガイド](./docs/getting-started/mac-setup.md)
+  - [Linux 環境でのユーザーガイド](./docs/getting-started/linux-setup.md)
 
 - 開発者向け：
   - リポジトリをクローン
