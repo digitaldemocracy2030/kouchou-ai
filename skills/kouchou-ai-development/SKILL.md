@@ -36,6 +36,9 @@ Use this skill for setup, build, and operational commands.
 ## Pull Request workflow
 - Follow `.github/PULL_REQUEST_TEMPLATE.md` when creating a PR.
 
+## Documentation conventions
+- Add language identifiers to fenced code blocks in docs (for example, `bash` or `text`).
+
 ## Azure deployment helpers
 - Use `make azure-setup-all` for full Azure setup.
 - Use `make azure-build`, `make azure-push`, `make azure-deploy`, and `make azure-info` for individual steps.

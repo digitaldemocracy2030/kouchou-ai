@@ -12,11 +12,11 @@
 Claude Code は `CLAUDE.md` を自動で読み込みます。必要なスキルの `SKILL.md` を開くよう指示してください。
 
 ### 例
-```
+```text
 skills/kouchou-ai-architecture/SKILL.md を参照して、主要サービスとポートを説明して。
 ```
 
-```
+```text
 skills/kouchou-ai-development/SKILL.md を読んで、ローカル開発の起動手順をまとめて。
 ```
 
@@ -24,7 +24,7 @@ skills/kouchou-ai-development/SKILL.md を読んで、ローカル開発の起�
 Codex は `$CODEX_HOME/skills` にあるスキルを読み込むため、`skills/` の各フォルダをリンクまたはコピーします。
 
 ### セットアップ例（シンボリックリンク）
-```
+```bash
 export CODEX_HOME="$HOME/.codex"
 mkdir -p "$CODEX_HOME/skills"
 ln -s /path/to/kouchou-ai/skills/kouchou-ai-architecture "$CODEX_HOME/skills/"
@@ -36,11 +36,11 @@ ln -s /path/to/kouchou-ai/skills/kouchou-ai-testing "$CODEX_HOME/skills/"
 - 依頼文にスキル名を含めると読み込みが確実になります。
 
 #### 例
-```
+```text
 kouchou-ai-architecture を使って、パイプラインの流れと主要ディレクトリを説明して。
 ```
 
-```
+```text
 kouchou-ai-testing を使って、E2E テストの注意点をまとめて。
 ```
 
