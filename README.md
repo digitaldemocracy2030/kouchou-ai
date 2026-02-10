@@ -15,7 +15,7 @@
 ## 前提条件
 
 - 一般ユーザー向け：
-  - 安定版リリースをダウンロード（[Windows](./docs/windows-setup.md)/[Mac](./docs/mac-setup.md)/[Linux](./docs/linux-setup.md)の各ガイドを参照）
+- 安定版リリースをダウンロード（[Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup/)/[Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup/)/[Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup/)の各ガイドを参照）
   - Docker（各ガイドに従ってインストール）
   - OpenAI API キー
 - 開発者向け：
@@ -47,9 +47,9 @@
 
 - 開発者でない方は以下のユーザーガイドを参照してください：
 
-  - [Windows 環境でのユーザーガイド](./docs/windows-setup.md)
-  - [Mac 環境でのユーザーガイド](./docs/mac-setup.md)
-  - [Linux 環境でのユーザーガイド](./docs/linux-setup.md)
+  - [Windows 環境でのユーザーガイド](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup/)
+  - [Mac 環境でのユーザーガイド](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup/)
+  - [Linux 環境でのユーザーガイド](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup/)
 
 - 開発者向け：
   - リポジトリをクローン
@@ -105,7 +105,7 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
   3. 本番環境（`ENVIRONMENT=production` または `NODE_ENV=production`）でのみ Google Analytics が有効になります
      - 開発環境では自動的に無効化されるため、開発中のアクセスはカウントされません
 
-アプリ起動後の、アプリの操作方法については[広聴 AI の使い方](./docs/user-guide/how-to-use.md)を参照
+アプリ起動後の、アプリの操作方法については[広聴 AI の使い方](https://digitaldemocracy2030.github.io/kouchou-ai/user-guide/how-to-use/)を参照
 
 ### メタデータファイルのセットアップ
 
@@ -131,7 +131,7 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
 
 ### Azure 環境へのセットアップ
 
-Azure 環境にセットアップする方法は[Azure 環境へのセットアップ方法](./docs/deployment/azure.md)を参照
+Azure 環境にセットアップする方法は[Azure 環境へのセットアップ方法](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/azure/)を参照
 
 ### 静的ファイル出力
 
@@ -146,7 +146,7 @@ make client-build-static
 
 `out/` ディレクトリに静的ファイルが出力されますので、Web サーバーに配置してください。
 
-静的エクスポートしたレポートをGithub Pagesにホスティングする手順は[GitHub Pagesの静的ファイルホスティング手順](./docs/github-pages-hosting.md)を参照。
+静的エクスポートしたレポートをGithub Pagesにホスティングする手順は[GitHub Pagesの静的ファイルホスティング手順](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/github-pages/)を参照。
 
 ## アーキテクチャ概要
 
@@ -223,9 +223,9 @@ make client-dev -j 3
 ## 開発者向けのガイドライン
 
 広聴 AI は OSS として開発されており、開発者の方からのコントリビュートを募集しています。
-詳しくは、[CONTRIBUTING.md](CONTRIBUTING.md)を参照ください。
+詳しくは、[コントリビューションガイド](https://digitaldemocracy2030.github.io/kouchou-ai/development/contributing/)を参照ください。
 また、本プロジェクトでは AI エンジニア「[Devin](https://cognition.ai)」との協働開発を行っています。
-現時点での Devin とのコラボレーションについては、模索中ですが [Devin とのコラボレーション](docs/DEVIN_COLLABORATION.md)を参照してください。
+現時点での Devin とのコラボレーションについては、模索中ですが [Devin とのコラボレーション](https://digitaldemocracy2030.github.io/kouchou-ai/development/devin-collaboration/)を参照してください。
 
 ## 機能要望・バグ報告について
 
