@@ -84,8 +84,6 @@ export const OpImage = async (slug: string) => {
   const result: Result = await apiResponse.json();
 
   const clusterNum = getClusterNum(result);
-  const level1ClusterNum = clusterNum[1] ?? 0;
-  const level2ClusterNum = clusterNum[2];
   const pageTitle = result.config.question;
 
   return new ImageResponse(
@@ -180,6 +178,8 @@ function Stats({
   result: Result;
   clusterNum: Record<number, number>;
 }) {
+  const level1ClusterNum = clusterNum[1] ?? 0;
+  const level2ClusterNum = clusterNum[2];
   return (
     <div
       style={{
