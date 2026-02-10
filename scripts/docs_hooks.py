@@ -11,6 +11,20 @@ FILE_MAPPINGS = {
     "CODE_REVIEW_GUIDELINES.md": "development/code-review-guidelines.md",
     "PROJECTS.md": "misc/projects.md",
     "CLA.md": "misc/cla.md",
+    # repo README files copied into docs/
+    "apps/admin/README.md": "repo-readmes/apps/admin.md",
+    "apps/api/README.md": "repo-readmes/apps/api.md",
+    "apps/api/broadlistening/README.md": "repo-readmes/apps/api-broadlistening.md",
+    "apps/public-viewer/README.md": "repo-readmes/apps/public-viewer.md",
+    "packages/analysis-core/README.md": "repo-readmes/packages/analysis-core.md",
+    "test/e2e/README.md": "repo-readmes/tests/e2e.md",
+    "test/e2e/fixtures/client/README.md": "repo-readmes/tests/e2e-fixtures-client.md",
+    "tools/scripts/README.md": "repo-readmes/tools/scripts.md",
+    "utils/dummy-server/README.md": "repo-readmes/utils/dummy-server.md",
+    "experiments/README.md": "repo-readmes/experiments/index.md",
+    "experiments/direct_win/README.md": "repo-readmes/experiments/direct-win.md",
+    "experiments/embvec_reduce_public_comment/README.md": "repo-readmes/experiments/embvec-reduce-public-comment.md",
+    "experiments/evaluation_report/README.md": "repo-readmes/experiments/evaluation-report.md",
 }
 
 # Link transformations for specific files
@@ -20,6 +34,18 @@ LINK_TRANSFORMS = {
         (r"\[こちら\]\(\./PROJECTS\.md\)", "[こちら](../misc/projects.md)"),
         (r"\[こちら\]\(\./CODE_REVIEW_GUIDELINES\.md\)", "[こちら](code-review-guidelines.md)"),
         (r"\[lefthook-local\.sample\.yml\]\(\./lefthook-local\.sample\.yml\)", "`lefthook-local.sample.yml`"),
+    ],
+    "repo-readmes/packages/analysis-core.md": [
+        (r"\(\.\./\.\./docs/user-guide/cli-quickstart\.md\)", "(../../user-guide/cli-quickstart.md)"),
+        (r"\(\.\./\.\./docs/user-guide/import-quickstart\.md\)", "(../../user-guide/import-quickstart.md)"),
+        (r"\(\.\./\.\./docs/development/plugin-guide\.md\)", "(../../development/plugin-guide.md)"),
+    ],
+    "repo-readmes/tests/e2e-fixtures-client.md": [
+        (r"\(\.\./\.\./README\.md\)", "(e2e.md)"),
+        (
+            r"\(\.\./\.\./\.\./\.\./apps/public-viewer/type\.ts\)",
+            "(https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/apps/public-viewer/type.ts)",
+        ),
     ],
 }
 

@@ -1,1 +1,0 @@
---8<-- "test/e2e/README.md"

@@ -1,1 +1,0 @@
---8<-- "packages/analysis-core/README.md"
