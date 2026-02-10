@@ -4,16 +4,16 @@
 
 ## 目次
 
-1. [概要](#概要)
-2. [環境設定](#環境設定)
-3. [既存レポートの永続化](#既存レポートの永続化)
-4. [トラブルシューティング](#トラブルシューティング)
-5. [運用コマンド](#運用コマンド)
+1. [概要](#overview)
+2. [環境設定](#setup)
+3. [既存レポートの永続化](#persist-reports)
+4. [トラブルシューティング](#troubleshooting)
+5. [運用コマンド](#operations)
 
-## 概要
+## 概要 {#overview}
 2025-04-08以前に作成されたAzure Container Apps環境では、コンテナが再起動されるとコンテナ内のファイルが失われます。Azure Blob Storageを使用することで、レポートデータを永続的に保存し、コンテナが再起動されても利用可能な状態を維持できます。
 
-## 環境設定
+## 環境設定 {#setup}
 
 ### 0. 既存レポートのバックアップ
 
@@ -61,7 +61,7 @@ make azure-create-storage
 
 このスクリプトは、現在ログインしているユーザーに「Storage Blob Data Contributor」ロールを付与します。
 
-## 既存レポートの永続化
+## 既存レポートの永続化 {#persist-reports}
 
 ### 1. レポートのアップロード
 
@@ -81,7 +81,7 @@ make azure-restart-api
 
 再起動後、ブラウザをリロードすると、アップロードしたレポートが表示されます。
 
-## トラブルシューティング
+## トラブルシューティング {#troubleshooting}
 
 ### 権限エラー（AuthorizationPermissionMismatch）
 
@@ -120,7 +120,7 @@ ErrorCode:AuthorizationPermissionMismatch
    make azure-restart-api
    ```
 
-## 運用コマンド
+## 運用コマンド {#operations}
 
 ### ステータス確認
 

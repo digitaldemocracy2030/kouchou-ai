@@ -9,7 +9,6 @@ FILE_MAPPINGS = {
     # source (from repo root) -> destination (in docs/)
     "CONTRIBUTING.md": "development/contributing.md",
     "CODE_REVIEW_GUIDELINES.md": "development/code-review-guidelines.md",
-    "Azure.md": "deployment/azure.md",
     "PROJECTS.md": "misc/projects.md",
     "CLA.md": "misc/cla.md",
 }
