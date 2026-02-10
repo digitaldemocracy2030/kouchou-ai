@@ -38,6 +38,5 @@ __pycache__/
 # MkDocs auto-generated (copied from root by hooks)
 docs/development/contributing.md
 docs/development/code-review-guidelines.md
-docs/deployment/azure.md
 docs/misc/projects.md
 docs/misc/cla.md

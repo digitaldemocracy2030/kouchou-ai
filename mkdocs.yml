@@ -94,7 +94,7 @@ nav:
   - その他:
       - プロジェクト一覧: misc/projects.md
       - CLA: misc/cla.md
-      - 今後の提案: misc/future-proposals.md
+      - テスト: testing.md
 
 extra:
   social:

@@ -40,7 +40,7 @@ cd test/e2e && pnpm test
 cd test/e2e && pnpm run test:ui  # UIモードで実行
 ```
 
-詳細は [test/e2e/CLAUDE.md](/test/e2e/CLAUDE.md) を参照してください。
+詳細は [test/e2e/CLAUDE.md](https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/test/e2e/CLAUDE.md) を参照してください。
 
 #### パイプラインE2Eテスト（LLM API使用）
 

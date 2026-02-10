@@ -105,7 +105,7 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
   3. 本番環境（`ENVIRONMENT=production` または `NODE_ENV=production`）でのみ Google Analytics が有効になります
      - 開発環境では自動的に無効化されるため、開発中のアクセスはカウントされません
 
-アプリ起動後の、アプリの操作方法については[広聴 AI の使い方](./how_to_use/README.md)を参照
+アプリ起動後の、アプリの操作方法については[広聴 AI の使い方](./docs/user-guide/how-to-use.md)を参照
 
 ### メタデータファイルのセットアップ
 
@@ -131,7 +131,7 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
 
 ### Azure 環境へのセットアップ
 
-Azure 環境にセットアップする方法は[Azure 環境へのセットアップ方法](./Azure.md)を参照
+Azure 環境にセットアップする方法は[Azure 環境へのセットアップ方法](./docs/deployment/azure.md)を参照
 
 ### 静的ファイル出力
 
