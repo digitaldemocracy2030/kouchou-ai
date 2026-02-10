@@ -79,6 +79,7 @@ nav:
       - FAQ: user-guide/faq.md
   - 開発者向け:
       - コントリビューション: development/contributing.md
+      - Claude Code/Codex スキル: development/ai-assistants.md
       - npmではなくpnpmを使う理由: development/why-pnpm.md
       - プラグインガイド: development/plugin-guide.md
       - プラグイン出力データ構造: development/plugin-output-data-structures.md
