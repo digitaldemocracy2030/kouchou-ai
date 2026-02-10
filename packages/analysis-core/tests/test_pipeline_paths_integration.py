@@ -8,12 +8,13 @@ This is a regression test for bugs where:
 - update_status/update_progress didn't read _output_base_dir from config
 """
 
+import pickle
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pandas as pd
+import polars as pl
 import pytest
 
 
@@ -40,7 +41,7 @@ class TestPipelinePathsIntegration:
     def sample_input_csv(self, temp_dirs):
         """Create a sample input CSV file."""
         input_file = temp_dirs["input_dir"] / "test_input.csv"
-        df = pd.DataFrame(
+        df = pl.DataFrame(
             {
                 "comment-id": ["1", "2", "3"],
                 "comment-body": [
@@ -50,7 +51,7 @@ class TestPipelinePathsIntegration:
                 ],
             }
         )
-        df.to_csv(input_file, index=False)
+        df.write_csv(input_file)
         return input_file
 
     @pytest.fixture
@@ -131,14 +132,14 @@ class TestPipelinePathsIntegration:
         """Test that extraction step reads from correct input path."""
         # Track which paths are accessed
         read_csv_calls = []
-        original_read_csv = pd.read_csv
+        original_read_csv = pl.read_csv
 
         def tracking_read_csv(path, *args, **kwargs):
             read_csv_calls.append(str(path))
             return original_read_csv(path, *args, **kwargs)
 
         # Patch read_csv in the extraction module's namespace
-        with patch("analysis_core.steps.extraction.pd.read_csv", side_effect=tracking_read_csv):
+        with patch("analysis_core.steps.extraction.pl.read_csv", side_effect=tracking_read_csv):
             # Import after patching
             from analysis_core.steps.extraction import extraction
 
@@ -178,13 +179,13 @@ class TestPipelinePathsIntegration:
         output_subdir.mkdir(parents=True)
 
         # Create args.csv that embedding needs
-        args_df = pd.DataFrame(
+        args_df = pl.DataFrame(
             {
                 "arg-id": ["arg1", "arg2"],
                 "argument": ["Test argument 1", "Test argument 2"],
             }
         )
-        args_df.to_csv(output_subdir / "args.csv", index=False)
+        args_df.write_csv(output_subdir / "args.csv")
 
         # Mock the embedding call
         with patch("analysis_core.steps.embedding.request_to_embed") as mock_embed:
@@ -210,24 +211,22 @@ class TestPipelinePathsIntegration:
         output_subdir.mkdir(parents=True)
 
         # Create required input files
-        args_df = pd.DataFrame(
+        args_df = pl.DataFrame(
             {
                 "arg-id": [f"arg{i}" for i in range(20)],
                 "argument": [f"Test argument {i}" for i in range(20)],
             }
         )
-        args_df.to_csv(output_subdir / "args.csv", index=False)
+        args_df.write_csv(output_subdir / "args.csv")
 
         # Create embeddings with enough dimensions for UMAP
         import numpy as np
 
-        embeddings_df = pd.DataFrame(
-            {
-                "arg-id": [f"arg{i}" for i in range(20)],
-                "embedding": [np.random.rand(100).tolist() for _ in range(20)],
-            }
-        )
-        embeddings_df.to_pickle(output_subdir / "embeddings.pkl")
+        embeddings_data = [
+            {"arg-id": f"arg{i}", "embedding": np.random.rand(100).tolist()} for i in range(20)
+        ]
+        with open(output_subdir / "embeddings.pkl", "wb") as f:
+            pickle.dump(embeddings_data, f)
 
         # Add clustering config
         sample_config["hierarchical_clustering"] = {
