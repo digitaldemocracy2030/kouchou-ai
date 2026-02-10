@@ -26,6 +26,7 @@ Codex は `$CODEX_HOME/skills` にあるスキルを読み込むため、`skills
 ### セットアップ例（シンボリックリンク）
 ```
 export CODEX_HOME="$HOME/.codex"
+mkdir -p "$CODEX_HOME/skills"
 ln -s /path/to/kouchou-ai/skills/kouchou-ai-architecture "$CODEX_HOME/skills/"
 ln -s /path/to/kouchou-ai/skills/kouchou-ai-development "$CODEX_HOME/skills/"
 ln -s /path/to/kouchou-ai/skills/kouchou-ai-testing "$CODEX_HOME/skills/"
