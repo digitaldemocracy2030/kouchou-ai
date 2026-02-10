@@ -52,6 +52,8 @@ export function Analysis({ result }: ReportProps) {
     body: string;
   } | null>(null);
   const clusterNum = getClusterNum(result);
+  const level1ClusterNum = clusterNum[1] ?? 0;
+  const level2ClusterNum = clusterNum[2];
   const { open, onToggle } = useDisclosure();
 
   return (
@@ -110,12 +112,16 @@ export function Analysis({ result }: ReportProps) {
             </Icon>
             <HStack gap={1} alignItems={"center"}>
               <Text className={"headingColor"} fontSize={"3xl"} fontWeight={"bold"} lineHeight={1} mb={1}>
-                {clusterNum["1"].toLocaleString()}
+                {level1ClusterNum.toLocaleString()}
               </Text>
-              <Text fontSize={"md"}>→</Text>
-              <Text className={"headingColor"} fontSize={"3xl"} fontWeight={"bold"} lineHeight={1} mb={1}>
-                {clusterNum["2"].toLocaleString()}
-              </Text>
+              {level2ClusterNum !== undefined ? (
+                <>
+                  <Text fontSize={"md"}>→</Text>
+                  <Text className={"headingColor"} fontSize={"3xl"} fontWeight={"bold"} lineHeight={1} mb={1}>
+                    {level2ClusterNum.toLocaleString()}
+                  </Text>
+                </>
+              ) : null}
             </HStack>
             <Text fontSize={"xs"}>集約した意見グループ数</Text>
           </VStack>
