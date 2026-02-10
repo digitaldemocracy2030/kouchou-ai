@@ -108,8 +108,6 @@ test/e2e/
 │       └── report-test-report-1.json  # レポート詳細
 ├── pages/                         # ページオブジェクトモデル（将来的に使用）
 ├── playwright.config.ts           # Playwright設定
-├── TEST_PLAN.md                   # 管理画面テスト計画書
-└── CLIENT_TEST_PLAN.md            # Clientテスト計画書
 ```
 
 ### テストファイルの説明
@@ -240,8 +238,6 @@ pnpm exec playwright test --headed --debug
 
 ## 管理画面テスト（Admin）
 
-詳細なテスト計画は `TEST_PLAN.md` を参照してください。
-
 ### 対象
 
 - **URL**: http://localhost:4000（admin）
@@ -259,8 +255,6 @@ pnpm exec playwright test tests/admin/
 **注意**: `playwright.config.ts`の`webServer`設定により、adminサーバーは自動的に起動されます。手動起動は不要です。
 
 ## Clientテスト（レポート表示画面）
-
-詳細なテスト計画は `CLIENT_TEST_PLAN.md` を参照してください。
 
 ### 対象
 

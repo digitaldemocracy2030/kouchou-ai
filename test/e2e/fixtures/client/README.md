@@ -133,6 +133,6 @@ await page.route("**/reports", async (route) => {
 
 ## 参考資料
 
-- [Public Viewer Test Plan](/test/e2e/CLIENT_TEST_PLAN.md)
-- [Public Viewer Type Definitions](/apps/public-viewer/type.ts)
+- [E2Eテストガイド](https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/test/e2e/README.md)
+- [Public Viewer Type Definitions](https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/apps/public-viewer/type.ts)
 - [Playwright Route Mocking](https://playwright.dev/docs/mock)
