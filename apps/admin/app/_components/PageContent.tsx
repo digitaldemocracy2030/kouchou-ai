@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { Report } from "@/type";
 import { Box, Flex, HStack, Heading, Icon, Text, VStack } from "@chakra-ui/react";
 import { Eye, EyeClosedIcon, LockKeyhole, Plus } from "lucide-react";
@@ -29,30 +30,41 @@ export function PageContent({ reports }: Props) {
         <Flex justifyContent="space-between">
           <Heading textStyle="heading/xl">レポート管理</Heading>
           <Flex gap="3">
-            <VStack gap="2" w="88px" h="80px" bg="white" justifyContent="center">
-              <Icon color="font.public">
-                <Eye />
-              </Icon>
-              <Text textStyle="body/lg/bold" lineHeight="1.38">
-                {counts.public}
-              </Text>
-            </VStack>
-            <VStack gap="2" w="88px" h="80px" bg="white" justifyContent="center">
-              <Icon color="font.limitedPublic">
-                <LockKeyhole />
-              </Icon>
-              <Text textStyle="body/lg/bold" lineHeight="1.38">
-                {counts.unlisted}
-              </Text>
-            </VStack>
-            <VStack gap="2" w="88px" h="80px" bg="white" justifyContent="center">
-              <Icon color="font.error">
-                <EyeClosedIcon />
-              </Icon>
-              <Text textStyle="body/lg/bold" lineHeight="1.38">
-                {counts.private}
-              </Text>
-            </VStack>
+            <Tooltip showArrow openDelay={300} closeDelay={100} content={<Text textStyle="body/sm/bold">公開</Text>}>
+              <VStack gap="2" w="88px" h="80px" bg="white" justifyContent="center">
+                <Icon color="font.public">
+                  <Eye />
+                </Icon>
+                <Text textStyle="body/lg/bold" lineHeight="1.38">
+                  {counts.public}
+                </Text>
+              </VStack>
+            </Tooltip>
+            <Tooltip
+              showArrow
+              openDelay={300}
+              closeDelay={100}
+              content={<Text textStyle="body/sm/bold">限定公開</Text>}
+            >
+              <VStack gap="2" w="88px" h="80px" bg="white" justifyContent="center">
+                <Icon color="font.limitedPublic">
+                  <LockKeyhole />
+                </Icon>
+                <Text textStyle="body/lg/bold" lineHeight="1.38">
+                  {counts.unlisted}
+                </Text>
+              </VStack>
+            </Tooltip>
+            <Tooltip showArrow openDelay={300} closeDelay={100} content={<Text textStyle="body/sm/bold">非公開</Text>}>
+              <VStack gap="2" w="88px" h="80px" bg="white" justifyContent="center">
+                <Icon color="font.error">
+                  <EyeClosedIcon />
+                </Icon>
+                <Text textStyle="body/lg/bold" lineHeight="1.38">
+                  {counts.private}
+                </Text>
+              </VStack>
+            </Tooltip>
           </Flex>
         </Flex>
       </Box>

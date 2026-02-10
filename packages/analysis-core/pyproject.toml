@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gemini = ["google-generativeai>=0.8.4"]
+gemini = ["google-genai>=1.0.0"]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",

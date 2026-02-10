@@ -103,7 +103,7 @@ def main() -> int:
             return 0
 
         # Execute the pipeline
-        print(f"Starting pipeline execution...")
+        print("Starting pipeline execution...")
         print(f"  Config: {args.config}")
         print(f"  Output: {orchestrator.output_base_dir}")
         print()

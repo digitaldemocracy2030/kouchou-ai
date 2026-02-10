@@ -37,6 +37,9 @@ ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 ENV API_BASEPATH=${API_BASEPATH}
 ENV NEXT_DISABLE_FETCH_DURING_BUILD=true
 
+COPY --from=builder /repo/package.json /repo/
+COPY --from=builder /repo/pnpm-workspace.yaml /repo/
+COPY --from=builder /repo/.npmrc /repo/
 COPY --from=builder /repo/node_modules /repo/node_modules
 COPY --from=builder /repo/packages/report-schema /repo/packages/report-schema
 COPY --from=builder /repo/apps/public-viewer /repo/apps/public-viewer

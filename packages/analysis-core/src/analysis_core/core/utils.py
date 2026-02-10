@@ -4,8 +4,6 @@ Utility functions for the analysis pipeline.
 Migrated from apps/api/broadlistening/pipeline/utils.py
 """
 
-from typing import Any
-
 
 def typed_message(t: str, m: str) -> dict[str, str]:
     """
