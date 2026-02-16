@@ -107,7 +107,7 @@ def extract_batch(
 ):
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures_with_index = [
-            (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address))
+            (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address, timeout_seconds))
             for i, input in enumerate(batch)
         ]
 
@@ -148,7 +148,14 @@ def extract_batch(
         return results
 
 
-def extract_arguments(input, prompt, model, provider="openai", local_llm_address=None):
+def extract_arguments(
+    input,
+    prompt,
+    model,
+    provider="openai",
+    local_llm_address=None,
+    timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
+):
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
@@ -162,6 +169,7 @@ def extract_arguments(input, prompt, model, provider="openai", local_llm_address
             provider=provider,
             local_llm_address=local_llm_address,
             user_api_key=os.getenv("USER_API_KEY"),
+            timeout_seconds=timeout_seconds,
         )
         items = parse_extraction_response(response)
         items = list(filter(None, items))  # omit empty strings

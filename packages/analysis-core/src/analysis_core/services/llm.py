@@ -211,6 +211,7 @@ def request_to_gemini_chatcompletion(
     is_json: bool = False,
     json_schema: dict | type[BaseModel] | None = None,
     user_api_key: str | None = None,
+    timeout_seconds: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> tuple[str, int, int, int]:
     token_usage_input = 0
     token_usage_output = 0
@@ -273,6 +274,8 @@ def request_to_gemini_chatcompletion(
     config: dict[str, Any] = {}
     if system_instruction:
         config["system_instruction"] = system_instruction
+    # google-genai の HttpOptions.timeout はミリ秒指定
+    config["http_options"] = {"timeout": int(timeout_seconds * 1000)}
 
     # Pydantic → 素のJSONスキーマ化
     if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
@@ -517,7 +520,7 @@ def request_to_chat_ai(
         address = local_llm_address or "localhost:11434"
         return request_to_local_llm(messages, model, is_json, json_schema, address, timeout_seconds)
     elif provider == "gemini":
-        return request_to_gemini_chatcompletion(messages, model, is_json, json_schema, user_api_key)
+        return request_to_gemini_chatcompletion(messages, model, is_json, json_schema, user_api_key, timeout_seconds)
     elif provider == "openrouter":
         # OpenRouterのモデル名を直接使用
         return request_to_openrouter_chatcompletion(messages, model, is_json, json_schema, user_api_key, timeout_seconds)
