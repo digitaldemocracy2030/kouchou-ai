@@ -21,6 +21,7 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover - library might b
 # Load environment variables from .env file if present
 # Look in current directory first, then parent directories
 load_dotenv()
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 300
 
 
 @retry(
@@ -35,6 +36,7 @@ def request_to_openai(
     is_json: bool = False,
     json_schema: dict | type[BaseModel] | None = None,
     user_api_key: str | None = None,
+    timeout_seconds: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> tuple[str, int, int, int]:  # 戻り値を文字列とトークン使用量(入力・出力・合計)のタプルに変更
     openai.api_type = "openai"
     token_usage_input = 0  # 入力トークン使用量を追跡する変数
@@ -53,7 +55,7 @@ def request_to_openai(
                 n=1,
                 seed=0,
                 response_format=json_schema,
-                timeout=30,
+                timeout=timeout_seconds,
             )
             if hasattr(response, "usage") and response.usage:
                 token_usage_input = response.usage.prompt_tokens or 0
@@ -74,7 +76,7 @@ def request_to_openai(
                 "temperature": 0,
                 "n": 1,
                 "seed": 0,
-                "timeout": 30,
+                "timeout": timeout_seconds,
             }
             if response_format:
                 payload["response_format"] = response_format
@@ -109,6 +111,7 @@ def request_to_azure_chatcompletion(
     is_json: bool = False,
     json_schema: dict | type[BaseModel] | None = None,
     user_api_key: str | None = None,
+    timeout_seconds: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> tuple[str, int, int, int]:  # 戻り値を文字列とトークン使用量(入力・出力・合計)のタプルに変更
     azure_endpoint = os.getenv("AZURE_CHATCOMPLETION_ENDPOINT")
     deployment = os.getenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME")
@@ -153,7 +156,7 @@ def request_to_azure_chatcompletion(
                 n=1,
                 seed=0,
                 response_format=json_schema,
-                timeout=30,
+                timeout=timeout_seconds,
             )
             if hasattr(response, "usage") and response.usage:
                 token_usage_input = response.usage.prompt_tokens or 0
@@ -178,7 +181,7 @@ def request_to_azure_chatcompletion(
                 "temperature": 0,
                 "n": 1,
                 "seed": 0,
-                "timeout": 30,
+                "timeout": timeout_seconds,
             }
             if response_format:
                 payload["response_format"] = response_format
@@ -395,6 +398,7 @@ def request_to_local_llm(
     is_json: bool = False,
     json_schema: dict | type[BaseModel] | None = None,
     address: str = "localhost:11434",
+    timeout_seconds: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> tuple[str, int, int, int]:  # 戻り値を文字列とトークン使用量(入力・出力・合計)のタプルに変更
     """ローカルLLM（OllamaやLM Studio）にリクエストを送信する関数
 
@@ -454,7 +458,7 @@ def request_to_local_llm(
             "temperature": 0,
             "n": 1,
             "seed": 0,
-            "timeout": 30,
+            "timeout": timeout_seconds,
         }
 
         if response_format:
@@ -483,6 +487,7 @@ def request_to_chat_ai(
     provider: str = "openai",
     local_llm_address: str | None = None,
     user_api_key: str | None = None,
+    timeout_seconds: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> tuple[str, int, int, int]:  # 戻り値を文字列とトークン使用量(入力・出力・合計)のタプルに変更
     """AIプロバイダーにチャットリクエストを送信する関数
 
@@ -505,17 +510,17 @@ def request_to_chat_ai(
         - provider="gemini": Google Gemini APIを使用
     """
     if provider == "azure":
-        return request_to_azure_chatcompletion(messages, is_json, json_schema, user_api_key)
+        return request_to_azure_chatcompletion(messages, is_json, json_schema, user_api_key, timeout_seconds)
     elif provider == "openai":
-        return request_to_openai(messages, model, is_json, json_schema, user_api_key)
+        return request_to_openai(messages, model, is_json, json_schema, user_api_key, timeout_seconds)
     elif provider == "local":
         address = local_llm_address or "localhost:11434"
-        return request_to_local_llm(messages, model, is_json, json_schema, address)
+        return request_to_local_llm(messages, model, is_json, json_schema, address, timeout_seconds)
     elif provider == "gemini":
         return request_to_gemini_chatcompletion(messages, model, is_json, json_schema, user_api_key)
     elif provider == "openrouter":
         # OpenRouterのモデル名を直接使用
-        return request_to_openrouter_chatcompletion(messages, model, is_json, json_schema, user_api_key)
+        return request_to_openrouter_chatcompletion(messages, model, is_json, json_schema, user_api_key, timeout_seconds)
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
@@ -851,6 +856,7 @@ def request_to_openrouter_chatcompletion(
     is_json: bool = False,
     json_schema: dict | type[BaseModel] = None,
     user_api_key: str | None = None,
+    timeout_seconds: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> tuple[str, int, int, int]:  # 戻り値を文字列とトークン使用量(入力・出力・合計)のタプルに変更
     api_key = user_api_key or os.getenv("OPENROUTER_API_KEY")
     if not api_key:
@@ -874,7 +880,7 @@ def request_to_openrouter_chatcompletion(
                 n=1,
                 seed=0,
                 response_format=json_schema,
-                timeout=30,
+                timeout=timeout_seconds,
             )
             if hasattr(response, "usage") and response.usage:
                 token_usage_input = response.usage.prompt_tokens or 0
@@ -888,7 +894,7 @@ def request_to_openrouter_chatcompletion(
                 "temperature": 0,
                 "n": 1,
                 "seed": 0,
-                "timeout": 30,
+                "timeout": timeout_seconds,
             }
 
             if is_json:
