@@ -40,6 +40,8 @@ class TestEmptyCommentFiltering:
         ])
         result = _filter_empty_comments(df)
         assert len(result) == 3
+        assert result["comment-id"].to_list() == ["1", "2", "3"]
+        assert result["comment-body"].to_list() == ["first comment", "second comment", "third comment"]
 
     def test_all_empty_raises_error(self):
         """When all comments are empty, a RuntimeError should be raised."""
@@ -63,3 +65,21 @@ class TestEmptyCommentFiltering:
         result = _filter_empty_comments(df)
         assert len(result) == 2
         assert result["comment-id"].to_list() == ["1", "4"]
+
+    def test_filters_null_comments(self):
+        """Null (None) comment-body values should be removed."""
+        df = pl.DataFrame(
+            {"comment-id": ["1", "2", "3"], "comment-body": ["valid comment", None, "another valid"]}
+        )
+        result = _filter_empty_comments(df)
+        assert len(result) == 2
+        assert result["comment-id"].to_list() == ["1", "3"]
+        assert result["comment-body"].to_list() == ["valid comment", "another valid"]
+
+    def test_all_null_raises_error(self):
+        """When all comment-body values are None, a RuntimeError should be raised."""
+        df = pl.DataFrame(
+            {"comment-id": ["1", "2", "3"], "comment-body": [None, None, None]}
+        )
+        with pytest.raises(RuntimeError, match="All comments are empty"):
+            _filter_empty_comments(df)
