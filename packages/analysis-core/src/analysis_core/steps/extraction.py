@@ -25,6 +25,23 @@ def _validate_property_columns(property_columns: list[str], comments: pl.DataFra
         raise ValueError(f"Properties {property_columns} not found in comments. Columns are {comments.columns}")
 
 
+def _filter_empty_comments(comments: pl.DataFrame) -> pl.DataFrame:
+    """Filter out rows where comment-body is null or contains only whitespace.
+
+    Logs the number of filtered rows and raises RuntimeError if all comments are empty.
+    """
+    original_count = len(comments)
+    filtered = comments.filter(
+        pl.col("comment-body").is_not_null() & (pl.col("comment-body").str.strip_chars() != "")
+    )
+    filtered_count = original_count - len(filtered)
+    if filtered_count > 0:
+        logging.info("Filtered out %d empty/whitespace-only comments out of %d", filtered_count, original_count)
+    if len(filtered) == 0:
+        raise RuntimeError("All comments are empty or whitespace-only after filtering")
+    return filtered
+
+
 def extraction(config):
     """Extract arguments from comments using LLM, skipping empty/whitespace-only entries."""
     dataset = config["output_dir"]
@@ -49,15 +66,7 @@ def extraction(config):
     comments = pl.read_csv(input_path, columns=["comment-id", "comment-body"] + config["extraction"]["properties"])
 
     # 空文字列・空白のみのコメントを除外する (#583)
-    original_count = len(comments)
-    comments = comments.filter(
-        pl.col("comment-body").is_not_null() & (pl.col("comment-body").str.strip_chars() != "")
-    )
-    filtered_count = original_count - len(comments)
-    if filtered_count > 0:
-        logging.info(f"Filtered out {filtered_count} empty/whitespace-only comments out of {original_count}")
-    if len(comments) == 0:
-        raise RuntimeError("All comments are empty or whitespace-only after filtering")
+    comments = _filter_empty_comments(comments)
 
     comment_ids = comments["comment-id"].to_list()[:limit]
     comments_lookup = {row["comment-id"]: row for row in comments.iter_rows(named=True)}
