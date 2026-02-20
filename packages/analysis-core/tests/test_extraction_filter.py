@@ -11,6 +11,7 @@ class TestEmptyCommentFiltering:
     """Test filtering of empty/whitespace-only comments before LLM processing."""
 
     def _create_csv(self, rows: list[dict], path: str) -> None:
+        """Write a list of dicts as a CSV file to the given path."""
         df = pl.DataFrame(rows)
         df.write_csv(path)
 

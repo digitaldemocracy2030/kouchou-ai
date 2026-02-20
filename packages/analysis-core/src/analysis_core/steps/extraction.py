@@ -25,6 +25,7 @@ def _validate_property_columns(property_columns: list[str], comments: pl.DataFra
 
 
 def extraction(config):
+    """Extract arguments from comments using LLM, skipping empty/whitespace-only entries."""
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
     input_base_dir = config.get("_input_base_dir", "inputs")
