@@ -20,6 +20,7 @@ class ExtractionResponse(BaseModel):
 
 
 def _validate_property_columns(property_columns: list[str], comments: pl.DataFrame) -> None:
+    """Raise ValueError if any required property column is missing from the DataFrame."""
     if not all(property in comments.columns for property in property_columns):
         raise ValueError(f"Properties {property_columns} not found in comments. Columns are {comments.columns}")
 
@@ -107,6 +108,7 @@ def extraction(config):
 
 
 def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_address=None, config=None):
+    """Run argument extraction concurrently for a batch of comment texts."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures_with_index = [
             (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address))
@@ -151,6 +153,7 @@ def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_ad
 
 
 def extract_arguments(input, prompt, model, provider="openai", local_llm_address=None):
+    """Send a single comment to the LLM and return extracted arguments."""
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
