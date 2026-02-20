@@ -42,6 +42,11 @@ def _filter_empty_comments(comments: pl.DataFrame) -> pl.DataFrame:
     return filtered
 
 
+def filter_empty_comments(comments: pl.DataFrame) -> pl.DataFrame:
+    """Public wrapper for filtering empty/whitespace-only comments before LLM processing."""
+    return _filter_empty_comments(comments)
+
+
 def extraction(config):
     """Extract arguments from comments using LLM, skipping empty/whitespace-only entries."""
     dataset = config["output_dir"]

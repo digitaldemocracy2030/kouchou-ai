@@ -3,7 +3,7 @@
 import polars as pl
 import pytest
 
-from analysis_core.steps.extraction import _filter_empty_comments
+from analysis_core.steps.extraction import filter_empty_comments as _filter_empty_comments
 
 
 class TestEmptyCommentFiltering:
