@@ -45,6 +45,18 @@ def extraction(config):
     _validate_property_columns(property_columns, comments)
     # エラーが出なかった場合、すべての行を読み込む
     comments = pl.read_csv(input_path, columns=["comment-id", "comment-body"] + config["extraction"]["properties"])
+
+    # 空文字列・空白のみのコメントを除外する (#583)
+    original_count = len(comments)
+    comments = comments.filter(
+        pl.col("comment-body").is_not_null() & (pl.col("comment-body").str.strip_chars() != "")
+    )
+    filtered_count = original_count - len(comments)
+    if filtered_count > 0:
+        logging.info(f"Filtered out {filtered_count} empty/whitespace-only comments out of {original_count}")
+    if len(comments) == 0:
+        raise RuntimeError("All comments are empty or whitespace-only after filtering")
+
     comment_ids = comments["comment-id"].to_list()[:limit]
     comments_lookup = {row["comment-id"]: row for row in comments.iter_rows(named=True)}
     update_progress(config, total=len(comment_ids))
