@@ -13,8 +13,9 @@ function reporterImageSrc() {
 }
 
 async function hasReporterImage() {
-  const url = new URL(imagePath, process.env.API_BASEPATH).toString();
+  if (!process.env.API_BASEPATH) return false;
   try {
+    const url = new URL(imagePath, process.env.API_BASEPATH).toString();
     const res = await fetch(url);
     return res.status === 200;
   } catch {
