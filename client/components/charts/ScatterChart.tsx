@@ -361,6 +361,7 @@ export function ScatterChart({
           data={plotData as unknown as Data[]}
           layout={
             {
+              uirevision: "scatter", // ズーム・パン状態をデータ更新後も保持する
               margin: { l: 0, r: 0, b: 0, t: 0 },
               xaxis: {
                 zeroline: false,

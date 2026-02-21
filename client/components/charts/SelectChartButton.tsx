@@ -1,4 +1,4 @@
-import { AllViewIcon, DenseViewIcon, HierarchyViewIcon } from "@/components/icons/ViewIcons";
+import { AllViewIcon, DenseViewIcon, DetailViewIcon, HierarchyViewIcon } from "@/components/icons/ViewIcons";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Box, Button, HStack, Icon, SegmentGroup, Stack } from "@chakra-ui/react";
 import { CogIcon, Filter, FullscreenIcon } from "lucide-react"; // Filter アイコンをインポート
@@ -59,6 +59,11 @@ export function SelectChartButton({
       isDisabled: false,
     },
     {
+      value: "scatterDetail",
+      label: SegmentItemWithIcon(DetailViewIcon, "詳細クラスタ", selected === "scatterDetail"),
+      isDisabled: false,
+    },
+    {
       value: "scatterDensity",
       label: SegmentItemWithIcon(DenseViewIcon, "濃い意見", selected === "scatterDensity"),
       isDisabled: !isDenseGroupEnabled,
@@ -89,7 +94,7 @@ export function SelectChartButton({
           h={["80px", null, "56px"]}
         >
           <SegmentGroup.Indicator bg="white" border="1px solid #E4E4E7" boxShadow="0 4px 6px 0 rgba(0, 0, 0, 0.1)" />
-          <SegmentGroup.Items items={items} w={["calc(100% / 3)", null, "162px"]} h="100%" cursor="pointer" />
+          <SegmentGroup.Items items={items} w={["calc(100% / 4)", null, "162px"]} h="100%" cursor="pointer" />
         </SegmentGroup.Root>
 
         <HStack gap={1} justifySelf={["end"]} alignSelf={"center"}>

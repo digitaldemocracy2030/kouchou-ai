@@ -118,7 +118,7 @@ export function Chart({
                     </Button>
                   </Tooltip>
                 </HStack>
-                {(selectedChart === "scatterAll" || selectedChart === "scatterDensity") && (
+                {(selectedChart === "scatterAll" || selectedChart === "scatterDensity" || selectedChart === "scatterDetail") && (
                   <ScatterChart
                     clusterList={result.clusters}
                     argumentList={result.arguments}
@@ -161,7 +161,7 @@ export function Chart({
             filteredArgumentIds={filteredArgumentIds}
           />
         )}
-        {(selectedChart === "scatterAll" || selectedChart === "scatterDensity") && (
+        {(selectedChart === "scatterAll" || selectedChart === "scatterDensity" || selectedChart === "scatterDetail") && (
           <ScatterChart
             clusterList={result.clusters}
             argumentList={result.arguments}
