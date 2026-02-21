@@ -282,13 +282,11 @@ export function ClientContainer({ result }: Props) {
   const handleCloseAttributeFilter = () => setOpenAttributeFilter(false);
   const handleChartChange = (selectedChart: string) => {
     setSelectedChart(selectedChart);
-    if (selectedChart === "scatterAll") updateFilteredResult(1, 0, attributeFilters, textSearch);
-    if (selectedChart === "scatterDetail") updateFilteredResult(1, 0, attributeFilters, textSearch);
-    if (selectedChart === "treemap") {
-      // 属性フィルターをリセットせずに維持
+    if (selectedChart === "scatterDensity") {
+      updateFilteredResult(maxDensity, minValue, attributeFilters, textSearch);
+    } else {
       updateFilteredResult(1, 0, attributeFilters, textSearch);
     }
-    if (selectedChart === "scatterDensity") updateFilteredResult(maxDensity, minValue, attributeFilters, textSearch);
   };
   const handleClickDensitySetting = () => setOpenDensityFilterSetting(true);
   const handleClickFullscreen = () => setIsFullscreen(true);

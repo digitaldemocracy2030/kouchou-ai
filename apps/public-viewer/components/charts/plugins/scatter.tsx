@@ -25,6 +25,12 @@ export const scatterPlugin: ChartPlugin = {
         id: "scatterDetail",
         label: "詳細クラスタ",
         icon: DetailViewIcon,
+        canBeDisabled: true,
+        isDisabled: (result) => {
+          const maxLevel = Math.max(...result.clusters.map((c) => c.level));
+          return maxLevel <= 1;
+        },
+        disabledTooltip: "クラスタが1階層のみのため利用できません",
       },
       {
         id: "scatterDensity",

@@ -1,4 +1,3 @@
-// filepath: c:\Users\shinta\Documents\GitHub\kouchou-ai\client\components\charts\ScatterChart.tsx
 import type { Argument, Cluster, Config } from "@/type";
 import { Box } from "@chakra-ui/react";
 import type { Annotations, Data, Layout, PlotMouseEvent } from "plotly.js";
