@@ -11,7 +11,7 @@ import { useMemo } from "react";
 ensurePluginsLoaded();
 
 /** Default enabled charts (maintains backward compatibility) */
-const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDensity", "treemap"];
+const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDetail", "scatterDensity", "treemap"];
 
 type Props = {
   selected: string;

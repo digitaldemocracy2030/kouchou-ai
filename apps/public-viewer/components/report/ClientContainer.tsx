@@ -21,7 +21,7 @@ import { type NumericRangeFilters, filterSamples } from "./attributeFilterUtils"
 ensurePluginsLoaded();
 
 /** Default enabled charts (backward compatibility) */
-const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDensity", "treemap"];
+const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDetail", "scatterDensity", "treemap"];
 
 type Props = {
   result: Result;
@@ -249,7 +249,7 @@ export function ClientContainer({ result }: Props) {
     setIncludeEmptyValues(includeEmpty);
     setEnabledRanges(enabledRanges_);
     setTextSearch(textSearchString);
-    if (selectedChart === "scatterAll" || selectedChart === "scatterDensity") {
+    if (selectedChart === "scatterAll" || selectedChart === "scatterDetail" || selectedChart === "scatterDensity") {
       updateFilteredResult(
         selectedChart === "scatterDensity" ? maxDensity : 1,
         selectedChart === "scatterDensity" ? minValue : 0,
@@ -267,7 +267,7 @@ export function ClientContainer({ result }: Props) {
   // --- クラスタ表示 ---
   const clustersToDisplay = useMemo(() => {
     let c: Cluster[] = [];
-    if (selectedChart === "scatterDensity") {
+    if (selectedChart === "scatterDensity" || selectedChart === "scatterDetail") {
       const max = Math.max(...filteredResult.clusters.map((c) => c.level));
       c = filteredResult.clusters.filter((c) => c.level === max);
     } else {
@@ -283,6 +283,7 @@ export function ClientContainer({ result }: Props) {
   const handleChartChange = (selectedChart: string) => {
     setSelectedChart(selectedChart);
     if (selectedChart === "scatterAll") updateFilteredResult(1, 0, attributeFilters, textSearch);
+    if (selectedChart === "scatterDetail") updateFilteredResult(1, 0, attributeFilters, textSearch);
     if (selectedChart === "treemap") {
       // 属性フィルターをリセットせずに維持
       updateFilteredResult(1, 0, attributeFilters, textSearch);

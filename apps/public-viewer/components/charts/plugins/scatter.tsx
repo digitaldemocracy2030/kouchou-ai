@@ -1,10 +1,10 @@
 /**
  * Scatter Chart Plugin
  *
- * Handles both "scatterAll" and "scatterDensity" visualization modes.
+ * Handles "scatterAll", "scatterDetail", and "scatterDensity" visualization modes.
  */
 
-import { AllViewIcon, DenseViewIcon } from "@/components/icons/ViewIcons";
+import { AllViewIcon, DenseViewIcon, DetailViewIcon } from "@/components/icons/ViewIcons";
 import { ScatterChart } from "../ScatterChart";
 import type { ChartPlugin, ChartRenderContext } from "./types";
 
@@ -20,6 +20,11 @@ export const scatterPlugin: ChartPlugin = {
         id: "scatterAll",
         label: "全体",
         icon: AllViewIcon,
+      },
+      {
+        id: "scatterDetail",
+        label: "詳細クラスタ",
+        icon: DetailViewIcon,
       },
       {
         id: "scatterDensity",
@@ -38,13 +43,15 @@ export const scatterPlugin: ChartPlugin = {
   },
 
   canHandle: (mode: string) => {
-    return mode === "scatterAll" || mode === "scatterDensity";
+    return mode === "scatterAll" || mode === "scatterDetail" || mode === "scatterDensity";
   },
 
   render: (context: ChartRenderContext) => {
     const { result, selectedChart, filteredArgumentIds, showClusterLabels, onHover } = context;
 
     // Calculate target level based on mode
+    // scatterAll: top-level clusters (level 1)
+    // scatterDetail / scatterDensity: deepest-level clusters
     const targetLevel = selectedChart === "scatterAll" ? 1 : Math.max(...result.clusters.map((c) => c.level));
 
     return (
