@@ -275,30 +275,6 @@ export function ScatterChart({
     };
   });
 
-  // 凸包トレースの生成（scatterDetail モード用）
-  const hullTraces = showConvexHull
-    ? targetClusters.flatMap((cluster) => {
-        const clusterArguments = allArguments.filter((arg) => arg.cluster_ids.includes(cluster.id));
-        if (clusterArguments.length < 3) return [];
-        const hull = convexHull(clusterArguments.map((arg) => [arg.x, arg.y]));
-        if (hull.length < 3) return [];
-        const color = clusterColorMap[cluster.id];
-        return [
-          {
-            x: [...hull.map((p) => p[0]), hull[0][0]],
-            y: [...hull.map((p) => p[1]), hull[0][1]],
-            mode: "lines",
-            fill: "toself",
-            fillcolor: `${color}33`,
-            line: { color, width: 1.5 },
-            type: "scatter",
-            hoverinfo: "skip",
-            showlegend: false,
-          },
-        ];
-      })
-    : [];
-
   // 描画用のデータセットを作成
   const plotData = clusterDataSets.flatMap((dataSet) => {
     const result = [];
@@ -349,8 +325,27 @@ export function ScatterChart({
     return result;
   });
 
-  // 凸包を最背面に挿入
-  const allPlotData = [...hullTraces, ...plotData];
+  // 凸包シェイプの生成（scatterDetail モード用、layout.shapes で描画）
+  const hullShapes = showConvexHull
+    ? targetClusters.flatMap((cluster) => {
+        const clusterArguments = allArguments.filter((arg) => arg.cluster_ids.includes(cluster.id));
+        if (clusterArguments.length < 3) return [];
+        const hull = convexHull(clusterArguments.map((arg) => [arg.x, arg.y]));
+        if (hull.length < 3) return [];
+        const color = clusterColorMap[cluster.id];
+        const path = `M ${hull.map((p) => `${p[0]},${p[1]}`).join(" L ")} Z`;
+        return [
+          {
+            type: "path" as const,
+            path,
+            xref: "x" as const,
+            yref: "y" as const,
+            fillcolor: `${color}33`,
+            line: { color, width: 1.5 },
+          },
+        ];
+      })
+    : [];
 
   // アノテーションの設定
   const annotations: Partial<Annotations>[] = showClusterLabels
@@ -386,7 +381,7 @@ export function ScatterChart({
     <Box width="100%" height="100%" display="flex" flexDirection="column">
       <Box position="relative" flex="1">
         <ChartCore
-          data={allPlotData as unknown as Data[]}
+          data={plotData as unknown as Data[]}
           layout={
             {
               uirevision: "scatter", // ズーム・パン状態をデータ更新後も保持する
@@ -404,6 +399,7 @@ export function ScatterChart({
               hovermode: "closest",
               dragmode: "pan", // ドラッグによる移動（パン）を有効化
               annotations,
+              shapes: hullShapes,
               showlegend: false,
             } as Partial<Layout>
           }
