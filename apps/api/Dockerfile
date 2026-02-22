@@ -33,7 +33,8 @@ RUN set -- /packages/analysis-core && \
     fi && \
     if [ "$WITH_GPU" != "true" ]; then \
         set -- --index-url https://pypi.org/simple/ \
-               --extra-index-url https://download.pytorch.org/whl/cpu "$@"; \
+               --extra-index-url https://download.pytorch.org/whl/cpu \
+               --index-strategy unsafe-first-match "$@"; \
     fi && \
     echo "Installing dependencies (GPU=$WITH_GPU, ENV=$ENVIRONMENT)" && \
     uv pip install --no-cache --system "$@"
