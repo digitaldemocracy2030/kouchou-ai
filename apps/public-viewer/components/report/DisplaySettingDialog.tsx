@@ -43,7 +43,7 @@ export function DisplaySettingDialog({
               表示設定
             </Text>
             <Text fontSize="sm" mb={5}>
-              「全体図」および「濃い意見グループ」に関する設定項目です。
+              「全体図」「詳細クラスタ」および「濃い意見グループ」に関する設定項目です。
             </Text>
             <Box p={2} borderRadius="md" borderWidth="1px" borderColor="gray.200" mb={2}>
               <HStack gap={2} alignItems="center">

@@ -58,7 +58,7 @@ export const scatterPlugin: ChartPlugin = {
     // Calculate target level based on mode
     // scatterAll: top-level clusters (level 1)
     // scatterDetail / scatterDensity: deepest-level clusters
-    const targetLevel = selectedChart === "scatterAll" ? 1 : Math.max(...result.clusters.map((c) => c.level));
+    const targetLevel = selectedChart === "scatterAll" ? 1 : Math.max(1, ...result.clusters.map((c) => c.level));
 
     return (
       <ScatterChart

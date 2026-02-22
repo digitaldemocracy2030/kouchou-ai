@@ -268,6 +268,7 @@ export function ScatterChart({
 
     return {
       cluster,
+      allClusterArguments,
       notMatchingData,
       matchingData,
       centerX,
@@ -325,13 +326,16 @@ export function ScatterChart({
     return result;
   });
 
-  // 凸包トレースの生成（scatterDetail モード用）
-  // hoveron: "fills" でポリゴン内部にホバーするとクラスタ名を表示する
+  // 凸包トレースの生成（scatterAll / scatterDetail モード用）
+  // NOTE: hull trace は意図的に type: "scatter"（SVG）を使用している。
+  // hoveron: "fills" はSVGレイヤーのみでサポートされており、
+  // scattergl（WebGL）では動作しない。また Plotly の z-order により
+  // SVGトレースはWebGLトレースの背面に自動配置されるため、scatter点の
+  // 下に凸包が描画される。この SVG/WebGL 混在は意図的な設計である。
   const hullTraces = showConvexHull
-    ? targetClusters.flatMap((cluster) => {
-        const clusterArguments = allArguments.filter((arg) => arg.cluster_ids.includes(cluster.id));
-        if (clusterArguments.length < 3) return [];
-        const hull = convexHull(clusterArguments.map((arg) => [arg.x, arg.y]));
+    ? clusterDataSets.flatMap(({ cluster, allClusterArguments }) => {
+        if (allClusterArguments.length < 3) return [];
+        const hull = convexHull(allClusterArguments.map((arg) => [arg.x, arg.y]));
         if (hull.length < 3) return [];
         const color = clusterColorMap[cluster.id];
         return [
@@ -484,7 +488,7 @@ function convexHull(points: [number, number][]): [number, number][] {
       if (cross < 0) next = i;
     }
     current = next;
-  } while (current !== start && hull.length <= points.length);
+  } while (current !== start && hull.length < points.length);
 
   return hull;
 }

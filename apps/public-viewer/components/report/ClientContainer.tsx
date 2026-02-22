@@ -287,6 +287,8 @@ export function ClientContainer({ result }: Props) {
     if (selectedChart === "scatterDensity") {
       updateFilteredResult(maxDensity, minValue, attributeFilters, textSearch);
     } else {
+      // scatterAll / scatterDetail / treemap / hierarchyList 等は密度フィルタなし（maxDensity=1, minValue=0）。
+      // treemap 等でも updateFilteredResult を呼ぶが、maxDensity=1, minValue=0 では全クラスタが返るため実質影響なし。
       updateFilteredResult(1, 0, attributeFilters, textSearch);
     }
   };
