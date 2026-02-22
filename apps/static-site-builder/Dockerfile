@@ -39,6 +39,9 @@ COPY --from=builder /repo/package.json /repo/pnpm-workspace.yaml /repo/.npmrc ./
 COPY --from=builder /repo/node_modules ./node_modules
 COPY --from=builder /repo/packages ./packages
 COPY --from=builder /repo/apps/public-viewer ./apps/public-viewer
+# Remove per-package node_modules/.bin shims whose relative paths point to the wrong location
+# due to shamefully-hoist=true; pnpm's PATH injection falls back to /repo/node_modules/.bin/next
+RUN rm -rf apps/public-viewer/node_modules
 COPY --from=builder /repo/apps/static-site-builder/package.json ./apps/static-site-builder/
 COPY --from=builder /repo/apps/static-site-builder/dist ./apps/static-site-builder/dist
 COPY ./apps/api/public /repo/apps/api/public

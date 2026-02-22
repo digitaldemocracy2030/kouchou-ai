@@ -22,8 +22,9 @@ COPY packages/analysis-core /packages/analysis-core
 
 # Install all dependencies in a single RUN to prevent torch from being installed
 # multiple times across Docker layers, which causes significant image bloat.
-# torch is already pinned in requirements.lock / requirements-dev.lock (via sentence-transformers).
-# For CPU mode, use the PyTorch CPU-only index to avoid downloading CUDA binaries.
+# torch is resolved as a transitive dependency of analysis-core.
+# For CPU mode, use the PyTorch CPU-only index as --extra-index-url so it takes
+# priority over the primary PyPI index (uv searches extra indexes first).
 RUN set -- /packages/analysis-core && \
     if [ "$ENVIRONMENT" = "development" ]; then \
         set -- "$@" -r requirements-dev.lock; \
@@ -31,8 +32,8 @@ RUN set -- /packages/analysis-core && \
         set -- "$@" -r requirements.lock; \
     fi && \
     if [ "$WITH_GPU" != "true" ]; then \
-        set -- --index-url https://download.pytorch.org/whl/cpu \
-               --extra-index-url https://pypi.org/simple/ "$@"; \
+        set -- --index-url https://pypi.org/simple/ \
+               --extra-index-url https://download.pytorch.org/whl/cpu "$@"; \
     fi && \
     echo "Installing dependencies (GPU=$WITH_GPU, ENV=$ENVIRONMENT)" && \
     uv pip install --no-cache --system "$@"
