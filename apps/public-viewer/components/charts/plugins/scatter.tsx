@@ -53,7 +53,7 @@ export const scatterPlugin: ChartPlugin = {
   },
 
   render: (context: ChartRenderContext) => {
-    const { result, selectedChart, filteredArgumentIds, showClusterLabels, onHover } = context;
+    const { result, selectedChart, filteredArgumentIds, showClusterLabels, showConvexHull, onHover } = context;
 
     // Calculate target level based on mode
     // scatterAll: top-level clusters (level 1)
@@ -69,7 +69,7 @@ export const scatterPlugin: ChartPlugin = {
         showClusterLabels={showClusterLabels}
         filteredArgumentIds={filteredArgumentIds}
         config={result.config}
-        showConvexHull={selectedChart === "scatterDetail" || selectedChart === "scatterAll"}
+        showConvexHull={(selectedChart === "scatterDetail" || selectedChart === "scatterAll") && (showConvexHull ?? true)}
       />
     );
   },

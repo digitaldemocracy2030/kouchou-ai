@@ -59,6 +59,7 @@ export function ClientContainer({ result }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDenseGroupEnabled, setIsDenseGroupEnabled] = useState(true);
   const [showClusterLabels, setShowClusterLabels] = useState(defaultParams?.showClusterLabels ?? true);
+  const [showConvexHull, setShowConvexHull] = useState(true);
   const [treemapLevel, setTreemapLevel] = useState("0");
 
   // --- 標本データ生成 ---
@@ -279,6 +280,7 @@ export function ClientContainer({ result }: Props) {
   // --- その他UIハンドラ ---
   const handleCloseDisplaySetting = () => setOpenDensityFilterSetting(false);
   const handleToggleClusterLabels = (value: boolean) => setShowClusterLabels(value);
+  const handleToggleConvexHull = (value: boolean) => setShowConvexHull(value);
   const handleCloseAttributeFilter = () => setOpenAttributeFilter(false);
   const handleChartChange = (selectedChart: string) => {
     setSelectedChart(selectedChart);
@@ -305,6 +307,8 @@ export function ClientContainer({ result }: Props) {
           onChangeFilter={onChangeDensityFilter}
           showClusterLabels={showClusterLabels}
           onToggleClusterLabels={handleToggleClusterLabels}
+          showConvexHull={showConvexHull}
+          onToggleConvexHull={handleToggleConvexHull}
         />
       )}
       {openAttributeFilter && (
@@ -351,6 +355,7 @@ export function ClientContainer({ result }: Props) {
         onExitFullscreen={handleExitFullscreen}
         showClusterLabels={showClusterLabels}
         onToggleClusterLabels={handleToggleClusterLabels}
+        showConvexHull={showConvexHull}
         treemapLevel={treemapLevel}
         onTreeZoom={handleTreeZoom}
         filterState={{
