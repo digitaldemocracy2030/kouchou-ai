@@ -35,7 +35,6 @@ RUN pnpm --filter @kouchou-ai/admin build
 FROM node:22-alpine AS runner
 
 WORKDIR /repo
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
 ARG NEXT_PUBLIC_CLIENT_BASEPATH
 ARG NEXT_PUBLIC_ADMIN_API_KEY
@@ -47,6 +46,7 @@ ARG NEXT_PUBLIC_USE_AZURE
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=4000
 
 ENV NEXT_PUBLIC_CLIENT_BASEPATH=${NEXT_PUBLIC_CLIENT_BASEPATH}
 ENV NEXT_PUBLIC_ADMIN_API_KEY=${NEXT_PUBLIC_ADMIN_API_KEY}
@@ -56,8 +56,10 @@ ENV CLIENT_STATIC_BUILD_BASEPATH=${CLIENT_STATIC_BUILD_BASEPATH}
 ENV NEXT_PUBLIC_STATIC_SITE_BUILDER_BASEPATH=${NEXT_PUBLIC_STATIC_SITE_BUILDER_BASEPATH}
 ENV NEXT_PUBLIC_USE_AZURE=${NEXT_PUBLIC_USE_AZURE}
 
-COPY --from=builder /repo /repo
+# standalone output includes a minimal server and only the required runtime node_modules
+COPY --from=builder /repo/apps/admin/.next/standalone ./
+COPY --from=builder /repo/apps/admin/.next/static ./apps/admin/.next/static
+COPY --from=builder /repo/apps/admin/public ./apps/admin/public
 
-WORKDIR /repo/apps/admin
 EXPOSE 4000
-CMD ["pnpm", "start"]
+CMD ["node", "apps/admin/server.js"]
