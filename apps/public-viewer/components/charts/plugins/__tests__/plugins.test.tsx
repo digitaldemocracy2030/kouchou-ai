@@ -24,6 +24,7 @@ jest.mock("../../HierarchyListChart", () => ({
 jest.mock("@/components/icons/ViewIcons", () => ({
   AllViewIcon: () => null,
   DenseViewIcon: () => null,
+  DetailViewIcon: () => null,
   HierarchyViewIcon: () => null,
   ListViewIcon: () => null,
 }));
@@ -34,10 +35,40 @@ describe("scatterPlugin", () => {
       expect(scatterPlugin.manifest.id).toBe("scatter");
     });
 
-    it("has two modes: scatterAll and scatterDensity", () => {
+    it("has three modes: scatterAll, scatterDetail, and scatterDensity", () => {
       const modes = scatterPlugin.manifest.modes;
-      expect(modes).toHaveLength(2);
-      expect(modes.map((m) => m.id)).toEqual(["scatterAll", "scatterDensity"]);
+      expect(modes).toHaveLength(3);
+      expect(modes.map((m) => m.id)).toEqual(["scatterAll", "scatterDetail", "scatterDensity"]);
+    });
+
+    it("scatterDetail mode can be disabled", () => {
+      const detailMode = scatterPlugin.manifest.modes.find((m) => m.id === "scatterDetail");
+      expect(detailMode?.canBeDisabled).toBe(true);
+    });
+
+    it("scatterDetail isDisabled returns true when maxLevel <= 1", () => {
+      const detailMode = scatterPlugin.manifest.modes.find((m) => m.id === "scatterDetail");
+      const result: Result = {
+        clusters: [
+          { id: "1", level: 1, label: "Test", takeaways: "", value: 10, density_rank_percentile: 0.5, x: 0, y: 0 },
+        ],
+        arguments: [],
+        config: { title: "Test" },
+      };
+      expect(detailMode?.isDisabled?.(result)).toBe(true);
+    });
+
+    it("scatterDetail isDisabled returns false when maxLevel > 1", () => {
+      const detailMode = scatterPlugin.manifest.modes.find((m) => m.id === "scatterDetail");
+      const result: Result = {
+        clusters: [
+          { id: "1", level: 1, label: "Test1", takeaways: "", value: 10, density_rank_percentile: 0.5, x: 0, y: 0 },
+          { id: "2", level: 2, label: "Test2", takeaways: "", value: 5, density_rank_percentile: 0.3, x: 1, y: 1 },
+        ],
+        arguments: [],
+        config: { title: "Test" },
+      };
+      expect(detailMode?.isDisabled?.(result)).toBe(false);
     });
 
     it("scatterDensity mode can be disabled", () => {
@@ -76,6 +107,10 @@ describe("scatterPlugin", () => {
   describe("canHandle", () => {
     it("returns true for scatterAll", () => {
       expect(scatterPlugin.canHandle("scatterAll")).toBe(true);
+    });
+
+    it("returns true for scatterDetail", () => {
+      expect(scatterPlugin.canHandle("scatterDetail")).toBe(true);
     });
 
     it("returns true for scatterDensity", () => {

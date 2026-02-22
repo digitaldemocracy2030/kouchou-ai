@@ -334,13 +334,16 @@ export function ScatterChart({
   // SVGトレースはWebGLトレースの背面に自動配置されるため、scatter点の
   // 下に凸包が描画される。この SVG/WebGL 混在は意図的な設計である。
   // Gift wrapping は O(nh) のため、入力が変わらない限り再計算しないよう useMemo でメモ化する。
+  // clusterDataSets / clusterColorMap は毎レンダリング再生成されるので、
+  // 上流の安定した参照（targetClusters / argumentList / filteredArgumentIds）を deps とする。
   const hullTraces = useMemo(() => {
     if (!showConvexHull) return [];
-    return clusterDataSets.flatMap(({ cluster, allClusterArguments }) => {
-      if (allClusterArguments.length < 3) return [];
-      const hull = convexHull(allClusterArguments.map((arg) => [arg.x, arg.y]));
+    return targetClusters.flatMap((cluster, index) => {
+      const clusterArguments = argumentList.filter((arg) => arg.cluster_ids.includes(cluster.id));
+      if (clusterArguments.length < 3) return [];
+      const hull = convexHull(clusterArguments.map((arg) => [arg.x, arg.y]));
       if (hull.length < 3) return [];
-      const color = clusterColorMap[cluster.id];
+      const color = softColors[index % softColors.length];
       return [
         {
           x: [...hull.map((p) => p[0]), hull[0][0]],
@@ -362,7 +365,7 @@ export function ScatterChart({
         },
       ];
     });
-  }, [showConvexHull, clusterDataSets, clusterColorMap]);
+  }, [showConvexHull, targetClusters, argumentList]);
 
   // 凸包を最背面に挿入（scatter点の下に描画）
   const allPlotData = [...hullTraces, ...plotData];
@@ -478,6 +481,13 @@ function convexHull(points: [number, number][]): [number, number][] {
     }
   }
 
+  // current からの二乗距離を計算するヘルパー
+  const distanceSquared = (a: [number, number], b: [number, number]) => {
+    const dx = a[0] - b[0];
+    const dy = a[1] - b[1];
+    return dx * dx + dy * dy;
+  };
+
   const hull: [number, number][] = [];
   let current = start;
 
@@ -485,10 +495,19 @@ function convexHull(points: [number, number][]): [number, number][] {
     hull.push(points[current]);
     let next = (current + 1) % points.length;
     for (let i = 0; i < points.length; i++) {
+      if (i === current) continue;
       const cross =
         (points[next][0] - points[current][0]) * (points[i][1] - points[current][1]) -
         (points[next][1] - points[current][1]) * (points[i][0] - points[current][0]);
-      if (cross < 0) next = i;
+      if (cross < 0) {
+        // より外側にある点を採用
+        next = i;
+      } else if (cross === 0) {
+        // 3点が一直線上にある場合は、current からより遠い点を採用
+        if (distanceSquared(points[current], points[i]) > distanceSquared(points[current], points[next])) {
+          next = i;
+        }
+      }
     }
     current = next;
   } while (current !== start && hull.length < points.length);
