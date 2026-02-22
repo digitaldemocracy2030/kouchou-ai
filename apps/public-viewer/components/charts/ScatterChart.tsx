@@ -30,7 +30,12 @@ export function ScatterChart({
   // フィルター条件に合致しないものは後で灰色表示する
   const allArguments = argumentList;
 
-  const targetClusters = clusterList.filter((cluster) => cluster.level === targetLevel);
+  // clusterList.filter() は毎レンダリング新しい配列参照を生成するため、
+  // hullTraces の useMemo deps に含める際に参照が安定するよう useMemo でメモ化する
+  const targetClusters = useMemo(
+    () => clusterList.filter((cluster) => cluster.level === targetLevel),
+    [clusterList, targetLevel],
+  );
   const softColors = [
     "#7ac943",
     "#3fa9f5",
