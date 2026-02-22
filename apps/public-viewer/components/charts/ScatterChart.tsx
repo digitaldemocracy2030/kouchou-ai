@@ -336,8 +336,8 @@ export function ScatterChart({
         const color = clusterColorMap[cluster.id];
         return [
           {
-            x: hull.map((p) => p[0]),
-            y: hull.map((p) => p[1]),
+            x: [...hull.map((p) => p[0]), hull[0][0]],
+            y: [...hull.map((p) => p[1]), hull[0][1]],
             mode: "lines",
             fill: "toself",
             fillcolor: `${color}33`,
