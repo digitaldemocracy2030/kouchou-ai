@@ -43,6 +43,9 @@ COPY --from=builder /repo/.npmrc /repo/
 COPY --from=builder /repo/node_modules /repo/node_modules
 COPY --from=builder /repo/packages/report-schema /repo/packages/report-schema
 COPY --from=builder /repo/apps/public-viewer /repo/apps/public-viewer
+# Remove per-package node_modules/.bin shims whose relative paths point to the wrong location
+# due to shamefully-hoist=true; pnpm's PATH injection falls back to /repo/node_modules/.bin/next
+RUN rm -rf /repo/apps/public-viewer/node_modules
 
 WORKDIR /repo/apps/public-viewer
 RUN chmod +x ./entrypoint.sh
