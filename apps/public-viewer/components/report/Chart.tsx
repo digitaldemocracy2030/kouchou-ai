@@ -16,6 +16,7 @@ type ReportProps = {
   onExitFullscreen: () => void;
   showClusterLabels: boolean;
   onToggleClusterLabels: (show: boolean) => void;
+  showConvexHull: boolean;
   treemapLevel: string;
   onTreeZoom: (level: string) => void;
 };
@@ -35,6 +36,7 @@ export function Chart({
   onExitFullscreen,
   showClusterLabels,
   onToggleClusterLabels,
+  showConvexHull,
   treemapLevel,
   onTreeZoom,
   filterState, // 追加: フィルター状態
@@ -103,6 +105,7 @@ export function Chart({
     isFullscreen,
     filteredArgumentIds,
     showClusterLabels,
+    showConvexHull,
     treemapLevel,
     onTreeZoom,
     onHover: isFullscreen ? () => setTimeout(avoidHoverTextCoveringShrinkButton, 500) : undefined,
