@@ -21,6 +21,8 @@ ENV NEXT_PUBLIC_USE_AZURE=${NEXT_PUBLIC_USE_AZURE}
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages/report-schema/package.json packages/report-schema/
 COPY apps/admin/package.json apps/admin/
+COPY apps/public-viewer/package.json apps/public-viewer/
+COPY apps/static-site-builder/package.json apps/static-site-builder/
 RUN pnpm install --frozen-lockfile
 
 COPY packages/report-schema packages/report-schema
@@ -28,7 +30,7 @@ COPY apps/admin apps/admin
 
 ENV NEXT_DISABLE_FETCH_DURING_BUILD=true
 
-RUN pnpm --filter @kouchou-ai/report-schema build
+RUN node_modules/.bin/tsc --project packages/report-schema/tsconfig.json
 RUN pnpm --filter @kouchou-ai/admin build
 
 # 本番環境用イメージ
