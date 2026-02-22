@@ -19,5 +19,11 @@
   },
   "dependencies": {
     "@next/third-parties": "^15.2.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "19.2.3",
+      "react-dom": "19.2.3"
+    }
   }
 }
