@@ -102,6 +102,8 @@ export interface ChartRenderContext {
   filteredArgumentIds?: string[];
   /** Whether to show cluster labels (for scatter) */
   showClusterLabels?: boolean;
+  /** Whether to show convex hull boundaries (for scatter) */
+  showConvexHull?: boolean;
   /** Current treemap zoom level */
   treemapLevel?: string;
   /** Callback for treemap navigation */
