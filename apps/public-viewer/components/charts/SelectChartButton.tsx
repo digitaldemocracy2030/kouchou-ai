@@ -124,6 +124,7 @@ export function SelectChartButton({
     <Box maxW="1200px" mx="auto" mb={2}>
       <Box display="grid" gridTemplateColumns={["1fr", null, "1fr auto"]} gap="3">
         <SegmentGroup.Root
+          id="chart-type-selector"
           value={selected}
           onChange={handleChange}
           size="md"
