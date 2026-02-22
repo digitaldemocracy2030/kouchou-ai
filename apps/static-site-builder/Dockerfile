@@ -13,7 +13,7 @@ COPY packages/report-schema packages/report-schema
 COPY apps/static-site-builder apps/static-site-builder
 COPY apps/public-viewer apps/public-viewer
 
-RUN pnpm --filter @kouchou-ai/report-schema build
+RUN node_modules/.bin/tsc --project packages/report-schema/tsconfig.json
 RUN pnpm --filter @kouchou-ai/static-site-builder build
 
 FROM node:22-alpine AS runner

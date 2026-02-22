@@ -19,7 +19,7 @@ RUN pnpm install --frozen-lockfile
 COPY packages/report-schema packages/report-schema
 COPY apps/public-viewer apps/public-viewer
 
-RUN pnpm --filter @kouchou-ai/report-schema build
+RUN node_modules/.bin/tsc --project packages/report-schema/tsconfig.json
 
 FROM node:22-alpine AS runner
 WORKDIR /repo
