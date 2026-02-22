@@ -14,7 +14,7 @@ COPY apps/static-site-builder apps/static-site-builder
 COPY apps/public-viewer apps/public-viewer
 
 RUN node_modules/.bin/tsc --project packages/report-schema/tsconfig.json
-RUN pnpm --filter @kouchou-ai/static-site-builder build
+RUN node_modules/.bin/tsc --project apps/static-site-builder/tsconfig.json
 
 FROM node:22-alpine AS runner
 
