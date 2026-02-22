@@ -15,29 +15,27 @@ RUN apt-get update \
 RUN pip install uv
 
 # Copy API package files (context is repository root)
-COPY apps/api/pyproject.toml apps/api/requirements.lock apps/api/requirements-dev.lock apps/api/requirements-torch.txt apps/api/README.md ./
+COPY apps/api/pyproject.toml apps/api/requirements.lock apps/api/requirements-dev.lock apps/api/README.md ./
 
 # Copy and install analysis-core package
 COPY packages/analysis-core /packages/analysis-core
-RUN uv pip install --no-cache --system /packages/analysis-core
 
-# WITH_GPU=false の場合は 不要なパッケージをインストールしないようにする
-RUN if [ "$WITH_GPU" = "true" ]; then \
-    echo "Installing PyTorch (GPU version)" && \
-    uv pip install --no-cache --system -r requirements-torch.txt; \
+# Install all dependencies in a single RUN to prevent torch from being installed
+# multiple times across Docker layers, which causes significant image bloat.
+# torch is already pinned in requirements.lock / requirements-dev.lock (via sentence-transformers).
+# For CPU mode, use the PyTorch CPU-only index to avoid downloading CUDA binaries.
+RUN set -- /packages/analysis-core && \
+    if [ "$ENVIRONMENT" = "development" ]; then \
+        set -- "$@" -r requirements-dev.lock; \
     else \
-    echo "Installing PyTorch (CPU version)" && \
-    uv pip install --no-cache --system -r requirements-torch.txt --index-url https://download.pytorch.org/whl/cpu; \
-    fi
-
-# 依存関係をインストール
-RUN if [ "$ENVIRONMENT" = "development" ]; then \
-    echo "Installing development dependencies" && \
-    uv pip install --no-cache --system -r requirements-dev.lock; \
-    else \
-    echo "Installing production dependencies" && \
-    uv pip install --no-cache --system -r requirements.lock; \
-    fi
+        set -- "$@" -r requirements.lock; \
+    fi && \
+    if [ "$WITH_GPU" != "true" ]; then \
+        set -- --index-url https://download.pytorch.org/whl/cpu \
+               --extra-index-url https://pypi.org/simple/ "$@"; \
+    fi && \
+    echo "Installing dependencies (GPU=$WITH_GPU, ENV=$ENVIRONMENT)" && \
+    uv pip install --no-cache --system "$@"
 
 # Copy application source
 COPY apps/api/ .
