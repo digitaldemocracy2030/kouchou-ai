@@ -10,8 +10,8 @@ import { useMemo } from "react";
 // Ensure plugins are loaded
 ensurePluginsLoaded();
 
-/** Default enabled charts (maintains backward compatibility) */
-const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDetail", "scatterDensity", "treemap"];
+/** デフォルトで有効なチャートタイプの一覧 */
+export const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDetail", "scatterDensity", "treemap"];
 
 type Props = {
   selected: string;

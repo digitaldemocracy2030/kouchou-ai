@@ -1,6 +1,7 @@
 import type { Argument, Cluster, Config } from "@/type";
 import { Box } from "@chakra-ui/react";
 import type { Annotations, Data, Layout, PlotMouseEvent } from "plotly.js";
+import { useMemo } from "react";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
@@ -332,34 +333,36 @@ export function ScatterChart({
   // scattergl（WebGL）では動作しない。また Plotly の z-order により
   // SVGトレースはWebGLトレースの背面に自動配置されるため、scatter点の
   // 下に凸包が描画される。この SVG/WebGL 混在は意図的な設計である。
-  const hullTraces = showConvexHull
-    ? clusterDataSets.flatMap(({ cluster, allClusterArguments }) => {
-        if (allClusterArguments.length < 3) return [];
-        const hull = convexHull(allClusterArguments.map((arg) => [arg.x, arg.y]));
-        if (hull.length < 3) return [];
-        const color = clusterColorMap[cluster.id];
-        return [
-          {
-            x: [...hull.map((p) => p[0]), hull[0][0]],
-            y: [...hull.map((p) => p[1]), hull[0][1]],
-            mode: "lines",
-            fill: "toself",
-            fillcolor: `${color}33`,
-            line: { color, width: 1.5 },
-            type: "scatter",
-            hoveron: "fills",
-            hoverinfo: "text",
-            text: cluster.label,
-            hoverlabel: {
-              bgcolor: color,
-              bordercolor: color,
-              font: { color: "white", size: 13 },
-            },
-            showlegend: false,
+  // Gift wrapping は O(nh) のため、入力が変わらない限り再計算しないよう useMemo でメモ化する。
+  const hullTraces = useMemo(() => {
+    if (!showConvexHull) return [];
+    return clusterDataSets.flatMap(({ cluster, allClusterArguments }) => {
+      if (allClusterArguments.length < 3) return [];
+      const hull = convexHull(allClusterArguments.map((arg) => [arg.x, arg.y]));
+      if (hull.length < 3) return [];
+      const color = clusterColorMap[cluster.id];
+      return [
+        {
+          x: [...hull.map((p) => p[0]), hull[0][0]],
+          y: [...hull.map((p) => p[1]), hull[0][1]],
+          mode: "lines",
+          fill: "toself",
+          fillcolor: `${color}33`,
+          line: { color, width: 1.5 },
+          type: "scatter",
+          hoveron: "fills",
+          hoverinfo: "text",
+          text: cluster.label,
+          hoverlabel: {
+            bgcolor: color,
+            bordercolor: color,
+            font: { color: "white", size: 13 },
           },
-        ];
-      })
-    : [];
+          showlegend: false,
+        },
+      ];
+    });
+  }, [showConvexHull, clusterDataSets, clusterColorMap]);
 
   // 凸包を最背面に挿入（scatter点の下に描画）
   const allPlotData = [...hullTraces, ...plotData];

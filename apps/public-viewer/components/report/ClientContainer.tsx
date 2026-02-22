@@ -1,6 +1,6 @@
 "use client";
 
-import { SelectChartButton } from "@/components/charts/SelectChartButton";
+import { DEFAULT_ENABLED_CHARTS, SelectChartButton } from "@/components/charts/SelectChartButton";
 import {
   chartRegistry,
   ensurePluginsLoaded,
@@ -20,8 +20,6 @@ import { type NumericRangeFilters, filterSamples } from "./attributeFilterUtils"
 // Ensure plugins are loaded for validation
 ensurePluginsLoaded();
 
-/** Default enabled charts (backward compatibility) */
-const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDetail", "scatterDensity", "treemap"];
 
 type Props = {
   result: Result;
