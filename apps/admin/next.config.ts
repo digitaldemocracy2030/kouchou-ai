@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../../"),
   experimental: {
     optimizePackageImports: ["@chakra-ui/react"],
+    serverActions: {
+      bodySizeLimit: "100mb",
+    },
   },
   serverExternalPackages: ["fs", "path"],
 };
