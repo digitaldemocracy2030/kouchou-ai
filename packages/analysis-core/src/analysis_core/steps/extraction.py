@@ -13,6 +13,7 @@ from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.parse_json_list import parse_extraction_response
 
 COMMA_AND_SPACE_AND_RIGHT_BRACKET = re.compile(r",\s*(\])")
+EXTRACTION_WAIT_TIMEOUT_SECONDS = 300
 
 
 class ExtractionResponse(BaseModel):
@@ -34,6 +35,7 @@ def extraction(config):
     workers = config["extraction"]["workers"]
     limit = config["extraction"]["limit"]
     property_columns = config["extraction"]["properties"]
+    timeout_seconds = config["extraction"].get("timeout_seconds", EXTRACTION_WAIT_TIMEOUT_SECONDS)
 
     if "provider" not in config:
         raise RuntimeError("provider is not set")
@@ -56,7 +58,7 @@ def extraction(config):
         batch = comment_ids[i : i + workers]
         batch_inputs = [comments_lookup[id]["comment-body"] for id in batch]
         batch_results = extract_batch(
-            batch_inputs, prompt, model, workers, provider, config.get("local_llm_address"), config
+            batch_inputs, prompt, model, workers, provider, config.get("local_llm_address"), config, timeout_seconds
         )
 
         for comment_id, extracted_args in zip(batch, batch_results, strict=False):
@@ -93,14 +95,23 @@ def extraction(config):
     relation_df.write_csv(f"{output_base_dir}/{dataset}/relations.csv")
 
 
-def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_address=None, config=None):
+def extract_batch(
+    batch,
+    prompt,
+    model,
+    workers,
+    provider="openai",
+    local_llm_address=None,
+    config=None,
+    timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
+):
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures_with_index = [
-            (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address))
+            (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address, timeout_seconds))
             for i, input in enumerate(batch)
         ]
 
-        done, not_done = concurrent.futures.wait([f for _, f in futures_with_index], timeout=30)
+        done, not_done = concurrent.futures.wait([f for _, f in futures_with_index], timeout=timeout_seconds)
         results = [[] for _ in range(len(batch))]
         total_token_input = 0
         total_token_output = 0
@@ -137,7 +148,14 @@ def extract_batch(batch, prompt, model, workers, provider="openai", local_llm_ad
         return results
 
 
-def extract_arguments(input, prompt, model, provider="openai", local_llm_address=None):
+def extract_arguments(
+    input,
+    prompt,
+    model,
+    provider="openai",
+    local_llm_address=None,
+    timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
+):
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
@@ -151,6 +169,7 @@ def extract_arguments(input, prompt, model, provider="openai", local_llm_address
             provider=provider,
             local_llm_address=local_llm_address,
             user_api_key=os.getenv("USER_API_KEY"),
+            timeout_seconds=timeout_seconds,
         )
         items = parse_extraction_response(response)
         items = list(filter(None, items))  # omit empty strings
