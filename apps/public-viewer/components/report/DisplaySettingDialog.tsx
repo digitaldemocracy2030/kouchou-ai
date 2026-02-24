@@ -11,6 +11,8 @@ type Props = {
   currentMinValue: number;
   showClusterLabels?: boolean;
   onToggleClusterLabels?: (show: boolean) => void;
+  showConvexHull?: boolean;
+  onToggleConvexHull?: (show: boolean) => void;
 };
 
 export function DisplaySettingDialog({
@@ -20,6 +22,8 @@ export function DisplaySettingDialog({
   currentMinValue,
   showClusterLabels = false,
   onToggleClusterLabels,
+  showConvexHull = true,
+  onToggleConvexHull,
 }: Props) {
   const [maxDensity, setMaxDensity] = useState(currentMaxDensity);
   const [minValue, setMinValue] = useState(currentMinValue);
@@ -39,7 +43,7 @@ export function DisplaySettingDialog({
               表示設定
             </Text>
             <Text fontSize="sm" mb={5}>
-              「全体図」および「濃い意見グループ」に関する設定項目です。
+              「全体図」「詳細クラスタ」および「濃い意見グループ」に関する設定項目です。
             </Text>
             <Box p={2} borderRadius="md" borderWidth="1px" borderColor="gray.200" mb={2}>
               <HStack gap={2} alignItems="center">
@@ -48,6 +52,17 @@ export function DisplaySettingDialog({
                 <Switch
                   checked={showClusterLabels}
                   onChange={() => onToggleClusterLabels?.(!showClusterLabels)}
+                  size="sm"
+                />
+              </HStack>
+            </Box>
+            <Box p={2} borderRadius="md" borderWidth="1px" borderColor="gray.200" mb={2}>
+              <HStack gap={2} alignItems="center">
+                <Text fontSize="sm">意見グループの境界線を表示</Text>
+                <Spacer />
+                <Switch
+                  checked={showConvexHull}
+                  onChange={() => onToggleConvexHull?.(!showConvexHull)}
                   size="sm"
                 />
               </HStack>

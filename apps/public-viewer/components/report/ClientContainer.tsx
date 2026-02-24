@@ -1,6 +1,6 @@
 "use client";
 
-import { SelectChartButton } from "@/components/charts/SelectChartButton";
+import { DEFAULT_ENABLED_CHARTS, SelectChartButton } from "@/components/charts/SelectChartButton";
 import {
   chartRegistry,
   ensurePluginsLoaded,
@@ -20,8 +20,6 @@ import { type NumericRangeFilters, filterSamples } from "./attributeFilterUtils"
 // Ensure plugins are loaded for validation
 ensurePluginsLoaded();
 
-/** Default enabled charts (backward compatibility) */
-const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDensity", "treemap"];
 
 type Props = {
   result: Result;
@@ -59,6 +57,7 @@ export function ClientContainer({ result }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDenseGroupEnabled, setIsDenseGroupEnabled] = useState(true);
   const [showClusterLabels, setShowClusterLabels] = useState(defaultParams?.showClusterLabels ?? true);
+  const [showConvexHull, setShowConvexHull] = useState(true);
   const [treemapLevel, setTreemapLevel] = useState("0");
 
   // --- 標本データ生成 ---
@@ -249,7 +248,7 @@ export function ClientContainer({ result }: Props) {
     setIncludeEmptyValues(includeEmpty);
     setEnabledRanges(enabledRanges_);
     setTextSearch(textSearchString);
-    if (selectedChart === "scatterAll" || selectedChart === "scatterDensity") {
+    if (selectedChart === "scatterAll" || selectedChart === "scatterDetail" || selectedChart === "scatterDensity") {
       updateFilteredResult(
         selectedChart === "scatterDensity" ? maxDensity : 1,
         selectedChart === "scatterDensity" ? minValue : 0,
@@ -267,7 +266,7 @@ export function ClientContainer({ result }: Props) {
   // --- クラスタ表示 ---
   const clustersToDisplay = useMemo(() => {
     let c: Cluster[] = [];
-    if (selectedChart === "scatterDensity") {
+    if (selectedChart === "scatterDensity" || selectedChart === "scatterDetail") {
       const max = Math.max(...filteredResult.clusters.map((c) => c.level));
       c = filteredResult.clusters.filter((c) => c.level === max);
     } else {
@@ -279,15 +278,17 @@ export function ClientContainer({ result }: Props) {
   // --- その他UIハンドラ ---
   const handleCloseDisplaySetting = () => setOpenDensityFilterSetting(false);
   const handleToggleClusterLabels = (value: boolean) => setShowClusterLabels(value);
+  const handleToggleConvexHull = (value: boolean) => setShowConvexHull(value);
   const handleCloseAttributeFilter = () => setOpenAttributeFilter(false);
   const handleChartChange = (selectedChart: string) => {
     setSelectedChart(selectedChart);
-    if (selectedChart === "scatterAll") updateFilteredResult(1, 0, attributeFilters, textSearch);
-    if (selectedChart === "treemap") {
-      // 属性フィルターをリセットせずに維持
+    if (selectedChart === "scatterDensity") {
+      updateFilteredResult(maxDensity, minValue, attributeFilters, textSearch);
+    } else {
+      // scatterAll / scatterDetail / treemap / hierarchyList 等は密度フィルタなし（maxDensity=1, minValue=0）。
+      // treemap 等でも updateFilteredResult を呼ぶが、maxDensity=1, minValue=0 では全クラスタが返るため実質影響なし。
       updateFilteredResult(1, 0, attributeFilters, textSearch);
     }
-    if (selectedChart === "scatterDensity") updateFilteredResult(maxDensity, minValue, attributeFilters, textSearch);
   };
   const handleClickDensitySetting = () => setOpenDensityFilterSetting(true);
   const handleClickFullscreen = () => setIsFullscreen(true);
@@ -306,6 +307,8 @@ export function ClientContainer({ result }: Props) {
           onChangeFilter={onChangeDensityFilter}
           showClusterLabels={showClusterLabels}
           onToggleClusterLabels={handleToggleClusterLabels}
+          showConvexHull={showConvexHull}
+          onToggleConvexHull={handleToggleConvexHull}
         />
       )}
       {openAttributeFilter && (
@@ -352,6 +355,7 @@ export function ClientContainer({ result }: Props) {
         onExitFullscreen={handleExitFullscreen}
         showClusterLabels={showClusterLabels}
         onToggleClusterLabels={handleToggleClusterLabels}
+        showConvexHull={showConvexHull}
         treemapLevel={treemapLevel}
         onTreeZoom={handleTreeZoom}
         filterState={{
