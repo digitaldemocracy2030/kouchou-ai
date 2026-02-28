@@ -1,67 +1,155 @@
-// 属性フィルター条件に従って標本配列をフィルタリングするユーティリティ
-import type { AttributeFilters } from "./AttributeFilterDialog";
+// 属性フィルターのユーティリティ（型定義・フィルタロジック・メタデータ計算）
+import type { Argument } from "@/type";
 
+// ============================================================================
+// 型定義
+// ============================================================================
+
+export type AttributeFilters = Record<string, string[]>;
 export type NumericRangeFilters = Record<string, [number, number]>;
 
+export type AttributeMeta = {
+  name: string;
+  type: "numeric" | "categorical";
+  values: string[];
+  valueCounts: Record<string, number>;
+  numericRange?: [number, number];
+};
+
+export type FilterParams = {
+  attributeFilters: AttributeFilters;
+  numericRanges: NumericRangeFilters;
+  enabledRanges: Record<string, boolean>;
+  includeEmptyValues: Record<string, boolean>;
+  textSearch: string;
+};
+
+// ============================================================================
+// フィルタロジック
+// ============================================================================
+
 /**
- * 標本配列をフィルター条件に従ってフィルタリングする
+ * フィルタ条件がアクティブかどうかを判定する
  */
-export function filterSamples(
-  samples: Array<Record<string, string>>,
-  filters: AttributeFilters,
-  numericRanges: NumericRangeFilters,
-  enabledRanges: Record<string, boolean>,
-  includeEmpty: Record<string, boolean>,
-): Array<Record<string, string>> {
-  // フィルター条件が空なら全て表示
-  if (Object.keys(filters).length === 0 && Object.keys(enabledRanges).filter((k) => enabledRanges[k]).length === 0) {
-    return samples;
-  }
-
-  return samples.filter((sample) => {
-    // カテゴリ属性
-    for (const [attr, values] of Object.entries(filters)) {
-      if (values.length > 0 && values[0] !== undefined) {
-        if (!values.includes(sample[attr] ?? "")) {
-          return false;
-        }
-      }
-    }
-
-    // 数値属性
-    for (const [attr, range] of Object.entries(numericRanges)) {
-      if (enabledRanges[attr]) {
-        const value = sample[attr]?.trim() ?? "";
-        if (value === "") {
-          if (!includeEmpty[attr]) return false;
-        } else {
-          const num = Number(value);
-          if (Number.isNaN(num) || num < range[0] || num > range[1]) return false;
-        }
-      }
-    }
-    return true;
-  });
+export function hasActiveFilters(params: FilterParams): boolean {
+  return (
+    Object.keys(params.attributeFilters).length > 0 ||
+    Object.values(params.enabledRanges).some(Boolean) ||
+    params.textSearch.trim() !== ""
+  );
 }
 
 /**
- * 引数IDからフィルター済みの引数IDリストを生成する
- * @param argumentIds 全引数ID
- * @param samples 全標本
- * @param filteredSamples フィルター済み標本
+ * フィルタ条件に合致する引数IDのリストを返す。
+ * フィルタ条件が空の場合はundefinedを返す（全件表示）。
  */
-export function getFilteredArgumentIds(
-  argumentIds: string[],
-  samples: Array<Record<string, string>>,
-  filteredSamples: Array<Record<string, string>>,
-): string[] {
-  // フィルター済み標本のインデックスセットを作成
-  const filteredIndices = new Set<number>();
-  for (const fs of filteredSamples) {
-    const idx = samples.findIndex((s) => Object.entries(s).every(([k, v]) => fs[k] === v));
-    if (idx >= 0) filteredIndices.add(idx);
+export function filterArgumentIds(args: Argument[], params: FilterParams): string[] | undefined {
+  if (!hasActiveFilters(params)) return undefined;
+
+  const { attributeFilters, numericRanges, enabledRanges, includeEmptyValues, textSearch } = params;
+  const searchLower = textSearch.trim().toLowerCase();
+
+  return args
+    .filter((arg) => {
+      // テキスト検索
+      if (searchLower && !arg.argument.toLowerCase().includes(searchLower)) {
+        return false;
+      }
+
+      // 属性がない場合はテキスト検索のみで判定
+      if (!arg.attributes) {
+        return !!searchLower;
+      }
+
+      // カテゴリフィルタ（属性間はAND、値間はOR）
+      for (const [attr, values] of Object.entries(attributeFilters)) {
+        if (values.length === 0) continue;
+        const attrValue = String(arg.attributes[attr] ?? "");
+        if (!values.includes(attrValue)) return false;
+      }
+
+      // 数値レンジフィルタ
+      for (const [attr, range] of Object.entries(numericRanges)) {
+        if (!enabledRanges[attr]) continue;
+        const attrValue = arg.attributes[attr];
+        if (attrValue === undefined || attrValue === null || attrValue === "") {
+          if (!includeEmptyValues[attr]) return false;
+        } else {
+          const numValue = Number(attrValue);
+          if (Number.isNaN(numValue) || numValue < range[0] || numValue > range[1]) return false;
+        }
+      }
+
+      return true;
+    })
+    .map((arg) => arg.arg_id);
+}
+
+/**
+ * アクティブなフィルタ数を計算する
+ */
+export function countActiveFilters(params: FilterParams): number {
+  const attrCount = new Set([
+    ...Object.keys(params.attributeFilters),
+    ...Object.keys(params.enabledRanges).filter((k) => params.enabledRanges[k]),
+  ]).size;
+  return attrCount + (params.textSearch.trim() !== "" ? 1 : 0);
+}
+
+// ============================================================================
+// メタデータ計算
+// ============================================================================
+
+/**
+ * 引数の属性情報からメタデータを計算する
+ */
+export function computeAttributeMetas(args: Argument[]): AttributeMeta[] {
+  const attrMap: Record<
+    string,
+    {
+      valueSet: Set<string>;
+      valueCounts: Map<string, number>;
+      isNumeric: boolean;
+      min?: number;
+      max?: number;
+    }
+  > = {};
+
+  for (const arg of args) {
+    if (!arg.attributes) continue;
+    for (const [name, rawValue] of Object.entries(arg.attributes)) {
+      const value = rawValue == null ? "" : String(rawValue);
+      if (!attrMap[name]) {
+        attrMap[name] = { valueSet: new Set(), valueCounts: new Map(), isNumeric: true };
+      }
+      const info = attrMap[name];
+      info.valueSet.add(value);
+      info.valueCounts.set(value, (info.valueCounts.get(value) ?? 0) + 1);
+      if (value.trim() !== "") {
+        const num = Number(value);
+        if (Number.isNaN(num)) {
+          info.isNumeric = false;
+        } else if (info.isNumeric) {
+          if (info.min === undefined || num < info.min) info.min = num;
+          if (info.max === undefined || num > info.max) info.max = num;
+        }
+      }
+    }
   }
 
-  // フィルター済みのインデックスに対応する引数IDを返す
-  return Array.from(filteredIndices).map((idx) => argumentIds[idx]);
+  return Object.entries(attrMap).map(([name, info]) => {
+    const values = Array.from(info.valueSet).filter((v) => v !== "").sort();
+    const valueCounts: Record<string, number> = {};
+    for (const v of values) valueCounts[v] = info.valueCounts.get(v) ?? 0;
+    return {
+      name,
+      type: info.isNumeric ? "numeric" : "categorical",
+      values,
+      valueCounts,
+      numericRange:
+        info.isNumeric && values.length > 0 && info.min !== undefined && info.max !== undefined
+          ? [info.min, info.max]
+          : undefined,
+    };
+  });
 }
