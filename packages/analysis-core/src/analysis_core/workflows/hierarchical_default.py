@@ -52,6 +52,7 @@ def create_hierarchical_workflow(
             depends_on=["embedding"],
             config={
                 "cluster_nums": "${config.hierarchical_clustering.cluster_nums}",
+                "enable_reproducibility": "${config.hierarchical_clustering.enable_reproducibility}",
             },
         ),
         WorkflowStep(
