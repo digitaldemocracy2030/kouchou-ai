@@ -278,6 +278,7 @@ export type ExtractionConfig = {
  */
 export type HierarchicalClusteringConfig = {
   cluster_nums: number[];
+  enable_reproducibility?: boolean;
   source_code: string;
 };
 

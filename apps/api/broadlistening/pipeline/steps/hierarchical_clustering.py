@@ -37,6 +37,7 @@ def hierarchical_clustering(config):
         embeddings_array = np.asarray(embeddings_data["embedding"].values.tolist())
 
     cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
+    enable_reproducibility = config["hierarchical_clustering"].get("enable_reproducibility", False)
 
     n_samples = embeddings_array.shape[0]
     # デフォルト設定は15
@@ -48,7 +49,8 @@ def hierarchical_clustering(config):
     else:
         n_neighbors = default_n_neighbors
 
-    umap_model = UMAP(random_state=42, n_components=2, n_neighbors=n_neighbors)
+    random_state = 42 if enable_reproducibility else None
+    umap_model = UMAP(random_state=random_state, n_components=2, n_neighbors=n_neighbors)
     # TODO 詳細エラーメッセージを加える
     # 以下のエラーの場合、おそらく元の意見件数が少なすぎることが原因
     # TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N. Use scipy.linalg.eigh(A.toarray()) or reduce k.

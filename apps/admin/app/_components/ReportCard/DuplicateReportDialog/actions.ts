@@ -11,6 +11,7 @@ type DuplicateParams = {
     provider?: string;
     model?: string;
     cluster?: number[];
+    enable_reproducibility?: boolean;
     prompt?: {
       extraction?: string;
       initial_labelling?: string;

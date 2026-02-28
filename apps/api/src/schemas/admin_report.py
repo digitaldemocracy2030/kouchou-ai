@@ -48,6 +48,7 @@ class ReportInput(SchemaBaseModel):
 
     # NOTE: team-mirai feature
     enable_source_link: bool = False  # ソースリンク機能を有効にするかどうか。有効にする場合はtrue
+    enable_reproducibility: bool = False  # UMAPの再現性を有効にするかどうか。有効にすると並列化が無効になる
 
 
 class ReportVisibilityUpdate(SchemaBaseModel):
@@ -72,6 +73,7 @@ class ReportDuplicateOverrides(SchemaBaseModel):
     workers: int | None = None
     is_pubcom: bool | None = None
     enable_source_link: bool | None = None
+    enable_reproducibility: bool | None = None
     is_embedded_at_local: bool | None = None
     local_llm_address: str | None = None
     prompt: PromptOverride | None = None

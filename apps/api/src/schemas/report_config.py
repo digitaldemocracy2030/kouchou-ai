@@ -9,6 +9,7 @@ class ExtractionConfig(SchemaBaseModel):
 
 class HierarchicalClusteringConfig(SchemaBaseModel):
     cluster_nums: list[int]
+    enable_reproducibility: bool = False
 
 
 class HierarchicalInitialLabellingConfig(SchemaBaseModel):
