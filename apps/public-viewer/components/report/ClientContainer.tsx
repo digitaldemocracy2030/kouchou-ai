@@ -8,18 +8,24 @@ import {
   validateResultData,
   validateVisualizationConfig,
 } from "@/components/charts/plugins";
-import { AttributeFilterDialog, type AttributeFilters } from "@/components/report/AttributeFilterDialog";
+import { AttributeFilterDialog } from "@/components/report/AttributeFilterDialog";
 import { Chart } from "@/components/report/Chart";
 import { ClusterOverview } from "@/components/report/ClusterOverview";
 import { DisplaySettingDialog } from "@/components/report/DisplaySettingDialog";
-import type { ChartType, Cluster, Result } from "@/type";
+import type { Cluster, Result } from "@/type";
 import { useEffect, useMemo, useState } from "react";
-import type { AttributeMeta } from "./AttributeFilterDialog";
-import { type NumericRangeFilters, filterSamples } from "./attributeFilterUtils";
+import {
+  type AttributeFilters,
+  type FilterParams,
+  type NumericRangeFilters,
+  computeAttributeMetas,
+  countActiveFilters,
+  filterArgumentIds,
+  hasActiveFilters,
+} from "./attributeFilterUtils";
 
 // Ensure plugins are loaded for validation
 ensurePluginsLoaded();
-
 
 type Props = {
   result: Result;
@@ -28,13 +34,10 @@ type Props = {
 export function ClientContainer({ result }: Props) {
   // --- Validate data at load time ---
   useEffect(() => {
-    // Validate result data structure
     const resultValidation = validateResultData(result);
     if (!resultValidation.valid || resultValidation.warnings.length > 0) {
       console.warn(`Result data validation:\n${formatValidationResult(resultValidation)}`);
     }
-
-    // Validate visualization config against registered plugins
     const configValidation = validateVisualizationConfig(result.visualizationConfig, chartRegistry);
     if (!configValidation.valid || configValidation.warnings.length > 0) {
       console.warn(`Visualization config validation:\n${formatValidationResult(configValidation)}`);
@@ -48,92 +51,18 @@ export function ClientContainer({ result }: Props) {
   const defaultChart = visualizationConfig?.defaultChart ?? enabledCharts[0] ?? "scatterAll";
   const defaultParams = visualizationConfig?.params;
 
-  // --- UI State (initialized from visualization config) ---
-  const [filteredResult, setFilteredResult] = useState<Result>(result);
+  // --- UI State ---
   const [openDensityFilterSetting, setOpenDensityFilterSetting] = useState(false);
   const [selectedChart, setSelectedChart] = useState<string>(defaultChart);
   const [maxDensity, setMaxDensity] = useState(defaultParams?.scatterDensity?.maxDensity ?? 0.2);
   const [minValue, setMinValue] = useState(defaultParams?.scatterDensity?.minValue ?? 5);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isDenseGroupEnabled, setIsDenseGroupEnabled] = useState(true);
   const [showClusterLabels, setShowClusterLabels] = useState(defaultParams?.showClusterLabels ?? true);
   const [showConvexHull, setShowConvexHull] = useState(true);
   const [treemapLevel, setTreemapLevel] = useState("0");
 
-  // --- 標本データ生成 ---
-  const samples = useMemo(() => {
-    return result.arguments.map((arg) => {
-      if (arg.attributes) {
-        const rec: Record<string, string> = {};
-        for (const [k, v] of Object.entries(arg.attributes)) {
-          rec[k] = v == null ? "" : String(v);
-        }
-        return rec;
-      }
-      return {};
-    });
-  }, [result]);
-
-  // --- 属性メタデータ計算（初回のみ） ---
-  const [attributeMetas, setAttributeMetas] = useState<AttributeMeta[]>([]);
-  useEffect(() => {
-    if (!samples || samples.length === 0) {
-      setAttributeMetas([]);
-      return;
-    }
-    const attrMap: Record<
-      string,
-      {
-        valueSet: Set<string>;
-        valueCounts: Map<string, number>;
-        isNumeric: boolean;
-        min?: number;
-        max?: number;
-      }
-    > = {};
-    for (const sample of samples) {
-      for (const [name, rawValue] of Object.entries(sample)) {
-        const value = typeof rawValue === "string" ? rawValue : String(rawValue ?? "");
-        if (!attrMap[name]) {
-          attrMap[name] = {
-            valueSet: new Set(),
-            valueCounts: new Map(),
-            isNumeric: true,
-          };
-        }
-        attrMap[name].valueSet.add(value);
-        attrMap[name].valueCounts.set(value, (attrMap[name].valueCounts.get(value) ?? 0) + 1);
-        if (value.trim() !== "") {
-          const num = Number(value);
-          if (Number.isNaN(num)) {
-            attrMap[name].isNumeric = false;
-          } else if (attrMap[name].isNumeric) {
-            if (attrMap[name].min === undefined || num < attrMap[name].min) attrMap[name].min = num;
-            if (attrMap[name].max === undefined || num > attrMap[name].max) attrMap[name].max = num;
-          }
-        }
-      }
-    }
-    const result: AttributeMeta[] = Object.entries(attrMap).map(([name, info]) => {
-      const values = Array.from(info.valueSet)
-        .filter((v) => v !== "")
-        .sort();
-      const valueCounts: Record<string, number> = {};
-      for (const v of values) valueCounts[v] = info.valueCounts.get(v) ?? 0;
-      let numericRange: [number, number] | undefined = undefined;
-      if (info.isNumeric && values.length > 0 && info.min !== undefined && info.max !== undefined) {
-        numericRange = [info.min, info.max];
-      }
-      return {
-        name,
-        type: info.isNumeric ? "numeric" : "categorical",
-        values,
-        valueCounts,
-        numericRange,
-      };
-    });
-    setAttributeMetas(result);
-  }, [samples]);
+  // --- 属性メタデータ（純粋な派生データなのでuseMemoで計算） ---
+  const attributeMetas = useMemo(() => computeAttributeMetas(result.arguments), [result.arguments]);
 
   // --- 属性フィルター状態 ---
   const [attributeFilters, setAttributeFilters] = useState<AttributeFilters>({});
@@ -143,125 +72,78 @@ export function ClientContainer({ result }: Props) {
   const [textSearch, setTextSearch] = useState<string>("");
   const [openAttributeFilter, setOpenAttributeFilter] = useState(false);
 
-  // --- 密度フィルタ有効性 ---
-  useEffect(() => {
-    const { filtered, isEmpty } = getDenseClusters(result.clusters || [], maxDensity, minValue);
-    setIsDenseGroupEnabled(!isEmpty);
-  }, [maxDensity, minValue, result.clusters]);
+  // --- フィルタパラメータを一つのオブジェクトにまとめる ---
+  const filterParams: FilterParams = useMemo(
+    () => ({ attributeFilters, numericRanges, enabledRanges, includeEmptyValues, textSearch }),
+    [attributeFilters, numericRanges, enabledRanges, includeEmptyValues, textSearch],
+  );
 
-  // --- 属性・密度フィルタ適用 ---
-  function updateFilteredResult(
-    maxDensity: number,
-    minValue: number,
-    attrFilters: AttributeFilters = attributeFilters,
-    textSearchString: string = textSearch,
-  ) {
-    if (!result) return;
-    let filteredArgs = result.arguments;
-    let filteredArgIds: string[] = [];
-    const hasActiveFilters =
-      Object.keys(attrFilters).length > 0 ||
-      Object.keys(enabledRanges).filter((k) => enabledRanges[k]).length > 0 ||
-      textSearchString.trim() !== "";
-    if (hasActiveFilters) {
-      filteredArgs = result.arguments.filter((arg) => {
-        if (textSearchString.trim() !== "") {
-          const searchLower = textSearchString.trim().toLowerCase();
-          const argumentLower = arg.argument.toLowerCase();
-          if (!argumentLower.includes(searchLower)) {
-            return false;
+  // --- 密度フィルタの有効性（派生データ） ---
+  const isDenseGroupEnabled = useMemo(() => {
+    const { isEmpty } = getDenseClusters(result.clusters || [], maxDensity, minValue);
+    return !isEmpty;
+  }, [result.clusters, maxDensity, minValue]);
+
+  // --- 属性・テキストフィルタの適用（密度変更時に再計算しないよう分離） ---
+  const filteredArgIds = useMemo(
+    () => filterArgumentIds(result.arguments, filterParams),
+    [result.arguments, filterParams],
+  );
+
+  // --- フィルタ済み結果を派生計算（stale closure問題を解消） ---
+  const filteredResult = useMemo(() => {
+    // 1. 密度フィルタの適用（scatterDensityモードのみ有効）
+    const effectiveMaxDensity = selectedChart === "scatterDensity" ? maxDensity : 1;
+    const effectiveMinValue = selectedChart === "scatterDensity" ? minValue : 0;
+    const { filtered: densityFilteredClusters } = getDenseClusters(
+      result.clusters || [],
+      effectiveMaxDensity,
+      effectiveMinValue,
+    );
+
+    // 2. フィルタ条件に合致する引数がないクラスタをマーク
+    let combinedClusters = densityFilteredClusters;
+    if (filteredArgIds) {
+      const filteredArgIdSet = new Set(filteredArgIds);
+      const clusterIdsWithFilteredArgs = new Set<string>();
+      for (const arg of result.arguments) {
+        if (filteredArgIdSet.has(arg.arg_id)) {
+          for (const clusterId of arg.cluster_ids) {
+            clusterIdsWithFilteredArgs.add(clusterId);
           }
         }
-
-        if (arg.attributes) {
-          const passesAttributeFilters = Object.entries(attrFilters).every(([attrName, selectedValues]) => {
-            const attrValue = arg.attributes?.[attrName];
-            const values = selectedValues;
-            if (values.length === 1 && values[0].startsWith("range:")) {
-              const [_, minStr, maxStr] = values[0].split(":");
-              const min = Number(minStr);
-              const max = Number(maxStr);
-              const numValue = Number(attrValue);
-              return !Number.isNaN(numValue) && numValue >= min && numValue <= max;
-            }
-            return values.includes(String(attrValue));
-          });
-          const passesNumericRanges = Object.entries(numericRanges).every(([attrName, range]) => {
-            if (!enabledRanges[attrName]) return true;
-            const attrValue = arg.attributes?.[attrName];
-            if (attrValue === undefined || attrValue === null || attrValue === "") {
-              return includeEmptyValues[attrName] || false;
-            }
-            const numValue = Number(attrValue);
-            return !Number.isNaN(numValue) && numValue >= range[0] && numValue <= range[1];
-          });
-          return passesAttributeFilters && passesNumericRanges;
-        }
-        return textSearchString.trim() === "";
-      });
-      filteredArgIds = filteredArgs.map((arg) => arg.arg_id);
-    }
-    const clusterIdsWithFilteredArgs = new Set<string>();
-    for (const arg of filteredArgs) {
-      for (const clusterId of arg.cluster_ids) {
-        clusterIdsWithFilteredArgs.add(clusterId);
       }
+      combinedClusters = densityFilteredClusters.map((cluster) =>
+        clusterIdsWithFilteredArgs.has(cluster.id) ? cluster : { ...cluster, allFiltered: true },
+      );
     }
-    const { filtered: densityFilteredClusters } = getDenseClusters(result.clusters || [], maxDensity, minValue);
 
-    // フィルターが適用されていても、すべてのクラスターを表示するが、
-    // フィルター条件に合致する引数がないクラスタは特別なプロパティで区別する
-    const combinedFilteredClusters = densityFilteredClusters.map((cluster) => {
-      if (hasActiveFilters && !clusterIdsWithFilteredArgs.has(cluster.id)) {
-        // このクラスターにはフィルター条件に合致する引数が存在しないことを示す
-        return { ...cluster, allFiltered: true };
-      }
-      return cluster;
-    });
-
-    setFilteredResult({
+    return {
       ...result,
-      clusters: combinedFilteredClusters,
-      arguments: result.arguments,
-      filteredArgumentIds: hasActiveFilters ? filteredArgIds : undefined,
-    });
-  }
+      clusters: combinedClusters,
+      filteredArgumentIds: filteredArgIds,
+    };
+  }, [result, filteredArgIds, selectedChart, maxDensity, minValue]);
 
   // --- UIハンドラ群 ---
-  function onChangeDensityFilter(maxDensity: number, minValue: number) {
-    setMaxDensity(maxDensity);
-    setMinValue(minValue);
-    if (selectedChart === "scatterDensity" || selectedChart === "scatterAll") {
-      updateFilteredResult(maxDensity, minValue);
-    }
-  }
-
-  function handleApplyAttributeFilters(
+  const handleApplyAttributeFilters = (
     filters: AttributeFilters,
     numericRanges_: NumericRangeFilters,
     includeEmpty: Record<string, boolean>,
     enabledRanges_: Record<string, boolean>,
     textSearchString: string,
-  ) {
+  ) => {
     setAttributeFilters(filters);
     setNumericRanges(numericRanges_);
     setIncludeEmptyValues(includeEmpty);
     setEnabledRanges(enabledRanges_);
     setTextSearch(textSearchString);
-    if (selectedChart === "scatterAll" || selectedChart === "scatterDetail" || selectedChart === "scatterDensity") {
-      updateFilteredResult(
-        selectedChart === "scatterDensity" ? maxDensity : 1,
-        selectedChart === "scatterDensity" ? minValue : 0,
-        filters,
-        textSearchString,
-      );
-    }
-  }
+  };
 
-  // --- フィルター済み標本 ---
-  const filteredSamples = useMemo(() => {
-    return filterSamples(samples, attributeFilters, numericRanges, enabledRanges, includeEmptyValues);
-  }, [samples, attributeFilters, numericRanges, enabledRanges, includeEmptyValues]);
+  const onChangeDensityFilter = (density: number, value: number) => {
+    setMaxDensity(density);
+    setMinValue(value);
+  };
 
   // --- クラスタ表示 ---
   const clustersToDisplay = useMemo(() => {
@@ -275,27 +157,6 @@ export function ClientContainer({ result }: Props) {
     return c.sort((a, b) => b.value - a.value);
   }, [result.clusters, filteredResult.clusters, selectedChart]);
 
-  // --- その他UIハンドラ ---
-  const handleCloseDisplaySetting = () => setOpenDensityFilterSetting(false);
-  const handleToggleClusterLabels = (value: boolean) => setShowClusterLabels(value);
-  const handleToggleConvexHull = (value: boolean) => setShowConvexHull(value);
-  const handleCloseAttributeFilter = () => setOpenAttributeFilter(false);
-  const handleChartChange = (selectedChart: string) => {
-    setSelectedChart(selectedChart);
-    if (selectedChart === "scatterDensity") {
-      updateFilteredResult(maxDensity, minValue, attributeFilters, textSearch);
-    } else {
-      // scatterAll / scatterDetail / treemap / hierarchyList 等は密度フィルタなし（maxDensity=1, minValue=0）。
-      // treemap 等でも updateFilteredResult を呼ぶが、maxDensity=1, minValue=0 では全クラスタが返るため実質影響なし。
-      updateFilteredResult(1, 0, attributeFilters, textSearch);
-    }
-  };
-  const handleClickDensitySetting = () => setOpenDensityFilterSetting(true);
-  const handleClickFullscreen = () => setIsFullscreen(true);
-  const handleOpenAttributeFilter = () => setOpenAttributeFilter(true);
-  const handleExitFullscreen = () => setIsFullscreen(false);
-  const handleTreeZoom = (value: string) => setTreemapLevel(value);
-
   // --- UI ---
   return (
     <div>
@@ -303,17 +164,17 @@ export function ClientContainer({ result }: Props) {
         <DisplaySettingDialog
           currentMaxDensity={maxDensity}
           currentMinValue={minValue}
-          onClose={handleCloseDisplaySetting}
+          onClose={() => setOpenDensityFilterSetting(false)}
           onChangeFilter={onChangeDensityFilter}
           showClusterLabels={showClusterLabels}
-          onToggleClusterLabels={handleToggleClusterLabels}
+          onToggleClusterLabels={setShowClusterLabels}
           showConvexHull={showConvexHull}
-          onToggleConvexHull={handleToggleConvexHull}
+          onToggleConvexHull={setShowConvexHull}
         />
       )}
       {openAttributeFilter && (
         <AttributeFilterDialog
-          onClose={handleCloseAttributeFilter}
+          onClose={() => setOpenAttributeFilter(false)}
           onApplyFilters={handleApplyAttributeFilters}
           attributes={attributeMetas}
           initialFilters={attributeFilters}
@@ -325,46 +186,28 @@ export function ClientContainer({ result }: Props) {
       )}
       <SelectChartButton
         selected={selectedChart}
-        onChange={handleChartChange}
-        onClickDensitySetting={handleClickDensitySetting}
-        onClickFullscreen={handleClickFullscreen}
+        onChange={setSelectedChart}
+        onClickDensitySetting={() => setOpenDensityFilterSetting(true)}
+        onClickFullscreen={() => setIsFullscreen(true)}
         result={result}
         disabledModeOverrides={{ scatterDensity: !isDenseGroupEnabled }}
         enabledCharts={enabledCharts}
         chartOrder={chartOrder}
-        onClickAttentionFilter={handleOpenAttributeFilter}
+        onClickAttentionFilter={() => setOpenAttributeFilter(true)}
         isAttentionFilterEnabled={attributeMetas.length > 0}
-        showAttentionFilterBadge={
-          Object.keys(attributeFilters).length > 0 ||
-          Object.keys(enabledRanges).filter((k) => enabledRanges[k]).length > 0 ||
-          textSearch.trim() !== ""
-        }
-        attentionFilterBadgeCount={(() => {
-          const allFilteredAttributes = new Set([
-            ...Object.keys(attributeFilters),
-            ...Object.keys(enabledRanges).filter((k) => enabledRanges[k]),
-          ]);
-          // テキスト検索が有効な場合は+1する
-          return allFilteredAttributes.size + (textSearch.trim() !== "" ? 1 : 0);
-        })()}
+        showAttentionFilterBadge={hasActiveFilters(filterParams)}
+        attentionFilterBadgeCount={countActiveFilters(filterParams)}
       />
       <Chart
         result={filteredResult}
         selectedChart={selectedChart}
         isFullscreen={isFullscreen}
-        onExitFullscreen={handleExitFullscreen}
+        onExitFullscreen={() => setIsFullscreen(false)}
         showClusterLabels={showClusterLabels}
-        onToggleClusterLabels={handleToggleClusterLabels}
+        onToggleClusterLabels={setShowClusterLabels}
         showConvexHull={showConvexHull}
         treemapLevel={treemapLevel}
-        onTreeZoom={handleTreeZoom}
-        filterState={{
-          attributeFilters,
-          numericRanges,
-          enabledRanges,
-          includeEmptyValues,
-          textSearch,
-        }}
+        onTreeZoom={setTreemapLevel}
       />
       {clustersToDisplay.map((c) => (
         <ClusterOverview key={c.id} cluster={c} />

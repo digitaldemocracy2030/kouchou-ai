@@ -1,8 +1,9 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { DialogBody, DialogContent, DialogFooter, DialogRoot } from "@/components/ui/dialog";
 import { Box, Button, Flex, Heading, Input, Text, Wrap, WrapItem } from "@chakra-ui/react";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { FixedSizeList as List } from "react-window";
+import type { AttributeFilters, AttributeMeta, NumericRangeFilters } from "./attributeFilterUtils";
 
 // リストアイテムのデータ型定義
 type ListItemData = {
@@ -13,18 +14,7 @@ type ListItemData = {
   onChange: (attr: string, value: string) => void;
 };
 
-export type AttributeFilters = Record<string, string[]>;
 type NumericRange = [number, number];
-type NumericRangeFilters = Record<string, NumericRange>;
-type AttributeTypes = Record<string, "numeric" | "categorical">;
-
-export type AttributeMeta = {
-  name: string;
-  type: "numeric" | "categorical";
-  values: string[];
-  valueCounts: Record<string, number>;
-  numericRange?: [number, number];
-};
 
 type AttributeFilterDialogProps = {
   attributes: AttributeMeta[];
@@ -88,9 +78,6 @@ export function AttributeFilterDialog({
   initialIncludeEmptyValues = {},
   initialTextSearch = "",
 }: AttributeFilterDialogProps) {
-  // 属性名リスト
-  const attributeNames = useMemo(() => attributes.map((a) => a.name), [attributes]);
-
   // --- 編集用一時状態 ---
   const [editCategoricalFilters, setEditCategoricalFilters] = useState<AttributeFilters>(initialFilters);
   const [editNumericRanges, setEditNumericRanges] = useState<NumericRangeFilters>(
