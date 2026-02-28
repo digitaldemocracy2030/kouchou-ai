@@ -56,7 +56,8 @@ export function filterArgumentIds(args: Argument[], params: FilterParams): strin
         return false;
       }
 
-      // 属性がない場合はテキスト検索のみで判定
+      // 属性がない場合、カテゴリ/数値フィルタはマッチ不可なので除外。
+      // テキスト検索のみアクティブならテキストマッチで判定する。
       if (!arg.attributes) {
         return !!searchLower;
       }
@@ -71,11 +72,12 @@ export function filterArgumentIds(args: Argument[], params: FilterParams): strin
       // 数値レンジフィルタ
       for (const [attr, range] of Object.entries(numericRanges)) {
         if (!enabledRanges[attr]) continue;
-        const attrValue = arg.attributes[attr];
-        if (attrValue === undefined || attrValue === null || attrValue === "") {
+        const rawValue = arg.attributes[attr];
+        const trimmed = rawValue == null ? "" : String(rawValue).trim();
+        if (trimmed === "") {
           if (!includeEmptyValues[attr]) return false;
         } else {
-          const numValue = Number(attrValue);
+          const numValue = Number(trimmed);
           if (Number.isNaN(numValue) || numValue < range[0] || numValue > range[1]) return false;
         }
       }

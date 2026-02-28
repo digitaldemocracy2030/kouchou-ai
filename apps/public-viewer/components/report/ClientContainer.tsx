@@ -84,12 +84,15 @@ export function ClientContainer({ result }: Props) {
     return !isEmpty;
   }, [result.clusters, maxDensity, minValue]);
 
+  // --- 属性・テキストフィルタの適用（密度変更時に再計算しないよう分離） ---
+  const filteredArgIds = useMemo(
+    () => filterArgumentIds(result.arguments, filterParams),
+    [result.arguments, filterParams],
+  );
+
   // --- フィルタ済み結果を派生計算（stale closure問題を解消） ---
   const filteredResult = useMemo(() => {
-    // 1. 属性・テキストフィルタの適用
-    const filteredArgIds = filterArgumentIds(result.arguments, filterParams);
-
-    // 2. 密度フィルタの適用（scatterDensityモードのみ有効）
+    // 1. 密度フィルタの適用（scatterDensityモードのみ有効）
     const effectiveMaxDensity = selectedChart === "scatterDensity" ? maxDensity : 1;
     const effectiveMinValue = selectedChart === "scatterDensity" ? minValue : 0;
     const { filtered: densityFilteredClusters } = getDenseClusters(
@@ -98,7 +101,7 @@ export function ClientContainer({ result }: Props) {
       effectiveMinValue,
     );
 
-    // 3. フィルタ条件に合致する引数がないクラスタをマーク
+    // 2. フィルタ条件に合致する引数がないクラスタをマーク
     let combinedClusters = densityFilteredClusters;
     if (filteredArgIds) {
       const filteredArgIdSet = new Set(filteredArgIds);
@@ -120,7 +123,7 @@ export function ClientContainer({ result }: Props) {
       clusters: combinedClusters,
       filteredArgumentIds: filteredArgIds,
     };
-  }, [result, filterParams, selectedChart, maxDensity, minValue]);
+  }, [result, filteredArgIds, selectedChart, maxDensity, minValue]);
 
   // --- UIハンドラ群 ---
   const handleApplyAttributeFilters = (
