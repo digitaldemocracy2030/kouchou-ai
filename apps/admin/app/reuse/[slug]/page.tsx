@@ -1,18 +1,18 @@
 "use client";
 
-import { Header } from "@/components/Header";
-import { toaster } from "@/components/ui/toaster";
-import { Box, Button, Field, HStack, Heading, Input, Presence, Text, VStack, useDisclosure } from "@chakra-ui/react";
-import { useRouter } from "next/navigation";
-import { type ChangeEvent, useEffect, useMemo, useState } from "react";
-import { ClusterSettingsSection } from "@/app/create/components/ClusterSettingsSection";
+import { duplicateReport } from "@/app/_components/ReportCard/DuplicateReportDialog/actions";
 import { AISettingsSection } from "@/app/create/components/AISettingsSection";
+import { ClusterSettingsSection } from "@/app/create/components/ClusterSettingsSection";
 import { EnvironmentCheckDialog } from "@/app/create/components/EnvironmentCheckDialog/EnvironmentCheckDialog";
 import { useAISettings } from "@/app/create/hooks/useAISettings";
 import { useClusterSettings } from "@/app/create/hooks/useClusterSettings";
 import { usePromptSettings } from "@/app/create/hooks/usePromptSettings";
 import { validateReportId } from "@/app/create/utils/validation";
-import { duplicateReport } from "@/app/_components/ReportCard/DuplicateReportDialog/actions";
+import { Header } from "@/components/Header";
+import { toaster } from "@/components/ui/toaster";
+import { Box, Button, Field, HStack, Heading, Input, Presence, Text, VStack, useDisclosure } from "@chakra-ui/react";
+import { useRouter } from "next/navigation";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 
 type PageProps = {
   params: Promise<{
@@ -28,6 +28,7 @@ type ReportConfig = {
   is_pubcom?: boolean | null;
   is_embedded_at_local?: boolean | null;
   enable_source_link?: boolean | null;
+  enable_reproducibility?: boolean | null;
   local_llm_address?: string | null;
   extraction?: {
     prompt?: string | null;
@@ -35,6 +36,7 @@ type ReportConfig = {
   } | null;
   hierarchical_clustering?: {
     cluster_nums?: number[] | null;
+    enable_reproducibility?: boolean | null;
   } | null;
   hierarchical_initial_labelling?: {
     prompt?: string | null;
@@ -55,6 +57,7 @@ type DuplicateOverrides = {
   workers?: number;
   is_pubcom?: boolean;
   enable_source_link?: boolean;
+  enable_reproducibility?: boolean;
   is_embedded_at_local?: boolean;
   local_llm_address?: string;
   cluster?: number[];
@@ -161,6 +164,9 @@ export default function Page({ params }: PageProps) {
         if (typeof nextConfig.enable_source_link === "boolean") {
           aiSettings.handleEnableSourceLinkChange(nextConfig.enable_source_link);
         }
+        const enableReproducibility =
+          nextConfig.hierarchical_clustering?.enable_reproducibility ?? nextConfig.enable_reproducibility ?? false;
+        aiSettings.handleEnableReproducibilityChange(enableReproducibility);
         if (typeof nextConfig.is_embedded_at_local === "boolean") {
           aiSettings.setIsEmbeddedAtLocal(nextConfig.is_embedded_at_local);
         }
@@ -250,6 +256,11 @@ export default function Page({ params }: PageProps) {
       }
       if (aiSettings.enableSourceLink !== (config.enable_source_link ?? false)) {
         overrides.enable_source_link = aiSettings.enableSourceLink;
+      }
+      const sourceEnableReproducibility =
+        config.hierarchical_clustering?.enable_reproducibility ?? config.enable_reproducibility ?? false;
+      if (aiSettings.enableReproducibility !== sourceEnableReproducibility) {
+        overrides.enable_reproducibility = aiSettings.enableReproducibility;
       }
       if (aiSettings.isEmbeddedAtLocal !== (config.is_embedded_at_local ?? false)) {
         overrides.is_embedded_at_local = aiSettings.isEmbeddedAtLocal;
@@ -391,6 +402,7 @@ export default function Page({ params }: PageProps) {
               workers={aiSettings.workers}
               isPubcomMode={aiSettings.isPubcomMode}
               enableSourceLink={aiSettings.enableSourceLink}
+              enableReproducibility={aiSettings.enableReproducibility}
               isEmbeddedAtLocal={aiSettings.isEmbeddedAtLocal}
               localLLMAddress={aiSettings.localLLMAddress}
               userApiKey={aiSettings.userApiKey}
@@ -407,6 +419,7 @@ export default function Page({ params }: PageProps) {
               onDecreaseWorkers={aiSettings.decreaseWorkers}
               onPubcomModeChange={aiSettings.handlePubcomModeChange}
               onEnableSourceLinkChange={aiSettings.handleEnableSourceLinkChange}
+              onEnableReproducibilityChange={aiSettings.handleEnableReproducibilityChange}
               onUserApiKeyChange={aiSettings.handleUserApiKeyChange}
               onEmbeddedAtLocalChange={(checked) => {
                 if (checked === "indeterminate") return;

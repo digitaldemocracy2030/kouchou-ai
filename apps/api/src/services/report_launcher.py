@@ -36,6 +36,7 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
         },
         "hierarchical_clustering": {
             "cluster_nums": report_input.cluster,
+            "enable_reproducibility": report_input.enable_reproducibility,
         },
         "hierarchical_initial_labelling": {
             "prompt": report_input.prompt.initial_labelling,

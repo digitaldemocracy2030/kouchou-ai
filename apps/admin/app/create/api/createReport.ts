@@ -23,6 +23,7 @@ export async function createReport({
   inputType,
   is_embedded_at_local,
   enable_source_link,
+  enable_reproducibility,
   local_llm_address,
   userApiKey,
 }: {
@@ -39,6 +40,7 @@ export async function createReport({
   inputType: string;
   is_embedded_at_local: boolean;
   enable_source_link: boolean;
+  enable_reproducibility: boolean;
   local_llm_address?: string;
   userApiKey?: string;
 }): Promise<CreateReportResult> {
@@ -69,6 +71,7 @@ export async function createReport({
         inputType,
         is_embedded_at_local,
         enable_source_link,
+        enable_reproducibility,
         local_llm_address,
       }),
     });
