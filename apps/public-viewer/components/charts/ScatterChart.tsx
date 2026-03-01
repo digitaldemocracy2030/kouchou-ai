@@ -1,7 +1,7 @@
 import type { Argument, Cluster, Config } from "@/type";
 import { Box } from "@chakra-ui/react";
 import type { Annotations, Data, Layout, PlotMouseEvent } from "plotly.js";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
@@ -141,7 +141,33 @@ export function ScatterChart({
     return result;
   };
 
-  const onUpdate = (_event: unknown) => {
+  // ホバー中にアノテーション（クラスタラベル）を非表示にするための参照
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverBoundRef = useRef(false); // イベント二重登録防止
+  const onHoverRef = useRef(onHover);
+  onHoverRef.current = onHover;
+
+  // arg_id → アノテーションインデックスのマッピング（イベントハンドラからref経由で参照）
+  const argToAnnotationIndexRef = useRef<Map<string, number[]>>(new Map());
+  const argToAnnotationIndex = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const arg of allArguments) {
+      const indices: number[] = [];
+      for (let i = 0; i < targetClusters.length; i++) {
+        if (arg.cluster_ids.includes(targetClusters[i].id)) {
+          indices.push(i);
+        }
+      }
+      if (indices.length > 0) map.set(arg.arg_id, indices);
+    }
+    return map;
+  }, [allArguments, targetClusters]);
+  argToAnnotationIndexRef.current = argToAnnotationIndex;
+
+  // react-plotly.js の onUpdate は (figure, gd) で呼ばれる。
+  // gd は Plotly が .on() メソッドを付与した HTMLElement。
+  const onUpdate = (_figure: unknown, graphDiv?: Readonly<HTMLElement>) => {
     // Plotly単体で設定できないデザインを、onUpdateのタイミングでHTMLをオーバーライドして解決する
 
     // アノテーションの角を丸にする
@@ -160,6 +186,46 @@ export function ScatterChart({
 
     // プロット操作用アイコンのエリアを「全画面終了」ボタンの下に移動する
     avoidModBarCoveringShrinkButton();
+
+    // Plotly gd 要素に hover/unhover イベントを直接登録（初回のみ）
+    // Plotly は HTMLElement に .on() メソッドを付与する
+    // biome-ignore lint/suspicious/noExplicitAny: Plotly gd の .on() は独自イベントシステム
+    const gd = graphDiv as HTMLElement & { on?: (event: string, handler: (data: any) => void) => void };
+    if (gd?.on && !hoverBoundRef.current) {
+      hoverBoundRef.current = true;
+      gd.on("plotly_hover", (eventData: { points?: Array<{ customdata?: { arg_id?: string } }> }) => {
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        const argId = eventData?.points?.[0]?.customdata?.arg_id;
+        const wrapper = chartWrapperRef.current;
+        if (argId && wrapper) {
+          const annotationEls = wrapper.querySelectorAll("g.annotation");
+          // まず全ラベルを復帰してから、該当クラスタのラベルだけ非表示にする
+          for (const g of annotationEls) {
+            (g as HTMLElement).style.opacity = "1";
+          }
+          const annotationIndices = argToAnnotationIndexRef.current.get(argId) ?? [];
+          for (const idx of annotationIndices) {
+            const el = annotationEls[idx] as HTMLElement | undefined;
+            if (el) {
+              el.style.opacity = "0";
+              el.style.transition = "opacity 0.15s ease";
+            }
+          }
+        }
+        onHoverRef.current?.();
+      });
+      gd.on("plotly_unhover", () => {
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = setTimeout(() => {
+          const wrapper = chartWrapperRef.current;
+          if (!wrapper) return;
+          for (const g of wrapper.querySelectorAll("g.annotation")) {
+            (g as HTMLElement).style.opacity = "1";
+            (g as HTMLElement).style.transition = "opacity 0.15s ease";
+          }
+        }, 300);
+      });
+    }
   };
 
   // フィルターが適用されている場合、フィルター条件に合致するアイテムと合致しないアイテムを分離
@@ -407,7 +473,7 @@ export function ScatterChart({
 
   return (
     <Box width="100%" height="100%" display="flex" flexDirection="column">
-      <Box position="relative" flex="1">
+      <Box position="relative" flex="1" ref={chartWrapperRef}>
         <ChartCore
           data={allPlotData as unknown as Data[]}
           layout={
