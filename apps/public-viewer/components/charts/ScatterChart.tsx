@@ -1,7 +1,7 @@
 import type { Argument, Cluster, Config } from "@/type";
 import { Box } from "@chakra-ui/react";
 import type { Annotations, Data, Layout, PlotMouseEvent } from "plotly.js";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
@@ -144,7 +144,6 @@ export function ScatterChart({
   // ホバー中にアノテーション（クラスタラベル）を非表示にするための参照
   const chartWrapperRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hoverBoundRef = useRef(false); // イベント二重登録防止
   const onHoverRef = useRef(onHover);
   onHoverRef.current = onHover;
 
@@ -165,8 +164,24 @@ export function ScatterChart({
   }, [allArguments, targetClusters]);
   argToAnnotationIndexRef.current = argToAnnotationIndex;
 
+  // Plotly gd 要素の参照を保持し、アンマウント時にクリーンアップするための ref
+  // biome-ignore lint/suspicious/noExplicitAny: Plotly gd の .on()/.removeAllListeners() は独自イベントシステム
+  const plotlyGdRef = useRef<HTMLElement & { on?: (event: string, handler: (data: any) => void) => void; removeAllListeners?: (event: string) => void } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      // アンマウント時: タイマーとイベントリスナーをクリーンアップ
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (plotlyGdRef.current?.removeAllListeners) {
+        plotlyGdRef.current.removeAllListeners("plotly_hover");
+        plotlyGdRef.current.removeAllListeners("plotly_unhover");
+      }
+    };
+  }, []);
+
   // react-plotly.js の onUpdate は (figure, gd) で呼ばれる。
   // gd は Plotly が .on() メソッドを付与した HTMLElement。
+  const hoverBoundRef = useRef(false); // イベント二重登録防止
   const onUpdate = (_figure: unknown, graphDiv?: Readonly<HTMLElement>) => {
     // Plotly単体で設定できないデザインを、onUpdateのタイミングでHTMLをオーバーライドして解決する
 
@@ -188,20 +203,21 @@ export function ScatterChart({
     avoidModBarCoveringShrinkButton();
 
     // Plotly gd 要素に hover/unhover イベントを直接登録（初回のみ）
-    // Plotly は HTMLElement に .on() メソッドを付与する
-    // biome-ignore lint/suspicious/noExplicitAny: Plotly gd の .on() は独自イベントシステム
-    const gd = graphDiv as HTMLElement & { on?: (event: string, handler: (data: any) => void) => void };
+    const gd = graphDiv as typeof plotlyGdRef.current;
     if (gd?.on && !hoverBoundRef.current) {
       hoverBoundRef.current = true;
-      gd.on("plotly_hover", (eventData: { points?: Array<{ customdata?: { arg_id?: string } }> }) => {
+      plotlyGdRef.current = gd;
+      gd.on("plotly_hover", (eventData: { points?: Array<{ customdata?: { arg_id?: string }; data?: { type?: string } }> }) => {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        const argId = eventData?.points?.[0]?.customdata?.arg_id;
+        const point = eventData?.points?.[0];
+        const argId = point?.customdata?.arg_id;
         const wrapper = chartWrapperRef.current;
         if (argId && wrapper) {
           const annotationEls = wrapper.querySelectorAll("g.annotation");
           // まず全ラベルを復帰してから、該当クラスタのラベルだけ非表示にする
           for (const g of annotationEls) {
             (g as HTMLElement).style.opacity = "1";
+            (g as HTMLElement).style.transition = "opacity 0.15s ease";
           }
           const annotationIndices = argToAnnotationIndexRef.current.get(argId) ?? [];
           for (const idx of annotationIndices) {
@@ -212,7 +228,11 @@ export function ScatterChart({
             }
           }
         }
-        onHoverRef.current?.();
+        // ChartCore の onHover prop は SVG scatter では既に発火するため、
+        // ここでは scattergl トレースに対してのみ onHoverRef を呼び出す
+        if (point?.data?.type === "scattergl") {
+          onHoverRef.current?.();
+        }
       });
       gd.on("plotly_unhover", () => {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
