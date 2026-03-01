@@ -164,24 +164,36 @@ export function ScatterChart({
   }, [allArguments, targetClusters]);
   argToAnnotationIndexRef.current = argToAnnotationIndex;
 
-  // Plotly gd 要素の参照を保持し、アンマウント時にクリーンアップするための ref
-  // biome-ignore lint/suspicious/noExplicitAny: Plotly gd の .on()/.removeAllListeners() は独自イベントシステム
-  const plotlyGdRef = useRef<HTMLElement & { on?: (event: string, handler: (data: any) => void) => void; removeAllListeners?: (event: string) => void } | null>(null);
+  // Plotly gd 要素の参照とハンドラを保持し、差し替え・アンマウント時にクリーンアップする
+  type PlotlyGd = HTMLElement & {
+    on?: (event: string, handler: (data: unknown) => void) => void;
+    removeListener?: (event: string, handler: (data: unknown) => void) => void;
+  };
+  const boundGdRef = useRef<PlotlyGd | null>(null);
+  const hoverHandlerRef = useRef<((data: unknown) => void) | null>(null);
+  const unhoverHandlerRef = useRef<((data: unknown) => void) | null>(null);
+
+  /** 旧 gd からリスナーを解除する */
+  const detachHoverListeners = () => {
+    const oldGd = boundGdRef.current;
+    if (!oldGd?.removeListener) return;
+    if (hoverHandlerRef.current) oldGd.removeListener("plotly_hover", hoverHandlerRef.current);
+    if (unhoverHandlerRef.current) oldGd.removeListener("plotly_unhover", unhoverHandlerRef.current);
+    hoverHandlerRef.current = null;
+    unhoverHandlerRef.current = null;
+    boundGdRef.current = null;
+  };
 
   useEffect(() => {
     return () => {
       // アンマウント時: タイマーとイベントリスナーをクリーンアップ
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      if (plotlyGdRef.current?.removeAllListeners) {
-        plotlyGdRef.current.removeAllListeners("plotly_hover");
-        plotlyGdRef.current.removeAllListeners("plotly_unhover");
-      }
+      detachHoverListeners();
     };
   }, []);
 
   // react-plotly.js の onUpdate は (figure, gd) で呼ばれる。
   // gd は Plotly が .on() メソッドを付与した HTMLElement。
-  const hoverBoundRef = useRef(false); // イベント二重登録防止
   const onUpdate = (_figure: unknown, graphDiv?: Readonly<HTMLElement>) => {
     // Plotly単体で設定できないデザインを、onUpdateのタイミングでHTMLをオーバーライドして解決する
 
@@ -202,14 +214,17 @@ export function ScatterChart({
     // プロット操作用アイコンのエリアを「全画面終了」ボタンの下に移動する
     avoidModBarCoveringShrinkButton();
 
-    // Plotly gd 要素に hover/unhover イベントを直接登録（初回のみ）
-    const gd = graphDiv as typeof plotlyGdRef.current;
-    if (gd?.on && !hoverBoundRef.current) {
-      hoverBoundRef.current = true;
-      plotlyGdRef.current = gd;
-      gd.on("plotly_hover", (eventData: { points?: Array<{ customdata?: { arg_id?: string }; data?: { type?: string } }> }) => {
+    // Plotly gd 要素に hover/unhover イベントを直接登録
+    // graphDiv が差し替わった場合は旧リスナーを解除して再登録する
+    const gd = graphDiv as PlotlyGd | undefined;
+    if (boundGdRef.current && boundGdRef.current !== gd) {
+      detachHoverListeners();
+    }
+    if (gd?.on && !boundGdRef.current) {
+      const handleHover = (eventData: unknown) => {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        const point = eventData?.points?.[0];
+        const ed = eventData as { points?: Array<{ customdata?: { arg_id?: string }; data?: { type?: string } }> } | undefined;
+        const point = ed?.points?.[0];
         const argId = point?.customdata?.arg_id;
         const wrapper = chartWrapperRef.current;
         if (argId && wrapper) {
@@ -233,8 +248,8 @@ export function ScatterChart({
         if (point?.data?.type === "scattergl") {
           onHoverRef.current?.();
         }
-      });
-      gd.on("plotly_unhover", () => {
+      };
+      const handleUnhover = () => {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
         hideTimerRef.current = setTimeout(() => {
           const wrapper = chartWrapperRef.current;
@@ -244,7 +259,12 @@ export function ScatterChart({
             (g as HTMLElement).style.transition = "opacity 0.15s ease";
           }
         }, 300);
-      });
+      };
+      gd.on("plotly_hover", handleHover);
+      gd.on("plotly_unhover", handleUnhover);
+      hoverHandlerRef.current = handleHover;
+      unhoverHandlerRef.current = handleUnhover;
+      boundGdRef.current = gd;
     }
   };
 
