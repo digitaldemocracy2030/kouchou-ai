@@ -223,7 +223,7 @@ export function ScatterChart({
     if (gd?.on && !boundGdRef.current) {
       const handleHover = (eventData: unknown) => {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        const ed = eventData as { points?: Array<{ customdata?: { arg_id?: string }; data?: { type?: string } }> } | undefined;
+        const ed = eventData as { points?: Array<{ customdata?: { arg_id?: string } }> } | undefined;
         const point = ed?.points?.[0];
         const argId = point?.customdata?.arg_id;
         const wrapper = chartWrapperRef.current;
@@ -243,11 +243,7 @@ export function ScatterChart({
             }
           }
         }
-        // ChartCore の onHover prop は SVG scatter では既に発火するため、
-        // ここでは scattergl トレースに対してのみ onHoverRef を呼び出す
-        if (point?.data?.type === "scattergl") {
-          onHoverRef.current?.();
-        }
+        onHoverRef.current?.();
       };
       const handleUnhover = () => {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -544,7 +540,6 @@ export function ScatterChart({
             scrollZoom: true, // マウスホイールによるズームを有効化
             locale: "ja",
           }}
-          onHover={onHover}
           onUpdate={onUpdate}
           onClick={(data: PlotMouseEvent) => {
             if (!config?.enable_source_link) return;
