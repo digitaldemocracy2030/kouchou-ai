@@ -241,6 +241,7 @@ export default function Page() {
         inputType: inputData.inputType,
         is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
         enable_source_link: aiSettings.enableSourceLink,
+        enable_reproducibility: aiSettings.enableReproducibility,
         local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
         userApiKey: aiSettings.userApiKey.trim() || undefined,
       });
@@ -396,6 +397,7 @@ export default function Page() {
               workers={aiSettings.workers}
               isPubcomMode={aiSettings.isPubcomMode}
               enableSourceLink={aiSettings.enableSourceLink}
+              enableReproducibility={aiSettings.enableReproducibility}
               isEmbeddedAtLocal={aiSettings.isEmbeddedAtLocal}
               localLLMAddress={aiSettings.localLLMAddress}
               userApiKey={aiSettings.userApiKey}
@@ -412,6 +414,7 @@ export default function Page() {
               onDecreaseWorkers={aiSettings.decreaseWorkers}
               onPubcomModeChange={aiSettings.handlePubcomModeChange}
               onEnableSourceLinkChange={aiSettings.handleEnableSourceLinkChange}
+              onEnableReproducibilityChange={aiSettings.handleEnableReproducibilityChange}
               onUserApiKeyChange={aiSettings.handleUserApiKeyChange}
               onEmbeddedAtLocalChange={(checked) => {
                 if (checked === "indeterminate") return;

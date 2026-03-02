@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   LOCAL_LLM_ADDRESS: `${STORAGE_KEY_PREFIX}local_llm_address`,
   IS_EMBEDDED_AT_LOCAL: `${STORAGE_KEY_PREFIX}is_embedded_at_local`,
   ENABLE_SOURCE_LINK: `${STORAGE_KEY_PREFIX}enable_source_link`,
+  ENABLE_REPRODUCIBILITY: `${STORAGE_KEY_PREFIX}enable_reproducibility`,
 };
 
 // LocalLLMのデフォルトアドレスを定数化
@@ -116,7 +117,9 @@ function saveToStorage<T>(key: string, value: T): void {
  * AIモデル設定を管理するカスタムフック
  */
 export function useAISettings() {
-  const [provider, setProvider] = useState<Provider>(() => getFromStorage<Provider>(STORAGE_KEYS.PROVIDER, DEFAULT_PROVIDER));
+  const [provider, setProvider] = useState<Provider>(() =>
+    getFromStorage<Provider>(STORAGE_KEYS.PROVIDER, DEFAULT_PROVIDER),
+  );
   const [model, setModel] = useState<string>(() => getFromStorage<string>(STORAGE_KEYS.MODEL, "gpt-4o-mini"));
   const [workers, setWorkers] = useState<number>(() => getFromStorage<number>(STORAGE_KEYS.WORKERS, 30));
   const [isPubcomMode, setIsPubcomMode] = useState<boolean>(true);
@@ -125,6 +128,9 @@ export function useAISettings() {
   );
   const [enableSourceLink, setEnableSourceLink] = useState<boolean>(() =>
     getFromStorage<boolean>(STORAGE_KEYS.ENABLE_SOURCE_LINK, false),
+  );
+  const [enableReproducibility, setEnableReproducibility] = useState<boolean>(() =>
+    getFromStorage<boolean>(STORAGE_KEYS.ENABLE_REPRODUCIBILITY, false),
   );
 
   const [localLLMAddress, setLocalLLMAddress] = useState<string>(() =>
@@ -159,6 +165,10 @@ export function useAISettings() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.ENABLE_SOURCE_LINK, enableSourceLink);
   }, [enableSourceLink]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.ENABLE_REPRODUCIBILITY, enableReproducibility);
+  }, [enableReproducibility]);
 
   useEffect(() => {
     if (provider === "openrouter") {
@@ -290,6 +300,14 @@ export function useAISettings() {
   };
 
   /**
+   * 再現性設定変更時のハンドラー
+   */
+  const handleEnableReproducibilityChange = (checked: boolean | "indeterminate") => {
+    if (checked === "indeterminate") return;
+    setEnableReproducibility(checked);
+  };
+
+  /**
    * ユーザーAPIキー変更時のハンドラー
    */
   const handleUserApiKeyChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -364,6 +382,7 @@ export function useAISettings() {
     setIsPubcomMode(true);
     setIsEmbeddedAtLocal(false);
     setEnableSourceLink(false);
+    setEnableReproducibility(false);
     setLocalLLMAddress(DEFAULT_LOCAL_LLM_ADDRESS);
     setUserApiKey("");
     setOpenRouterModels([]);
@@ -375,6 +394,7 @@ export function useAISettings() {
     saveToStorage(STORAGE_KEYS.LOCAL_LLM_ADDRESS, DEFAULT_LOCAL_LLM_ADDRESS);
     saveToStorage(STORAGE_KEYS.IS_EMBEDDED_AT_LOCAL, false);
     saveToStorage(STORAGE_KEYS.ENABLE_SOURCE_LINK, false);
+    saveToStorage(STORAGE_KEYS.ENABLE_REPRODUCIBILITY, false);
   };
 
   return {
@@ -384,6 +404,7 @@ export function useAISettings() {
     isPubcomMode,
     isEmbeddedAtLocal,
     enableSourceLink,
+    enableReproducibility,
     localLLMAddress,
     userApiKey,
     handleProviderChange,
@@ -393,6 +414,7 @@ export function useAISettings() {
     decreaseWorkers,
     handlePubcomModeChange,
     handleEnableSourceLinkChange,
+    handleEnableReproducibilityChange,
     handleUserApiKeyChange,
     setLocalLLMAddress,
     getModelDescription,

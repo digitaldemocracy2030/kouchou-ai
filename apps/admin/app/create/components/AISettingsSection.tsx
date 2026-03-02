@@ -10,6 +10,7 @@ export function AISettingsSection({
   workers,
   isPubcomMode,
   enableSourceLink,
+  enableReproducibility,
   onProviderChange,
   onModelChange,
   onWorkersChange,
@@ -17,6 +18,7 @@ export function AISettingsSection({
   onDecreaseWorkers,
   onPubcomModeChange,
   onEnableSourceLinkChange,
+  onEnableReproducibilityChange,
   getModelDescription,
   getProviderDescription,
   getCurrentModels,
@@ -36,6 +38,7 @@ export function AISettingsSection({
   workers: number;
   isPubcomMode: boolean;
   enableSourceLink: boolean;
+  enableReproducibility: boolean;
   onProviderChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onModelChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onWorkersChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -43,6 +46,7 @@ export function AISettingsSection({
   onDecreaseWorkers: () => void;
   onPubcomModeChange: (checked: boolean | "indeterminate") => void;
   onEnableSourceLinkChange: (checked: boolean | "indeterminate") => void;
+  onEnableReproducibilityChange: (checked: boolean | "indeterminate") => void;
   getModelDescription: () => string;
   getProviderDescription: () => string;
   getCurrentModels: () => { value: string; label: string }[];
@@ -208,6 +212,23 @@ export function AISettingsSection({
         </Checkbox>
         <Field.HelperText>
           ONにした場合は、CSVのurlカラムの情報を使って、レポートの散布図上でデータ点をクリックすると元のソースにアクセスできます。
+        </Field.HelperText>
+      </Field.Root>
+
+      <Field.Root>
+        <Checkbox
+          checked={enableReproducibility}
+          onCheckedChange={(details) => {
+            const { checked } = details;
+            if (checked === "indeterminate") return;
+            onEnableReproducibilityChange(checked);
+          }}
+        >
+          UMAPの再現性を有効にする
+        </Checkbox>
+        <Field.HelperText>
+          ONにした場合は、UMAPの乱数シードを固定して再現性を確保します。ただし、並列処理が無効になるため処理速度が低下します。
+          エンベディングを再利用する場合に同じクラスタリング結果を得たいときに使用してください。
         </Field.HelperText>
       </Field.Root>
 
