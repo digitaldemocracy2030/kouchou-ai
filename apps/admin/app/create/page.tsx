@@ -226,37 +226,46 @@ export default function Page() {
     // 調査概要が空の場合は空文字列を使用
     const intro = basicInfo.intro.trim();
 
-    const result = await createReport({
-      input: basicInfo.input,
-      question,
-      intro,
-      comments,
-      cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
-      provider: aiSettings.provider,
-      model: aiSettings.model,
-      workers: aiSettings.workers,
-      prompt: promptData,
-      is_pubcom: aiSettings.isPubcomMode,
-      inputType: inputData.inputType,
-      is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
-      enable_source_link: aiSettings.enableSourceLink,
-      local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
-      userApiKey: aiSettings.userApiKey.trim() || undefined,
-    });
-
-    if (result.success) {
-      toaster.create({
-        duration: 5000,
-        type: "success",
-        title: "レポート作成を開始しました",
+    try {
+      const result = await createReport({
+        input: basicInfo.input,
+        question,
+        intro,
+        comments,
+        cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
+        provider: aiSettings.provider,
+        model: aiSettings.model,
+        workers: aiSettings.workers,
+        prompt: promptData,
+        is_pubcom: aiSettings.isPubcomMode,
+        inputType: inputData.inputType,
+        is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
+        enable_source_link: aiSettings.enableSourceLink,
+        local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
+        userApiKey: aiSettings.userApiKey.trim() || undefined,
       });
 
-      router.replace("/");
-    } else {
+      if (result.success) {
+        toaster.create({
+          duration: 5000,
+          type: "success",
+          title: "レポート作成を開始しました",
+        });
+
+        router.replace("/");
+        return;
+      }
+
       toaster.create({
         type: "error",
         title: "レポート作成に失敗しました",
         description: result.error,
+      });
+    } catch (e) {
+      toaster.create({
+        type: "error",
+        title: "レポート作成に失敗しました",
+        description: "送信データが大きすぎるか、通信エラーが発生しました",
       });
     }
 

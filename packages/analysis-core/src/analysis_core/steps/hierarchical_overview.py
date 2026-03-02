@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 
 from analysis_core.services.llm import request_to_chat_ai
 
+OVERVIEW_TIMEOUT_SECONDS = 300
+
 
 class OverviewResponse(BaseModel):
     summary: str = Field(..., description="クラスターの全体的な要約")
@@ -44,6 +46,7 @@ def hierarchical_overview(config):
         local_llm_address=config.get("local_llm_address"),
         user_api_key=os.getenv("USER_API_KEY"),
         json_schema=OverviewResponse,
+        timeout_seconds=OVERVIEW_TIMEOUT_SECONDS,
     )
 
     # トークン使用量を累積

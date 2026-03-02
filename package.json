@@ -19,5 +19,10 @@
   },
   "dependencies": {
     "@next/third-parties": "^15.2.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "minimatch": "^10.2.1"
+    }
   }
 }

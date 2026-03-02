@@ -10,8 +10,8 @@ import { useMemo } from "react";
 // Ensure plugins are loaded
 ensurePluginsLoaded();
 
-/** Default enabled charts (maintains backward compatibility) */
-const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDensity", "treemap"];
+/** デフォルトで有効なチャートタイプの一覧 */
+export const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDetail", "scatterDensity", "treemap"];
 
 type Props = {
   selected: string;
@@ -124,6 +124,7 @@ export function SelectChartButton({
     <Box maxW="1200px" mx="auto" mb={2}>
       <Box display="grid" gridTemplateColumns={["1fr", null, "1fr auto"]} gap="3">
         <SegmentGroup.Root
+          id="chart-type-selector"
           value={selected}
           onChange={handleChange}
           size="md"

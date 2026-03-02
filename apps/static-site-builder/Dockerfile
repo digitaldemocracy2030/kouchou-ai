@@ -13,8 +13,8 @@ COPY packages/report-schema packages/report-schema
 COPY apps/static-site-builder apps/static-site-builder
 COPY apps/public-viewer apps/public-viewer
 
-RUN pnpm --filter @kouchou-ai/report-schema build
-RUN pnpm --filter @kouchou-ai/static-site-builder build
+RUN node_modules/.bin/tsc --project packages/report-schema/tsconfig.json
+RUN node_modules/.bin/tsc --project apps/static-site-builder/tsconfig.json
 
 FROM node:22-alpine AS runner
 
@@ -34,7 +34,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_DISABLE_FETCH_DURING_BUILD=true
 ENV NODE_ENV=production
 
-COPY --from=builder /repo /repo
+# Copy only the files needed at runtime; exclude TypeScript source and lock files
+COPY --from=builder /repo/package.json /repo/pnpm-workspace.yaml /repo/.npmrc ./
+COPY --from=builder /repo/node_modules ./node_modules
+COPY --from=builder /repo/packages ./packages
+COPY --from=builder /repo/apps/public-viewer ./apps/public-viewer
+# Remove per-package node_modules/.bin shims whose relative paths point to the wrong location
+# due to shamefully-hoist=true; pnpm's PATH injection falls back to /repo/node_modules/.bin/next
+RUN rm -rf apps/public-viewer/node_modules
+COPY --from=builder /repo/apps/static-site-builder/package.json ./apps/static-site-builder/
+COPY --from=builder /repo/apps/static-site-builder/dist ./apps/static-site-builder/dist
 COPY ./apps/api/public /repo/apps/api/public
 
 WORKDIR /repo/apps/static-site-builder
