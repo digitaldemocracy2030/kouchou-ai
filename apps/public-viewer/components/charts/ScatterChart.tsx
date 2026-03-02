@@ -1,7 +1,7 @@
 import type { Argument, Cluster, Config } from "@/type";
 import { Box } from "@chakra-ui/react";
 import type { Annotations, Data, Layout, PlotMouseEvent } from "plotly.js";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
@@ -141,7 +141,60 @@ export function ScatterChart({
     return result;
   };
 
-  const onUpdate = (_event: unknown) => {
+  // ホバー中にアノテーション（クラスタラベル）を非表示にするための参照
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onHoverRef = useRef(onHover);
+  onHoverRef.current = onHover;
+
+  // arg_id → アノテーションインデックスのマッピング（イベントハンドラからref経由で参照）
+  const argToAnnotationIndexRef = useRef<Map<string, number[]>>(new Map());
+  const argToAnnotationIndex = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const arg of allArguments) {
+      const indices: number[] = [];
+      for (let i = 0; i < targetClusters.length; i++) {
+        if (arg.cluster_ids.includes(targetClusters[i].id)) {
+          indices.push(i);
+        }
+      }
+      if (indices.length > 0) map.set(arg.arg_id, indices);
+    }
+    return map;
+  }, [allArguments, targetClusters]);
+  argToAnnotationIndexRef.current = argToAnnotationIndex;
+
+  // Plotly gd 要素の参照とハンドラを保持し、差し替え・アンマウント時にクリーンアップする
+  type PlotlyGd = HTMLElement & {
+    on?: (event: string, handler: (data: unknown) => void) => void;
+    removeListener?: (event: string, handler: (data: unknown) => void) => void;
+  };
+  const boundGdRef = useRef<PlotlyGd | null>(null);
+  const hoverHandlerRef = useRef<((data: unknown) => void) | null>(null);
+  const unhoverHandlerRef = useRef<((data: unknown) => void) | null>(null);
+
+  /** 旧 gd からリスナーを解除する */
+  const detachHoverListeners = () => {
+    const oldGd = boundGdRef.current;
+    if (!oldGd?.removeListener) return;
+    if (hoverHandlerRef.current) oldGd.removeListener("plotly_hover", hoverHandlerRef.current);
+    if (unhoverHandlerRef.current) oldGd.removeListener("plotly_unhover", unhoverHandlerRef.current);
+    hoverHandlerRef.current = null;
+    unhoverHandlerRef.current = null;
+    boundGdRef.current = null;
+  };
+
+  useEffect(() => {
+    return () => {
+      // アンマウント時: タイマーとイベントリスナーをクリーンアップ
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      detachHoverListeners();
+    };
+  }, []);
+
+  // react-plotly.js の onUpdate は (figure, gd) で呼ばれる。
+  // gd は Plotly が .on() メソッドを付与した HTMLElement。
+  const onUpdate = (_figure: unknown, graphDiv?: Readonly<HTMLElement>) => {
     // Plotly単体で設定できないデザインを、onUpdateのタイミングでHTMLをオーバーライドして解決する
 
     // アノテーションの角を丸にする
@@ -160,6 +213,55 @@ export function ScatterChart({
 
     // プロット操作用アイコンのエリアを「全画面終了」ボタンの下に移動する
     avoidModBarCoveringShrinkButton();
+
+    // Plotly gd 要素に hover/unhover イベントを直接登録
+    // graphDiv が差し替わった場合は旧リスナーを解除して再登録する
+    const gd = graphDiv as PlotlyGd | undefined;
+    if (boundGdRef.current && boundGdRef.current !== gd) {
+      detachHoverListeners();
+    }
+    if (gd?.on && !boundGdRef.current) {
+      const handleHover = (eventData: unknown) => {
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        const ed = eventData as { points?: Array<{ customdata?: { arg_id?: string } }> } | undefined;
+        const point = ed?.points?.[0];
+        const argId = point?.customdata?.arg_id;
+        const wrapper = chartWrapperRef.current;
+        if (argId && wrapper) {
+          const annotationEls = wrapper.querySelectorAll("g.annotation");
+          // まず全ラベルを復帰してから、該当クラスタのラベルだけ非表示にする
+          for (const g of annotationEls) {
+            (g as HTMLElement).style.opacity = "1";
+            (g as HTMLElement).style.transition = "opacity 0.15s ease";
+          }
+          const annotationIndices = argToAnnotationIndexRef.current.get(argId) ?? [];
+          for (const idx of annotationIndices) {
+            const el = annotationEls[idx] as HTMLElement | undefined;
+            if (el) {
+              el.style.opacity = "0";
+              el.style.transition = "opacity 0.15s ease";
+            }
+          }
+        }
+        onHoverRef.current?.();
+      };
+      const handleUnhover = () => {
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = setTimeout(() => {
+          const wrapper = chartWrapperRef.current;
+          if (!wrapper) return;
+          for (const g of wrapper.querySelectorAll("g.annotation")) {
+            (g as HTMLElement).style.opacity = "1";
+            (g as HTMLElement).style.transition = "opacity 0.15s ease";
+          }
+        }, 300);
+      };
+      gd.on("plotly_hover", handleHover);
+      gd.on("plotly_unhover", handleUnhover);
+      hoverHandlerRef.current = handleHover;
+      unhoverHandlerRef.current = handleUnhover;
+      boundGdRef.current = gd;
+    }
   };
 
   // フィルターが適用されている場合、フィルター条件に合致するアイテムと合致しないアイテムを分離
@@ -407,7 +509,7 @@ export function ScatterChart({
 
   return (
     <Box width="100%" height="100%" display="flex" flexDirection="column">
-      <Box position="relative" flex="1">
+      <Box position="relative" flex="1" ref={chartWrapperRef}>
         <ChartCore
           data={allPlotData as unknown as Data[]}
           layout={
@@ -438,7 +540,6 @@ export function ScatterChart({
             scrollZoom: true, // マウスホイールによるズームを有効化
             locale: "ja",
           }}
-          onHover={onHover}
           onUpdate={onUpdate}
           onClick={(data: PlotMouseEvent) => {
             if (!config?.enable_source_link) return;
