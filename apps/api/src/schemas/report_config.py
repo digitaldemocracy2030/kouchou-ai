@@ -9,6 +9,7 @@ class ExtractionConfig(SchemaBaseModel):
 
 class HierarchicalClusteringConfig(SchemaBaseModel):
     cluster_nums: list[int]
+    n_neighbors: int | None = None
 
 
 class HierarchicalInitialLabellingConfig(SchemaBaseModel):

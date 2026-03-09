@@ -36,6 +36,7 @@ def hierarchical_clustering_plugin(
 
     Config options:
         - cluster_nums: List of cluster counts for each level (e.g., [3, 6, 12])
+        - n_neighbors: Number of neighbors for UMAP (default: 15)
     """
     from analysis_core.steps.hierarchical_clustering import (
         hierarchical_clustering as clustering_impl,
@@ -46,6 +47,7 @@ def hierarchical_clustering_plugin(
         "output_dir": ctx.dataset,
         "hierarchical_clustering": {
             "cluster_nums": step_config.get("cluster_nums", [3, 6]),
+            "n_neighbors": step_config.get("n_neighbors", 15),
         },
     }
 

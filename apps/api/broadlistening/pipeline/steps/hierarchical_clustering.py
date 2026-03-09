@@ -39,8 +39,8 @@ def hierarchical_clustering(config):
     cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
 
     n_samples = embeddings_array.shape[0]
-    # デフォルト設定は15
-    default_n_neighbors = 15
+    # デフォルト設定は15（UMAPのデフォルト値と同じ）
+    default_n_neighbors = config["hierarchical_clustering"].get("n_neighbors", 15)
 
     # テスト等サンプルが少なすぎる場合、n_neighborsの設定値を下げる
     if n_samples <= default_n_neighbors:
