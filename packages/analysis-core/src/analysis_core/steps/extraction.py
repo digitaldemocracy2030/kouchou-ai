@@ -21,11 +21,35 @@ class ExtractionResponse(BaseModel):
 
 
 def _validate_property_columns(property_columns: list[str], comments: pl.DataFrame) -> None:
+    """Raise ValueError if any required property column is missing from the DataFrame."""
     if not all(property in comments.columns for property in property_columns):
         raise ValueError(f"Properties {property_columns} not found in comments. Columns are {comments.columns}")
 
 
+def _filter_empty_comments(comments: pl.DataFrame) -> pl.DataFrame:
+    """Filter out rows where comment-body is null or contains only whitespace.
+
+    Logs the number of filtered rows and raises RuntimeError if all comments are empty.
+    """
+    original_count = len(comments)
+    filtered = comments.filter(
+        pl.col("comment-body").is_not_null() & (pl.col("comment-body").str.strip_chars() != "")
+    )
+    filtered_count = original_count - len(filtered)
+    if filtered_count > 0:
+        logging.info("Filtered out %d empty/whitespace-only comments out of %d", filtered_count, original_count)
+    if len(filtered) == 0:
+        raise RuntimeError("All comments are empty or whitespace-only after filtering")
+    return filtered
+
+
+def filter_empty_comments(comments: pl.DataFrame) -> pl.DataFrame:
+    """Public wrapper for filtering empty/whitespace-only comments before LLM processing."""
+    return _filter_empty_comments(comments)
+
+
 def extraction(config):
+    """Extract arguments from comments using LLM, skipping empty/whitespace-only entries."""
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
     input_base_dir = config.get("_input_base_dir", "inputs")
@@ -47,6 +71,10 @@ def extraction(config):
     _validate_property_columns(property_columns, comments)
     # エラーが出なかった場合、すべての行を読み込む
     comments = pl.read_csv(input_path, columns=["comment-id", "comment-body"] + config["extraction"]["properties"])
+
+    # 空文字列・空白のみのコメントを除外する (#583)
+    comments = _filter_empty_comments(comments)
+
     comment_ids = comments["comment-id"].to_list()[:limit]
     comments_lookup = {row["comment-id"]: row for row in comments.iter_rows(named=True)}
     update_progress(config, total=len(comment_ids))
@@ -105,6 +133,7 @@ def extract_batch(
     config=None,
     timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
 ):
+    """Run argument extraction concurrently for a batch of comment texts."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures_with_index = [
             (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address, timeout_seconds))
@@ -156,6 +185,7 @@ def extract_arguments(
     local_llm_address=None,
     timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
 ):
+    """Send a single comment to the LLM and return extracted arguments."""
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
