@@ -36,6 +36,8 @@ def hierarchical_clustering_plugin(
 
     Config options:
         - cluster_nums: List of cluster counts for each level (e.g., [3, 6, 12])
+        - enable_reproducibility: If True, use fixed random seed (random_state=42) for
+          reproducibility at the cost of disabling parallelization. Default is False.
     """
     from analysis_core.steps.hierarchical_clustering import (
         hierarchical_clustering as clustering_impl,
@@ -46,6 +48,7 @@ def hierarchical_clustering_plugin(
         "output_dir": ctx.dataset,
         "hierarchical_clustering": {
             "cluster_nums": step_config.get("cluster_nums", [3, 6]),
+            "enable_reproducibility": step_config.get("enable_reproducibility", False),
         },
     }
 
