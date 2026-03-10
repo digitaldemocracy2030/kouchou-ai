@@ -13,7 +13,7 @@ export function Overview({ result }: Props) {
         レポート
       </Heading>
       <Heading as={"h2"} size={"4xl"} mb={2} className={"headingColor"}>
-        {result.config.question}
+        {result.config?.question}
       </Heading>
       <Text fontWeight={"bold"} fontSize={"xl"} mb={2}>
         <Icon mr={1}>
