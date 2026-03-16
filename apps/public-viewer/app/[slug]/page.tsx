@@ -23,6 +23,7 @@ type PageProps = {
 export const revalidate = 300;
 
 export async function generateStaticParams() {
+  const isStaticExport = process.env.NEXT_PUBLIC_OUTPUT_MODE === "export";
   try {
     const response = await fetch(`${getApiBaseUrl()}/reports`, {
       headers: {
@@ -31,7 +32,7 @@ export async function generateStaticParams() {
       },
     });
     const reports: Report[] = await response.json();
-    const slugs = reports
+    let slugs = reports
       .filter((report) => report.status === "ready")
       .map((report) => ({
         slug: report.slug,
@@ -39,11 +40,24 @@ export async function generateStaticParams() {
 
     if (process.env.BUILD_SLUGS) {
       const buildSlugs = process.env.BUILD_SLUGS.split(",").filter(Boolean);
-      return slugs.filter((report) => buildSlugs.includes(report.slug));
+      slugs = slugs.filter((report) => buildSlugs.includes(report.slug));
+    }
+
+    if (isStaticExport && slugs.length === 0) {
+      console.error("\n❌ 静的HTML出力エラー: 公開状態のレポートが見つかりません。");
+      console.error("静的HTML出力を行うには、少なくとも1つのレポートを公開状態にしてください。\n");
+      process.exit(1);
     }
 
     return slugs;
   } catch (_e) {
+    if (isStaticExport) {
+      console.error(_e);
+      console.error(
+        "\n❌ 静的HTML出力エラー: レポート一覧の取得に失敗しました。APIサーバーが起動しているか確認してください。\n",
+      );
+      process.exit(1);
+    }
     return [];
   }
 }
