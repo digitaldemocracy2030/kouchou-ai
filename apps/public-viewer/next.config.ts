@@ -18,6 +18,21 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["@chakra-ui/react"],
   },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            // blob: is required for Plotly's PNG download, which internally loads
+            // an SVG as a blob: URL on a canvas before exporting as PNG.
+            value: "img-src 'self' data: blob:;",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
