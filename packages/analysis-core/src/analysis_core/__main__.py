@@ -48,8 +48,9 @@ def main() -> int:
     parser.add_argument(
         "--without-html",
         action="store_true",
-        default=True,
-        help="Skip HTML visualization generation (default: True)",
+        default=False,
+        help="Skip HTML visualization generation. By default a self-contained "
+        "report.html is written next to hierarchical_result.json.",
     )
     parser.add_argument(
         "--output-dir",

@@ -125,8 +125,10 @@ Execution Plan:
   [RUN] hierarchical_merge_labelling: no trace of previous run
   [RUN] hierarchical_overview: no trace of previous run
   [RUN] hierarchical_aggregation: no trace of previous run
-  [SKIP] hierarchical_visualization: skipping html output
+  [RUN] hierarchical_visualization: no trace of previous run
 ```
+
+`hierarchical_visualization` ステップは自己完結型の `report.html` を生成します（Plotly CDN のみ参照、データは inline）。HTML を生成したくない場合は `--without-html` を指定してください。
 
 ### 分析の実行
 
@@ -161,7 +163,8 @@ Output directory: outputs/config
 
 ```
 outputs/config/
-├── hierarchical_result.json    # 最終結果（Webビューア用）
+├── hierarchical_result.json    # 最終結果（Webビューア用 / report.html の元データ）
+├── report.html                 # 自己完結型 HTML レポート（散布図 + クラスタ階層、Plotly CDN 参照、データは inline）
 ├── hierarchical_overview.txt   # AI生成の要約テキスト
 ├── hierarchical_clusters.csv   # クラスタリング結果
 ├── hierarchical_initial_labels.csv
@@ -171,6 +174,17 @@ outputs/config/
 ├── relations.csv
 └── hierarchical_status.json    # 実行ステータス
 ```
+
+### `report.html` の確認
+
+ブラウザで開くだけで散布図と階層クラスタを閲覧できます。pnpm / Node / docker 不要、API サーバ不要、`file://` でも動作します。
+
+```bash
+open outputs/config/report.html  # macOS
+# xdg-open outputs/config/report.html  # Linux
+```
+
+`config.json` に `"report_url_pattern"` を指定すると、各点クリックで元コメントの URL を開けます（例: `"report_url_pattern": "https://example.com/comments/{comment_id}"`）。
 
 ### 要約の確認
 
