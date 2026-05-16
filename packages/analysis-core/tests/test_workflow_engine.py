@@ -1,7 +1,6 @@
 """Tests for WorkflowEngine."""
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -19,7 +18,6 @@ from analysis_core.workflow import (
     WorkflowEngine,
     WorkflowStep,
 )
-from analysis_core.workflow.engine import WorkflowExecutionError
 
 
 @pytest.fixture

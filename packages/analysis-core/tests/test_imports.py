@@ -1,7 +1,5 @@
 """Test that all package modules can be imported correctly."""
 
-import pytest
-
 
 class TestCoreImports:
     """Test core module imports."""

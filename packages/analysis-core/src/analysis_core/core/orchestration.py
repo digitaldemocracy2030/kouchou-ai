@@ -373,6 +373,7 @@ def initialization(
     only: str | None = None,
     skip_interaction: bool = False,
     without_html: bool = True,
+    validate_api_keys_early: bool = True,
     output_base_dir: Path | None = None,
     input_base_dir: Path | None = None,
     specs_path: Path | None = None,
@@ -387,6 +388,7 @@ def initialization(
         only: Run only specified step
         skip_interaction: Skip interactive prompts
         without_html: Skip HTML visualization
+        validate_api_keys_early: Validate provider credentials during initialization
         output_base_dir: Base directory for outputs (default: outputs/)
         input_base_dir: Base directory for inputs (default: inputs/)
         specs_path: Path to specs JSON file (default: package specs)
@@ -419,7 +421,8 @@ def initialization(
     # Validate API keys early (fail-fast)
     # This ensures we catch missing API keys before starting any pipeline steps
     provider = config.get("provider", "openai")
-    validate_api_keys(provider)
+    if validate_api_keys_early:
+        validate_api_keys(provider)
 
     # Set output directory
     config["output_dir"] = job_name

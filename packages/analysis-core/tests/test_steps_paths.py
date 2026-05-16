@@ -9,7 +9,6 @@ like f"outputs/{dataset}/..." instead of using config.get("_output_base_dir").
 
 import ast
 import inspect
-from pathlib import Path
 
 import pytest
 

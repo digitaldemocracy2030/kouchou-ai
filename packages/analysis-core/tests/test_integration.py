@@ -1,9 +1,7 @@
 """Integration tests for analysis-core pipeline."""
 
 import json
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from analysis_core import PipelineOrchestrator
 from analysis_core.orchestrator import PipelineResult

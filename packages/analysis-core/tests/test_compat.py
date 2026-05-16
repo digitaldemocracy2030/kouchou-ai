@@ -1,7 +1,5 @@
 """Tests for compatibility layer."""
 
-import pytest
-
 from analysis_core.compat import create_step_context_from_config, normalize_config
 
 

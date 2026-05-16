@@ -17,7 +17,6 @@ Usage:
 
 import json
 import shutil
-from pathlib import Path
 
 import polars as pl
 import pytest
