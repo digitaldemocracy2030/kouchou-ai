@@ -17,4 +17,5 @@ class TestCalculateRecommendedClusterNums:
 
     def test_enforces_minimum_cluster_counts(self):
         """Very small datasets should still get a valid two-level hierarchy."""
-        assert calculate_recommended_cluster_nums(2) == [2, 4]
+        assert calculate_recommended_cluster_nums(2) == [2]
+        assert calculate_recommended_cluster_nums(3) == [2, 3]

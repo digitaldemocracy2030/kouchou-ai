@@ -24,8 +24,8 @@ def calculate_recommended_cluster_nums(argument_count: int) -> list[int]:
         raise ValueError("argument_count must be at least 2")
 
     lv1 = max(2, min(10, round(argument_count ** (1 / 3))))
-    lv2 = max(2, min(1000, lv1 * lv1))
-    return [lv1, lv2]
+    lv2 = max(2, min(1000, argument_count, lv1 * lv1))
+    return sorted(set([lv1, lv2]))
 
 
 def hierarchical_clustering(config):

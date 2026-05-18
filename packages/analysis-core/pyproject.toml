@@ -1,6 +1,6 @@
 [project]
 name = "kouchou-ai-analysis-core"
-version = "0.1.0"
+version = "0.1.2"
 description = "広聴AI分析パイプラインコア - Broadlistening Analysis Pipeline Core"
 readme = "README.md"
 requires-python = ">=3.12"

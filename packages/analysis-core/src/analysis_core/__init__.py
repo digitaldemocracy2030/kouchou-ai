@@ -19,7 +19,7 @@ Example (Workflow mode):
     result = orchestrator.run_workflow()
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 from analysis_core.config import PipelineConfig
 from analysis_core.orchestrator import PipelineOrchestrator, PipelineResult, StepResult
