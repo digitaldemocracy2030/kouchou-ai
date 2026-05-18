@@ -402,8 +402,6 @@ def _resolve_local_llm_base_url(address: str) -> str:
     - `"host:port"` または `"host"` → `"http://host:port/v1"` (Ollama / LM Studio のデフォルト想定)
     - `"scheme://host[:port][/path]"` → 渡された URL をそのまま base URL として扱い、
       末尾に `/v1` がなければ補う (社内 HTTPS OpenAI 互換ゲートウェイ用)
-
-    認証が必要なエンドポイントは `LOCAL_LLM_API_KEY` 環境変数で API key を渡せる。
     """
     if "://" in address:
         base_url = address.rstrip("/")
