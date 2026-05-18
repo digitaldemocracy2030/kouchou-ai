@@ -1,6 +1,7 @@
 """Tests for CLI entry point."""
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -28,6 +29,8 @@ class TestCLI:
 
     def test_cli_version(self):
         """Test CLI --version option."""
+        from analysis_core import __version__
+
         result = subprocess.run(
             [sys.executable, "-m", "analysis_core", "--version"],
             capture_output=True,
@@ -35,8 +38,8 @@ class TestCLI:
             cwd=PACKAGE_ROOT,
         )
         assert result.returncode == 0
-        assert "kouchou-analyze" in result.stdout
-        assert "0.1.0" in result.stdout
+        assert re.fullmatch(r"kouchou-analyze \S+\n", result.stdout)
+        assert result.stdout.strip() == f"kouchou-analyze {__version__}"
 
     def test_cli_missing_config(self):
         """Test CLI fails with missing config file."""
