@@ -1,0 +1,48 @@
+name: Publish analysis-core to PyPI
+
+on:
+  push:
+    tags:
+      - "analysis-core-v*"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: "packages/analysis-core/requirements-dev.lock"
+
+      - name: Install dependencies
+        working-directory: ./packages/analysis-core
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.lock
+          pip install build
+
+      - name: Run Ruff
+        working-directory: ./packages/analysis-core
+        run: ruff check .
+
+      - name: Run pytest
+        working-directory: ./packages/analysis-core
+        env:
+          OPENAI_API_KEY: dummy
+          GEMINI_API_KEY: dummy
+        run: pytest --cov=src --cov-report=term
+
+      - name: Build package
+        run: python -m build packages/analysis-core
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/analysis-core/dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
