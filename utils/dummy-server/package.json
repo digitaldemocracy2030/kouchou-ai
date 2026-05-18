@@ -10,7 +10,7 @@
     "format": "biome check --write ."
   },
   "dependencies": {
-    "next": "16.1.5"
+    "next": "16.2.6"
   },
   "devDependencies": {
     "@types/node": "^20",
