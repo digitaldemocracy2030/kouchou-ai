@@ -3,8 +3,9 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 
-import pytest
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 
 
 class TestCLI:
@@ -16,7 +17,7 @@ class TestCLI:
             [sys.executable, "-m", "analysis_core", "--help"],
             capture_output=True,
             text=True,
-            cwd="/Users/nishio/kouchou-ai/packages/analysis-core",
+            cwd=PACKAGE_ROOT,
         )
         assert result.returncode == 0
         assert "kouchou-analyze" in result.stdout
@@ -31,7 +32,7 @@ class TestCLI:
             [sys.executable, "-m", "analysis_core", "--version"],
             capture_output=True,
             text=True,
-            cwd="/Users/nishio/kouchou-ai/packages/analysis-core",
+            cwd=PACKAGE_ROOT,
         )
         assert result.returncode == 0
         assert "kouchou-analyze" in result.stdout
@@ -43,7 +44,7 @@ class TestCLI:
             [sys.executable, "-m", "analysis_core", "--config", "nonexistent.json"],
             capture_output=True,
             text=True,
-            cwd="/Users/nishio/kouchou-ai/packages/analysis-core",
+            cwd=PACKAGE_ROOT,
         )
         assert result.returncode == 1
         assert "Config file not found" in result.stderr
@@ -84,9 +85,10 @@ class TestCLI:
             ],
             capture_output=True,
             text=True,
-            cwd="/Users/nishio/kouchou-ai/packages/analysis-core",
+            cwd=PACKAGE_ROOT,
         )
         assert result.returncode == 0
         assert "Execution Plan" in result.stdout
         assert "extraction" in result.stdout
         assert "embedding" in result.stdout
+        assert not (output_dir / "test_config" / "hierarchical_status.json").exists()

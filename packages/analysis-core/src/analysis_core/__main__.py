@@ -88,6 +88,8 @@ def main() -> int:
             only=args.only,
             skip_interaction=args.skip_interaction,
             without_html=args.without_html,
+            validate_api_keys_early=not args.dry_run,
+            persist_status=not args.dry_run,
             output_base_dir=args.output_dir,
             input_base_dir=args.input_dir,
         )

@@ -3,8 +3,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from analysis_core.prompts import (
     DEFAULT_PROMPTS,
     EXTRACTION_PROMPT,

@@ -32,8 +32,9 @@ def _filter_empty_comments(comments: pl.DataFrame) -> pl.DataFrame:
     Logs the number of filtered rows and raises RuntimeError if all comments are empty.
     """
     original_count = len(comments)
+    normalized_comment_body = pl.col("comment-body").cast(pl.String, strict=False).fill_null("")
     filtered = comments.filter(
-        pl.col("comment-body").is_not_null() & (pl.col("comment-body").str.strip_chars() != "")
+        normalized_comment_body.str.strip_chars() != ""
     )
     filtered_count = original_count - len(filtered)
     if filtered_count > 0:

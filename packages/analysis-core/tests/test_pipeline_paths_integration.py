@@ -8,8 +8,8 @@ This is a regression test for bugs where:
 - update_status/update_progress didn't read _output_base_dir from config
 """
 
-import pickle
 import json
+import pickle
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
