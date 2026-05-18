@@ -395,6 +395,33 @@ def request_to_gemini_chatcompletion(
     raise RuntimeError("Gemini API call failed after retries")
 
 
+def _resolve_local_llm_base_url(address: str) -> str:
+    """`address` から OpenAI 互換ローカル LLM 用の base URL を組み立てる。
+
+    対応する形式:
+    - `"host:port"` または `"host"` → `"http://host:port/v1"` (Ollama / LM Studio のデフォルト想定)
+    - `"scheme://host[:port][/path]"` → 渡された URL をそのまま base URL として扱い、
+      末尾に `/v1` がなければ補う (社内 HTTPS OpenAI 互換ゲートウェイ用)
+    """
+    if "://" in address:
+        base_url = address.rstrip("/")
+        if not base_url.endswith("/v1"):
+            base_url = base_url + "/v1"
+        return base_url
+    try:
+        if ":" in address:
+            host, port_str = address.split(":")
+            port = int(port_str)
+        else:
+            host = address
+            port = 11434  # デフォルトポート
+    except ValueError:
+        logging.warning(f"Invalid address format: {address}, using default")
+        host = "localhost"
+        port = 11434
+    return f"http://{host}:{port}/v1"
+
+
 def request_to_local_llm(
     messages: list[dict],
     model: str,
@@ -412,7 +439,8 @@ def request_to_local_llm(
         model: 使用するモデル名
         is_json: JSONレスポンスを要求するかどうか
         json_schema: JSONスキーマ（Pydanticモデルまたは辞書）
-        address: ローカルLLMのアドレス（例: 127.0.0.1:1234）
+        address: ローカルLLMのアドレス（例: `"127.0.0.1:1234"` または
+            `"https://my-gateway.example.com"` のような OpenAI 互換 URL）
 
     Returns:
         LLMからのレスポンスとトークン使用量(入力・出力・合計)のタプル
@@ -420,24 +448,14 @@ def request_to_local_llm(
     token_usage_input = 0  # 入力トークン使用量を追跡する変数
     token_usage_output = 0  # 出力トークン使用量を追跡する変数
     token_usage_total = 0  # 合計トークン使用量を追跡する変数
-    try:
-        if ":" in address:
-            host, port_str = address.split(":")
-            port = int(port_str)
-        else:
-            host = address
-            port = 11434  # デフォルトポート
-    except ValueError:
-        logging.warning(f"Invalid address format: {address}, using default")
-        host = "localhost"
-        port = 11434
 
-    base_url = f"http://{host}:{port}/v1"
+    base_url = _resolve_local_llm_base_url(address)
+    api_key = os.environ.get("LOCAL_LLM_API_KEY", "not-needed")
 
     try:
         client = OpenAI(
             base_url=base_url,
-            api_key="not-needed",  # OllamaとLM Studioは認証不要
+            api_key=api_key,
         )
 
         response_format = None
@@ -547,29 +565,19 @@ def request_to_local_llm_embed(args, model, address="localhost:11434"):
     Args:
         args: 埋め込みを取得するテキスト
         model: 使用するモデル名
-        address: ローカルLLMのアドレス（例: 127.0.0.1:1234）
+        address: ローカルLLMのアドレス（例: `"127.0.0.1:1234"` または
+            `"https://my-gateway.example.com"` のような OpenAI 互換 URL）
 
     Returns:
         埋め込みベクトルのリスト
     """
-    try:
-        if ":" in address:
-            host, port_str = address.split(":")
-            port = int(port_str)
-        else:
-            host = address
-            port = 11434  # デフォルトポート
-    except ValueError:
-        logging.warning(f"Invalid address format: {address}, using default")
-        host = "localhost"
-        port = 11434
-
-    base_url = f"http://{host}:{port}/v1"
+    base_url = _resolve_local_llm_base_url(address)
+    api_key = os.environ.get("LOCAL_LLM_API_KEY", "not-needed")
 
     try:
         client = OpenAI(
             base_url=base_url,
-            api_key="not-needed",  # OllamaとLM Studioは認証不要
+            api_key=api_key,
         )
 
         response = client.embeddings.create(input=args, model=model)
