@@ -35,7 +35,7 @@ def hierarchical_clustering_plugin(
     merge for multi-level clustering.
 
     Config options:
-        - cluster_nums: Optional list of cluster counts for each level (e.g., [3, 6, 12])
+        - cluster_nums (optional): List of cluster counts for each level (e.g., [3, 6, 12])
     """
     from analysis_core.steps.hierarchical_clustering import (
         hierarchical_clustering as clustering_impl,
