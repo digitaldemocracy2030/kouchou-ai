@@ -1,3 +1,4 @@
+import { getApiUrl } from "@/app/utils/api";
 import { getImageFromServerSrc } from "@/app/utils/image-src";
 import type { Meta } from "@/type";
 import { Image } from "@chakra-ui/react";
@@ -6,7 +7,11 @@ import { ReporterContent } from "./ReporterContent";
 const imagePath = "/meta/reporter.png";
 
 async function hasReporterImage() {
-  const url = new URL(imagePath, process.env.API_BASEPATH).toString();
+  const url = getApiUrl(imagePath);
+  if (!url) {
+    return false;
+  }
+
   try {
     const res = await fetch(url);
     return res.status === 200;
