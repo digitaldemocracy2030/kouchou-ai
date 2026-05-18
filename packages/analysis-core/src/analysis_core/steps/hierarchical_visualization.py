@@ -121,7 +121,7 @@ def build_html(
         args = data["arguments"]
 
     tree_html = _render_tree(data)
-    embedded = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    embedded = _safe_inline_json(data)
     level_options = "".join(
         f'<option value="{lvl}"{" selected" if lvl == default_level else ""}>'
         f"level {lvl} ({_count_at(data, lvl)} clusters)</option>"
@@ -141,6 +141,11 @@ def build_html(
         palette_js=json.dumps(SOFT_COLORS),
         enable_source_link_js="true" if url_pattern else "false",
     )
+
+
+def _safe_inline_json(data: Any) -> str:
+    """Serialize JSON safely for embedding inside a ``<script>`` tag."""
+    return json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
 
 
 def _count_at(data: dict[str, Any], level: int) -> int:

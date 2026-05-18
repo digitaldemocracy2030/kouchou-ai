@@ -95,6 +95,16 @@ class TestBuildHtml:
         # A representative color from the public-viewer-derived palette
         assert SOFT_COLORS[0] in out
 
+    def test_escapes_script_end_in_payload(self) -> None:
+        payload = _minimal_payload()
+        payload["overview"] = "first </script> second"
+        payload["arguments"][0]["argument"] = "alpha </script> beta"
+
+        out = build_html(payload)
+
+        assert "<\\/script>" in out
+        assert "</script> second" not in out
+
 
 class TestHierarchicalVisualizationStep:
     def test_writes_report_html_next_to_input(self, tmp_path: Path) -> None:
