@@ -140,12 +140,14 @@
    - `has_xy`: `arguments[].x/y` が有限数
    - `has_hierarchy`: `clusters[].level/id/parent` が木構造として整合
    - `has_density_rank`: `clusters[].density_rank_percentile` が `0..1`
-   - `has_multi_level`: `max(level) >= 2`
+   - `has_multi_level`: `clusters[].level` は 0-based とし、異なる level が 2 層以上あるとき `true`
+     (`max(level) >= 1`)
    - `has_source_url`: 有効URLが1件以上
 
 3. **判定ポリシー**
    - 「キーがある」だけでなく値の妥当性も検証
    - 判定不能は `false` 扱い（conservative）
+   - `clusters[].level` の規約は root=0, 子=1, 孫=2... とする
 
 ### Phase 2 完了条件
 
@@ -254,6 +256,16 @@ requirements: ["has_xy", "has_hierarchy"]
 
 3. **運用中レポートとの混在**
    - 対策: `analysis_capabilities` 未存在時の後方互換推定ロジックを実装
+     - default は全 capability を `false`
+     - `hierarchical_result.json` の実データから推定できるものだけ `true` に上げる
+     - 推定ルールは detector と同一にする
+       - `arguments[].x/y` が有限数なら `has_xy=true`
+       - `clusters[].level/id/parent` が木構造として整合すれば `has_hierarchy=true`
+       - `clusters[].density_rank_percentile` が `0..1` なら `has_density_rank=true`
+       - 0-based level で `max(level) >= 1` なら `has_multi_level=true`
+       - 有効な source URL が 1 件以上あれば `has_source_url=true`
+     - 一部だけ判定できた場合は、その項目だけ `true` にし残りは `false`
+     - 構造が壊れている / 判定不能な場合は warning を記録して全項目 `false` のまま扱う
 
 ---
 
@@ -272,4 +284,3 @@ requirements: ["has_xy", "has_hierarchy"]
 3. M3: `analysis_capabilities` 自動導出
 4. M4: 可視化 `requirements` 判定 + UI反映
 5. M5: E2E整備 + ドキュメント更新
-
