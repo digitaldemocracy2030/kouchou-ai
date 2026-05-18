@@ -126,6 +126,7 @@ class PipelineOrchestrator:
         skip_interaction: bool = True,
         without_html: bool = True,
         validate_api_keys_early: bool = True,
+        persist_status: bool = True,
         output_base_dir: Path | None = None,
         input_base_dir: Path | None = None,
     ) -> "PipelineOrchestrator":
@@ -145,6 +146,7 @@ class PipelineOrchestrator:
             skip_interaction: Skip interactive prompts
             without_html: Skip HTML visualization
             validate_api_keys_early: Validate provider credentials during initialization
+            persist_status: Persist running/completed status to hierarchical_status.json
             output_base_dir: Base directory for outputs
             input_base_dir: Base directory for inputs
 
@@ -160,6 +162,7 @@ class PipelineOrchestrator:
             skip_interaction=skip_interaction,
             without_html=without_html,
             validate_api_keys_early=validate_api_keys_early,
+            persist_status=persist_status,
             output_base_dir=output_base_dir,
             input_base_dir=input_base_dir,
             steps_module=steps_module,

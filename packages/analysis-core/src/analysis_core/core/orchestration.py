@@ -374,6 +374,7 @@ def initialization(
     skip_interaction: bool = False,
     without_html: bool = True,
     validate_api_keys_early: bool = True,
+    persist_status: bool = True,
     output_base_dir: Path | None = None,
     input_base_dir: Path | None = None,
     specs_path: Path | None = None,
@@ -389,6 +390,7 @@ def initialization(
         skip_interaction: Skip interactive prompts
         without_html: Skip HTML visualization
         validate_api_keys_early: Validate provider credentials during initialization
+        persist_status: Persist running/completed status to hierarchical_status.json
         output_base_dir: Base directory for outputs (default: outputs/)
         input_base_dir: Base directory for inputs (default: inputs/)
         specs_path: Path to specs JSON file (default: package specs)
@@ -518,21 +520,22 @@ def initialization(
         input()
 
     # Ready to start - update status
-    update_status(
-        config,
-        {
-            "plan": plan,
-            "status": "running",
-            "start_time": datetime.now().isoformat(),
-            "completed_jobs": [],
-            "total_token_usage": 0,
-            "token_usage_input": 0,
-            "token_usage_output": 0,
-            "provider": config.get("provider"),
-            "model": config.get("model"),
-        },
-        output_base_dir,
-    )
+    if persist_status:
+        update_status(
+            config,
+            {
+                "plan": plan,
+                "status": "running",
+                "start_time": datetime.now().isoformat(),
+                "completed_jobs": [],
+                "total_token_usage": 0,
+                "token_usage_input": 0,
+                "token_usage_output": 0,
+                "provider": config.get("provider"),
+                "model": config.get("model"),
+            },
+            output_base_dir,
+        )
 
     return config
 

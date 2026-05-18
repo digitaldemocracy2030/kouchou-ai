@@ -91,3 +91,4 @@ class TestCLI:
         assert "Execution Plan" in result.stdout
         assert "extraction" in result.stdout
         assert "embedding" in result.stdout
+        assert not (output_dir / "test_config" / "hierarchical_status.json").exists()

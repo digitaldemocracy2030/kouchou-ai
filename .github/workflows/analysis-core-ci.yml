@@ -66,4 +66,7 @@ jobs:
           pip install -r requirements-dev.lock
 
       - name: Run pytest
+        env:
+          OPENAI_API_KEY: dummy
+          GEMINI_API_KEY: dummy
         run: pytest --cov=src --cov-report=term
