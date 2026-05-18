@@ -10,7 +10,16 @@ from sklearn.cluster import KMeans
 
 
 def calculate_recommended_cluster_nums(argument_count: int) -> list[int]:
-    """Calculate recommended cluster counts from extracted argument count."""
+    """Calculate cluster counts with a cube-root rule.
+
+    The recommendation is derived from extracted argument count:
+    - lv1 = round(cuberoot(argument_count))
+    - lv2 = lv1^2
+
+    Examples:
+    - 1000 -> [10, 100]
+    - 125 -> [5, 25]
+    """
     if argument_count < 2:
         raise ValueError("argument_count must be at least 2")
 
