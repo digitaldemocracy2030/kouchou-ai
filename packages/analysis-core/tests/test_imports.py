@@ -8,7 +8,7 @@ class TestCoreImports:
         """Test main package exports."""
         from analysis_core import PipelineConfig, PipelineOrchestrator, __version__
 
-        assert __version__ == "0.1.0"
+        assert __version__.count(".") == 2
         assert PipelineOrchestrator is not None
         assert PipelineConfig is not None
 

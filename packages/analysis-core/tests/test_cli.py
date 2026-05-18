@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from analysis_core import __version__
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -36,7 +38,7 @@ class TestCLI:
         )
         assert result.returncode == 0
         assert "kouchou-analyze" in result.stdout
-        assert "0.1.0" in result.stdout
+        assert __version__ in result.stdout
 
     def test_cli_missing_config(self):
         """Test CLI fails with missing config file."""
