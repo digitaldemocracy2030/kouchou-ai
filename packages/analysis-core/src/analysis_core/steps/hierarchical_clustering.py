@@ -9,6 +9,16 @@ import scipy.cluster.hierarchy as sch
 from sklearn.cluster import KMeans
 
 
+def calculate_recommended_cluster_nums(argument_count: int) -> list[int]:
+    """Calculate recommended cluster counts from extracted argument count."""
+    if argument_count < 2:
+        raise ValueError("argument_count must be at least 2")
+
+    lv1 = max(2, min(10, round(argument_count ** (1 / 3))))
+    lv2 = max(2, min(1000, lv1 * lv1))
+    return [lv1, lv2]
+
+
 def hierarchical_clustering(config):
     UMAP = import_module("umap").UMAP
 
@@ -44,7 +54,11 @@ def hierarchical_clustering(config):
             f"args.csv と embeddings.pkl の件数が一致しません: args={len(arg_ids)}, embeddings={embeddings_array.shape[0]}"
         )
 
-    cluster_nums = config["hierarchical_clustering"]["cluster_nums"]
+    cluster_nums = config["hierarchical_clustering"].get("cluster_nums")
+    if not cluster_nums:
+        cluster_nums = calculate_recommended_cluster_nums(len(arg_ids))
+        config["hierarchical_clustering"]["cluster_nums"] = cluster_nums
+        print(f"cluster_nums not provided; using recommended cluster counts based on arg count: {cluster_nums}")
 
     n_samples = embeddings_array.shape[0]
     # デフォルト設定は15

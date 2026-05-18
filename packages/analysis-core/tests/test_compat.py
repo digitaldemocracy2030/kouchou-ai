@@ -42,7 +42,7 @@ class TestNormalizeConfig:
         result = normalize_config(config)
 
         assert "hierarchical_clustering" in result
-        assert result["hierarchical_clustering"]["cluster_nums"] == [3, 6]
+        assert "cluster_nums" not in result["hierarchical_clustering"]
 
     def test_fills_labelling_defaults(self):
         """Test that labelling defaults are filled in."""

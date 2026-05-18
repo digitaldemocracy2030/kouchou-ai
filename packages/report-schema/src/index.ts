@@ -277,7 +277,7 @@ export type ExtractionConfig = {
  * クラスタリング設定
  */
 export type HierarchicalClusteringConfig = {
-  cluster_nums: number[];
+  cluster_nums?: number[] | null;
   source_code: string;
 };
 
