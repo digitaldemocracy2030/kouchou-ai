@@ -29,7 +29,7 @@ version = "0.1.1"  # ← ここを更新
 ```bash
 git add packages/analysis-core/pyproject.toml
 git commit -m "chore: Bump version to 0.1.1"
-git tag v0.1.1
+git tag analysis-core-v0.1.1
 git push && git push --tags
 ```
 
@@ -156,13 +156,13 @@ Homepage = "..."
 ## GitHub Actions での自動リリース（参考）
 
 ```yaml
-# .github/workflows/publish.yml
-name: Publish to PyPI
+# .github/workflows/publish-analysis-core.yml
+name: Publish analysis-core to PyPI
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'analysis-core-v*'
 
 jobs:
   publish:
@@ -188,7 +188,7 @@ jobs:
 - [ ] テストが全てパス (`pytest`)
 - [ ] バージョン番号を更新
 - [ ] CHANGELOG/リリースノートを更新（必要に応じて）
-- [ ] コミット & タグ作成
+- [ ] コミット & `analysis-core-vX.Y.Z` タグ作成
 - [ ] ビルド成功
 - [ ] TestPyPI でテスト（オプション）
 - [ ] PyPI にアップロード
