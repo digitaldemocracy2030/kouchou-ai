@@ -20,3 +20,22 @@ export const getApiBaseUrl = (): string => {
   // それ以外の場合はNEXT_PUBLIC_API_BASEPATHを使用
   return process.env.NEXT_PUBLIC_API_BASEPATH || "";
 };
+
+/**
+ * APIのベースURLと相対パスから絶対URLを組み立てる
+ *
+ * @param path API配下の相対パス
+ * @returns 組み立てたURL。ベースURLが未設定または不正な場合はnull
+ */
+export const getApiUrl = (path: string): string | null => {
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) {
+    return null;
+  }
+
+  try {
+    return new URL(path, baseUrl).toString();
+  } catch {
+    return null;
+  }
+};
