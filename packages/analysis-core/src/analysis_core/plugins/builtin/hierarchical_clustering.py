@@ -35,7 +35,7 @@ def hierarchical_clustering_plugin(
     merge for multi-level clustering.
 
     Config options:
-        - cluster_nums: List of cluster counts for each level (e.g., [3, 6, 12])
+        - cluster_nums (optional): List of cluster counts for each level (e.g., [3, 6, 12])
     """
     from analysis_core.steps.hierarchical_clustering import (
         hierarchical_clustering as clustering_impl,
@@ -45,7 +45,7 @@ def hierarchical_clustering_plugin(
     legacy_config = {
         "output_dir": ctx.dataset,
         "hierarchical_clustering": {
-            "cluster_nums": step_config.get("cluster_nums", [3, 6]),
+            "cluster_nums": step_config.get("cluster_nums"),
         },
     }
 

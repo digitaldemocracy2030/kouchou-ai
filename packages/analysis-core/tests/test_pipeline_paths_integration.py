@@ -244,6 +244,35 @@ class TestPipelinePathsIntegration:
         hardcoded_clusters = Path("outputs") / sample_config["output_dir"] / "hierarchical_clusters.csv"
         assert not hardcoded_clusters.exists(), "hierarchical_clusters.csv was created at hardcoded path!"
 
+    def test_hierarchical_clustering_auto_calculates_cluster_nums(self, temp_dirs, sample_config):
+        """Test that hierarchical_clustering fills recommended cluster counts when omitted."""
+        from analysis_core.steps.hierarchical_clustering import hierarchical_clustering
+
+        output_subdir = temp_dirs["output_dir"] / sample_config["output_dir"]
+        output_subdir.mkdir(parents=True)
+
+        import numpy as np
+
+        args_df = pl.DataFrame(
+            {
+                "arg-id": [f"arg{i}" for i in range(20)],
+                "argument": [f"Test argument {i}" for i in range(20)],
+            }
+        )
+        args_df.write_csv(output_subdir / "args.csv")
+
+        embeddings_data = [
+            {"arg-id": f"arg{i}", "embedding": np.random.rand(100).tolist()} for i in range(20)
+        ]
+        with open(output_subdir / "embeddings.pkl", "wb") as f:
+            pickle.dump(embeddings_data, f)
+
+        sample_config["hierarchical_clustering"] = {"cluster_nums": None}
+
+        hierarchical_clustering(sample_config)
+
+        assert sample_config["hierarchical_clustering"]["cluster_nums"] == [3, 9]
+
 
 class TestOrchestratorPathsIntegration:
     """Integration tests for PipelineOrchestrator path handling."""

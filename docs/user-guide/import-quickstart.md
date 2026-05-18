@@ -37,9 +37,6 @@ config = {
         "workers": 3,
         "limit": 100,
     },
-    "hierarchical_clustering": {
-        "cluster_nums": [3, 6],
-    },
 }
 
 # パイプラインを実行
@@ -55,6 +52,8 @@ result = orchestrator.run()
 print(f"ステータス: {result['status']}")
 print(f"出力ディレクトリ: {result['output_dir']}")
 ```
+
+`hierarchical_clustering.cluster_nums` は省略可能です。省略した場合は、extraction 後の argument 数に基づいておすすめ値が自動計算されます。
 
 ### PipelineConfig クラスを使用する
 
@@ -378,7 +377,6 @@ config = {
     "provider": "openai",
     "is_embedded_at_local": False,
     "extraction": {"workers": 2, "limit": 50},
-    "hierarchical_clustering": {"cluster_nums": [3, 6]},
 }
 
 orchestrator = PipelineOrchestrator.from_config(config)

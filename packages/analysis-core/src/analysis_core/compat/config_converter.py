@@ -97,7 +97,6 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
 
     # Hierarchical clustering defaults
     clustering = result.setdefault("hierarchical_clustering", {})
-    clustering.setdefault("cluster_nums", [3, 6])
     if "hierarchical_clustering" in source_codes:
         clustering.setdefault("source_code", source_codes["hierarchical_clustering"])
 

@@ -22,7 +22,7 @@
         "step": "hierarchical_clustering",
         "filename": "hierarchical_clusters.csv",
         "dependencies": {"params": ["cluster_nums"], "steps": ["embedding"]},
-        "options": {"cluster_nums": [3, 6]}
+        "options": {"cluster_nums": null}
     },
     {
         "step": "hierarchical_initial_labelling",

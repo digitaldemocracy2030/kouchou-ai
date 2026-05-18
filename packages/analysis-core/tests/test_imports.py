@@ -1,5 +1,7 @@
 """Test that all package modules can be imported correctly."""
 
+import re
+
 
 class TestCoreImports:
     """Test core module imports."""
@@ -8,7 +10,7 @@ class TestCoreImports:
         """Test main package exports."""
         from analysis_core import PipelineConfig, PipelineOrchestrator, __version__
 
-        assert __version__.count(".") == 2
+        assert re.fullmatch(r"\d+\.\d+\.\d+", __version__)
         assert PipelineOrchestrator is not None
         assert PipelineConfig is not None
 

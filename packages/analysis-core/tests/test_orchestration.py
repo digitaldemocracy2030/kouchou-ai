@@ -113,7 +113,7 @@ class TestInitialization:
         assert config["extraction"]["workers"] == 1
 
         assert "hierarchical_clustering" in config
-        assert config["hierarchical_clustering"]["cluster_nums"] == [3, 6]
+        assert config["hierarchical_clustering"]["cluster_nums"] is None
 
     def test_initialization_force_flag(self, tmp_path):
         """Test that force flag is set in config."""
