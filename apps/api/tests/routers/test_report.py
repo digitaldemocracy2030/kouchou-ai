@@ -121,6 +121,30 @@ class TestReportEndpoint:
         assert response.status_code == 404
         assert "Report not found" in response.json()["detail"]
 
+    def test_get_report_without_config_returns_500(self, client: TestClient, temp_report_dir, test_settings):
+        """異常系：viewer 契約を満たさない report は 500 を返す"""
+        slug = "test-invalid-report"
+
+        report_dir = temp_report_dir / slug
+        report_dir.mkdir(parents=True, exist_ok=True)
+        report_file = report_dir / "hierarchical_result.json"
+        report_data = {"overview": "テスト概要", "clusters": [], "arguments": []}
+        with open(report_file, "w", encoding="utf-8") as f:
+            json.dump(report_data, f)
+
+        mock_reports = [
+            type("Report", (), {"slug": slug, "status": ReportStatus.READY, "visibility": ReportVisibility.PUBLIC})()
+        ]
+
+        with (
+            patch("src.routers.report.settings.REPORT_DIR", temp_report_dir),
+            patch("src.routers.report.load_status_as_reports", return_value=mock_reports),
+        ):
+            response = client.get(f"/reports/{slug}", headers={"x-api-key": test_settings.PUBLIC_API_KEY})
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Invalid report data"
+
 
 class TestVisualizationConfigMerge:
     """Test cases for visualization config merge in /reports/{slug} endpoint."""

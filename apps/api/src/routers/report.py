@@ -6,6 +6,7 @@ from fastapi.security.api_key import APIKeyHeader
 from pydantic import ValidationError
 
 from src.config import settings
+from src.schemas.public_report_result import PublicReportResult
 from src.schemas.report import Report, ReportStatus, ReportVisibility
 from src.schemas.visualization_config import DEFAULT_REPORT_DISPLAY_CONFIG, ReportDisplayConfig
 from src.services.report_status import load_status_as_reports
@@ -16,6 +17,21 @@ logger = logging.getLogger("uvicorn")
 router = APIRouter()
 
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
+
+
+def _load_validated_report_result(slug: str) -> dict:
+    report_path = settings.REPORT_DIR / slug / "hierarchical_result.json"
+
+    with open(report_path, encoding="utf-8") as f:
+        report_result = json.load(f)
+
+    try:
+        PublicReportResult.model_validate(report_result)
+    except ValidationError as e:
+        logger.warning(f"Invalid public report result for {slug}: {e}")
+        raise HTTPException(status_code=500, detail="Invalid report data") from e
+
+    return report_result
 
 
 async def verify_public_api_key(api_key: str = Security(api_key_header)):
@@ -49,8 +65,7 @@ async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> di
     if not report_path.exists():
         raise HTTPException(status_code=404, detail="Report not found")
 
-    with open(report_path) as f:
-        report_result = json.load(f)
+    report_result = _load_validated_report_result(slug)
 
     # レポートにvisibilityを追加
     report_result["visibility"] = target_report_status.visibility.value
