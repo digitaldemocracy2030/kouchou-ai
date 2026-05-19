@@ -79,7 +79,7 @@ def hierarchical_clustering(config):
     else:
         n_neighbors = default_n_neighbors
 
-    umap_model = UMAP(random_state=42, n_components=2, n_neighbors=n_neighbors)
+    umap_model = UMAP(n_components=2, n_neighbors=n_neighbors)
     # TODO 詳細エラーメッセージを加える
     # 以下のエラーの場合、おそらく元の意見件数が少なすぎることが原因
     # TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N. Use scipy.linalg.eigh(A.toarray()) or reduce k.
@@ -163,7 +163,7 @@ def hierarchical_clustering_embeddings(
     # 最大分割数でクラスタリングを実施
     print("start initial clustering")
     initial_cluster_num = cluster_nums[-1]
-    kmeans_model = KMeans(n_clusters=initial_cluster_num, random_state=42)
+    kmeans_model = KMeans(n_clusters=initial_cluster_num)
     kmeans_model.fit(umap_embeds)
     print("end initial clustering")
 
