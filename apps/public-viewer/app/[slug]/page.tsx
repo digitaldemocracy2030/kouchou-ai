@@ -31,6 +31,9 @@ export async function generateStaticParams() {
         "Content-Type": "application/json",
       },
     });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch reports: ${response.status} ${response.statusText}`);
+    }
     const reports: Report[] = await response.json();
     let slugs = reports
       .filter((report) => report.status === "ready")
