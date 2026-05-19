@@ -12,6 +12,7 @@ import { Box, Separator } from "@chakra-ui/react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getApiBaseUrl } from "../utils/api";
+import { createStaticBuildFetchError, getStaticBuildReportSlugs, isStaticExportBuild } from "../utils/static-build";
 
 type PageProps = {
   params: Promise<{
@@ -23,7 +24,8 @@ type PageProps = {
 export const revalidate = 300;
 
 export async function generateStaticParams() {
-  const isStaticExport = process.env.NEXT_PUBLIC_OUTPUT_MODE === "export";
+  let reports: Report[];
+
   try {
     const response = await fetch(`${getApiBaseUrl()}/reports`, {
       headers: {
@@ -34,35 +36,16 @@ export async function generateStaticParams() {
     if (!response.ok) {
       throw new Error(`Failed to fetch reports: ${response.status} ${response.statusText}`);
     }
-    const reports: Report[] = await response.json();
-    let slugs = reports
-      .filter((report) => report.status === "ready")
-      .map((report) => ({
-        slug: report.slug,
-      }));
-
-    if (process.env.BUILD_SLUGS) {
-      const buildSlugs = process.env.BUILD_SLUGS.split(",").filter(Boolean);
-      slugs = slugs.filter((report) => buildSlugs.includes(report.slug));
+    reports = await response.json();
+  } catch (error) {
+    if (isStaticExportBuild()) {
+      throw createStaticBuildFetchError(error);
     }
 
-    if (isStaticExport && slugs.length === 0) {
-      console.error("\n❌ 静的HTML出力エラー: 公開状態のレポートが見つかりません。");
-      console.error("静的HTML出力を行うには、少なくとも1つのレポートを公開状態にしてください。\n");
-      process.exit(1);
-    }
-
-    return slugs;
-  } catch (_e) {
-    if (isStaticExport) {
-      console.error(_e);
-      console.error(
-        "\n❌ 静的HTML出力エラー: レポート一覧の取得に失敗しました。APIサーバーが起動しているか確認してください。\n",
-      );
-      process.exit(1);
-    }
     return [];
   }
+
+  return getStaticBuildReportSlugs(reports);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
