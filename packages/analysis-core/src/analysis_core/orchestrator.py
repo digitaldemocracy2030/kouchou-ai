@@ -550,7 +550,7 @@ class PipelineOrchestrator:
                 success=False,
                 steps=[],
                 total_duration_seconds=total_duration,
-                total_token_usage=0,
+                total_token_usage=self.config.get("total_token_usage", 0),
                 error=str(e),
                 output_dir=None,
             )

@@ -825,3 +825,56 @@ class TestPipelineOrchestrator:
         assert status_data["error"] == "engine exploded"
         assert "RuntimeError: engine exploded" in status_data["error_stack_trace"]
         assert any(job["step"] == "extraction" for job in status_data["previously_completed_jobs"])
+
+    def test_run_workflow_exception_preserves_accumulated_token_usage(self, tmp_path, monkeypatch):
+        """Test engine exceptions keep token usage already recorded by completed steps."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                step_result = WorkflowStepResult(
+                    step_id="embedding",
+                    success=True,
+                    outputs=StepOutputs(
+                        artifacts={"embeddings": ctx.output_dir / "embeddings.pkl"},
+                        token_usage=9,
+                        token_input=4,
+                        token_output=5,
+                    ),
+                )
+                if on_step_start:
+                    on_step_start("embedding")
+                if on_step_complete:
+                    on_step_complete("embedding", step_result)
+                raise RuntimeError("engine exploded after embedding")
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is False
+        assert result.error == "engine exploded after embedding"
+        assert result.total_token_usage == 9
+
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["total_token_usage"] == 9
+        assert status_data["token_usage_input"] == 4
+        assert status_data["token_usage_output"] == 5
