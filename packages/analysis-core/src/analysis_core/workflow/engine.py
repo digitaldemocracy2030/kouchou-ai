@@ -6,7 +6,7 @@ based on their definitions and configurations.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from analysis_core.plugin import (
     PluginRegistry,
@@ -59,6 +59,8 @@ class WorkflowEngine:
         workflow: WorkflowDefinition,
         config: dict[str, Any],
         ctx: StepContext,
+        on_step_start: Callable[[str], None] | None = None,
+        on_step_complete: Callable[[str, StepResult], None] | None = None,
     ) -> WorkflowResult:
         """
         Execute a workflow.
@@ -90,6 +92,8 @@ class WorkflowEngine:
             step = workflow.get_step(step_id)
             if step is None:
                 continue
+            if on_step_start:
+                on_step_start(step_id)
 
             # Check condition
             if not evaluate_condition(step.condition, config, result.step_results):
@@ -98,6 +102,8 @@ class WorkflowEngine:
                     success=True,
                     skipped=True,
                 )
+                if on_step_complete:
+                    on_step_complete(step_id, result.step_results[step_id])
                 continue
 
             # Get plugin
@@ -110,6 +116,8 @@ class WorkflowEngine:
                         skipped=True,
                         error=f"Plugin '{step.plugin}' not found (optional step)",
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                     continue
                 else:
                     raise WorkflowExecutionError(f"Plugin '{step.plugin}' not found for step '{step_id}'")
@@ -145,6 +153,8 @@ class WorkflowEngine:
                         error=error_msg,
                         skipped=True,
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                     continue
                 else:
                     result.step_results[step_id] = StepResult(
@@ -152,6 +162,8 @@ class WorkflowEngine:
                         success=False,
                         error=error_msg,
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                     result.success = False
                     break
 
@@ -174,6 +186,8 @@ class WorkflowEngine:
                     success=True,
                     outputs=outputs,
                 )
+                if on_step_complete:
+                    on_step_complete(step_id, result.step_results[step_id])
 
             except Exception as e:
                 error_msg = f"Step '{step_id}' failed: {str(e)}"
@@ -192,6 +206,8 @@ class WorkflowEngine:
                         success=False,
                         error=error_msg,
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                     result.success = False
                     break
 

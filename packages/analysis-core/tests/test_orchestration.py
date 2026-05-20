@@ -1,6 +1,7 @@
 """Tests for orchestration module."""
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -481,3 +482,67 @@ class TestPipelineOrchestrator:
         assert status["status"] == "running"
         assert status["current_job"] == "extraction"
         assert status["total_token_usage"] == 100
+
+    def test_run_workflow_persists_status_file(self, tmp_path, monkeypatch):
+        """Test workflow mode writes hierarchical_status.json with completed jobs."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        config = {
+            "name": "demo",
+            "input": "demo",
+            "question": "Test?",
+            "provider": "local",
+            "model": "dummy",
+            "extraction": {},
+        }
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config=config,
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None):
+                result = WorkflowResult(
+                    workflow_id="test",
+                    total_token_usage=12,
+                    total_token_input=5,
+                    total_token_output=7,
+                )
+                step_result = WorkflowStepResult(
+                    step_id="extraction",
+                    success=True,
+                    outputs=StepOutputs(
+                        artifacts={"arguments": ctx.output_dir / "args.csv"},
+                        token_usage=12,
+                        token_input=5,
+                        token_output=7,
+                    ),
+                )
+                if on_step_start:
+                    on_step_start("extraction")
+                if on_step_complete:
+                    on_step_complete("extraction", step_result)
+                result.step_results["extraction"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is True
+        status_path = tmp_path / "outputs" / "demo" / "hierarchical_status.json"
+        assert status_path.exists()
+
+        status_data = json.loads(status_path.read_text(encoding="utf-8"))
+        assert status_data["status"] == "completed"
+        assert status_data["total_token_usage"] == 12
+        assert status_data["token_usage_input"] == 5
+        assert status_data["token_usage_output"] == 7
+        assert len(status_data["completed_jobs"]) == 1
+        assert status_data["completed_jobs"][0]["step"] == "extraction"
