@@ -37,9 +37,20 @@ def _scoped_pipeline_config(pipeline_config, enabled_steps):
         "hierarchical_visualization",
     ]
     enabled = set(enabled_steps)
+    invalid = enabled - set(plan_steps)
+    if invalid:
+        allowed = ", ".join(plan_steps)
+        invalid_names = ", ".join(sorted(invalid))
+        raise ValueError(f"Invalid step names: {invalid_names}. Allowed steps: {allowed}")
     scoped_config = dict(pipeline_config)
     scoped_config["plan"] = [{"step": step, "run": step in enabled} for step in plan_steps]
     return scoped_config
+
+
+def test_scoped_pipeline_config_rejects_unknown_step_names():
+    """Typos in e2e step scoping should fail fast."""
+    with pytest.raises(ValueError, match="Invalid step names: typo_step"):
+        _scoped_pipeline_config({}, ["extraction", "typo_step"])
 
 
 @pytest.mark.e2e
