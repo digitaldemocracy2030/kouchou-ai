@@ -310,3 +310,104 @@ def test_monitor_process_reads_workflow_status_and_syncs_outputs(monkeypatch, tm
         ("config", slug),
         ("status", None),
     ]
+
+
+def test_monitor_process_preserves_existing_report_status_during_aggregation_rerun(monkeypatch, tmp_path):
+    import json
+
+    from src.services import report_launcher, report_status
+
+    slug = "demo"
+    report_dir = tmp_path / "reports"
+    config_dir = tmp_path / "configs"
+    data_dir = tmp_path / "data"
+    (report_dir / slug).mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+    data_dir.mkdir(parents=True)
+
+    (report_dir / slug / "hierarchical_status.json").write_text(
+        json.dumps(
+            {
+                "status": "completed",
+                "completed_jobs": [
+                    {"step": "extraction"},
+                    {"step": "hierarchical_aggregation"},
+                ],
+                "previously_completed_jobs": [
+                    {"step": "embedding"},
+                ],
+                "total_token_usage": 654,
+                "token_usage_input": 210,
+                "token_usage_output": 444,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (config_dir / f"{slug}.json").write_text(
+        json.dumps({"provider": "openai", "model": "gpt-4o-mini"}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_launcher.settings, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(report_status.settings, "DATA_DIR", data_dir)
+    monkeypatch.setattr(report_status, "STATE_FILE", data_dir / "report_status.json")
+
+    report_status._report_status.clear()
+    report_status._report_status[slug] = {
+        "slug": slug,
+        "source_slug": None,
+        "status": "processing",
+        "title": "Existing title",
+        "description": "Existing description",
+        "is_pubcom": False,
+        "visibility": "unlisted",
+        "created_at": "2026-05-20T00:00:00+00:00",
+        "token_usage": 111,
+        "token_usage_input": 11,
+        "token_usage_output": 100,
+        "estimated_cost": 0.0,
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+    }
+    report_status.save_status()
+
+    syncs = []
+
+    class DummyProcess:
+        def wait(self):
+            return 0
+
+    class DummyReportSyncService:
+        def sync_report_files_to_storage(self, value):
+            syncs.append(("report", value))
+
+        def sync_input_file_to_storage(self, value):
+            syncs.append(("input", value))
+
+        def sync_config_file_to_storage(self, value):
+            syncs.append(("config", value))
+
+        def sync_status_file_to_storage(self):
+            syncs.append(("status", None))
+
+    monkeypatch.setattr(report_launcher, "ReportSyncService", DummyReportSyncService)
+
+    report_launcher._monitor_process(DummyProcess(), slug)
+
+    updated = report_status._report_status[slug]
+    assert updated["status"] == "ready"
+    assert updated["title"] == "Existing title"
+    assert updated["description"] == "Existing description"
+    assert updated["created_at"] == "2026-05-20T00:00:00+00:00"
+    assert updated["token_usage"] == 654
+    assert updated["token_usage_input"] == 210
+    assert updated["token_usage_output"] == 444
+    assert updated["provider"] == "openai"
+    assert updated["model"] == "gpt-4o-mini"
+    assert syncs == [
+        ("report", slug),
+        ("input", slug),
+        ("config", slug),
+        ("status", None),
+    ]
