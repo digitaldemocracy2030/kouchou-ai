@@ -10,6 +10,7 @@ def test_user_api_key_propagation_to_env(monkeypatch):
 
     class DummyPopen:
         def __init__(self, *args, **kwargs):
+            called["args"] = args[0]
             called["env"] = kwargs.get("env", {})
 
         def wait(self):
@@ -41,6 +42,8 @@ def test_user_api_key_propagation_to_env(monkeypatch):
     )
     report_launcher.launch_report_generation(report_input, user_api_key="test-key")
     assert called["env"]["USER_API_KEY"] == "test-key"
+    assert called["args"][:3] == ["python", "-m", "analysis_core"]
+    assert "--without-html" in called["args"]
 
 
 def test_env_user_api_key_not_set_when_user_api_key_not_provided(monkeypatch):
@@ -55,6 +58,7 @@ def test_env_user_api_key_not_set_when_user_api_key_not_provided(monkeypatch):
 
     class DummyPopen:
         def __init__(self, *args, **kwargs):
+            called["args"] = args[0]
             called["env"] = kwargs.get("env", {})
 
         def wait(self):
@@ -86,6 +90,7 @@ def test_env_user_api_key_not_set_when_user_api_key_not_provided(monkeypatch):
     )
     report_launcher.launch_report_generation(report_input)
     assert "USER_API_KEY" not in called["env"]
+    assert "--without-html" in called["args"]
 
 
 def test_env_user_api_key_not_set_when_user_api_key_empty(monkeypatch):
@@ -100,6 +105,7 @@ def test_env_user_api_key_not_set_when_user_api_key_empty(monkeypatch):
 
     class DummyPopen:
         def __init__(self, *args, **kwargs):
+            called["args"] = args[0]
             called["env"] = kwargs.get("env", {})
 
         def wait(self):
@@ -131,6 +137,7 @@ def test_env_user_api_key_not_set_when_user_api_key_empty(monkeypatch):
     )
     report_launcher.launch_report_generation(report_input, user_api_key="")
     assert "USER_API_KEY" not in called["env"]
+    assert "--without-html" in called["args"]
 
 
 def test_user_api_key_propagation_to_env_in_aggregation(monkeypatch):
@@ -144,6 +151,7 @@ def test_user_api_key_propagation_to_env_in_aggregation(monkeypatch):
 
     class DummyPopen:
         def __init__(self, *args, **kwargs):
+            called["args"] = args[0]
             called["env"] = kwargs.get("env", {})
 
         def wait(self):
@@ -160,6 +168,7 @@ def test_user_api_key_propagation_to_env_in_aggregation(monkeypatch):
     monkeypatch.setattr(threading, "Thread", DummyThread)
     result = report_launcher.execute_aggregation("slug", user_api_key="test-key")
     assert called["env"]["USER_API_KEY"] == "test-key"
+    assert called["args"][-2:] == ["--only", "hierarchical_aggregation"]
     assert result is True
 
 
@@ -174,6 +183,7 @@ def test_env_user_api_key_not_set_in_aggregation_when_user_api_key_not_provided(
 
     class DummyPopen:
         def __init__(self, *args, **kwargs):
+            called["args"] = args[0]
             called["env"] = kwargs.get("env", {})
 
         def wait(self):
@@ -190,4 +200,40 @@ def test_env_user_api_key_not_set_in_aggregation_when_user_api_key_not_provided(
     monkeypatch.setattr(threading, "Thread", DummyThread)
     result = report_launcher.execute_aggregation("slug")
     assert "USER_API_KEY" not in called["env"]
+    assert called["args"][-2:] == ["--only", "hierarchical_aggregation"]
     assert result is True
+
+
+def test_launch_report_generation_from_config_uses_shared_command(monkeypatch, tmp_path):
+    import subprocess
+    import threading
+
+    from src.services import report_launcher
+
+    called = {}
+    config_path = tmp_path / "demo.json"
+    config_path.write_text("{}", encoding="utf-8")
+
+    class DummyPopen:
+        def __init__(self, *args, **kwargs):
+            called["args"] = args[0]
+            called["env"] = kwargs.get("env", {})
+
+        def wait(self):
+            return 0
+
+    class DummyThread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            pass  # Don't actually start the thread
+
+    monkeypatch.setattr(subprocess, "Popen", DummyPopen)
+    monkeypatch.setattr(threading, "Thread", DummyThread)
+
+    report_launcher.launch_report_generation_from_config(config_path, "demo")
+
+    assert called["args"][:3] == ["python", "-m", "analysis_core"]
+    assert "--without-html" in called["args"]
+    assert "--only" not in called["args"]

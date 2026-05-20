@@ -40,7 +40,7 @@ from analysis_core import PipelineOrchestrator, PipelineConfig
 
 config = PipelineConfig.from_json("config.json")
 orchestrator = PipelineOrchestrator(config.to_dict())
-result = orchestrator.run()
+result = orchestrator.run_default()
 ```
 
 ## プラグインシステム
