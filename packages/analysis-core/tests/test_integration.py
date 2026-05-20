@@ -3,6 +3,8 @@
 import json
 from unittest.mock import patch
 
+import pytest
+
 from analysis_core import PipelineOrchestrator
 from analysis_core.orchestrator import PipelineResult
 
@@ -53,7 +55,8 @@ class TestPipelineIntegration:
             mock_run_step.side_effect = side_effect
 
             with patch("analysis_core.orchestrator.termination"):
-                result = orchestrator.run()
+                with pytest.warns(DeprecationWarning, match="run\\(\\) is deprecated"):
+                    result = orchestrator.run()
 
         # Verify steps were executed in order
         assert executed_steps == ["extraction", "embedding"]
@@ -89,7 +92,8 @@ class TestPipelineIntegration:
             mock_run_step.side_effect = side_effect
 
             with patch("analysis_core.orchestrator.termination"):
-                result = orchestrator.run()
+                with pytest.warns(DeprecationWarning, match="run\\(\\) is deprecated"):
+                    result = orchestrator.run()
 
         # Verify failure was captured
         assert result.success is False
@@ -171,7 +175,8 @@ class TestPipelineIntegration:
             mock_run_step.side_effect = side_effect
 
             with patch("analysis_core.orchestrator.termination"):
-                orchestrator.run()
+                with pytest.warns(DeprecationWarning, match="run\\(\\) is deprecated"):
+                    orchestrator.run()
 
         status = orchestrator.get_status()
         assert status["current_job"] == "extraction"

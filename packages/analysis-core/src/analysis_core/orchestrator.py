@@ -6,6 +6,7 @@ handling step sequencing, status tracking, and error handling.
 """
 
 import json
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -79,11 +80,11 @@ class PipelineOrchestrator:
     Usage:
         # From config file
         orchestrator = PipelineOrchestrator.from_config("config.json")
-        result = orchestrator.run()
+        result = orchestrator.run_default()
 
         # From config dict
         orchestrator = PipelineOrchestrator(config_dict)
-        result = orchestrator.run()
+        result = orchestrator.run_default()
     """
 
     # Default step sequence for hierarchical analysis
@@ -189,11 +190,16 @@ class PipelineOrchestrator:
 
     def run(self) -> PipelineResult:
         """
-        Execute the pipeline.
+        Execute the legacy direct-step pipeline.
 
         Returns:
             PipelineResult with execution details
         """
+        warnings.warn(
+            "PipelineOrchestrator.run() is deprecated; use run_default() for the canonical workflow path.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         start_time = datetime.now()
         step_results: list[StepResult] = []
         error: Exception | None = None
