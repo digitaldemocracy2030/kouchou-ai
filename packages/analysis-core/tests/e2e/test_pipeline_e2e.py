@@ -24,6 +24,24 @@ import pytest
 from .schemas import HierarchicalResult
 
 
+def _scoped_pipeline_config(pipeline_config, enabled_steps):
+    """Return a config whose workflow plan only runs the requested steps."""
+    plan_steps = [
+        "extraction",
+        "embedding",
+        "hierarchical_clustering",
+        "hierarchical_initial_labelling",
+        "hierarchical_merge_labelling",
+        "hierarchical_overview",
+        "hierarchical_aggregation",
+        "hierarchical_visualization",
+    ]
+    enabled = set(enabled_steps)
+    scoped_config = dict(pipeline_config)
+    scoped_config["plan"] = [{"step": step, "run": step in enabled} for step in plan_steps]
+    return scoped_config
+
+
 @pytest.mark.e2e
 class TestPipelineE2E:
     """End-to-end tests for the complete pipeline."""
@@ -106,17 +124,11 @@ class TestPipelineE2E:
 
         # Run only extraction step
         orchestrator = PipelineOrchestrator.from_dict(
-            config=pipeline_config,
+            config=_scoped_pipeline_config(pipeline_config, ["extraction"]),
             output_dir=pipeline_config["output_dir"],
             output_base_dir=temp_dirs["output_dir"],
             input_base_dir=temp_dirs["input_dir"],
         )
-
-        # Only register extraction step
-        from analysis_core.steps import extraction
-
-        orchestrator.steps = ["extraction"]
-        orchestrator.register_step("extraction", extraction)
 
         result = orchestrator.run_default()
         assert result.success, f"Extraction failed: {result.error}"
@@ -150,19 +162,14 @@ class TestPipelineE2E:
 
         # Run extraction and embedding first, then clustering
         orchestrator = PipelineOrchestrator.from_dict(
-            config=pipeline_config,
+            config=_scoped_pipeline_config(
+                pipeline_config,
+                ["extraction", "embedding", "hierarchical_clustering"],
+            ),
             output_dir=pipeline_config["output_dir"],
             output_base_dir=temp_dirs["output_dir"],
             input_base_dir=temp_dirs["input_dir"],
         )
-
-        # Run only up to clustering
-        from analysis_core.steps import embedding, extraction, hierarchical_clustering
-
-        orchestrator.steps = ["extraction", "embedding", "hierarchical_clustering"]
-        orchestrator.register_step("extraction", extraction)
-        orchestrator.register_step("embedding", embedding)
-        orchestrator.register_step("hierarchical_clustering", hierarchical_clustering)
 
         result = orchestrator.run_default()
         assert result.success, f"Pipeline failed: {result.error}"
@@ -242,16 +249,11 @@ class TestOutputSchemaValidation:
 
         # Run extraction only
         orchestrator = PipelineOrchestrator.from_dict(
-            config=pipeline_config,
+            config=_scoped_pipeline_config(pipeline_config, ["extraction"]),
             output_dir=pipeline_config["output_dir"],
             output_base_dir=temp_dirs["output_dir"],
             input_base_dir=temp_dirs["input_dir"],
         )
-
-        from analysis_core.steps import extraction
-
-        orchestrator.steps = ["extraction"]
-        orchestrator.register_step("extraction", extraction)
 
         result = orchestrator.run_default()
         assert result.success, f"Extraction failed: {result.error}"
