@@ -150,6 +150,46 @@ async def test_get_current_step_with_error(async_client, test_slug):
 
 
 @pytest.mark.asyncio
+async def test_get_current_step_with_failed_workflow_step(async_client, test_slug):
+    """workflow failure 時は失敗した current_job と provider/model を返す."""
+    status_data = {
+        "status": "error",
+        "error": "Step 'embedding' failed: boom",
+        "current_job": "embedding",
+        "total_token_usage": 321,
+        "token_usage_input": 123,
+        "token_usage_output": 198,
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+    }
+
+    mock_status_file = MagicMock(spec=Path)
+    mock_status_file.exists.return_value = True
+
+    with patch("src.routers.admin_report.settings") as mock_settings:
+        mock_settings.REPORT_DIR.__truediv__ = MagicMock(return_value=MagicMock())
+        mock_settings.REPORT_DIR.__truediv__.return_value.__truediv__ = MagicMock(return_value=mock_status_file)
+        with patch(
+            "builtins.open",
+            return_value=MagicMock(
+                __enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))),
+                __exit__=MagicMock(return_value=False),
+            ),
+        ):
+            with patch("json.load", return_value=status_data):
+                response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+                assert response.status_code == 200
+                data = response.json()
+                assert data["status"] == "error"
+                assert data["current_step"] == "embedding"
+                assert data["token_usage"] == 321
+                assert data["token_usage_input"] == 123
+                assert data["token_usage_output"] == 198
+                assert data["provider"] == "openai"
+                assert data["model"] == "gpt-4o-mini"
+
+
+@pytest.mark.asyncio
 async def test_get_current_step_file_not_found(async_client, test_slug):
     """get_current_stepエンドポイントがファイルが存在しない場合に適切なレスポンスを返すことをテスト"""
     mock_status_file = MagicMock(spec=Path)
