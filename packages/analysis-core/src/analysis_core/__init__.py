@@ -5,18 +5,18 @@ kouchou-ai-analysis-core
 コメントデータからクラスタリングと要約を行う。
 
 This package provides two execution modes:
-1. Legacy mode: Direct step function execution with status tracking
-2. Workflow mode: Plugin-based workflow engine with configurable steps
+1. Default mode: Workflow-backed execution used by the CLI and current API path
+2. Legacy mode: Direct step function execution with status tracking
+
+Example (Default mode):
+    from analysis_core import PipelineOrchestrator
+    orchestrator = PipelineOrchestrator.from_config("config.json")
+    result = orchestrator.run_default()
 
 Example (Legacy mode):
     from analysis_core import PipelineOrchestrator
     orchestrator = PipelineOrchestrator.from_config("config.json")
     result = orchestrator.run()
-
-Example (Default CLI / workflow mode):
-    from analysis_core import PipelineOrchestrator
-    orchestrator = PipelineOrchestrator.from_config("config.json")
-    result = orchestrator.run_default()
 """
 
 __version__ = "0.1.2"

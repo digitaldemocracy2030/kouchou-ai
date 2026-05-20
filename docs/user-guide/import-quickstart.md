@@ -40,17 +40,17 @@ config = {
 }
 
 # パイプラインを実行
-orchestrator = PipelineOrchestrator.from_config(
+orchestrator = PipelineOrchestrator.from_dict(
     config=config,
     output_dir="my-analysis",
     input_base_dir=Path("./inputs"),
     output_base_dir=Path("./outputs"),
 )
 
-result = orchestrator.run()
+result = orchestrator.run_default()
 
-print(f"ステータス: {result['status']}")
-print(f"出力ディレクトリ: {result['output_dir']}")
+print(f"成功: {result.success}")
+print(f"出力ディレクトリ: {result.output_dir}")
 ```
 
 `hierarchical_clustering.cluster_nums` は省略可能です。省略した場合は、extraction 後の argument 数に基づいておすすめ値が自動計算されます。
@@ -66,8 +66,8 @@ from analysis_core import PipelineConfig, PipelineOrchestrator
 config = PipelineConfig.from_json("config.json")
 
 # 辞書に変換してオーケストレータに渡す
-orchestrator = PipelineOrchestrator.from_config(config.to_dict())
-result = orchestrator.run()
+orchestrator = PipelineOrchestrator.from_dict(config.to_dict())
+result = orchestrator.run_default()
 ```
 
 ## 3. 個別ステップの実行
@@ -310,13 +310,13 @@ config = {
 from analysis_core import PipelineOrchestrator
 
 try:
-    orchestrator = PipelineOrchestrator.from_config(config)
-    result = orchestrator.run()
+    orchestrator = PipelineOrchestrator.from_dict(config)
+    result = orchestrator.run_default()
 
-    if result['status'] == 'completed':
+    if result.success:
         print("分析が完了しました")
     else:
-        print(f"エラー: {result.get('error')}")
+        print(f"エラー: {result.error}")
 
 except FileNotFoundError as e:
     print(f"ファイルが見つかりません: {e}")
@@ -335,11 +335,11 @@ import concurrent.futures
 from analysis_core import PipelineOrchestrator
 
 def run_analysis(config, name):
-    orchestrator = PipelineOrchestrator.from_config(
-        config,
+    orchestrator = PipelineOrchestrator.from_dict(
+        config=config,
         output_dir=name
     )
-    return orchestrator.run()
+    return orchestrator.run_default()
 
 # 複数の分析を並列実行
 configs = [config1, config2, config3]
@@ -353,7 +353,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
 
     for future in concurrent.futures.as_completed(futures):
         result = future.result()
-        print(f"完了: {result['output_dir']}")
+        print(f"完了: {result.output_dir}")
 ```
 
 ## 10. Jupyter Notebook での利用
@@ -379,8 +379,8 @@ config = {
     "extraction": {"workers": 2, "limit": 50},
 }
 
-orchestrator = PipelineOrchestrator.from_config(config)
-result = orchestrator.run()
+orchestrator = PipelineOrchestrator.from_dict(config)
+result = orchestrator.run_default()
 
 # セル3: 結果表示
 import json
