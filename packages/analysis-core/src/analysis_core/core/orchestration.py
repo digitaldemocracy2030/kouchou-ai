@@ -22,6 +22,19 @@ _specs: list[dict[str, Any]] = []
 _PACKAGE_DIR = Path(__file__).parent.parent
 
 
+def sync_without_html_keys(config: dict[str, Any]) -> None:
+    """Keep ``without_html`` and ``without-html`` aligned in-place."""
+    if "without-html" in config:
+        canonical = config["without-html"]
+    elif "without_html" in config:
+        canonical = config["without_html"]
+    else:
+        return
+
+    config["without-html"] = canonical
+    config["without_html"] = canonical
+
+
 def load_specs(specs_path: Path) -> list[dict[str, Any]]:
     """Load pipeline step specifications from a JSON file."""
     global _specs
@@ -130,6 +143,8 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
         "provider",
         "local_llm_address",
         "enable_source_link",
+        "without_html",
+        "without-html",
     ]
     step_names = [x["step"] for x in specs]
 
@@ -445,10 +460,7 @@ def initialization(
         config["without_html"] = True
 
     # Keep both naming variants in sync while workflow and legacy paths coexist.
-    if "without_html" in config and "without-html" not in config:
-        config["without-html"] = config["without_html"]
-    if "without-html" in config and "without_html" not in config:
-        config["without_html"] = config["without-html"]
+    sync_without_html_keys(config)
 
     output_dir = config["output_dir"]
 

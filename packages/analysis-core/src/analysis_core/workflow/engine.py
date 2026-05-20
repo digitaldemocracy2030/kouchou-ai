@@ -211,6 +211,8 @@ class WorkflowEngine:
                         error=error_msg,
                         skipped=True,
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                 else:
                     result.step_results[step_id] = StepResult(
                         step_id=step_id,

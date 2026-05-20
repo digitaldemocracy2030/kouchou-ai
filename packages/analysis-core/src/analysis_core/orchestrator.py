@@ -14,6 +14,7 @@ from typing import Any, Callable
 from analysis_core.core.orchestration import (
     initialization,
     run_step,
+    sync_without_html_keys,
     termination,
     update_status,
 )
@@ -313,10 +314,7 @@ class PipelineOrchestrator:
 
         normalized["_output_base_dir"] = str(output_base)
         normalized["_input_base_dir"] = str(input_base)
-        if "without_html" in normalized and "without-html" not in normalized:
-            normalized["without-html"] = normalized["without_html"]
-        if "without-html" in normalized and "without_html" not in normalized:
-            normalized["without_html"] = normalized["without-html"]
+        sync_without_html_keys(normalized)
 
         # Create output directory
         output_path = output_base / normalized["output_dir"]

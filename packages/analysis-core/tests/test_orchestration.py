@@ -203,6 +203,37 @@ class TestInitialization:
 
         assert config.get("without-html") is True
 
+    def test_initialization_prefers_legacy_without_html_key(self, tmp_path):
+        """Test conflicting without_html flags are reconciled to the legacy key."""
+        from analysis_core.core import initialization
+
+        config_path = tmp_path / "job.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "local",
+                    "without_html": False,
+                    "without-html": True,
+                }
+            )
+        )
+
+        input_dir = tmp_path / "inputs"
+        output_dir = tmp_path / "outputs"
+        input_dir.mkdir()
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=output_dir,
+            input_base_dir=input_dir,
+        )
+
+        assert config["without-html"] is True
+        assert config["without_html"] is True
+
 
 class TestValidateApiKeys:
     """Test API key validation."""
@@ -528,6 +559,28 @@ class TestPipelineOrchestrator:
         assert extraction_plan["run"] is False
         assert extraction_plan["reason"] == "nothing changed"
         assert "previous" in orchestrator.config
+
+    def test_from_dict_prefers_legacy_without_html_key(self, tmp_path):
+        """Test from_dict reconciles conflicting without_html variants."""
+        from analysis_core import PipelineOrchestrator
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+                "without_html": False,
+                "without-html": True,
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        assert orchestrator.config["without-html"] is True
+        assert orchestrator.config["without_html"] is True
 
     def test_run_workflow_persists_status_file(self, tmp_path, monkeypatch):
         """Test workflow mode writes hierarchical_status.json with completed jobs."""

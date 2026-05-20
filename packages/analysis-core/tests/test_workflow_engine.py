@@ -428,6 +428,54 @@ class TestWorkflowEngineValidation:
         assert calls["producer"] == 0
         assert calls["consumer"] == 1
 
+    def test_optional_step_failure_still_emits_completion_callback(self, test_ctx, test_registry):
+        """Test optional step exceptions still trigger on_step_complete."""
+
+        completions = []
+
+        @step_plugin(
+            id="test.optional_failure",
+            version="1.0.0",
+            inputs=[],
+            outputs=["result"],
+        )
+        def optional_failure(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            raise RuntimeError("boom")
+
+        @step_plugin(
+            id="test.final_step",
+            version="1.0.0",
+            inputs=[],
+            outputs=["final_result"],
+        )
+        def final_step(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            return StepOutputs(artifacts={"final_result": ctx.output_dir / "final.txt"})
+
+        test_registry.register(optional_failure)
+        test_registry.register(final_step)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[
+                WorkflowStep(id="optional", plugin="test.optional_failure", optional=True),
+                WorkflowStep(id="final", plugin="test.final_step", depends_on=["optional"]),
+            ],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(
+            workflow,
+            {},
+            test_ctx,
+            on_step_complete=lambda step_id, step_result: completions.append((step_id, step_result)),
+        )
+
+        assert result.success
+        assert [step_id for step_id, _ in completions] == ["optional", "final"]
+        assert completions[0][1].skipped is True
+        assert completions[0][1].success is False
+
 
 class TestWorkflowEngineOutputDir:
     """Tests for workflow engine output directory handling."""
