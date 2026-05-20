@@ -111,7 +111,7 @@ def main() -> int:
         print(f"  Output: {orchestrator.output_base_dir}")
         print()
 
-        result = orchestrator.run()
+        result = orchestrator.run_default()
 
         # Report results
         print()

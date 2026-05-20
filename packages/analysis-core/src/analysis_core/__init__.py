@@ -13,10 +13,10 @@ Example (Legacy mode):
     orchestrator = PipelineOrchestrator.from_config("config.json")
     result = orchestrator.run()
 
-Example (Workflow mode):
+Example (Default CLI / workflow mode):
     from analysis_core import PipelineOrchestrator
-    orchestrator = PipelineOrchestrator.from_dict(config)
-    result = orchestrator.run_workflow()
+    orchestrator = PipelineOrchestrator.from_config("config.json")
+    result = orchestrator.run_default()
 """
 
 __version__ = "0.1.2"

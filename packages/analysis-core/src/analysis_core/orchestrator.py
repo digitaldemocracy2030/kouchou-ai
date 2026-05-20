@@ -256,6 +256,10 @@ class PipelineOrchestrator:
             output_dir=output_path if output_path.exists() else None,
         )
 
+    def run_default(self) -> PipelineResult:
+        """Execute the default pipeline path used by the CLI."""
+        return self.run_workflow()
+
     def get_status(self) -> dict[str, Any]:
         """Get current pipeline status from config."""
         return {
@@ -462,7 +466,7 @@ class PipelineOrchestrator:
             # Convert to PipelineResult
             step_results = [
                 StepResult(
-                    step_name=step_id,
+                    step_name=workflow_step_to_legacy_name(step_id),
                     success=result.success,
                     duration_seconds=0.0,  # Not tracked in workflow mode
                     token_usage=result.outputs.token_usage if result.outputs else 0,
