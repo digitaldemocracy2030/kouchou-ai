@@ -53,6 +53,15 @@ def test_scoped_pipeline_config_rejects_unknown_step_names():
         _scoped_pipeline_config({}, ["extraction", "typo_step"])
 
 
+def _config_file_payload(pipeline_config):
+    """Drop runtime-only path fields before writing a config file."""
+    return {
+        key: value
+        for key, value in pipeline_config.items()
+        if key not in {"output_dir", "_input_base_dir", "_output_base_dir", "plan"}
+    }
+
+
 @pytest.mark.e2e
 class TestPipelineE2E:
     """End-to-end tests for the complete pipeline."""
@@ -120,6 +129,69 @@ class TestPipelineE2E:
         assert hierarchical_result.comment_num == 5, "Should have 5 comments"
         assert len(hierarchical_result.arguments) > 0, "Should have extracted at least 1 argument"
         assert len(hierarchical_result.clusters) > 1, "Should have at least 2 clusters (root + 1)"
+
+    def test_full_pipeline_rerun_rebuilds_missing_downstream_outputs(
+        self, api_key, temp_dirs, small_comments_csv, pipeline_config
+    ):
+        """Real LLM rerun should rebuild missing downstream artifacts instead of restarting from scratch."""
+        from analysis_core import PipelineOrchestrator
+
+        input_file = temp_dirs["input_dir"] / "small_comments.csv"
+        shutil.copy(small_comments_csv, input_file)
+
+        config_path = temp_dirs["base"] / f"{pipeline_config['output_dir']}.json"
+        config_path.write_text(
+            json.dumps(_config_file_payload(pipeline_config), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        output_dir = temp_dirs["output_dir"] / pipeline_config["output_dir"]
+
+        first_run = PipelineOrchestrator.from_config(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=temp_dirs["output_dir"],
+            input_base_dir=temp_dirs["input_dir"],
+        )
+        first_result = first_run.run_default()
+        assert first_result.success, f"Initial pipeline failed: {first_result.error}"
+
+        overview_path = output_dir / "hierarchical_overview.txt"
+        result_path = output_dir / "hierarchical_result.json"
+        assert overview_path.exists()
+        assert result_path.exists()
+
+        overview_path.unlink()
+        result_path.unlink()
+
+        rerun = PipelineOrchestrator.from_config(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=temp_dirs["output_dir"],
+            input_base_dir=temp_dirs["input_dir"],
+        )
+        rerun_result = rerun.run_default()
+        assert rerun_result.success, f"Rerun failed: {rerun_result.error}"
+
+        assert overview_path.exists(), "hierarchical_overview.txt should be regenerated on rerun"
+        assert result_path.exists(), "hierarchical_result.json should be regenerated on rerun"
+
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["status"] == "completed"
+        assert [job["step"] for job in status_data["completed_jobs"]] == [
+            "hierarchical_overview",
+            "hierarchical_aggregation",
+        ]
+        assert {
+            job["step"]
+            for job in status_data["previously_completed_jobs"]
+        } >= {
+            "extraction",
+            "embedding",
+            "hierarchical_clustering",
+            "hierarchical_initial_labelling",
+            "hierarchical_merge_labelling",
+        }
 
     def test_extraction_produces_arguments(self, api_key, temp_dirs, small_comments_csv, pipeline_config):
         """Test that extraction step produces valid args.csv."""
