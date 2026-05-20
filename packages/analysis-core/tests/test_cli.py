@@ -127,3 +127,113 @@ class TestCLI:
         assert exit_code == 0
         fake_orchestrator.run_default.assert_called_once_with()
         assert "Pipeline completed successfully!" in captured.out
+
+    def test_cli_execution_reuses_previous_status_via_workflow_plan(self, monkeypatch, tmp_path, capsys):
+        """Test CLI execution carries rerun planning into the workflow engine."""
+        from analysis_core import __main__
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        config_path = tmp_path / "demo.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "demo",
+                    "question": "Test?",
+                    "provider": "local",
+                    "model": "gpt-4o-mini",
+                    "extraction": {
+                        "limit": 1000,
+                        "workers": 1,
+                        "prompt": "",
+                        "model": "gpt-4o-mini",
+                        "properties": [],
+                    },
+                }
+            )
+        )
+
+        input_dir = tmp_path / "inputs"
+        output_dir = tmp_path / "outputs"
+        input_dir.mkdir()
+        (input_dir / "demo.csv").write_text("comment-id,comment-body\n1,test\n", encoding="utf-8")
+
+        output_subdir = output_dir / "demo"
+        output_subdir.mkdir(parents=True)
+        (output_subdir / "args.csv").write_text("arg-id,argument\nA1,test\n", encoding="utf-8")
+        (output_subdir / "hierarchical_status.json").write_text(
+            json.dumps(
+                {
+                    "completed_jobs": [
+                        {
+                            "step": "extraction",
+                            "params": {
+                                "limit": 1000,
+                                "workers": 1,
+                                "prompt": "",
+                                "model": "gpt-4o-mini",
+                                "properties": [],
+                            },
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        seen = {}
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                seen["skip_steps"] = skip_steps
+                result = WorkflowResult(
+                    workflow_id="test",
+                    total_token_usage=9,
+                    total_token_input=4,
+                    total_token_output=5,
+                )
+                step_result = WorkflowStepResult(
+                    step_id="embedding",
+                    success=True,
+                    outputs=StepOutputs(
+                        artifacts={"embeddings": ctx.output_dir / "embeddings.pkl"},
+                        token_usage=9,
+                        token_input=4,
+                        token_output=5,
+                    ),
+                )
+                if on_step_start:
+                    on_step_start("embedding")
+                if on_step_complete:
+                    on_step_complete("embedding", step_result)
+                result.step_results["embedding"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "analysis_core",
+                "--config",
+                str(config_path),
+                "--input-dir",
+                str(input_dir),
+                "--output-dir",
+                str(output_dir),
+            ],
+        )
+
+        exit_code = __main__.main()
+        captured = capsys.readouterr()
+
+        assert exit_code == 0
+        assert seen["skip_steps"] == {"extraction"}
+        assert "Pipeline completed successfully!" in captured.out
+
+        status_data = json.loads((output_subdir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["status"] == "completed"
+        assert status_data["total_token_usage"] == 9
+        assert any(job["step"] == "embedding" for job in status_data["completed_jobs"])
+        assert any(job["step"] == "extraction" for job in status_data["previously_completed_jobs"])
