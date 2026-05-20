@@ -417,7 +417,9 @@ def test_monitor_process_reads_workflow_status_and_syncs_outputs(monkeypatch, tm
         def sync_status_file_to_storage(self):
             calls["syncs"].append(("status", None))
 
-    monkeypatch.setattr(report_launcher, "set_status", lambda current_slug, status: calls["statuses"].append((current_slug, status)))
+    monkeypatch.setattr(
+        report_launcher, "set_status", lambda current_slug, status: calls["statuses"].append((current_slug, status))
+    )
     monkeypatch.setattr(
         report_launcher,
         "update_token_usage",
