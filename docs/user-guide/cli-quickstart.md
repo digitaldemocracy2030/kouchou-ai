@@ -127,7 +127,7 @@ Execution Plan:
   [RUN] hierarchical_visualization: no trace of previous run
 ```
 
-`hierarchical_visualization` ステップは自己完結型の `report.html` を生成します（Plotly CDN のみ参照、データは inline）。HTML を生成したくない場合は `--without-html` を指定してください。
+`hierarchical_visualization` ステップは自己完結型の `report.html` を生成します（Plotly CDN のみ参照、データは inline）。これは CLI でのローカル確認用 sidecar artifact であり、canonical output は `hierarchical_result.json` です。HTML を生成したくない場合は `--without-html` を指定してください。
 
 ### 分析の実行
 
@@ -163,7 +163,7 @@ Output directory: outputs/config
 ```
 outputs/config/
 ├── hierarchical_result.json    # 最終結果（Webビューア用 / report.html の元データ）
-├── report.html                 # 自己完結型 HTML レポート（散布図 + クラスタ階層、Plotly CDN 参照、データは inline）
+├── report.html                 # CLI ローカル確認用の自己完結型 HTML sidecar
 ├── hierarchical_overview.txt   # AI生成の要約テキスト
 ├── hierarchical_clusters.csv   # クラスタリング結果
 ├── hierarchical_initial_labels.csv
@@ -184,6 +184,8 @@ open outputs/config/report.html  # macOS
 ```
 
 `config.json` に `"report_url_pattern"` を指定すると、各点クリックで元コメントの URL を開けます（例: `"report_url_pattern": "https://example.com/comments/{comment_id}"`）。
+
+`report.html` は CLI の補助出力であり、Web 配信やストレージ同期の canonical artifact ではありません。プロダクトの viewer は `hierarchical_result.json` を入力として描画します。
 
 ### 要約の確認
 

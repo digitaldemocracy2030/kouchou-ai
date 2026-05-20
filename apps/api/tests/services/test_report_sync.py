@@ -253,6 +253,19 @@ class TestReportSyncService:
         assert (slug_dir / "test.json").exists()  # JSONファイルは残っている
         assert not (slug_dir / "test.txt").exists()  # 非JSONファイルは削除されている
 
+    def test_cleanup_report_files_removes_report_html(self, report_sync_service: ReportSyncService, tmp_path: Path):
+        """report.html は CLI 専用 sidecar なので保持対象にしない。"""
+        slug_dir = tmp_path / "test-slug"
+        slug_dir.mkdir()
+        (slug_dir / "hierarchical_result.json").write_text('{"ok": true}', encoding="utf-8")
+        (slug_dir / "report.html").write_text("<html></html>", encoding="utf-8")
+
+        result = report_sync_service._cleanup_report_files(slug_dir)
+
+        assert result is True
+        assert (slug_dir / "hierarchical_result.json").exists()
+        assert not (slug_dir / "report.html").exists()
+
     def test_cleanup_report_files_exception(self, report_sync_service: ReportSyncService, monkeypatch):
         """存在しないディレクトリを指定した場合、Falseが返されることを確認"""
         # 存在しないディレクトリパス

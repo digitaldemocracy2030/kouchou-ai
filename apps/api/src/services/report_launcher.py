@@ -58,7 +58,13 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
 
 
 def _build_analysis_core_command(config_path: Path, only: str | None = None) -> list[str]:
-    """Build the shared analysis-core CLI invocation used by the API."""
+    """Build the shared analysis-core CLI invocation used by the API.
+
+    The Web product treats ``hierarchical_result.json`` as the canonical
+    artifact and renders it through ``public-viewer``. We therefore keep
+    ``--without-html`` enabled here so the CLI-only ``report.html`` sidecar
+    is not generated, stored, or distributed by the API path.
+    """
     cmd = [
         "python",
         "-m",
