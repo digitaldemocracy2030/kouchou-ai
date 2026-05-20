@@ -477,7 +477,7 @@ for p in loaded:
 export ANALYSIS_PLUGINS_PATH=/path/to/plugins:/another/path
 
 # パイプライン実行時に自動的に読み込まれる
-python -m analysis_core config.json
+python -m analysis_core --config config.json
 ```
 
 ## ワークフローでの使用

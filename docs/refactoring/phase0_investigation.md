@@ -35,6 +35,9 @@
 
 ## 2. パイプライン構造
 
+> Note
+> この節は調査当時の観測メモであり、current canonical path は `packages/analysis-core` / `python -m analysis_core`。`apps/api/broadlistening/pipeline/hierarchical_main.py` は deprecated layer として残っている。
+
 ### エントリポイント
 - `apps/api/broadlistening/pipeline/hierarchical_main.py` - メインオーケストレーター
 - `apps/api/src/services/report_launcher.py` - API からの呼び出し元
