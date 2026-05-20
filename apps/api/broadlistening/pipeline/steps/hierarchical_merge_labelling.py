@@ -8,9 +8,8 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 from pydantic import BaseModel, Field
-from tqdm import tqdm
-
 from services.llm import request_to_chat_ai
+from tqdm import tqdm
 
 PIPELINE_DIR = Path(__file__).parent.parent
 
