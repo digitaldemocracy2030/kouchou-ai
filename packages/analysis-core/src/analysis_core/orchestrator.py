@@ -304,8 +304,7 @@ class PipelineOrchestrator:
             Initialized PipelineOrchestrator
         """
         from analysis_core.compat import normalize_config
-        from analysis_core.core.orchestration import decide_what_to_run, load_specs, validate_api_keys
-        from analysis_core.core.orchestration import _PACKAGE_DIR
+        from analysis_core.core.orchestration import _PACKAGE_DIR, decide_what_to_run, load_specs, validate_api_keys
 
         # Normalize config with defaults
         normalized = normalize_config(config.copy())
