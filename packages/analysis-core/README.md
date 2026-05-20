@@ -41,9 +41,11 @@ CLI の canonical output は `hierarchical_result.json` です。既定ではロ
 from analysis_core import PipelineOrchestrator, PipelineConfig
 
 config = PipelineConfig.from_json("config.json")
-orchestrator = PipelineOrchestrator(config.to_dict())
+orchestrator = PipelineOrchestrator.from_dict(config.to_dict())
 result = orchestrator.run_default()
 ```
+
+`run_default()` が current の canonical path です。`run()` も残っていますが、legacy direct-step 実行経路として deprecated 扱いです。
 
 ## プラグインシステム
 

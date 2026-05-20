@@ -39,8 +39,9 @@
 > この節は調査当時の観測メモであり、current canonical path は `packages/analysis-core` / `python -m analysis_core`。`apps/api/broadlistening/pipeline/hierarchical_main.py` は deprecated layer として残っている。
 
 ### エントリポイント
-- `apps/api/broadlistening/pipeline/hierarchical_main.py` - メインオーケストレーター
-- `apps/api/src/services/report_launcher.py` - API からの呼び出し元
+- `apps/api/broadlistening/pipeline/hierarchical_main.py` - 旧メインオーケストレーター（deprecated layer）
+- `apps/api/src/services/report_launcher.py` - current API からの呼び出し元
+- `packages/analysis-core/src/analysis_core/__main__.py` - current CLI entrypoint
 
 ### ステップ一覧 (hierarchical_specs.json)
 
@@ -53,7 +54,7 @@
 | hierarchical_merge_labelling | hierarchical_merge_labels.csv | Yes | hierarchical_initial_labelling |
 | hierarchical_overview | hierarchical_overview.txt | Yes | hierarchical_merge_labelling |
 | hierarchical_aggregation | hierarchical_result.json | No | 複数 |
-| hierarchical_visualization | report/ | No | hierarchical_aggregation |
+| hierarchical_visualization | report.html | No | hierarchical_aggregation |
 
 ### ハードコードされたステップ名の場所
 - `apps/admin/app/_components/ReportCard/ProgressSteps/ProgressSteps.tsx:8-17`
