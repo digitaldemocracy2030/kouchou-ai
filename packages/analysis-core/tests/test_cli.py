@@ -237,3 +237,213 @@ class TestCLI:
         assert status_data["total_token_usage"] == 9
         assert any(job["step"] == "embedding" for job in status_data["completed_jobs"])
         assert any(job["step"] == "extraction" for job in status_data["previously_completed_jobs"])
+
+    def test_cli_duplicate_style_rerun_reuses_artifacts_and_restarts_from_overview(self, monkeypatch, tmp_path, capsys):
+        """Test duplicate/reuse style reruns only restart the missing downstream steps."""
+        from analysis_core import __main__
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        config_path = tmp_path / "demo.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "demo",
+                    "question": "Test?",
+                    "provider": "local",
+                    "model": "gpt-4o-mini",
+                    "extraction": {
+                        "limit": 1000,
+                        "workers": 1,
+                        "prompt": "",
+                        "model": "gpt-4o-mini",
+                        "properties": [],
+                    },
+                    "embedding": {
+                        "model": "text-embedding-3-small",
+                    },
+                    "hierarchical_clustering": {
+                        "cluster_nums": [2, 4],
+                    },
+                    "hierarchical_initial_labelling": {
+                        "sampling_num": 3,
+                        "workers": 1,
+                        "prompt": "",
+                        "model": "gpt-4o-mini",
+                    },
+                    "hierarchical_merge_labelling": {
+                        "sampling_num": 3,
+                        "workers": 1,
+                        "prompt": "",
+                        "model": "gpt-4o-mini",
+                    },
+                    "hierarchical_overview": {
+                        "prompt": "",
+                        "model": "gpt-4o-mini",
+                    },
+                }
+            )
+        )
+
+        input_dir = tmp_path / "inputs"
+        output_dir = tmp_path / "outputs"
+        input_dir.mkdir()
+        (input_dir / "demo.csv").write_text("comment-id,comment-body\n1,test\n", encoding="utf-8")
+
+        output_subdir = output_dir / "demo"
+        output_subdir.mkdir(parents=True)
+        for filename in (
+            "args.csv",
+            "embeddings.pkl",
+            "hierarchical_clusters.csv",
+            "hierarchical_initial_labels.csv",
+            "hierarchical_merge_labels.csv",
+        ):
+            (output_subdir / filename).write_text(filename, encoding="utf-8")
+        (output_subdir / "hierarchical_status.json").write_text(
+            json.dumps(
+                {
+                    "completed_jobs": [
+                        {
+                            "step": "extraction",
+                            "params": {
+                                "limit": 1000,
+                                "workers": 1,
+                                "prompt": "",
+                                "model": "gpt-4o-mini",
+                                "properties": [],
+                            },
+                        },
+                        {
+                            "step": "embedding",
+                            "params": {
+                                "model": "text-embedding-3-small",
+                            },
+                        },
+                        {
+                            "step": "hierarchical_clustering",
+                            "params": {
+                                "cluster_nums": [2, 4],
+                            },
+                        },
+                        {
+                            "step": "hierarchical_initial_labelling",
+                            "params": {
+                                "sampling_num": 3,
+                                "workers": 1,
+                                "prompt": "",
+                                "model": "gpt-4o-mini",
+                            },
+                        },
+                        {
+                            "step": "hierarchical_merge_labelling",
+                            "params": {
+                                "sampling_num": 3,
+                                "workers": 1,
+                                "prompt": "",
+                                "model": "gpt-4o-mini",
+                            },
+                        },
+                        {
+                            "step": "hierarchical_overview",
+                            "params": {
+                                "prompt": "",
+                                "model": "gpt-4o-mini",
+                            },
+                        },
+                        {
+                            "step": "hierarchical_aggregation",
+                            "params": {},
+                        },
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        seen = {}
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                seen["skip_steps"] = skip_steps
+                result = WorkflowResult(
+                    workflow_id="test",
+                    total_token_usage=17,
+                    total_token_input=8,
+                    total_token_output=9,
+                )
+                overview_result = WorkflowStepResult(
+                    step_id="overview",
+                    success=True,
+                    outputs=StepOutputs(
+                        artifacts={"overview": ctx.output_dir / "hierarchical_overview.txt"},
+                        token_usage=7,
+                        token_input=3,
+                        token_output=4,
+                    ),
+                )
+                aggregation_result = WorkflowStepResult(
+                    step_id="aggregation",
+                    success=True,
+                    outputs=StepOutputs(
+                        artifacts={"result": ctx.output_dir / "hierarchical_result.json"},
+                        token_usage=10,
+                        token_input=5,
+                        token_output=5,
+                    ),
+                )
+                for step_id, step_result in (
+                    ("overview", overview_result),
+                    ("aggregation", aggregation_result),
+                ):
+                    if on_step_start:
+                        on_step_start(step_id)
+                    if on_step_complete:
+                        on_step_complete(step_id, step_result)
+                    result.step_results[step_id] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "analysis_core",
+                "--config",
+                str(config_path),
+                "--input-dir",
+                str(input_dir),
+                "--output-dir",
+                str(output_dir),
+                "--without-html",
+            ],
+        )
+
+        exit_code = __main__.main()
+        captured = capsys.readouterr()
+
+        assert exit_code == 0
+        assert seen["skip_steps"] == {
+            "extraction",
+            "embedding",
+            "clustering",
+            "initial_labelling",
+            "merge_labelling",
+            "visualization",
+        }
+        assert "Pipeline completed successfully!" in captured.out
+
+        status_data = json.loads((output_subdir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["status"] == "completed"
+        assert [job["step"] for job in status_data["completed_jobs"]] == [
+            "hierarchical_overview",
+            "hierarchical_aggregation",
+        ]
+        assert {job["step"] for job in status_data["previously_completed_jobs"]} == {
+            "extraction",
+            "embedding",
+            "hierarchical_clustering",
+            "hierarchical_initial_labelling",
+            "hierarchical_merge_labelling",
+        }
