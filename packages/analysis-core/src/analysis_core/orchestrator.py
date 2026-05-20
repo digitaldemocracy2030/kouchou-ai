@@ -5,6 +5,7 @@ This module provides the main pipeline execution logic,
 handling step sequencing, status tracking, and error handling.
 """
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -292,7 +293,8 @@ class PipelineOrchestrator:
             Initialized PipelineOrchestrator
         """
         from analysis_core.compat import normalize_config
-        from analysis_core.core.orchestration import validate_api_keys
+        from analysis_core.core.orchestration import decide_what_to_run, load_specs, validate_api_keys
+        from analysis_core.core.orchestration import _PACKAGE_DIR
 
         # Normalize config with defaults
         normalized = normalize_config(config.copy())
@@ -311,20 +313,23 @@ class PipelineOrchestrator:
 
         normalized["_output_base_dir"] = str(output_base)
         normalized["_input_base_dir"] = str(input_base)
+        if "without_html" in normalized and "without-html" not in normalized:
+            normalized["without-html"] = normalized["without_html"]
+        if "without-html" in normalized and "without_html" not in normalized:
+            normalized["without_html"] = normalized["without-html"]
 
         # Create output directory
         output_path = output_base / normalized["output_dir"]
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Create a simple plan (all steps run)
-        normalized["plan"] = [{"step": step, "run": True, "reason": "new run"} for step in cls.DEFAULT_STEPS]
+        status_file = output_path / "hierarchical_status.json"
+        previous: dict[str, Any] | None = None
+        if status_file.exists():
+            previous = json.loads(status_file.read_text(encoding="utf-8"))
+            normalized["previous"] = previous
 
-        # Skip visualization if requested
-        if normalized.get("without_html", True):
-            for plan_step in normalized["plan"]:
-                if plan_step["step"] == "hierarchical_visualization":
-                    plan_step["run"] = False
-                    plan_step["reason"] = "skipping html output"
+        specs = load_specs(_PACKAGE_DIR / "specs" / "hierarchical_specs.json")
+        normalized["plan"] = decide_what_to_run(normalized, previous, specs, output_base)
 
         return cls(
             config=normalized,
@@ -349,18 +354,25 @@ class PipelineOrchestrator:
 
         start_time = datetime.now()
         workflow = HIERARCHICAL_DEFAULT_WORKFLOW
+        plan_step_to_workflow_step = {
+            "extraction": "extraction",
+            "embedding": "embedding",
+            "hierarchical_clustering": "clustering",
+            "hierarchical_initial_labelling": "initial_labelling",
+            "hierarchical_merge_labelling": "merge_labelling",
+            "hierarchical_overview": "overview",
+            "hierarchical_aggregation": "aggregation",
+            "hierarchical_visualization": "visualization",
+        }
+        workflow_step_to_plan_step = {v: k for k, v in plan_step_to_workflow_step.items()}
+        skip_steps = {
+            plan_step_to_workflow_step[step["step"]]
+            for step in self.config.get("plan", [])
+            if not step.get("run", True) and step["step"] in plan_step_to_workflow_step
+        }
 
         def workflow_step_to_legacy_name(step_name: str) -> str:
-            return {
-                "extraction": "extraction",
-                "embedding": "embedding",
-                "clustering": "hierarchical_clustering",
-                "initial_labelling": "hierarchical_initial_labelling",
-                "merge_labelling": "hierarchical_merge_labelling",
-                "overview": "hierarchical_overview",
-                "aggregation": "hierarchical_aggregation",
-                "visualization": "hierarchical_visualization",
-            }.get(step_name, step_name)
+            return workflow_step_to_plan_step.get(step_name, step_name)
 
         def mark_step_started(step_name: str) -> None:
             update_status(
@@ -442,6 +454,7 @@ class PipelineOrchestrator:
                 ctx,
                 on_step_start=mark_step_started,
                 on_step_complete=mark_step_completed,
+                skip_steps=skip_steps,
             )
 
             self.config["total_token_usage"] = workflow_result.total_token_usage
@@ -462,6 +475,14 @@ class PipelineOrchestrator:
 
             total_duration = (datetime.now() - start_time).total_seconds()
             output_path = self.output_base_dir / self.config.get("output_dir", "")
+
+            if "previous" in self.config:
+                old_jobs = self.config["previous"].get("completed_jobs", []) + self.config["previous"].get(
+                    "previously_completed_jobs", []
+                )
+                newly_completed = [j["step"] for j in self.config.get("completed_jobs", [])]
+                self.config["previously_completed_jobs"] = [o for o in old_jobs if o["step"] not in newly_completed]
+                del self.config["previous"]
 
             update_status(
                 self.config,

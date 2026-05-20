@@ -349,6 +349,85 @@ class TestWorkflowEngineValidation:
         assert result.success
         assert result.step_results["html"].skipped
 
+    def test_seeds_existing_output_artifacts(self, test_ctx, test_registry):
+        """Test that existing output files can satisfy plugin input requirements."""
+
+        existing_args = test_ctx.output_dir / "args.csv"
+        existing_args.write_text("arg-id,argument\nA1,test\n", encoding="utf-8")
+        seen = {}
+
+        @step_plugin(
+            id="test.arguments_consumer",
+            version="1.0.0",
+            inputs=["arguments"],
+            outputs=["result"],
+        )
+        def arguments_consumer(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            seen["arguments"] = inputs.artifacts["arguments"]
+            return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
+
+        test_registry.register(arguments_consumer)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[WorkflowStep(id="consume", plugin="test.arguments_consumer")],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(workflow, {}, test_ctx)
+
+        assert result.success
+        assert seen["arguments"] == existing_args
+
+    def test_skip_steps_marks_step_skipped(self, test_ctx, test_registry):
+        """Test explicit skip_steps support for rerun planning."""
+
+        calls = {"producer": 0, "consumer": 0}
+        existing_args = test_ctx.output_dir / "args.csv"
+        existing_args.write_text("arg-id,argument\nA1,old\n", encoding="utf-8")
+
+        @step_plugin(
+            id="test.producer",
+            version="1.0.0",
+            inputs=[],
+            outputs=["arguments"],
+        )
+        def producer_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            calls["producer"] += 1
+            return StepOutputs(artifacts={"arguments": ctx.output_dir / "args.csv"})
+
+        @step_plugin(
+            id="test.consumer",
+            version="1.0.0",
+            inputs=["arguments"],
+            outputs=["result"],
+        )
+        def consumer_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            calls["consumer"] += 1
+            assert inputs.artifacts["arguments"] == existing_args
+            return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
+
+        test_registry.register(producer_plugin)
+        test_registry.register(consumer_plugin)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[
+                WorkflowStep(id="produce", plugin="test.producer"),
+                WorkflowStep(id="consume", plugin="test.consumer", depends_on=["produce"]),
+            ],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(workflow, {}, test_ctx, skip_steps={"produce"})
+
+        assert result.success
+        assert result.step_results["produce"].skipped is True
+        assert calls["producer"] == 0
+        assert calls["consumer"] == 1
+
 
 class TestWorkflowEngineOutputDir:
     """Tests for workflow engine output directory handling."""

@@ -61,6 +61,7 @@ class WorkflowEngine:
         ctx: StepContext,
         on_step_start: Callable[[str], None] | None = None,
         on_step_complete: Callable[[str, StepResult], None] | None = None,
+        skip_steps: set[str] | None = None,
     ) -> WorkflowResult:
         """
         Execute a workflow.
@@ -94,6 +95,16 @@ class WorkflowEngine:
                 continue
             if on_step_start:
                 on_step_start(step_id)
+
+            if skip_steps and step_id in skip_steps:
+                result.step_results[step_id] = StepResult(
+                    step_id=step_id,
+                    success=True,
+                    skipped=True,
+                )
+                if on_step_complete:
+                    on_step_complete(step_id, result.step_results[step_id])
+                continue
 
             # Check condition
             if not evaluate_condition(step.condition, config, result.step_results):
@@ -235,6 +246,22 @@ class WorkflowEngine:
                 artifacts["comments"] = ctx.input_dir / input_path
             else:
                 artifacts["comments"] = ctx.input_dir / input_path.with_suffix(".csv")
+
+        output_artifacts = {
+            "arguments": "args.csv",
+            "relations": "relations.csv",
+            "embeddings": "embeddings.pkl",
+            "clusters": "hierarchical_clusters.csv",
+            "initial_labels": "hierarchical_initial_labels.csv",
+            "merge_labels": "hierarchical_merge_labels.csv",
+            "overview": "hierarchical_overview.txt",
+            "result": "hierarchical_result.json",
+            "html": "report.html",
+        }
+        for artifact_id, filename in output_artifacts.items():
+            artifact_path = ctx.output_dir / filename
+            if artifact_path.exists():
+                artifacts[artifact_id] = artifact_path
 
         return artifacts
 
