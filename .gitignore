@@ -34,6 +34,7 @@ site/
 # Python
 *.pyc
 __pycache__/
+apps/api/uv.lock
 
 # MkDocs auto-generated (copied from root by hooks)
 docs/development/contributing.md
