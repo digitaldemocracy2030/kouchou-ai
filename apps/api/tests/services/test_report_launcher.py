@@ -411,3 +411,123 @@ def test_monitor_process_preserves_existing_report_status_during_aggregation_rer
         ("config", slug),
         ("status", None),
     ]
+
+
+def test_execute_aggregation_runs_monitor_flow_and_preserves_existing_status(monkeypatch, tmp_path):
+    import json
+    import subprocess
+    import threading
+
+    from src.services import report_launcher, report_status
+
+    slug = "demo"
+    report_dir = tmp_path / "reports"
+    config_dir = tmp_path / "configs"
+    input_dir = tmp_path / "inputs"
+    data_dir = tmp_path / "data"
+    (report_dir / slug).mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+    input_dir.mkdir(parents=True)
+    data_dir.mkdir(parents=True)
+
+    (report_dir / slug / "hierarchical_status.json").write_text(
+        json.dumps(
+            {
+                "status": "completed",
+                "completed_jobs": [
+                    {"step": "hierarchical_aggregation"},
+                ],
+                "total_token_usage": 777,
+                "token_usage_input": 300,
+                "token_usage_output": 477,
+            }
+        ),
+        encoding="utf-8",
+    )
+    config_path = config_dir / f"{slug}.json"
+    config_path.write_text(
+        json.dumps({"provider": "openai", "model": "gpt-4o-mini"}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_launcher.settings, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(report_launcher.settings, "INPUT_DIR", input_dir)
+    monkeypatch.setattr(report_status.settings, "DATA_DIR", data_dir)
+    monkeypatch.setattr(report_status, "STATE_FILE", data_dir / "report_status.json")
+
+    report_status._report_status.clear()
+    report_status._report_status[slug] = {
+        "slug": slug,
+        "source_slug": None,
+        "status": "processing",
+        "title": "Existing title",
+        "description": "Existing description",
+        "is_pubcom": False,
+        "visibility": "unlisted",
+        "created_at": "2026-05-20T00:00:00+00:00",
+        "token_usage": 1,
+        "token_usage_input": 1,
+        "token_usage_output": 0,
+        "estimated_cost": 0.0,
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+    }
+    report_status.save_status()
+
+    calls = {"args": None, "env": None, "syncs": []}
+
+    class DummyPopen:
+        def __init__(self, *args, **kwargs):
+            calls["args"] = args[0]
+            calls["env"] = kwargs.get("env", {})
+
+        def wait(self):
+            return 0
+
+    class ImmediateThread:
+        def __init__(self, target=None, args=(), kwargs=None, **_):
+            self.target = target
+            self.args = args
+            self.kwargs = kwargs or {}
+
+        def start(self):
+            self.target(*self.args, **self.kwargs)
+
+    class DummyReportSyncService:
+        def sync_report_files_to_storage(self, value):
+            calls["syncs"].append(("report", value))
+
+        def sync_input_file_to_storage(self, value):
+            calls["syncs"].append(("input", value))
+
+        def sync_config_file_to_storage(self, value):
+            calls["syncs"].append(("config", value))
+
+        def sync_status_file_to_storage(self):
+            calls["syncs"].append(("status", None))
+
+    monkeypatch.setattr(subprocess, "Popen", DummyPopen)
+    monkeypatch.setattr(threading, "Thread", ImmediateThread)
+    monkeypatch.setattr(report_launcher, "ReportSyncService", DummyReportSyncService)
+
+    result = report_launcher.execute_aggregation(slug, user_api_key="test-key")
+
+    updated = report_status._report_status[slug]
+    assert result is True
+    assert calls["env"]["USER_API_KEY"] == "test-key"
+    assert calls["args"][:3] == ["python", "-m", "analysis_core"]
+    assert calls["args"][-2:] == ["--only", "hierarchical_aggregation"]
+    assert str(config_path) in calls["args"]
+    assert updated["status"] == "ready"
+    assert updated["title"] == "Existing title"
+    assert updated["description"] == "Existing description"
+    assert updated["token_usage"] == 777
+    assert updated["token_usage_input"] == 300
+    assert updated["token_usage_output"] == 477
+    assert calls["syncs"] == [
+        ("report", slug),
+        ("input", slug),
+        ("config", slug),
+        ("status", None),
+    ]
