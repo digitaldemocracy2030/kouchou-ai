@@ -442,6 +442,13 @@ def initialization(
         config["skip-interaction"] = True
     if without_html:
         config["without-html"] = True
+        config["without_html"] = True
+
+    # Keep both naming variants in sync while workflow and legacy paths coexist.
+    if "without_html" in config and "without-html" not in config:
+        config["without-html"] = config["without_html"]
+    if "without-html" in config and "without_html" not in config:
+        config["without_html"] = config["without-html"]
 
     output_dir = config["output_dir"]
 

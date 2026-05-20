@@ -83,7 +83,7 @@ class WorkflowEngine:
         result = WorkflowResult(workflow_id=workflow.id)
 
         # Track artifacts produced by each step
-        artifacts: dict[str, Path] = {}
+        artifacts = self._build_initial_artifacts(config, ctx)
 
         # Execute steps in order
         for step_id in execution_order:
@@ -196,6 +196,31 @@ class WorkflowEngine:
                     break
 
         return result
+
+    def _build_initial_artifacts(
+        self,
+        config: dict[str, Any],
+        ctx: StepContext,
+    ) -> dict[str, Path]:
+        """
+        Seed workflow artifacts that exist before any plugin executes.
+
+        The legacy pipeline treats the input CSV as an implicit starting point.
+        To preserve that behavior for the workflow engine, expose the resolved
+        comments CSV as the initial ``comments`` artifact when ``config["input"]``
+        is available.
+        """
+        artifacts: dict[str, Path] = {}
+
+        input_name = config.get("input")
+        if isinstance(input_name, str) and input_name:
+            input_path = Path(input_name)
+            if input_path.suffix:
+                artifacts["comments"] = ctx.input_dir / input_path
+            else:
+                artifacts["comments"] = ctx.input_dir / input_path.with_suffix(".csv")
+
+        return artifacts
 
     def _resolve_step_config(
         self,

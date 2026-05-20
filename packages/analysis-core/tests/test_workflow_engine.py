@@ -288,6 +288,67 @@ class TestWorkflowEngineValidation:
         # Downstream should not have been called
         assert call_count["downstream"] == 0
 
+    def test_seeds_comments_artifact_from_input_config(self, test_ctx, test_registry):
+        """Test that the engine exposes the input CSV as the initial comments artifact."""
+
+        seen = {}
+
+        @step_plugin(
+            id="test.comments_consumer",
+            version="1.0.0",
+            inputs=["comments"],
+            outputs=["result"],
+        )
+        def comments_consumer(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            seen["comments"] = inputs.artifacts["comments"]
+            return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
+
+        test_registry.register(comments_consumer)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[WorkflowStep(id="consume", plugin="test.comments_consumer")],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(workflow, {"input": "survey-comments"}, test_ctx)
+
+        assert result.success
+        assert seen["comments"] == test_ctx.input_dir / "survey-comments.csv"
+
+    def test_condition_accepts_legacy_without_html_key(self, test_ctx, test_registry):
+        """Test that workflow conditions honor the legacy without-html config key."""
+
+        @step_plugin(
+            id="test.optional_html",
+            version="1.0.0",
+            inputs=[],
+            outputs=["html"],
+        )
+        def optional_html(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            return StepOutputs(artifacts={"html": ctx.output_dir / "report.html"})
+
+        test_registry.register(optional_html)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[
+                WorkflowStep(
+                    id="html",
+                    plugin="test.optional_html",
+                    condition="${not config.without_html}",
+                )
+            ],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(workflow, {"without-html": True}, test_ctx)
+
+        assert result.success
+        assert result.step_results["html"].skipped
+
 
 class TestWorkflowEngineOutputDir:
     """Tests for workflow engine output directory handling."""

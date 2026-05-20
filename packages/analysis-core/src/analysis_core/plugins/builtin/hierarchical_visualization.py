@@ -1,7 +1,7 @@
 """
 Hierarchical visualization step plugin.
 
-Generates HTML visualization using npm build.
+Generates the self-contained HTML visualization.
 """
 
 from typing import Any
@@ -18,7 +18,7 @@ from analysis_core.plugin import (
     id="analysis.hierarchical_visualization",
     version="1.0.0",
     name="Hierarchical Visualization",
-    description="Generate HTML visualization using npm build",
+    description="Generate the self-contained HTML visualization",
     inputs=["result"],
     outputs=["html"],
     use_llm=False,
@@ -31,11 +31,12 @@ def hierarchical_visualization_plugin(
     """
     Generate HTML visualization.
 
-    Uses npm to build an interactive HTML visualization from the
-    analysis results.
+    Uses the pure-Python visualization step to build a self-contained
+    HTML report from the analysis results.
 
     Config options:
-        - report_dir: Path to the report directory (default: "../report")
+        - report_html_title: Override the HTML title
+        - report_url_pattern: Optional URL pattern used for source links
     """
     from analysis_core.steps.hierarchical_visualization import (
         hierarchical_visualization as viz_impl,
@@ -52,6 +53,6 @@ def hierarchical_visualization_plugin(
     # Use ctx.output_dir which already contains the full path
     return StepOutputs(
         artifacts={
-            "html": ctx.output_dir / "index.html",
+            "html": ctx.output_dir / "report.html",
         },
     )
