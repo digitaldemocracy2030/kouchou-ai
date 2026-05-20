@@ -239,6 +239,131 @@ def test_launch_report_generation_from_config_uses_shared_command(monkeypatch, t
     assert "--only" not in called["args"]
 
 
+def test_launch_report_generation_runs_full_service_flow(monkeypatch, tmp_path):
+    import json
+    import subprocess
+    import threading
+
+    from src.schemas.admin_report import Comment, Prompt, ReportInput
+    from src.services import report_launcher, report_status
+
+    slug = "demo"
+    report_dir = tmp_path / "reports"
+    config_dir = tmp_path / "configs"
+    input_dir = tmp_path / "inputs"
+    data_dir = tmp_path / "data"
+    (report_dir / slug).mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+    input_dir.mkdir(parents=True)
+    data_dir.mkdir(parents=True)
+
+    (report_dir / slug / "hierarchical_status.json").write_text(
+        json.dumps(
+            {
+                "status": "completed",
+                "completed_jobs": [
+                    {"step": "extraction"},
+                    {"step": "embedding"},
+                ],
+                "total_token_usage": 555,
+                "token_usage_input": 222,
+                "token_usage_output": 333,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_launcher.settings, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(report_launcher.settings, "INPUT_DIR", input_dir)
+    monkeypatch.setattr(report_status.settings, "DATA_DIR", data_dir)
+    monkeypatch.setattr(report_status, "STATE_FILE", data_dir / "report_status.json")
+
+    report_status._report_status.clear()
+
+    calls = {"args": None, "env": None, "syncs": []}
+
+    class DummyPopen:
+        def __init__(self, *args, **kwargs):
+            calls["args"] = args[0]
+            calls["env"] = kwargs.get("env", {})
+
+        def wait(self):
+            return 0
+
+    class ImmediateThread:
+        def __init__(self, target=None, args=(), kwargs=None, **_):
+            self.target = target
+            self.args = args
+            self.kwargs = kwargs or {}
+
+        def start(self):
+            self.target(*self.args, **self.kwargs)
+
+    class DummyReportSyncService:
+        def sync_report_files_to_storage(self, value):
+            calls["syncs"].append(("report", value))
+
+        def sync_input_file_to_storage(self, value):
+            calls["syncs"].append(("input", value))
+
+        def sync_config_file_to_storage(self, value):
+            calls["syncs"].append(("config", value))
+
+        def sync_status_file_to_storage(self):
+            calls["syncs"].append(("status", None))
+
+    monkeypatch.setattr(subprocess, "Popen", DummyPopen)
+    monkeypatch.setattr(threading, "Thread", ImmediateThread)
+    monkeypatch.setattr(report_launcher, "ReportSyncService", DummyReportSyncService)
+
+    report_input = ReportInput(
+        input=slug,
+        question="What changed?",
+        intro="Investigate current comments",
+        model="gpt-4o-mini",
+        provider="openai",
+        is_pubcom=False,
+        is_embedded_at_local=False,
+        local_llm_address=None,
+        prompt=Prompt(extraction="ex", initial_labelling="init", merge_labelling="merge", overview="overview"),
+        workers=2,
+        cluster=[2, 4],
+        enable_source_link=True,
+        comments=[
+            Comment(id="c1", comment="First comment", source="web", url="https://example.com/1"),
+            Comment(id="c2", comment="Second comment", source="web", url="https://example.com/2"),
+        ],
+    )
+
+    report_launcher.launch_report_generation(report_input, user_api_key="test-key")
+
+    config_path = config_dir / f"{slug}.json"
+    input_path = input_dir / f"{slug}.csv"
+    updated = report_status._report_status[slug]
+
+    assert calls["env"]["USER_API_KEY"] == "test-key"
+    assert calls["args"][:3] == ["python", "-m", "analysis_core"]
+    assert "--without-html" in calls["args"]
+    assert str(config_path) in calls["args"]
+    assert config_path.exists()
+    assert input_path.exists()
+    assert updated["status"] == "ready"
+    assert updated["title"] == "What changed?"
+    assert updated["description"] == "Investigate current comments"
+    assert updated["token_usage"] == 555
+    assert updated["token_usage_input"] == 222
+    assert updated["token_usage_output"] == 333
+    assert updated["provider"] == "openai"
+    assert updated["model"] == "gpt-4o-mini"
+    assert calls["syncs"] == [
+        ("report", slug),
+        ("input", slug),
+        ("config", slug),
+        ("status", None),
+    ]
+
+
 def test_monitor_process_reads_workflow_status_and_syncs_outputs(monkeypatch, tmp_path):
     import json
 
