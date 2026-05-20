@@ -1,11 +1,12 @@
 ## 概要
 
-`broadlistening` 配下では、自然言語処理技術を用いてテキストデータの解析を行います。処理は`hierarchical_main.py`を起点に実行され、複数のステップから構成されるパイプラインとして実装されています。
-hierarchical_main.py は、FastAPI のサーバーにおいてレポート作成のリクエストがあった際に実行されるように設計されています。
+`broadlistening` 配下には旧パイプライン実装が残っていますが、現在の canonical な実行経路は `packages/analysis-core` です。FastAPI サーバーからのレポート生成も `hierarchical_main.py` ではなく `python -m analysis_core` を subprocess で呼び出します。
+
+`hierarchical_main.py` / `pipeline/steps/` は deprecated layer であり、旧経路の参照用として残っています。
 
 ## 実行フロー
 
-`hierarchical_main.py`は以下のステップを順番に実行します：
+current 実装の `analysis-core` CLI は、以下のステップを順番に実行します：
 
 1. **extraction**: テキストから意見（引数）を抽出
 2. **embedding**: 抽出した意見のベクトル埋め込みを生成

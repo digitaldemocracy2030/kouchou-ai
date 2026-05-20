@@ -56,7 +56,7 @@ class TestPipelineE2E:
             input_base_dir=temp_dirs["input_dir"],
         )
 
-        result = orchestrator.run()
+        result = orchestrator.run_default()
 
         # Verify pipeline completed successfully
         assert result.success, f"Pipeline failed: {result.error}"
@@ -118,7 +118,7 @@ class TestPipelineE2E:
         orchestrator.steps = ["extraction"]
         orchestrator.register_step("extraction", extraction)
 
-        result = orchestrator.run()
+        result = orchestrator.run_default()
         assert result.success, f"Extraction failed: {result.error}"
 
         # Verify args.csv exists and has valid structure
@@ -164,7 +164,7 @@ class TestPipelineE2E:
         orchestrator.register_step("embedding", embedding)
         orchestrator.register_step("hierarchical_clustering", hierarchical_clustering)
 
-        result = orchestrator.run()
+        result = orchestrator.run_default()
         assert result.success, f"Pipeline failed: {result.error}"
 
         # Verify clustering output
@@ -201,7 +201,7 @@ class TestOutputSchemaValidation:
             output_base_dir=temp_dirs["output_dir"],
             input_base_dir=temp_dirs["input_dir"],
         )
-        result = orchestrator.run()
+        result = orchestrator.run_default()
         assert result.success, f"Pipeline failed: {result.error}"
 
         # Load result
@@ -253,7 +253,7 @@ class TestOutputSchemaValidation:
         orchestrator.steps = ["extraction"]
         orchestrator.register_step("extraction", extraction)
 
-        result = orchestrator.run()
+        result = orchestrator.run_default()
         assert result.success, f"Extraction failed: {result.error}"
 
         # Load and validate args.csv
