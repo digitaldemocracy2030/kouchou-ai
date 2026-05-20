@@ -336,7 +336,10 @@ class PipelineOrchestrator:
             normalized["previous"] = previous
 
         specs = load_specs(_PACKAGE_DIR / "specs" / "hierarchical_specs.json")
-        normalized["plan"] = decide_what_to_run(normalized, previous, specs, output_base)
+        if "plan" in config:
+            normalized["plan"] = config["plan"]
+        else:
+            normalized["plan"] = decide_what_to_run(normalized, previous, specs, output_base)
 
         return cls(
             config=normalized,

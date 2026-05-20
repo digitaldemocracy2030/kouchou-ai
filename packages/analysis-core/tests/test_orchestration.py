@@ -581,6 +581,31 @@ class TestPipelineOrchestrator:
         assert orchestrator.config["without-html"] is True
         assert orchestrator.config["without_html"] is True
 
+    def test_from_dict_preserves_explicit_plan(self, tmp_path):
+        """Test from_dict keeps caller-provided plan instead of recomputing it."""
+        from analysis_core import PipelineOrchestrator
+
+        explicit_plan = [
+            {"step": "extraction", "run": True, "reason": "scoped test"},
+            {"step": "embedding", "run": False, "reason": "scoped test"},
+        ]
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+                "plan": explicit_plan,
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        assert orchestrator.get_plan() == explicit_plan
+
     def test_run_workflow_persists_status_file(self, tmp_path, monkeypatch):
         """Test workflow mode writes hierarchical_status.json with completed jobs."""
         from analysis_core import PipelineOrchestrator
