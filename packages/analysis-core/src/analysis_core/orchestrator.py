@@ -6,6 +6,7 @@ handling step sequencing, status tracking, and error handling.
 """
 
 import json
+import traceback
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -266,6 +267,26 @@ class PipelineOrchestrator:
         """Execute the default pipeline path used by the CLI."""
         return self.run_workflow()
 
+    def _carry_forward_previous_jobs(self) -> None:
+        """Preserve older completed jobs across reruns."""
+        if "previous" not in self.config:
+            return
+
+        old_jobs = self.config["previous"].get("completed_jobs", []) + self.config["previous"].get(
+            "previously_completed_jobs", []
+        )
+        newly_completed = [job["step"] for job in self.config.get("completed_jobs", [])]
+        self.config["previously_completed_jobs"] = [job for job in old_jobs if job["step"] not in newly_completed]
+        del self.config["previous"]
+
+    @staticmethod
+    def _extract_workflow_error(workflow_result: Any) -> str:
+        """Return the most specific error available from a workflow result."""
+        for step_id, result in workflow_result.step_results.items():
+            if not result.success and result.error:
+                return result.error
+        return "Workflow execution failed"
+
     def get_status(self) -> dict[str, Any]:
         """Get current pipeline status from config."""
         return {
@@ -486,24 +507,19 @@ class PipelineOrchestrator:
             total_duration = (datetime.now() - start_time).total_seconds()
             output_path = self.output_base_dir / self.config.get("output_dir", "")
 
-            if "previous" in self.config:
-                old_jobs = self.config["previous"].get("completed_jobs", []) + self.config["previous"].get(
-                    "previously_completed_jobs", []
-                )
-                newly_completed = [j["step"] for j in self.config.get("completed_jobs", [])]
-                self.config["previously_completed_jobs"] = [o for o in old_jobs if o["step"] not in newly_completed]
-                del self.config["previous"]
+            self._carry_forward_previous_jobs()
+
+            workflow_error = self._extract_workflow_error(workflow_result)
 
             update_status(
                 self.config,
                 {
                     "status": "completed" if workflow_result.success else "error",
                     "end_time": datetime.now().isoformat(),
-                    "current_job": None,
                     "total_token_usage": workflow_result.total_token_usage,
                     "token_usage_input": workflow_result.total_token_input,
                     "token_usage_output": workflow_result.total_token_output,
-                    "error": None if workflow_result.success else "Workflow execution failed",
+                    "error": None if workflow_result.success else workflow_error,
                 },
                 self.output_base_dir,
             )
@@ -513,19 +529,20 @@ class PipelineOrchestrator:
                 steps=step_results,
                 total_duration_seconds=total_duration,
                 total_token_usage=workflow_result.total_token_usage,
-                error=None if workflow_result.success else "Workflow execution failed",
+                error=None if workflow_result.success else workflow_error,
                 output_dir=output_path if output_path.exists() else None,
             )
 
         except Exception as e:
             total_duration = (datetime.now() - start_time).total_seconds()
+            self._carry_forward_previous_jobs()
             update_status(
                 self.config,
                 {
                     "status": "error",
                     "end_time": datetime.now().isoformat(),
-                    "current_job": None,
                     "error": str(e),
+                    "error_stack_trace": traceback.format_exc(),
                 },
                 self.output_base_dir,
             )

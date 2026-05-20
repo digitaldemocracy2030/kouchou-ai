@@ -726,3 +726,102 @@ class TestPipelineOrchestrator:
         status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
         assert any(job["step"] == "embedding" for job in status_data["completed_jobs"])
         assert any(job["step"] == "extraction" for job in status_data["previously_completed_jobs"])
+
+    def test_run_workflow_records_failed_step_error_and_keeps_current_job(self, tmp_path, monkeypatch):
+        """Test workflow failures preserve the failed step in status and expose its error."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                result = WorkflowResult(workflow_id="test", success=False)
+                step_result = WorkflowStepResult(
+                    step_id="embedding",
+                    success=False,
+                    error="Step 'embedding' failed: boom",
+                )
+                if on_step_start:
+                    on_step_start("embedding")
+                if on_step_complete:
+                    on_step_complete("embedding", step_result)
+                result.step_results["embedding"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is False
+        assert result.error == "Step 'embedding' failed: boom"
+
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["status"] == "error"
+        assert status_data["current_job"] == "embedding"
+        assert status_data["error"] == "Step 'embedding' failed: boom"
+
+    def test_run_workflow_exception_carries_forward_previous_jobs_and_stack_trace(self, tmp_path, monkeypatch):
+        """Test unexpected workflow exceptions still preserve rerun history and traceback."""
+        from analysis_core import PipelineOrchestrator
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+        (output_dir / "hierarchical_status.json").write_text(
+            json.dumps(
+                {
+                    "completed_jobs": [
+                        {"step": "extraction", "params": {}},
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                if on_step_start:
+                    on_step_start("embedding")
+                raise RuntimeError("engine exploded")
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is False
+        assert result.error == "engine exploded"
+
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["status"] == "error"
+        assert status_data["current_job"] == "embedding"
+        assert status_data["error"] == "engine exploded"
+        assert "RuntimeError: engine exploded" in status_data["error_stack_trace"]
+        assert any(job["step"] == "extraction" for job in status_data["previously_completed_jobs"])
