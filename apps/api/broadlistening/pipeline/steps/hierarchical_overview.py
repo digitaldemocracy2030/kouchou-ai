@@ -7,7 +7,6 @@ from pathlib import Path
 
 import polars as pl
 from pydantic import BaseModel, Field
-
 from services.llm import request_to_chat_ai
 
 PIPELINE_DIR = Path(__file__).parent.parent

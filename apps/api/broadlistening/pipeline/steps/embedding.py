@@ -3,9 +3,8 @@ import pickle
 from pathlib import Path
 
 import polars as pl
-from tqdm import tqdm
-
 from services.llm import request_to_embed
+from tqdm import tqdm
 
 PIPELINE_DIR = Path(__file__).parent.parent
 

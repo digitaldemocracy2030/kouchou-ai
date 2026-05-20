@@ -7,10 +7,10 @@ from pathlib import Path
 
 import polars as pl
 from pydantic import BaseModel, Field
-from tqdm import tqdm
-
 from services.llm import request_to_chat_ai
 from services.parse_json_list import parse_extraction_response
+from tqdm import tqdm
+
 from utils import update_progress
 
 PIPELINE_DIR = Path(__file__).parent.parent
