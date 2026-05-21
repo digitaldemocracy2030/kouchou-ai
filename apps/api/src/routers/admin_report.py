@@ -208,7 +208,9 @@ async def get_current_step(slug: str) -> dict:
         }
 
         if response["status"] == "error" and not response["error_log_excerpt"] and response["error_log_path"]:
-            log_path = settings.REPORT_DIR / slug / response["error_log_path"]
+            log_filename = Path(str(response["error_log_path"])).name
+            log_path = settings.REPORT_DIR / slug / log_filename
+            validate_path_within_report_dir(log_path)
             response["error_log_excerpt"] = _read_error_log_excerpt(log_path)
 
         # 全体のステータスが "completed" なら、current_step も "completed" とする

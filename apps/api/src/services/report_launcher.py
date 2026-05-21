@@ -170,7 +170,7 @@ def _ensure_error_status_payload(slug: str) -> None:
 
     status_data["status"] = "error"
     status_data["current_job"] = status_data.get("current_job") or "error"
-    status_data["error"] = status_data.get("error") or log_excerpt or "analysis-core exited with a non-zero status"
+    status_data["error"] = status_data.get("error") or "analysis-core exited with a non-zero status; see error_log_excerpt"
     status_data["error_log_path"] = ANALYSIS_LOG_FILENAME
     status_data["error_log_excerpt"] = log_excerpt
 
@@ -186,6 +186,7 @@ def _monitor_process(process: subprocess.Popen, slug: str, log_file: Any | None 
     Args:
         process: 監視対象のサブプロセス
         slug: レポートのスラッグ
+        log_file: subprocess の stdout/stderr を書き込んでいるログファイルハンドル。完了時にクローズされる。
     """
     try:
         retcode = process.wait()
@@ -217,8 +218,8 @@ def _monitor_process(process: subprocess.Popen, slug: str, log_file: Any | None 
                             total_token_usage,
                             token_usage_input,
                             token_usage_output,
-                            provider or None,
-                            model or None,
+                            provider,
+                            model,
                         )
             except Exception as e:
                 logger.error(f"Error updating token usage for {slug}: {e}")
@@ -247,8 +248,12 @@ def _monitor_process(process: subprocess.Popen, slug: str, log_file: Any | None 
 def _launch_analysis_process(cmd: list[str], slug: str, env: dict[str, str]) -> subprocess.Popen:
     report_dir = settings.REPORT_DIR / slug
     report_dir.mkdir(parents=True, exist_ok=True)
-    log_file = _analysis_log_path(slug).open("a", encoding="utf-8")
-    process = subprocess.Popen(cmd, env=env, stdout=log_file, stderr=subprocess.STDOUT)
+    log_file = _analysis_log_path(slug).open("w", encoding="utf-8")
+    try:
+        process = subprocess.Popen(cmd, env=env, stdout=log_file, stderr=subprocess.STDOUT)
+    except Exception:
+        log_file.close()
+        raise
     threading.Thread(target=_monitor_process, args=(process, slug, log_file), daemon=True).start()
     return process
 

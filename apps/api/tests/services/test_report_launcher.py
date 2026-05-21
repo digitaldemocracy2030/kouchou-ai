@@ -706,7 +706,7 @@ def test_monitor_process_persists_error_log_excerpt_when_process_fails(monkeypat
     status_data = json.loads((report_dir / slug / "hierarchical_status.json").read_text(encoding="utf-8"))
     assert status_data["status"] == "error"
     assert status_data["current_job"] == "error"
-    assert status_data["error"] == "line 1\nline 2\nRuntimeError: boom"
+    assert status_data["error"] == "analysis-core exited with a non-zero status; see error_log_excerpt"
     assert status_data["error_log_path"] == report_launcher.ANALYSIS_LOG_FILENAME
     assert status_data["error_log_excerpt"] == "line 1\nline 2\nRuntimeError: boom"
     assert calls["statuses"] == [(slug, "error")]

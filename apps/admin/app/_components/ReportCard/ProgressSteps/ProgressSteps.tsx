@@ -40,7 +40,7 @@ export const ProgressSteps = ({ slug }: Props) => {
 
   const isLoading = progress === "loading";
   const isCompleted = progress === "completed";
-  const resolvedStepIndex = isLoading || isCompleted ? -1 : stepKeys.indexOf(progress);
+  const resolvedStepIndex = isLoading || isCompleted || progress === "error" ? -1 : stepKeys.indexOf(progress);
   const currentStepIndex = isCompleted ? steps.length : Math.max(resolvedStepIndex, 0);
   const status = isError ? "error" : "processing";
   const router = useRouter();

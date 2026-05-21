@@ -205,9 +205,6 @@ async def test_get_current_step_with_error_log_excerpt(async_client, test_slug, 
     (log_dir / "hierarchical_status.json").write_text(json.dumps(status_data), encoding="utf-8")
     (log_dir / "analysis.log").write_text("trace line 1\ntrace line 2", encoding="utf-8")
 
-    mock_status_file = MagicMock(spec=Path)
-    mock_status_file.exists.return_value = True
-
     with patch("src.routers.admin_report.settings") as mock_settings:
         mock_settings.REPORT_DIR = report_dir
         response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
