@@ -148,6 +148,8 @@ make client-build-static
 
 静的エクスポートしたレポートをGithub Pagesにホスティングする手順は[GitHub Pagesの静的ファイルホスティング手順](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/github-pages)を参照。
 
+静的ホスティング環境で CSP を付与する場合は、[静的ホスティング向け CSP 設定ガイド](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/static-hosting-csp)も参照してください。`img-src` に `blob:` が無いと Plotly の PNG ダウンロードがブラウザにブロックされます。
+
 ## アーキテクチャ概要
 
 本システムは以下のサービスで構成されています。
