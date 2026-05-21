@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import openai
 
@@ -42,6 +43,7 @@ from src.utils.slug_utils import validate_slug
 
 slogger = setup_logger()
 router = APIRouter()
+MAX_ERROR_LOG_CHARS = 4000
 
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
@@ -165,6 +167,20 @@ async def download_report_json(slug: str, api_key: str = Depends(verify_admin_ap
     return FileResponse(path=str(json_path), media_type="application/json", filename=f"kouchou_{slug}.json")
 
 
+def _read_error_log_excerpt(log_path: Path) -> str | None:
+    if not log_path.exists():
+        return None
+    try:
+        content = log_path.read_text(encoding="utf-8", errors="replace").strip()
+    except Exception:
+        return None
+    if not content:
+        return None
+    if len(content) <= MAX_ERROR_LOG_CHARS:
+        return content
+    return content[-MAX_ERROR_LOG_CHARS:]
+
+
 @router.get("/admin/reports/{slug}/status/step-json", dependencies=[Depends(verify_admin_api_key)])
 async def get_current_step(slug: str) -> dict:
     validate_slug(slug)
@@ -186,7 +202,16 @@ async def get_current_step(slug: str) -> dict:
             "estimated_cost": status.get("estimated_cost", 0.0),
             "provider": status.get("provider"),
             "model": status.get("model"),
+            "error_message": status.get("error"),
+            "error_log_path": status.get("error_log_path"),
+            "error_log_excerpt": status.get("error_log_excerpt"),
         }
+
+        if response["status"] == "error" and not response["error_log_excerpt"] and response["error_log_path"]:
+            log_filename = Path(str(response["error_log_path"])).name
+            log_path = settings.REPORT_DIR / slug / log_filename
+            validate_path_within_report_dir(log_path)
+            response["error_log_excerpt"] = _read_error_log_excerpt(log_path)
 
         # 全体のステータスが "completed" なら、current_step も "completed" とする
         if status.get("status") == "completed":
@@ -205,12 +230,16 @@ async def get_current_step(slug: str) -> dict:
         slogger.error(f"Error in get_current_step: {e}")
         return {
             "current_step": "error",
+            "status": "error",
             "token_usage": 0,
             "token_usage_input": 0,
             "token_usage_output": 0,
             "estimated_cost": 0.0,
             "provider": None,
             "model": None,
+            "error_message": None,
+            "error_log_path": None,
+            "error_log_excerpt": None,
         }
 
 

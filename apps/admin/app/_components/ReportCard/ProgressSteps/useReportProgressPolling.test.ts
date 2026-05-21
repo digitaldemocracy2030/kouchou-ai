@@ -74,13 +74,13 @@ describe("useReportProgressPoll", () => {
   it("APIからcurrent_stepが返された時にprogressが更新される", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ current_step: "processing" }),
+      json: async () => ({ current_step: "extraction" }),
     } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
 
     await waitFor(() => {
-      expect(result.current.progress).toBe("processing");
+      expect(result.current.progress).toBe("extraction");
     });
   });
 
@@ -106,13 +106,21 @@ describe("useReportProgressPoll", () => {
   it("current_stepがerrorの時にprogressがerrorに設定される", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ current_step: "error" }),
+      json: async () => ({
+        current_step: "error",
+        status: "error",
+        error_message: "Step failed",
+        error_log_excerpt: "trace line",
+      }),
     } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
 
     await waitFor(() => {
       expect(result.current.progress).toBe("error");
+      expect(result.current.isError).toBe(true);
+      expect(result.current.errorMessage).toBe("Step failed");
+      expect(result.current.errorLogExcerpt).toBe("trace line");
     });
   });
 
@@ -124,7 +132,7 @@ describe("useReportProgressPoll", () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ current_step: "processing" }),
+        json: async () => ({ current_step: "extraction" }),
       } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
@@ -139,7 +147,7 @@ describe("useReportProgressPoll", () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(result.current.progress).toBe("processing");
+      expect(result.current.progress).toBe("extraction");
     });
   });
 
@@ -149,7 +157,7 @@ describe("useReportProgressPoll", () => {
       .mockRejectedValueOnce(new Error("Network error"))
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ current_step: "processing" }),
+        json: async () => ({ current_step: "extraction" }),
       } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
@@ -171,7 +179,7 @@ describe("useReportProgressPoll", () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(3);
-      expect(result.current.progress).toBe("processing");
+      expect(result.current.progress).toBe("extraction");
     });
   });
 
@@ -195,6 +203,7 @@ describe("useReportProgressPoll", () => {
     await waitFor(() => {
       expect(result.current.progress).toBe("loading");
       expect(result.current.isError).toBe(true);
+      expect(result.current.errorMessage).toBe("レポート生成状況の取得に失敗しました。");
     });
   });
 
@@ -215,6 +224,7 @@ describe("useReportProgressPoll", () => {
     await waitFor(() => {
       expect(result.current.progress).toBe("loading");
       expect(result.current.isError).toBe(true);
+      expect(result.current.errorMessage).toBe("レポート生成状況の取得に失敗しました。");
     });
   });
 
@@ -230,7 +240,7 @@ describe("useReportProgressPoll", () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ current_step: "processing" }),
+        json: async () => ({ current_step: "extraction" }),
       } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
@@ -254,7 +264,7 @@ describe("useReportProgressPoll", () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(3);
-      expect(result.current.progress).toBe("processing");
+      expect(result.current.progress).toBe("extraction");
     });
   });
 
@@ -265,7 +275,7 @@ describe("useReportProgressPoll", () => {
           setTimeout(() => {
             resolve({
               ok: true,
-              json: async () => ({ current_step: "processing" }),
+              json: async () => ({ current_step: "extraction" }),
             } as Response);
           }, 1000);
         }),

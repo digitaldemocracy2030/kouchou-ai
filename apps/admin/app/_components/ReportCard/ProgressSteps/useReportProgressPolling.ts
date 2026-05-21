@@ -1,12 +1,29 @@
 import { useEffect, useState } from "react";
-import type { stepKeys } from "./ProgressSteps";
+import { stepKeys } from "./progressStepsConfig";
 
-type Progress = (typeof stepKeys)[number] | "loading" | "completed";
+type Progress = (typeof stepKeys)[number] | "loading" | "completed" | "error";
+type StepJsonResponse = {
+  status?: string;
+  current_step?: string;
+  error_message?: string | null;
+  error_log_excerpt?: string | null;
+};
+
+function isProgress(value: string): value is Progress {
+  return (
+    value === "loading" ||
+    value === "completed" ||
+    value === "error" ||
+    stepKeys.includes(value as (typeof stepKeys)[number])
+  );
+}
 
 export function useReportProgressPoll(slug: string) {
   const [progress, setProgress] = useState<Progress>("loading");
   const [isError, setIsError] = useState<boolean>(false);
   const [isPolling, setIsPolling] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorLogExcerpt, setErrorLogExcerpt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isPolling) return;
@@ -30,7 +47,7 @@ export function useReportProgressPoll(slug: string) {
         });
 
         if (response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as StepJsonResponse;
 
           if (!data.current_step || data.current_step === "loading") {
             retryCount = 0;
@@ -38,9 +55,13 @@ export function useReportProgressPoll(slug: string) {
             return;
           }
 
-          setProgress(data.current_step);
+          if (isProgress(data.current_step)) {
+            setProgress(data.current_step);
+          }
 
           if (data.status === "error") {
+            setErrorMessage(data.error_message || "レポート生成に失敗しました。");
+            setErrorLogExcerpt(data.error_log_excerpt || null);
             setIsError(true);
             setIsPolling(false);
             return;
@@ -57,6 +78,7 @@ export function useReportProgressPoll(slug: string) {
           retryCount++;
           if (retryCount >= maxRetries) {
             console.error("Maximum retry attempts reached");
+            setErrorMessage("レポート生成状況の取得に失敗しました。");
             setIsError(true);
             setIsPolling(false);
             return;
@@ -68,6 +90,7 @@ export function useReportProgressPoll(slug: string) {
         console.error("Polling error:", error);
         retryCount++;
         if (retryCount >= maxRetries) {
+          setErrorMessage("レポート生成状況の取得に失敗しました。");
           setIsError(true);
           setIsPolling(false);
           return;
@@ -83,5 +106,5 @@ export function useReportProgressPoll(slug: string) {
     };
   }, [slug, isPolling]);
 
-  return { progress, isError };
+  return { progress, isError, errorMessage, errorLogExcerpt };
 }
