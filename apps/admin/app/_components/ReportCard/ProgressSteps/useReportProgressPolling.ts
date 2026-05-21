@@ -10,7 +10,12 @@ type StepJsonResponse = {
 };
 
 function isProgress(value: string): value is Progress {
-  return value === "loading" || value === "completed" || value === "error" || stepKeys.includes(value as (typeof stepKeys)[number]);
+  return (
+    value === "loading" ||
+    value === "completed" ||
+    value === "error" ||
+    stepKeys.includes(value as (typeof stepKeys)[number])
+  );
 }
 
 export function useReportProgressPoll(slug: string) {
