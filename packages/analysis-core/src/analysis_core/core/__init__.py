@@ -14,6 +14,7 @@ from analysis_core.core.orchestration import (
     update_progress,
     update_status,
     validate_config,
+    validate_input_file,
 )
 from analysis_core.core.utils import (
     chunk_text,
@@ -34,6 +35,7 @@ __all__ = [
     "run_step",
     "initialization",
     "termination",
+    "validate_input_file",
     # Utils
     "typed_message",
     "messages",

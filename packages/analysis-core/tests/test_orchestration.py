@@ -353,6 +353,49 @@ class TestValidateConfig:
         )
 
 
+class TestValidateInputFile:
+    """Test input preflight validation."""
+
+    def test_validate_input_file_missing_csv(self, tmp_path):
+        """Validation should fail when the input CSV does not exist."""
+        from analysis_core.core.orchestration import validate_input_file
+
+        with pytest.raises(RuntimeError, match="Input CSV not found"):
+            validate_input_file({"input": "missing"}, tmp_path)
+
+    def test_validate_input_file_missing_required_columns(self, tmp_path):
+        """Validation should fail when required columns are missing."""
+        from analysis_core.core.orchestration import validate_input_file
+
+        input_path = tmp_path / "demo.csv"
+        input_path.write_text("comment-id,text\n1,hello\n", encoding="utf-8")
+
+        with pytest.raises(RuntimeError, match="missing required columns"):
+            validate_input_file({"input": "demo"}, tmp_path)
+
+    def test_validate_input_file_missing_property_columns(self, tmp_path):
+        """Validation should fail when extraction.properties columns are missing."""
+        from analysis_core.core.orchestration import validate_input_file
+
+        input_path = tmp_path / "demo.csv"
+        input_path.write_text("comment-id,comment-body\n1,hello\n", encoding="utf-8")
+
+        with pytest.raises(RuntimeError, match="extraction.properties"):
+            validate_input_file({"input": "demo", "extraction": {"properties": ["source"]}}, tmp_path)
+
+    def test_validate_input_file_skips_when_plan_does_not_need_input(self, tmp_path):
+        """Visualization-only runs should not require the input CSV."""
+        from analysis_core.core.orchestration import validate_input_file
+
+        path = validate_input_file(
+            {"input": "demo"},
+            tmp_path,
+            plan=[{"step": "hierarchical_visualization", "run": True}],
+        )
+
+        assert path == tmp_path / "demo.csv"
+
+
 class TestDecideWhatToRun:
     """Test decide_what_to_run function."""
 
