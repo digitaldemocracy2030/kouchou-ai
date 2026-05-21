@@ -213,7 +213,12 @@ def _monitor_process(process: subprocess.Popen, slug: str, log_file: Any | None 
                             f"Found token usage in status file for {slug}: total={total_token_usage}, input={token_usage_input}, output={token_usage_output}, provider={provider}, model={model}"
                         )
                         update_token_usage(
-                            slug, total_token_usage, token_usage_input, token_usage_output, provider or None, model or None
+                            slug,
+                            total_token_usage,
+                            token_usage_input,
+                            token_usage_output,
+                            provider or None,
+                            model or None,
                         )
             except Exception as e:
                 logger.error(f"Error updating token usage for {slug}: {e}")
