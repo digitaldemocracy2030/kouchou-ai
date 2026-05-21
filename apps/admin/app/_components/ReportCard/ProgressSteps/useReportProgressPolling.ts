@@ -9,6 +9,10 @@ type StepJsonResponse = {
   error_log_excerpt?: string | null;
 };
 
+function isProgress(value: string): value is Progress {
+  return value === "loading" || value === "completed" || value === "error" || stepKeys.includes(value as (typeof stepKeys)[number]);
+}
+
 export function useReportProgressPoll(slug: string) {
   const [progress, setProgress] = useState<Progress>("loading");
   const [isError, setIsError] = useState<boolean>(false);
@@ -46,7 +50,9 @@ export function useReportProgressPoll(slug: string) {
             return;
           }
 
-          setProgress(data.current_step);
+          if (isProgress(data.current_step)) {
+            setProgress(data.current_step);
+          }
 
           if (data.status === "error") {
             setErrorMessage(data.error_message || "レポート生成に失敗しました。");
