@@ -239,7 +239,7 @@ kouchou-analyze --help
 | オプション | 説明 |
 |-----------|------|
 | `--config`, `-c` | 設定ファイルのパス（必須） |
-| `--dry-run` | 実行計画のみ表示 |
+| `--dry-run` | cheap preflight 後に実行計画を表示して終了 |
 | `--validate-config` | config の構造だけ検証して終了 |
 | `--validate-input` | 解決された input CSV の存在と必須カラムを検証して終了 |
 | `--force`, `-f` | 全ステップを強制再実行 |
@@ -343,7 +343,7 @@ export GOOGLE_API_KEY="your-key"
 }
 ```
 
-## 10. 結果の可視化
+## 11. 結果の可視化
 
 結果JSONは Matplotlib 等で可視化できます：
 

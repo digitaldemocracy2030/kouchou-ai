@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from analysis_core import __version__
-from analysis_core.core import validate_input_file
+from analysis_core.core import plan_requires_input, validate_input_file
 from analysis_core.orchestrator import PipelineOrchestrator
 
 
@@ -108,8 +108,7 @@ def main() -> int:
 
         plan = orchestrator.get_plan()
         should_validate_input = args.validate_input or args.dry_run or (
-            not args.validate_config
-            and any(step.get("run", True) and step.get("step") in {"extraction", "hierarchical_aggregation"} for step in plan)
+            not args.validate_config and plan_requires_input(plan)
         )
         validated_input_path = None
         if should_validate_input:
