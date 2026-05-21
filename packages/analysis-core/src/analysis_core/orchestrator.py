@@ -10,6 +10,7 @@ import traceback
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
+from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable
 
@@ -19,16 +20,6 @@ from analysis_core.core.orchestration import (
     sync_without_html_keys,
     termination,
     update_status,
-)
-from analysis_core.steps import (
-    embedding,
-    extraction,
-    hierarchical_aggregation,
-    hierarchical_clustering,
-    hierarchical_initial_labelling,
-    hierarchical_merge_labelling,
-    hierarchical_overview,
-    hierarchical_visualization,
 )
 
 
@@ -55,17 +46,31 @@ class PipelineResult:
     output_dir: Path | None = None
 
 
-# Default step functions mapping
-DEFAULT_STEP_FUNCTIONS: dict[str, Callable[[dict[str, Any]], None]] = {
-    "extraction": extraction,
-    "embedding": embedding,
-    "hierarchical_clustering": hierarchical_clustering,
-    "hierarchical_initial_labelling": hierarchical_initial_labelling,
-    "hierarchical_merge_labelling": hierarchical_merge_labelling,
-    "hierarchical_overview": hierarchical_overview,
-    "hierarchical_aggregation": hierarchical_aggregation,
-    "hierarchical_visualization": hierarchical_visualization,
+DEFAULT_STEP_MODULES: dict[str, tuple[str, str]] = {
+    "extraction": ("analysis_core.steps.extraction", "extraction"),
+    "embedding": ("analysis_core.steps.embedding", "embedding"),
+    "hierarchical_clustering": ("analysis_core.steps.hierarchical_clustering", "hierarchical_clustering"),
+    "hierarchical_initial_labelling": (
+        "analysis_core.steps.hierarchical_initial_labelling",
+        "hierarchical_initial_labelling",
+    ),
+    "hierarchical_merge_labelling": (
+        "analysis_core.steps.hierarchical_merge_labelling",
+        "hierarchical_merge_labelling",
+    ),
+    "hierarchical_overview": ("analysis_core.steps.hierarchical_overview", "hierarchical_overview"),
+    "hierarchical_aggregation": ("analysis_core.steps.hierarchical_aggregation", "hierarchical_aggregation"),
+    "hierarchical_visualization": ("analysis_core.steps.hierarchical_visualization", "hierarchical_visualization"),
 }
+
+
+def load_default_step_functions() -> dict[str, Callable[[dict[str, Any]], None]]:
+    """Resolve built-in step functions lazily to keep optional deps optional."""
+    step_functions: dict[str, Callable[[dict[str, Any]], None]] = {}
+    for step_name, (module_path, attr_name) in DEFAULT_STEP_MODULES.items():
+        module = import_module(module_path)
+        step_functions[step_name] = getattr(module, attr_name)
+    return step_functions
 
 
 class PipelineOrchestrator:
@@ -120,7 +125,7 @@ class PipelineOrchestrator:
         self.output_base_dir = output_base_dir or Path(config.get("_output_base_dir", "outputs"))
         self.input_base_dir = input_base_dir or Path(config.get("_input_base_dir", "inputs"))
         self.steps = steps or self.DEFAULT_STEPS
-        self._step_functions: dict[str, Callable] = DEFAULT_STEP_FUNCTIONS.copy()
+        self._step_functions: dict[str, Callable] = load_default_step_functions()
 
     @classmethod
     def from_config(

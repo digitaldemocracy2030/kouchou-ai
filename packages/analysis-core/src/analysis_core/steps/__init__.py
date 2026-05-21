@@ -1,17 +1,18 @@
-"""
-Pipeline step implementations.
+"""Pipeline step implementations."""
 
-Each step is a function that takes a config dict and performs a specific analysis task.
-"""
+from importlib import import_module
+from typing import Any
 
-from analysis_core.steps.embedding import embedding
-from analysis_core.steps.extraction import extraction
-from analysis_core.steps.hierarchical_aggregation import hierarchical_aggregation
-from analysis_core.steps.hierarchical_clustering import hierarchical_clustering
-from analysis_core.steps.hierarchical_initial_labelling import hierarchical_initial_labelling
-from analysis_core.steps.hierarchical_merge_labelling import hierarchical_merge_labelling
-from analysis_core.steps.hierarchical_overview import hierarchical_overview
-from analysis_core.steps.hierarchical_visualization import hierarchical_visualization
+_STEP_MODULES = {
+    "embedding": "analysis_core.steps.embedding",
+    "extraction": "analysis_core.steps.extraction",
+    "hierarchical_aggregation": "analysis_core.steps.hierarchical_aggregation",
+    "hierarchical_clustering": "analysis_core.steps.hierarchical_clustering",
+    "hierarchical_initial_labelling": "analysis_core.steps.hierarchical_initial_labelling",
+    "hierarchical_merge_labelling": "analysis_core.steps.hierarchical_merge_labelling",
+    "hierarchical_overview": "analysis_core.steps.hierarchical_overview",
+    "hierarchical_visualization": "analysis_core.steps.hierarchical_visualization",
+}
 
 __all__ = [
     "extraction",
@@ -23,3 +24,15 @@ __all__ = [
     "hierarchical_aggregation",
     "hierarchical_visualization",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily load step modules so base installs can import analysis_core."""
+    module_path = _STEP_MODULES.get(name)
+    if module_path is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    module = import_module(module_path)
+    value = getattr(module, name)
+    globals()[name] = value
+    return value

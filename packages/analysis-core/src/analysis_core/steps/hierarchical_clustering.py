@@ -5,8 +5,26 @@ from importlib import import_module
 
 import numpy as np
 import polars as pl
-import scipy.cluster.hierarchy as sch
-from sklearn.cluster import KMeans
+
+
+def _load_clustering_dependencies():
+    try:
+        sch = import_module("scipy.cluster.hierarchy")
+    except ModuleNotFoundError as exc:  # pragma: no cover - depends on install profile
+        raise RuntimeError(
+            "Hierarchical clustering requires the optional 'clustering' dependencies. "
+            "Install with: pip install 'kouchou-ai-analysis-core[clustering]'"
+        ) from exc
+
+    try:
+        KMeans = import_module("sklearn.cluster").KMeans
+    except ModuleNotFoundError as exc:  # pragma: no cover - depends on install profile
+        raise RuntimeError(
+            "Hierarchical clustering requires the optional 'clustering' dependencies. "
+            "Install with: pip install 'kouchou-ai-analysis-core[clustering]'"
+        ) from exc
+
+    return sch, KMeans
 
 
 def calculate_recommended_cluster_nums(argument_count: int) -> list[int]:
@@ -30,6 +48,7 @@ def calculate_recommended_cluster_nums(argument_count: int) -> list[int]:
 
 def hierarchical_clustering(config):
     UMAP = import_module("umap").UMAP
+    _, KMeans = _load_clustering_dependencies()
 
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
@@ -88,6 +107,7 @@ def hierarchical_clustering(config):
     cluster_results = hierarchical_clustering_embeddings(
         umap_embeds=umap_embeds,
         cluster_nums=cluster_nums,
+        kmeans_class=KMeans,
     )
     result_df = pl.DataFrame(
         {
@@ -143,6 +163,7 @@ def merge_clusters_with_hierarchy(
     umap_array: np.ndarray,
     n_cluster_cut: int,
 ):
+    sch, _ = _load_clustering_dependencies()
     Z = sch.linkage(cluster_centers, method="ward")
     cluster_labels_merged = sch.fcluster(Z, t=n_cluster_cut, criterion="maxclust")
 
@@ -159,11 +180,15 @@ def merge_clusters_with_hierarchy(
 def hierarchical_clustering_embeddings(
     umap_embeds,
     cluster_nums,
+    kmeans_class=None,
 ):
+    if kmeans_class is None:
+        _, kmeans_class = _load_clustering_dependencies()
+
     # 最大分割数でクラスタリングを実施
     print("start initial clustering")
     initial_cluster_num = cluster_nums[-1]
-    kmeans_model = KMeans(n_clusters=initial_cluster_num)
+    kmeans_model = kmeans_class(n_clusters=initial_cluster_num)
     kmeans_model.fit(umap_embeds)
     print("end initial clustering")
 

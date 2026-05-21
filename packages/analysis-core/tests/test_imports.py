@@ -1,6 +1,7 @@
 """Test that all package modules can be imported correctly."""
 
 import re
+import sys
 
 
 class TestCoreImports:
@@ -75,6 +76,16 @@ class TestServiceImports:
 
 class TestStepImports:
     """Test pipeline step imports."""
+
+    def test_steps_package_import_does_not_eagerly_import_optional_modules(self):
+        """Base package import should not pull optional clustering deps immediately."""
+        sys.modules.pop("analysis_core.steps", None)
+        sys.modules.pop("analysis_core.steps.hierarchical_clustering", None)
+
+        import analysis_core.steps as steps_module
+
+        assert steps_module.__name__ == "analysis_core.steps"
+        assert "analysis_core.steps.hierarchical_clustering" not in sys.modules
 
     def test_extraction_step(self):
         """Test extraction step import."""

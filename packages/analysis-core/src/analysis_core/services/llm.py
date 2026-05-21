@@ -745,7 +745,13 @@ def request_to_local_embed(args):
     with __local_emb_model_loading_lock:
         # memo: スレッドセーフにするためにロックを使用
         if __local_emb_model is None:
-            from sentence_transformers import SentenceTransformer
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ModuleNotFoundError as exc:  # pragma: no cover - depends on install profile
+                raise RuntimeError(
+                    "Local embedding requires the optional 'embeddings' dependencies. "
+                    "Install with: pip install 'kouchou-ai-analysis-core[embeddings]'"
+                ) from exc
 
             model_name = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
             __local_emb_model = SentenceTransformer(model_name)
