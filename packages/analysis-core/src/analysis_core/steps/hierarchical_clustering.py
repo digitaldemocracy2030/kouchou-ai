@@ -8,23 +8,27 @@ import polars as pl
 
 
 def _load_clustering_dependencies():
+    error_message = (
+        "Hierarchical clustering requires the optional 'clustering' dependencies. "
+        "Install with: pip install 'kouchou-ai-analysis-core[clustering]'"
+    )
+
+    try:
+        UMAP = import_module("umap").UMAP
+    except ModuleNotFoundError as exc:  # pragma: no cover - depends on install profile
+        raise RuntimeError(error_message) from exc
+
     try:
         sch = import_module("scipy.cluster.hierarchy")
     except ModuleNotFoundError as exc:  # pragma: no cover - depends on install profile
-        raise RuntimeError(
-            "Hierarchical clustering requires the optional 'clustering' dependencies. "
-            "Install with: pip install 'kouchou-ai-analysis-core[clustering]'"
-        ) from exc
+        raise RuntimeError(error_message) from exc
 
     try:
         KMeans = import_module("sklearn.cluster").KMeans
     except ModuleNotFoundError as exc:  # pragma: no cover - depends on install profile
-        raise RuntimeError(
-            "Hierarchical clustering requires the optional 'clustering' dependencies. "
-            "Install with: pip install 'kouchou-ai-analysis-core[clustering]'"
-        ) from exc
+        raise RuntimeError(error_message) from exc
 
-    return sch, KMeans
+    return UMAP, sch, KMeans
 
 
 def calculate_recommended_cluster_nums(argument_count: int) -> list[int]:
@@ -47,8 +51,7 @@ def calculate_recommended_cluster_nums(argument_count: int) -> list[int]:
 
 
 def hierarchical_clustering(config):
-    UMAP = import_module("umap").UMAP
-    _, KMeans = _load_clustering_dependencies()
+    UMAP, _, KMeans = _load_clustering_dependencies()
 
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
@@ -163,7 +166,7 @@ def merge_clusters_with_hierarchy(
     umap_array: np.ndarray,
     n_cluster_cut: int,
 ):
-    sch, _ = _load_clustering_dependencies()
+    _, sch, _ = _load_clustering_dependencies()
     Z = sch.linkage(cluster_centers, method="ward")
     cluster_labels_merged = sch.fcluster(Z, t=n_cluster_cut, criterion="maxclust")
 
@@ -183,7 +186,7 @@ def hierarchical_clustering_embeddings(
     kmeans_class=None,
 ):
     if kmeans_class is None:
-        _, kmeans_class = _load_clustering_dependencies()
+        _, _, kmeans_class = _load_clustering_dependencies()
 
     # 最大分割数でクラスタリングを実施
     print("start initial clustering")

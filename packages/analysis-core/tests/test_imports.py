@@ -87,6 +87,17 @@ class TestStepImports:
         assert steps_module.__name__ == "analysis_core.steps"
         assert "analysis_core.steps.hierarchical_clustering" not in sys.modules
 
+    def test_orchestrator_init_does_not_eagerly_import_optional_step_modules(self):
+        """PipelineOrchestrator construction should not resolve optional steps yet."""
+        from analysis_core.orchestrator import PipelineOrchestrator
+
+        sys.modules.pop("analysis_core.steps.hierarchical_clustering", None)
+
+        orchestrator = PipelineOrchestrator(config={"output_dir": "test"})
+
+        assert orchestrator is not None
+        assert "analysis_core.steps.hierarchical_clustering" not in sys.modules
+
     def test_extraction_step(self):
         """Test extraction step import."""
         from analysis_core.steps import extraction

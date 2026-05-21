@@ -64,13 +64,11 @@ DEFAULT_STEP_MODULES: dict[str, tuple[str, str]] = {
 }
 
 
-def load_default_step_functions() -> dict[str, Callable[[dict[str, Any]], None]]:
-    """Resolve built-in step functions lazily to keep optional deps optional."""
-    step_functions: dict[str, Callable[[dict[str, Any]], None]] = {}
-    for step_name, (module_path, attr_name) in DEFAULT_STEP_MODULES.items():
-        module = import_module(module_path)
-        step_functions[step_name] = getattr(module, attr_name)
-    return step_functions
+def load_default_step_function(step_name: str) -> Callable[[dict[str, Any]], None]:
+    """Resolve a single built-in step function lazily."""
+    module_path, attr_name = DEFAULT_STEP_MODULES[step_name]
+    module = import_module(module_path)
+    return getattr(module, attr_name)
 
 
 class PipelineOrchestrator:
@@ -125,7 +123,7 @@ class PipelineOrchestrator:
         self.output_base_dir = output_base_dir or Path(config.get("_output_base_dir", "outputs"))
         self.input_base_dir = input_base_dir or Path(config.get("_input_base_dir", "inputs"))
         self.steps = steps or self.DEFAULT_STEPS
-        self._step_functions: dict[str, Callable] = load_default_step_functions()
+        self._step_functions: dict[str, Callable] = {}
 
     @classmethod
     def from_config(
@@ -214,6 +212,9 @@ class PipelineOrchestrator:
             # Execute each step
             for step_name in self.steps:
                 step_func = self._step_functions.get(step_name)
+                if step_func is None and step_name in DEFAULT_STEP_MODULES:
+                    step_func = load_default_step_function(step_name)
+                    self._step_functions[step_name] = step_func
                 if step_func is None:
                     raise ValueError(f"No function registered for step '{step_name}'")
 
