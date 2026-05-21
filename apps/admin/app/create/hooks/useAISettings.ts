@@ -1,5 +1,5 @@
 import { toaster } from "@/components/ui/toaster";
-import { type ChangeEvent, useEffect, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 
 export type Provider = "openai" | "azure" | "openrouter" | "gemini" | "local";
 
@@ -48,6 +48,8 @@ const GEMINI_MODELS: ModelOption[] = [
   { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
   { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
 ];
+
+const LOCAL_LLM_AUTO_FETCH_DELAY_MS = 500;
 
 /**
  * サーバーからモデルリストを取得する関数
@@ -116,7 +118,9 @@ function saveToStorage<T>(key: string, value: T): void {
  * AIモデル設定を管理するカスタムフック
  */
 export function useAISettings() {
-  const [provider, setProvider] = useState<Provider>(() => getFromStorage<Provider>(STORAGE_KEYS.PROVIDER, DEFAULT_PROVIDER));
+  const [provider, setProvider] = useState<Provider>(() =>
+    getFromStorage<Provider>(STORAGE_KEYS.PROVIDER, DEFAULT_PROVIDER),
+  );
   const [model, setModel] = useState<string>(() => getFromStorage<string>(STORAGE_KEYS.MODEL, "gpt-4o-mini"));
   const [workers, setWorkers] = useState<number>(() => getFromStorage<number>(STORAGE_KEYS.WORKERS, 30));
   const [isPubcomMode, setIsPubcomMode] = useState<boolean>(true);
@@ -135,6 +139,7 @@ export function useAISettings() {
 
   const [openRouterModels, setOpenRouterModels] = useState<ModelOption[]>([]);
   const [localLLMModels, setLocalLLMModels] = useState<ModelOption[]>([]);
+  const lastAutoFetchedLocalLLMAddressRef = useRef<string | null>(null);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.PROVIDER, provider);
@@ -173,38 +178,97 @@ export function useAISettings() {
     }
   }, [provider]);
 
-  /**
-   * LocalLLMのモデルリストを手動で取得
-   */
-  const fetchLocalLLMModels = async () => {
-    if (provider === "local" && localLLMAddress) {
-      try {
-        const models = await fetchModelsFromServer("local", localLLMAddress);
-        setLocalLLMModels(models);
-        if (models.length > 0) {
-          setModel(models[0].value);
-          toaster.create({
-            type: "success",
-            title: "モデルリスト取得成功",
-            description: `${models.length}個のモデルを取得しました`,
-          });
-        } else {
-          toaster.create({
-            type: "warning",
-            title: "モデルリスト取得警告",
-            description: "モデルリストが空です。LocalLLMサーバーの設定を確認してください。",
-          });
-        }
-        return true;
-      } catch (error) {
-        console.error("LocalLLMモデルの取得に失敗しました:", error);
+  const applyLocalLLMModels = (models: ModelOption[]) => {
+    setLocalLLMModels(models);
+    if (models.length === 0) return;
+    setModel((currentModel) =>
+      models.some((candidate) => candidate.value === currentModel) ? currentModel : models[0].value,
+    );
+  };
+
+  const loadLocalLLMModels = async ({
+    address,
+    showSuccessToast,
+    showEmptyToast,
+    showErrorToast,
+  }: {
+    address: string;
+    showSuccessToast: boolean;
+    showEmptyToast: boolean;
+    showErrorToast: boolean;
+  }) => {
+    try {
+      const models = await fetchModelsFromServer("local", address);
+      applyLocalLLMModels(models);
+      if (models.length > 0 && showSuccessToast) {
+        toaster.create({
+          type: "success",
+          title: "モデルリスト取得成功",
+          description: `${models.length}個のモデルを取得しました`,
+        });
+      }
+      if (models.length === 0 && showEmptyToast) {
+        toaster.create({
+          type: "warning",
+          title: "モデルリスト取得警告",
+          description: "モデルリストが空です。LocalLLMサーバーの設定を確認してください。",
+        });
+      }
+      return true;
+    } catch (error) {
+      console.error("LocalLLMモデルの取得に失敗しました:", error);
+      if (showErrorToast) {
         toaster.create({
           type: "error",
           title: "モデルリスト取得失敗",
           description: "LocalLLMからモデルリストの取得に失敗しました。接続設定とサーバーの状態を確認してください。",
         });
-        return false;
       }
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (provider !== "local") {
+      lastAutoFetchedLocalLLMAddressRef.current = null;
+      return;
+    }
+
+    const trimmedAddress = localLLMAddress.trim();
+    if (!trimmedAddress || lastAutoFetchedLocalLLMAddressRef.current === trimmedAddress) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      lastAutoFetchedLocalLLMAddressRef.current = trimmedAddress;
+      void fetchModelsFromServer("local", trimmedAddress)
+        .then((models) => {
+          setLocalLLMModels(models);
+          if (models.length === 0) return;
+          setModel((currentModel) =>
+            models.some((candidate) => candidate.value === currentModel) ? currentModel : models[0].value,
+          );
+        })
+        .catch((error) => {
+          console.error("LocalLLMモデルの自動取得に失敗しました:", error);
+        });
+    }, LOCAL_LLM_AUTO_FETCH_DELAY_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [provider, localLLMAddress]);
+
+  /**
+   * LocalLLMのモデルリストを手動で取得
+   */
+  const fetchLocalLLMModels = async () => {
+    if (provider === "local" && localLLMAddress) {
+      lastAutoFetchedLocalLLMAddressRef.current = localLLMAddress.trim();
+      return loadLocalLLMModels({
+        address: localLLMAddress.trim(),
+        showSuccessToast: true,
+        showEmptyToast: true,
+        showErrorToast: true,
+      });
     }
     return false;
   };

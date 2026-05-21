@@ -135,7 +135,8 @@ export function AISettingsSection({
           </HStack>
           <Field.HelperText>
             OpenAI互換インターフェースで動作しているLLMサーバ（ollamaやLMStudio）のアドレスを指定してください。
-            広聴AIのdockerでollamaサーバを起動している場合は ollama:11434で接続できます。
+            LocalLLMを選択するとモデル一覧の自動取得を試みます。広聴AIのdockerでollamaサーバを起動している場合は
+            ollama:11434で接続でき、失敗時はモデル取得ボタンで再試行できます。
           </Field.HelperText>
         </Field.Root>
       )}

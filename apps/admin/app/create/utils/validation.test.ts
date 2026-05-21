@@ -1,4 +1,4 @@
-import { isValidId, validateReportId } from "./validation";
+import { isValidId, validateFormValues, validateReportId } from "./validation";
 
 describe("isValidId", () => {
   test("有効なIDの場合はtrueを返す", () => {
@@ -132,6 +132,34 @@ describe("validateReportId", () => {
         isValid: false,
         errorMessage: "IDはハイフンで終わることができません",
       });
+    });
+  });
+});
+
+describe("validateFormValues", () => {
+  test("LocalLLMのモデル自動取得失敗時の再試行案内を返す", () => {
+    const result = validateFormValues({
+      input: "test-report",
+      question: "",
+      intro: "",
+      clusterLv1: 5,
+      clusterLv2: 10,
+      model: "llama3.1",
+      extractionPrompt: "extract",
+      inputType: "file",
+      csv: new File(["id,comment\n1,test"], "test.csv", { type: "text/csv" }),
+      spreadsheetImported: false,
+      selectedCommentColumn: "comment",
+      csvColumns: ["id", "comment"],
+      provider: "local",
+      modelOptions: [],
+      pluginImported: false,
+      pluginSelectedCommentColumn: "",
+    });
+
+    expect(result).toEqual({
+      isValid: false,
+      errorMessage: "LocalLLMのモデルリストが空です。自動取得に失敗した場合はモデル取得ボタンで再試行してください。",
     });
   });
 });
