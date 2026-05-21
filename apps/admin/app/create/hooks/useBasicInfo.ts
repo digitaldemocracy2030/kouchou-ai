@@ -1,3 +1,4 @@
+import { createUUID } from "@/app/utils/uuid";
 import { useState } from "react";
 import { validateReportId } from "../utils/validation";
 
@@ -6,7 +7,7 @@ import { validateReportId } from "../utils/validation";
  */
 export function useBasicInfo() {
   // 基本情報の状態
-  const [input, setInput] = useState<string>(crypto.randomUUID());
+  const [input, setInput] = useState<string>(() => createUUID());
   const [question, setQuestion] = useState<string>("");
   const [intro, setIntro] = useState<string>("");
   const [isReportIdValid, setIsReportIdValid] = useState<boolean>(true);
@@ -41,7 +42,7 @@ export function useBasicInfo() {
    * 基本情報をリセット
    */
   const resetBasicInfo = () => {
-    setInput(crypto.randomUUID());
+    setInput(createUUID());
     setQuestion("");
     setIntro("");
     setIsReportIdValid(true);

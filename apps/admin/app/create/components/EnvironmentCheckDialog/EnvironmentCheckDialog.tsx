@@ -1,5 +1,6 @@
 "use client";
 
+import { createUUID } from "@/app/utils/uuid";
 import { Button } from "@/components/ui/button";
 import {
   DialogBackdrop,
@@ -145,7 +146,7 @@ function Dialog({ provider }: EnvironmentCheckDialogProps) {
 }
 
 export function EnvironmentCheckDialog({ provider }: EnvironmentCheckDialogProps) {
-  const [uuid, setUUID] = useState(crypto.randomUUID());
+  const [uuid, setUUID] = useState(() => createUUID());
 
   return (
     <DialogRoot
@@ -155,7 +156,7 @@ export function EnvironmentCheckDialog({ provider }: EnvironmentCheckDialogProps
       onOpenChange={(e) => {
         if (!e.open) {
           // Dialogが閉じられたときにkeyを更新して再レンダリングをトリガー
-          setUUID(crypto.randomUUID());
+          setUUID(createUUID());
         }
       }}
     >
