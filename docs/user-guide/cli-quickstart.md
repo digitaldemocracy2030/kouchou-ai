@@ -295,12 +295,6 @@ rm -rf outputs/config
 }
 ```
 
-## 10. output validation の位置づけ
-
-`hierarchical_result.json` などの **出力 artifact の厳密検証** は、current `analysis-core` では runtime の success 条件にはしていません。ここは end-user CLI を重くするより、schema test / e2e / viewer 側の利用で担保する寄りにしてあります。
-
-つまり CLI の preflight は `config` と `input` の fail-fast に集中し、post-run artifact validation は主に **developer/test concern** として扱います。
-
 ### 特定の属性値を非表示にする
 
 ```json
@@ -342,6 +336,12 @@ export GOOGLE_API_KEY="your-key"
   "model": "gemini-1.5-flash"
 }
 ```
+
+## 10. output validation の位置づけ
+
+`hierarchical_result.json` などの **出力 artifact の厳密検証** は、current `analysis-core` では runtime の success 条件にはしていません。ここは end-user CLI を重くするより、schema test / e2e / viewer 側の利用で担保する寄りにしてあります。
+
+つまり CLI の preflight は `config` と `input` の fail-fast に集中し、post-run artifact validation は主に **developer/test concern** として扱います。
 
 ## 11. 結果の可視化
 
