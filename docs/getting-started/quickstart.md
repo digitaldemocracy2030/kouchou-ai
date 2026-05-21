@@ -124,6 +124,7 @@ Dockerを使わずに `apps/api` と `apps/admin` を個別に起動する場合
 - [使い方の詳細](../user-guide/how-to-use.md)
 - [CLI からの実行](../user-guide/cli-quickstart.md)
 - [Azure へのデプロイ](../deployment/azure.md)
+- [静的ホスティング向け CSP 設定](../deployment/static-hosting-csp.md)
 
 ## トラブルシューティング
 
