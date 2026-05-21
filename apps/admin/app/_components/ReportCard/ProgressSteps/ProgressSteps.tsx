@@ -80,7 +80,7 @@ export const ProgressSteps = ({ slug }: Props) => {
         </Steps.List>
       </Steps.Root>
       {isError && (errorMessage || errorLogExcerpt) && (
-        <Box bg="bg.error" borderRadius="md" px="4" py="3">
+        <Box bg="bg.error" borderRadius="md" px="4" py="3" role="alert" aria-live="assertive">
           {errorMessage && (
             <Text textStyle="body/sm/bold" color="font.error">
               {errorMessage}

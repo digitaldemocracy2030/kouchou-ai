@@ -498,6 +498,60 @@ def test_launch_report_generation_runs_full_service_flow(monkeypatch, tmp_path):
     ]
 
 
+def test_launch_report_generation_records_launch_error_payload(monkeypatch, tmp_path):
+    import json
+
+    import pytest
+
+    from src.schemas.admin_report import Prompt, ReportInput
+    from src.services import report_launcher
+
+    slug = "launch-error"
+    report_dir = tmp_path / "reports"
+    config_dir = tmp_path / "configs"
+    input_dir = tmp_path / "inputs"
+    data_dir = tmp_path / "data"
+    report_dir.mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+    input_dir.mkdir(parents=True)
+    data_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_launcher.settings, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(report_launcher.settings, "INPUT_DIR", input_dir)
+
+    def raise_launch_error(*args, **kwargs):
+        raise FileNotFoundError("python not found")
+
+    monkeypatch.setattr(report_launcher, "_launch_analysis_process", raise_launch_error)
+
+    report_input = ReportInput(
+        input=slug,
+        question="q",
+        intro="i",
+        model="m",
+        provider="p",
+        is_pubcom=False,
+        is_embedded_at_local=False,
+        local_llm_address=None,
+        prompt=Prompt(extraction="", initial_labelling="", merge_labelling="", overview=""),
+        workers=1,
+        cluster=[1],
+        enable_source_link=False,
+        comments=[],
+    )
+
+    with pytest.raises(FileNotFoundError):
+        report_launcher.launch_report_generation(report_input)
+
+    status_data = json.loads((report_dir / slug / "hierarchical_status.json").read_text(encoding="utf-8"))
+    assert status_data["status"] == "error"
+    assert status_data["current_job"] == "error"
+    assert status_data["error"] == "Failed to launch analysis-core: python not found"
+    assert status_data["error_log_path"] == "analysis.log"
+    assert status_data["error_log_excerpt"] is None
+
+
 def test_monitor_process_reads_workflow_status_and_syncs_outputs(monkeypatch, tmp_path):
     import json
 
@@ -830,3 +884,34 @@ def test_execute_aggregation_runs_monitor_flow_and_preserves_existing_status(mon
         ("config", slug),
         ("status", None),
     ]
+
+
+def test_execute_aggregation_records_launch_error_payload(monkeypatch, tmp_path):
+    import json
+
+    from src.services import report_launcher
+
+    slug = "aggregation-error"
+    report_dir = tmp_path / "reports"
+    config_dir = tmp_path / "configs"
+    (report_dir / slug).mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+    (config_dir / f"{slug}.json").write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_launcher.settings, "CONFIG_DIR", config_dir)
+
+    def raise_launch_error(*args, **kwargs):
+        raise PermissionError("spawn blocked")
+
+    monkeypatch.setattr(report_launcher, "_launch_analysis_process", raise_launch_error)
+
+    result = report_launcher.execute_aggregation(slug)
+
+    assert result is False
+    status_data = json.loads((report_dir / slug / "hierarchical_status.json").read_text(encoding="utf-8"))
+    assert status_data["status"] == "error"
+    assert status_data["current_job"] == "error"
+    assert status_data["error"] == "Failed to launch analysis-core: spawn blocked"
+    assert status_data["error_log_path"] == "analysis.log"
+    assert status_data["error_log_excerpt"] is None

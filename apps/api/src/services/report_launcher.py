@@ -152,7 +152,7 @@ def _read_log_excerpt(log_path: Path, max_chars: int = MAX_ERROR_LOG_CHARS) -> s
     return content[-max_chars:]
 
 
-def _ensure_error_status_payload(slug: str) -> None:
+def _ensure_error_status_payload(slug: str, error_override: str | None = None) -> None:
     status_file = settings.REPORT_DIR / slug / "hierarchical_status.json"
     log_path = _analysis_log_path(slug)
     log_excerpt = _read_log_excerpt(log_path)
@@ -171,7 +171,9 @@ def _ensure_error_status_payload(slug: str) -> None:
     status_data["status"] = "error"
     status_data["current_job"] = status_data.get("current_job") or "error"
     status_data["error"] = (
-        status_data.get("error") or "analysis-core exited with a non-zero status; see error_log_excerpt"
+        error_override
+        or status_data.get("error")
+        or "analysis-core exited with a non-zero status; see error_log_excerpt"
     )
     status_data["error_log_path"] = ANALYSIS_LOG_FILENAME
     status_data["error_log_excerpt"] = log_excerpt
@@ -260,6 +262,13 @@ def _launch_analysis_process(cmd: list[str], slug: str, env: dict[str, str]) -> 
     return process
 
 
+def _set_report_status_if_present(slug: str, status: str) -> None:
+    try:
+        set_status(slug, status)
+    except ValueError:
+        logger.info(f"Skip status update for {slug}: report status entry not found")
+
+
 def launch_report_generation(report_input: ReportInput, user_api_key: str | None = None) -> None:
     """
     analysis-core パッケージを subprocess で呼び出してレポート生成処理を開始する関数。
@@ -276,7 +285,8 @@ def launch_report_generation(report_input: ReportInput, user_api_key: str | None
 
         _launch_analysis_process(cmd, report_input.input, env)
     except Exception as e:
-        set_status(report_input.input, "error")
+        _ensure_error_status_payload(report_input.input, error_override=f"Failed to launch analysis-core: {e}")
+        _set_report_status_if_present(report_input.input, "error")
         logger.error(f"Error launching report generation: {e}")
         raise e
 
@@ -294,7 +304,8 @@ def launch_report_generation_from_config(config_path: Path, slug: str, user_api_
 
         _launch_analysis_process(cmd, slug, env)
     except Exception as e:
-        set_status(slug, "error")
+        _ensure_error_status_payload(slug, error_override=f"Failed to launch analysis-core: {e}")
+        _set_report_status_if_present(slug, "error")
         logger.error(f"Error launching report generation from config: {e}")
         raise e
 
@@ -314,5 +325,7 @@ def execute_aggregation(slug: str, user_api_key: str | None = None) -> bool:
         _launch_analysis_process(cmd, slug, env)
         return True
     except Exception as e:
+        _ensure_error_status_payload(slug, error_override=f"Failed to launch analysis-core: {e}")
+        _set_report_status_if_present(slug, "error")
         logger.error(f"Error executing aggregation: {e}")
         return False
