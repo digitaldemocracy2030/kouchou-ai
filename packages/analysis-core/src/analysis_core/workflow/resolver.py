@@ -150,12 +150,18 @@ def evaluate_condition(
     if condition is None:
         return True
 
+    def get_config_flag(*keys: str, default: bool = False) -> bool:
+        for key in keys:
+            if key in config:
+                return bool(config[key])
+        return default
+
     # Simple evaluation - for now just handle common patterns
     # TODO: Implement proper expression evaluation
 
     # Check for "not config.without_html" pattern
     if condition.strip() == "${not config.without_html}":
-        return not config.get("without_html", False)
+        return not get_config_flag("without_html", "without-html", default=False)
 
     # Check for "${config.key}" pattern
     if condition.startswith("${config.") and condition.endswith("}"):

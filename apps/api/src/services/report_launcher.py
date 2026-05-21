@@ -57,6 +57,32 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
     return config
 
 
+def _build_analysis_core_command(config_path: Path, only: str | None = None) -> list[str]:
+    """Build the shared analysis-core CLI invocation used by the API.
+
+    The Web product treats ``hierarchical_result.json`` as the canonical
+    artifact and renders it through ``public-viewer``. We therefore keep
+    ``--without-html`` enabled here so the CLI-only ``report.html`` sidecar
+    is not generated, stored, or distributed by the API path.
+    """
+    cmd = [
+        "python",
+        "-m",
+        "analysis_core",
+        "--config",
+        str(config_path),
+        "--output-dir",
+        str(settings.REPORT_DIR),
+        "--input-dir",
+        str(settings.INPUT_DIR),
+        "--skip-interaction",
+        "--without-html",
+    ]
+    if only:
+        cmd.extend(["--only", only])
+    return cmd
+
+
 def save_config_file(report_input: ReportInput) -> Path:
     config = _build_config(report_input)
     config_path = settings.CONFIG_DIR / f"{report_input.input}.json"
@@ -164,19 +190,7 @@ def launch_report_generation(report_input: ReportInput, user_api_key: str | None
         add_new_report_to_status(report_input)
         config_path = save_config_file(report_input)
         save_input_file(report_input)
-        cmd = [
-            "python",
-            "-m",
-            "analysis_core",
-            "--config",
-            str(config_path),
-            "--output-dir",
-            str(settings.REPORT_DIR),
-            "--input-dir",
-            str(settings.INPUT_DIR),
-            "--skip-interaction",
-            "--without-html",
-        ]
+        cmd = _build_analysis_core_command(config_path)
 
         env = os.environ.copy()
         if user_api_key:
@@ -195,19 +209,7 @@ def launch_report_generation_from_config(config_path: Path, slug: str, user_api_
     既存のconfigファイルからanalysis-coreを起動する関数。
     """
     try:
-        cmd = [
-            "python",
-            "-m",
-            "analysis_core",
-            "--config",
-            str(config_path),
-            "--output-dir",
-            str(settings.REPORT_DIR),
-            "--input-dir",
-            str(settings.INPUT_DIR),
-            "--skip-interaction",
-            "--without-html",
-        ]
+        cmd = _build_analysis_core_command(config_path)
 
         env = os.environ.copy()
         if user_api_key:
@@ -227,21 +229,7 @@ def execute_aggregation(slug: str, user_api_key: str | None = None) -> bool:
     """
     try:
         config_path = settings.CONFIG_DIR / f"{slug}.json"
-        cmd = [
-            "python",
-            "-m",
-            "analysis_core",
-            "--config",
-            str(config_path),
-            "--output-dir",
-            str(settings.REPORT_DIR),
-            "--input-dir",
-            str(settings.INPUT_DIR),
-            "--skip-interaction",
-            "--without-html",
-            "--only",
-            "hierarchical_aggregation",
-        ]
+        cmd = _build_analysis_core_command(config_path, only="hierarchical_aggregation")
 
         env = os.environ.copy()
         if user_api_key:

@@ -24,6 +24,44 @@ import pytest
 from .schemas import HierarchicalResult
 
 
+def _scoped_pipeline_config(pipeline_config, enabled_steps):
+    """Return a config whose workflow plan only runs the requested steps."""
+    plan_steps = [
+        "extraction",
+        "embedding",
+        "hierarchical_clustering",
+        "hierarchical_initial_labelling",
+        "hierarchical_merge_labelling",
+        "hierarchical_overview",
+        "hierarchical_aggregation",
+        "hierarchical_visualization",
+    ]
+    enabled = set(enabled_steps)
+    invalid = enabled - set(plan_steps)
+    if invalid:
+        allowed = ", ".join(plan_steps)
+        invalid_names = ", ".join(sorted(invalid))
+        raise ValueError(f"Invalid step names: {invalid_names}. Allowed steps: {allowed}")
+    scoped_config = dict(pipeline_config)
+    scoped_config["plan"] = [{"step": step, "run": step in enabled} for step in plan_steps]
+    return scoped_config
+
+
+def test_scoped_pipeline_config_rejects_unknown_step_names():
+    """Typos in e2e step scoping should fail fast."""
+    with pytest.raises(ValueError, match="Invalid step names: typo_step"):
+        _scoped_pipeline_config({}, ["extraction", "typo_step"])
+
+
+def _config_file_payload(pipeline_config):
+    """Drop runtime-only path fields before writing a config file."""
+    return {
+        key: value
+        for key, value in pipeline_config.items()
+        if key not in {"output_dir", "_input_base_dir", "_output_base_dir", "plan"}
+    }
+
+
 @pytest.mark.e2e
 class TestPipelineE2E:
     """End-to-end tests for the complete pipeline."""
@@ -56,7 +94,7 @@ class TestPipelineE2E:
             input_base_dir=temp_dirs["input_dir"],
         )
 
-        result = orchestrator.run()
+        result = orchestrator.run_default()
 
         # Verify pipeline completed successfully
         assert result.success, f"Pipeline failed: {result.error}"
@@ -92,6 +130,69 @@ class TestPipelineE2E:
         assert len(hierarchical_result.arguments) > 0, "Should have extracted at least 1 argument"
         assert len(hierarchical_result.clusters) > 1, "Should have at least 2 clusters (root + 1)"
 
+    def test_full_pipeline_rerun_rebuilds_missing_downstream_outputs(
+        self, api_key, temp_dirs, small_comments_csv, pipeline_config
+    ):
+        """Real LLM rerun should rebuild missing downstream artifacts instead of restarting from scratch."""
+        from analysis_core import PipelineOrchestrator
+
+        input_file = temp_dirs["input_dir"] / "small_comments.csv"
+        shutil.copy(small_comments_csv, input_file)
+
+        config_path = temp_dirs["base"] / f"{pipeline_config['output_dir']}.json"
+        config_path.write_text(
+            json.dumps(_config_file_payload(pipeline_config), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        output_dir = temp_dirs["output_dir"] / pipeline_config["output_dir"]
+
+        first_run = PipelineOrchestrator.from_config(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=temp_dirs["output_dir"],
+            input_base_dir=temp_dirs["input_dir"],
+        )
+        first_result = first_run.run_default()
+        assert first_result.success, f"Initial pipeline failed: {first_result.error}"
+
+        overview_path = output_dir / "hierarchical_overview.txt"
+        result_path = output_dir / "hierarchical_result.json"
+        assert overview_path.exists()
+        assert result_path.exists()
+
+        overview_path.unlink()
+        result_path.unlink()
+
+        rerun = PipelineOrchestrator.from_config(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=temp_dirs["output_dir"],
+            input_base_dir=temp_dirs["input_dir"],
+        )
+        rerun_result = rerun.run_default()
+        assert rerun_result.success, f"Rerun failed: {rerun_result.error}"
+
+        assert overview_path.exists(), "hierarchical_overview.txt should be regenerated on rerun"
+        assert result_path.exists(), "hierarchical_result.json should be regenerated on rerun"
+
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["status"] == "completed"
+        assert [job["step"] for job in status_data["completed_jobs"]] == [
+            "hierarchical_overview",
+            "hierarchical_aggregation",
+        ]
+        assert {
+            job["step"]
+            for job in status_data["previously_completed_jobs"]
+        } >= {
+            "extraction",
+            "embedding",
+            "hierarchical_clustering",
+            "hierarchical_initial_labelling",
+            "hierarchical_merge_labelling",
+        }
+
     def test_extraction_produces_arguments(self, api_key, temp_dirs, small_comments_csv, pipeline_config):
         """Test that extraction step produces valid args.csv."""
         from analysis_core import PipelineOrchestrator
@@ -106,19 +207,13 @@ class TestPipelineE2E:
 
         # Run only extraction step
         orchestrator = PipelineOrchestrator.from_dict(
-            config=pipeline_config,
+            config=_scoped_pipeline_config(pipeline_config, ["extraction"]),
             output_dir=pipeline_config["output_dir"],
             output_base_dir=temp_dirs["output_dir"],
             input_base_dir=temp_dirs["input_dir"],
         )
 
-        # Only register extraction step
-        from analysis_core.steps import extraction
-
-        orchestrator.steps = ["extraction"]
-        orchestrator.register_step("extraction", extraction)
-
-        result = orchestrator.run()
+        result = orchestrator.run_default()
         assert result.success, f"Extraction failed: {result.error}"
 
         # Verify args.csv exists and has valid structure
@@ -150,21 +245,16 @@ class TestPipelineE2E:
 
         # Run extraction and embedding first, then clustering
         orchestrator = PipelineOrchestrator.from_dict(
-            config=pipeline_config,
+            config=_scoped_pipeline_config(
+                pipeline_config,
+                ["extraction", "embedding", "hierarchical_clustering"],
+            ),
             output_dir=pipeline_config["output_dir"],
             output_base_dir=temp_dirs["output_dir"],
             input_base_dir=temp_dirs["input_dir"],
         )
 
-        # Run only up to clustering
-        from analysis_core.steps import embedding, extraction, hierarchical_clustering
-
-        orchestrator.steps = ["extraction", "embedding", "hierarchical_clustering"]
-        orchestrator.register_step("extraction", extraction)
-        orchestrator.register_step("embedding", embedding)
-        orchestrator.register_step("hierarchical_clustering", hierarchical_clustering)
-
-        result = orchestrator.run()
+        result = orchestrator.run_default()
         assert result.success, f"Pipeline failed: {result.error}"
 
         # Verify clustering output
@@ -201,7 +291,7 @@ class TestOutputSchemaValidation:
             output_base_dir=temp_dirs["output_dir"],
             input_base_dir=temp_dirs["input_dir"],
         )
-        result = orchestrator.run()
+        result = orchestrator.run_default()
         assert result.success, f"Pipeline failed: {result.error}"
 
         # Load result
@@ -242,18 +332,13 @@ class TestOutputSchemaValidation:
 
         # Run extraction only
         orchestrator = PipelineOrchestrator.from_dict(
-            config=pipeline_config,
+            config=_scoped_pipeline_config(pipeline_config, ["extraction"]),
             output_dir=pipeline_config["output_dir"],
             output_base_dir=temp_dirs["output_dir"],
             input_base_dir=temp_dirs["input_dir"],
         )
 
-        from analysis_core.steps import extraction
-
-        orchestrator.steps = ["extraction"]
-        orchestrator.register_step("extraction", extraction)
-
-        result = orchestrator.run()
+        result = orchestrator.run_default()
         assert result.success, f"Extraction failed: {result.error}"
 
         # Load and validate args.csv

@@ -5,6 +5,9 @@ This module provides the main pipeline execution logic,
 handling step sequencing, status tracking, and error handling.
 """
 
+import json
+import traceback
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -13,7 +16,9 @@ from typing import Any, Callable
 from analysis_core.core.orchestration import (
     initialization,
     run_step,
+    sync_without_html_keys,
     termination,
+    update_status,
 )
 from analysis_core.steps import (
     embedding,
@@ -76,11 +81,11 @@ class PipelineOrchestrator:
     Usage:
         # From config file
         orchestrator = PipelineOrchestrator.from_config("config.json")
-        result = orchestrator.run()
+        result = orchestrator.run_default()
 
         # From config dict
         orchestrator = PipelineOrchestrator(config_dict)
-        result = orchestrator.run()
+        result = orchestrator.run_default()
     """
 
     # Default step sequence for hierarchical analysis
@@ -186,11 +191,16 @@ class PipelineOrchestrator:
 
     def run(self) -> PipelineResult:
         """
-        Execute the pipeline.
+        Execute the legacy direct-step pipeline.
 
         Returns:
             PipelineResult with execution details
         """
+        warnings.warn(
+            "PipelineOrchestrator.run() is deprecated; use run_default() for the canonical workflow path.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         start_time = datetime.now()
         step_results: list[StepResult] = []
         error: Exception | None = None
@@ -253,6 +263,30 @@ class PipelineOrchestrator:
             output_dir=output_path if output_path.exists() else None,
         )
 
+    def run_default(self) -> PipelineResult:
+        """Execute the default pipeline path used by the CLI."""
+        return self.run_workflow()
+
+    def _carry_forward_previous_jobs(self) -> None:
+        """Preserve older completed jobs across reruns."""
+        if "previous" not in self.config:
+            return
+
+        old_jobs = self.config["previous"].get("completed_jobs", []) + self.config["previous"].get(
+            "previously_completed_jobs", []
+        )
+        newly_completed = [job["step"] for job in self.config.get("completed_jobs", [])]
+        self.config["previously_completed_jobs"] = [job for job in old_jobs if job["step"] not in newly_completed]
+        del self.config["previous"]
+
+    @staticmethod
+    def _extract_workflow_error(workflow_result: Any) -> str:
+        """Return the most specific error available from a workflow result."""
+        for step_id, result in workflow_result.step_results.items():
+            if not result.success and result.error:
+                return result.error
+        return "Workflow execution failed"
+
     def get_status(self) -> dict[str, Any]:
         """Get current pipeline status from config."""
         return {
@@ -291,7 +325,7 @@ class PipelineOrchestrator:
             Initialized PipelineOrchestrator
         """
         from analysis_core.compat import normalize_config
-        from analysis_core.core.orchestration import validate_api_keys
+        from analysis_core.core.orchestration import _PACKAGE_DIR, decide_what_to_run, load_specs, validate_api_keys
 
         # Normalize config with defaults
         normalized = normalize_config(config.copy())
@@ -310,20 +344,23 @@ class PipelineOrchestrator:
 
         normalized["_output_base_dir"] = str(output_base)
         normalized["_input_base_dir"] = str(input_base)
+        sync_without_html_keys(normalized)
 
         # Create output directory
         output_path = output_base / normalized["output_dir"]
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Create a simple plan (all steps run)
-        normalized["plan"] = [{"step": step, "run": True, "reason": "new run"} for step in cls.DEFAULT_STEPS]
+        status_file = output_path / "hierarchical_status.json"
+        previous: dict[str, Any] | None = None
+        if status_file.exists():
+            previous = json.loads(status_file.read_text(encoding="utf-8"))
+            normalized["previous"] = previous
 
-        # Skip visualization if requested
-        if normalized.get("without_html", True):
-            for plan_step in normalized["plan"]:
-                if plan_step["step"] == "hierarchical_visualization":
-                    plan_step["run"] = False
-                    plan_step["reason"] = "skipping html output"
+        specs = load_specs(_PACKAGE_DIR / "specs" / "hierarchical_specs.json")
+        if "plan" in config:
+            normalized["plan"] = config["plan"]
+        else:
+            normalized["plan"] = decide_what_to_run(normalized, previous, specs, output_base)
 
         return cls(
             config=normalized,
@@ -343,9 +380,77 @@ class PipelineOrchestrator:
         """
         from analysis_core.compat import create_step_context_from_config
         from analysis_core.workflow import WorkflowEngine
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
         from analysis_core.workflows import HIERARCHICAL_DEFAULT_WORKFLOW
 
         start_time = datetime.now()
+        workflow = HIERARCHICAL_DEFAULT_WORKFLOW
+        plan_step_to_workflow_step = {
+            "extraction": "extraction",
+            "embedding": "embedding",
+            "hierarchical_clustering": "clustering",
+            "hierarchical_initial_labelling": "initial_labelling",
+            "hierarchical_merge_labelling": "merge_labelling",
+            "hierarchical_overview": "overview",
+            "hierarchical_aggregation": "aggregation",
+            "hierarchical_visualization": "visualization",
+        }
+        workflow_step_to_plan_step = {v: k for k, v in plan_step_to_workflow_step.items()}
+        skip_steps = {
+            plan_step_to_workflow_step[step["step"]]
+            for step in self.config.get("plan", [])
+            if not step.get("run", True) and step["step"] in plan_step_to_workflow_step
+        }
+
+        def workflow_step_to_legacy_name(step_name: str) -> str:
+            return workflow_step_to_plan_step.get(step_name, step_name)
+
+        def mark_step_started(step_name: str) -> None:
+            update_status(
+                self.config,
+                {
+                    "current_job": workflow_step_to_legacy_name(step_name),
+                    "current_job_started": datetime.now().isoformat(),
+                },
+                self.output_base_dir,
+            )
+
+        def mark_step_completed(step_name: str, result: WorkflowStepResult) -> None:
+            legacy_step_name = workflow_step_to_legacy_name(step_name)
+            completed_jobs = self.config.get("completed_jobs", []).copy()
+            total_token_usage = self.config.get("total_token_usage", 0)
+            token_usage_input = self.config.get("token_usage_input", 0)
+            token_usage_output = self.config.get("token_usage_output", 0)
+            if result.success and not result.skipped:
+                step_token_usage = result.outputs.token_usage if result.outputs else 0
+                step_token_input = result.outputs.token_input if result.outputs else 0
+                step_token_output = result.outputs.token_output if result.outputs else 0
+                completed_jobs.append(
+                    {
+                        "step": legacy_step_name,
+                        "completed": datetime.now().isoformat(),
+                        "duration": 0.0,
+                        "params": self.config.get(legacy_step_name, {}),
+                        "token_usage": step_token_usage,
+                    }
+                )
+                total_token_usage += step_token_usage
+                token_usage_input += step_token_input
+                token_usage_output += step_token_output
+
+            update_status(
+                self.config,
+                {
+                    "current_job": legacy_step_name,
+                    "current_job_progress": None,
+                    "current_jop_tasks": None,
+                    "completed_jobs": completed_jobs,
+                    "total_token_usage": total_token_usage,
+                    "token_usage_input": token_usage_input,
+                    "token_usage_output": token_usage_output,
+                },
+                self.output_base_dir,
+            )
 
         try:
             # Create step context
@@ -356,18 +461,41 @@ class PipelineOrchestrator:
                 output_base_dir=str(self.output_base_dir),
             )
 
+            update_status(
+                self.config,
+                {
+                    "plan": self.config.get("plan", []),
+                    "status": "running",
+                    "start_time": start_time.isoformat(),
+                    "completed_jobs": [],
+                    "total_token_usage": 0,
+                    "token_usage_input": 0,
+                    "token_usage_output": 0,
+                    "provider": self.config.get("provider"),
+                    "model": self.config.get("model"),
+                },
+                self.output_base_dir,
+            )
+
             # Run workflow
             engine = WorkflowEngine()
             workflow_result = engine.run(
-                HIERARCHICAL_DEFAULT_WORKFLOW,
+                workflow,
                 self.config,
                 ctx,
+                on_step_start=mark_step_started,
+                on_step_complete=mark_step_completed,
+                skip_steps=skip_steps,
             )
+
+            self.config["total_token_usage"] = workflow_result.total_token_usage
+            self.config["token_usage_input"] = workflow_result.total_token_input
+            self.config["token_usage_output"] = workflow_result.total_token_output
 
             # Convert to PipelineResult
             step_results = [
                 StepResult(
-                    step_name=step_id,
+                    step_name=workflow_step_to_legacy_name(step_id),
                     success=result.success,
                     duration_seconds=0.0,  # Not tracked in workflow mode
                     token_usage=result.outputs.token_usage if result.outputs else 0,
@@ -379,22 +507,50 @@ class PipelineOrchestrator:
             total_duration = (datetime.now() - start_time).total_seconds()
             output_path = self.output_base_dir / self.config.get("output_dir", "")
 
+            self._carry_forward_previous_jobs()
+
+            workflow_error = self._extract_workflow_error(workflow_result)
+
+            update_status(
+                self.config,
+                {
+                    "status": "completed" if workflow_result.success else "error",
+                    "end_time": datetime.now().isoformat(),
+                    "total_token_usage": workflow_result.total_token_usage,
+                    "token_usage_input": workflow_result.total_token_input,
+                    "token_usage_output": workflow_result.total_token_output,
+                    "error": None if workflow_result.success else workflow_error,
+                },
+                self.output_base_dir,
+            )
+
             return PipelineResult(
                 success=workflow_result.success,
                 steps=step_results,
                 total_duration_seconds=total_duration,
                 total_token_usage=workflow_result.total_token_usage,
-                error=None,
+                error=None if workflow_result.success else workflow_error,
                 output_dir=output_path if output_path.exists() else None,
             )
 
         except Exception as e:
             total_duration = (datetime.now() - start_time).total_seconds()
+            self._carry_forward_previous_jobs()
+            update_status(
+                self.config,
+                {
+                    "status": "error",
+                    "end_time": datetime.now().isoformat(),
+                    "error": str(e),
+                    "error_stack_trace": traceback.format_exc(),
+                },
+                self.output_base_dir,
+            )
             return PipelineResult(
                 success=False,
                 steps=[],
                 total_duration_seconds=total_duration,
-                total_token_usage=0,
+                total_token_usage=self.config.get("total_token_usage", 0),
                 error=str(e),
                 output_dir=None,
             )

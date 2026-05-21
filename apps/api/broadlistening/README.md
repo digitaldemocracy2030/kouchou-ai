@@ -1,11 +1,12 @@
 ## 概要
 
-`broadlistening` 配下では、自然言語処理技術を用いてテキストデータの解析を行います。処理は`hierarchical_main.py`を起点に実行され、複数のステップから構成されるパイプラインとして実装されています。
-hierarchical_main.py は、FastAPI のサーバーにおいてレポート作成のリクエストがあった際に実行されるように設計されています。
+`broadlistening` 配下には旧パイプライン実装が残っていますが、現在の canonical な実行経路は `packages/analysis-core` です。FastAPI サーバーからのレポート生成も `hierarchical_main.py` ではなく `python -m analysis_core` を subprocess で呼び出します。
+
+`hierarchical_main.py` / `pipeline/steps/` は deprecated layer であり、旧経路の参照用として残っています。現在の CLI canonical path は `PipelineOrchestrator.run_default()` → `run_workflow()` です。
 
 ## 実行フロー
 
-`hierarchical_main.py`は以下のステップを順番に実行します：
+current 実装の `analysis-core` CLI は、以下のステップを順番に実行します：
 
 1. **extraction**: テキストから意見（引数）を抽出
 2. **embedding**: 抽出した意見のベクトル埋め込みを生成
@@ -14,7 +15,7 @@ hierarchical_main.py は、FastAPI のサーバーにおいてレポート作成
 5. **hierarchical_merge_labelling**: 階層間のラベルのマージと調整
 6. **hierarchical_overview**: クラスタの概要生成
 7. **hierarchical_aggregation**: 結果の集約と JSON 形式での出力
-8. **hierarchical_visualization**: 結果の可視化レポート生成
+8. **hierarchical_visualization**: 結果の可視化レポート生成（CLI では sidecar `report.html`）
 
 ## 各ステップの詳細
 
@@ -111,6 +112,8 @@ hierarchical_main.py は、FastAPI のサーバーにおいてレポート作成
 
 **出力**: `outputs/{dataset}/hierarchical_result.json`
 `outputs/{dataset}/final_result_with_comments.csv`（CSV出力モードのみ）
+
+補足: API の canonical output は `hierarchical_result.json` であり、CLI 既定の `report.html` sidecar は `report_launcher.py` からの `--without-html` 指定により生成しません。
 
 ## クレジット
 

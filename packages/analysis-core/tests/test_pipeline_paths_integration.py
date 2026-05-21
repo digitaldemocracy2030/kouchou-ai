@@ -310,3 +310,156 @@ class TestOrchestratorPathsIntegration:
             # Verify paths are stored in orchestrator
             assert orchestrator.output_base_dir == output_dir
             assert orchestrator.input_base_dir == input_dir
+
+    def test_from_config_duplicate_style_rerun_only_restarts_missing_downstream_steps(self):
+        """Duplicate/reuse style outputs should restart from the first missing downstream artifact."""
+        from analysis_core import PipelineOrchestrator
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            input_dir = base / "custom_inputs_location"
+            output_dir = base / "custom_outputs_location"
+            config_dir = base / "configs"
+            input_dir.mkdir()
+            output_dir.mkdir()
+            config_dir.mkdir()
+
+            config_path = config_dir / "demo.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "input": "demo",
+                        "question": "What changed?",
+                        "provider": "local",
+                        "model": "gpt-4o-mini",
+                        "extraction": {
+                            "limit": 1000,
+                            "workers": 1,
+                            "prompt": "",
+                            "properties": [],
+                        },
+                        "embedding": {
+                            "model": "text-embedding-3-small",
+                        },
+                        "hierarchical_clustering": {
+                            "cluster_nums": [2, 4],
+                        },
+                        "hierarchical_initial_labelling": {
+                            "sampling_num": 3,
+                            "workers": 1,
+                            "prompt": "",
+                        },
+                        "hierarchical_merge_labelling": {
+                            "sampling_num": 3,
+                            "workers": 1,
+                            "prompt": "",
+                        },
+                        "hierarchical_overview": {
+                            "prompt": "",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (input_dir / "demo.csv").write_text("comment-id,comment-body\n1,hello\n", encoding="utf-8")
+
+            output_subdir = output_dir / "demo"
+            output_subdir.mkdir()
+            for filename in (
+                "args.csv",
+                "embeddings.pkl",
+                "hierarchical_clusters.csv",
+                "hierarchical_initial_labels.csv",
+                "hierarchical_merge_labels.csv",
+            ):
+                (output_subdir / filename).write_text(filename, encoding="utf-8")
+            (output_subdir / "hierarchical_status.json").write_text(
+                json.dumps(
+                    {
+                        "completed_jobs": [
+                            {
+                                "step": "extraction",
+                                "params": {
+                                    "limit": 1000,
+                                    "workers": 1,
+                                    "prompt": "",
+                                    "model": "gpt-4o-mini",
+                                    "properties": [],
+                                },
+                            },
+                            {
+                                "step": "embedding",
+                                "params": {
+                                    "model": "text-embedding-3-small",
+                                },
+                            },
+                            {
+                                "step": "hierarchical_clustering",
+                                "params": {
+                                    "cluster_nums": [2, 4],
+                                },
+                            },
+                            {
+                                "step": "hierarchical_initial_labelling",
+                                "params": {
+                                    "sampling_num": 3,
+                                    "workers": 1,
+                                    "prompt": "",
+                                    "model": "gpt-4o-mini",
+                                },
+                            },
+                            {
+                                "step": "hierarchical_merge_labelling",
+                                "params": {
+                                    "sampling_num": 3,
+                                    "workers": 1,
+                                    "prompt": "",
+                                    "model": "gpt-4o-mini",
+                                },
+                            },
+                            {
+                                "step": "hierarchical_overview",
+                                "params": {
+                                    "prompt": "",
+                                    "model": "gpt-4o-mini",
+                                },
+                            },
+                            {
+                                "step": "hierarchical_aggregation",
+                                "params": {},
+                            },
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            orchestrator = PipelineOrchestrator.from_config(
+                config_path=config_path,
+                skip_interaction=True,
+                without_html=True,
+                output_base_dir=output_dir,
+                input_base_dir=input_dir,
+            )
+
+            plan = orchestrator.get_plan()
+            run_steps = [step["step"] for step in plan if step["run"]]
+            skipped_steps = [step["step"] for step in plan if not step["run"]]
+
+            assert run_steps == ["hierarchical_overview", "hierarchical_aggregation"]
+            assert skipped_steps == [
+                "extraction",
+                "embedding",
+                "hierarchical_clustering",
+                "hierarchical_initial_labelling",
+                "hierarchical_merge_labelling",
+                "hierarchical_visualization",
+            ]
+
+            overview_step = next(step for step in plan if step["step"] == "hierarchical_overview")
+            aggregation_step = next(step for step in plan if step["step"] == "hierarchical_aggregation")
+            visualization_step = next(step for step in plan if step["step"] == "hierarchical_visualization")
+
+            assert overview_step["reason"] == "previous data not found"
+            assert aggregation_step["reason"] == "previous data not found"
+            assert visualization_step["reason"] == "skipping html output"

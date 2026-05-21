@@ -33,15 +33,19 @@ pip install kouchou-ai-analysis-core[gemini]
 kouchou-analyze --config config.json
 ```
 
+CLI の canonical output は `hierarchical_result.json` です。既定ではローカル確認用の sidecar artifact として `report.html` も生成しますが、これは保存・配信の対象ではありません。
+
 ### ライブラリとして
 
 ```python
 from analysis_core import PipelineOrchestrator, PipelineConfig
 
 config = PipelineConfig.from_json("config.json")
-orchestrator = PipelineOrchestrator(config.to_dict())
-result = orchestrator.run()
+orchestrator = PipelineOrchestrator.from_dict(config.to_dict())
+result = orchestrator.run_default()
 ```
+
+`run_default()` が current の canonical path です。`run()` も残っていますが、legacy direct-step 実行経路として deprecated 扱いです。
 
 ## プラグインシステム
 

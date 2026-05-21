@@ -288,6 +288,194 @@ class TestWorkflowEngineValidation:
         # Downstream should not have been called
         assert call_count["downstream"] == 0
 
+    def test_seeds_comments_artifact_from_input_config(self, test_ctx, test_registry):
+        """Test that the engine exposes the input CSV as the initial comments artifact."""
+
+        seen = {}
+
+        @step_plugin(
+            id="test.comments_consumer",
+            version="1.0.0",
+            inputs=["comments"],
+            outputs=["result"],
+        )
+        def comments_consumer(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            seen["comments"] = inputs.artifacts["comments"]
+            return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
+
+        test_registry.register(comments_consumer)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[WorkflowStep(id="consume", plugin="test.comments_consumer")],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(workflow, {"input": "survey-comments"}, test_ctx)
+
+        assert result.success
+        assert seen["comments"] == test_ctx.input_dir / "survey-comments.csv"
+
+    def test_condition_accepts_legacy_without_html_key(self, test_ctx, test_registry):
+        """Test that workflow conditions honor the legacy without-html config key."""
+
+        @step_plugin(
+            id="test.optional_html",
+            version="1.0.0",
+            inputs=[],
+            outputs=["html"],
+        )
+        def optional_html(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            return StepOutputs(artifacts={"html": ctx.output_dir / "report.html"})
+
+        test_registry.register(optional_html)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[
+                WorkflowStep(
+                    id="html",
+                    plugin="test.optional_html",
+                    condition="${not config.without_html}",
+                )
+            ],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(workflow, {"without-html": True}, test_ctx)
+
+        assert result.success
+        assert result.step_results["html"].skipped
+
+    def test_seeds_existing_output_artifacts(self, test_ctx, test_registry):
+        """Test that existing output files can satisfy plugin input requirements."""
+
+        existing_args = test_ctx.output_dir / "args.csv"
+        existing_args.write_text("arg-id,argument\nA1,test\n", encoding="utf-8")
+        seen = {}
+
+        @step_plugin(
+            id="test.arguments_consumer",
+            version="1.0.0",
+            inputs=["arguments"],
+            outputs=["result"],
+        )
+        def arguments_consumer(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            seen["arguments"] = inputs.artifacts["arguments"]
+            return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
+
+        test_registry.register(arguments_consumer)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[WorkflowStep(id="consume", plugin="test.arguments_consumer")],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(workflow, {}, test_ctx)
+
+        assert result.success
+        assert seen["arguments"] == existing_args
+
+    def test_skip_steps_marks_step_skipped(self, test_ctx, test_registry):
+        """Test explicit skip_steps support for rerun planning."""
+
+        calls = {"producer": 0, "consumer": 0}
+        existing_args = test_ctx.output_dir / "args.csv"
+        existing_args.write_text("arg-id,argument\nA1,old\n", encoding="utf-8")
+
+        @step_plugin(
+            id="test.producer",
+            version="1.0.0",
+            inputs=[],
+            outputs=["arguments"],
+        )
+        def producer_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            calls["producer"] += 1
+            return StepOutputs(artifacts={"arguments": ctx.output_dir / "args.csv"})
+
+        @step_plugin(
+            id="test.consumer",
+            version="1.0.0",
+            inputs=["arguments"],
+            outputs=["result"],
+        )
+        def consumer_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            calls["consumer"] += 1
+            assert inputs.artifacts["arguments"] == existing_args
+            return StepOutputs(artifacts={"result": ctx.output_dir / "result.txt"})
+
+        test_registry.register(producer_plugin)
+        test_registry.register(consumer_plugin)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[
+                WorkflowStep(id="produce", plugin="test.producer"),
+                WorkflowStep(id="consume", plugin="test.consumer", depends_on=["produce"]),
+            ],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(workflow, {}, test_ctx, skip_steps={"produce"})
+
+        assert result.success
+        assert result.step_results["produce"].skipped is True
+        assert calls["producer"] == 0
+        assert calls["consumer"] == 1
+
+    def test_optional_step_failure_still_emits_completion_callback(self, test_ctx, test_registry):
+        """Test optional step exceptions still trigger on_step_complete."""
+
+        completions = []
+
+        @step_plugin(
+            id="test.optional_failure",
+            version="1.0.0",
+            inputs=[],
+            outputs=["result"],
+        )
+        def optional_failure(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            raise RuntimeError("boom")
+
+        @step_plugin(
+            id="test.final_step",
+            version="1.0.0",
+            inputs=[],
+            outputs=["final_result"],
+        )
+        def final_step(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            return StepOutputs(artifacts={"final_result": ctx.output_dir / "final.txt"})
+
+        test_registry.register(optional_failure)
+        test_registry.register(final_step)
+
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[
+                WorkflowStep(id="optional", plugin="test.optional_failure", optional=True),
+                WorkflowStep(id="final", plugin="test.final_step", depends_on=["optional"]),
+            ],
+        )
+
+        engine = WorkflowEngine(registry=test_registry)
+        result = engine.run(
+            workflow,
+            {},
+            test_ctx,
+            on_step_complete=lambda step_id, step_result: completions.append((step_id, step_result)),
+        )
+
+        assert result.success
+        assert [step_id for step_id, _ in completions] == ["optional", "final"]
+        assert completions[0][1].skipped is True
+        assert completions[0][1].success is False
+
 
 class TestWorkflowEngineOutputDir:
     """Tests for workflow engine output directory handling."""

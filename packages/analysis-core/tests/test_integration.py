@@ -3,6 +3,8 @@
 import json
 from unittest.mock import patch
 
+import pytest
+
 from analysis_core import PipelineOrchestrator
 from analysis_core.orchestrator import PipelineResult
 
@@ -53,7 +55,8 @@ class TestPipelineIntegration:
             mock_run_step.side_effect = side_effect
 
             with patch("analysis_core.orchestrator.termination"):
-                result = orchestrator.run()
+                with pytest.warns(DeprecationWarning, match="run\\(\\) is deprecated"):
+                    result = orchestrator.run()
 
         # Verify steps were executed in order
         assert executed_steps == ["extraction", "embedding"]
@@ -89,7 +92,8 @@ class TestPipelineIntegration:
             mock_run_step.side_effect = side_effect
 
             with patch("analysis_core.orchestrator.termination"):
-                result = orchestrator.run()
+                with pytest.warns(DeprecationWarning, match="run\\(\\) is deprecated"):
+                    result = orchestrator.run()
 
         # Verify failure was captured
         assert result.success is False
@@ -106,7 +110,7 @@ class TestPipelineIntegration:
                 {
                     "input": "test",
                     "question": "Test question?",
-                    "provider": "openai",
+                    "provider": "local",
                 }
             )
         )
@@ -171,7 +175,71 @@ class TestPipelineIntegration:
             mock_run_step.side_effect = side_effect
 
             with patch("analysis_core.orchestrator.termination"):
-                orchestrator.run()
+                with pytest.warns(DeprecationWarning, match="run\\(\\) is deprecated"):
+                    orchestrator.run()
 
         status = orchestrator.get_status()
         assert status["current_job"] == "extraction"
+
+    def test_run_default_uses_workflow_path(self, tmp_path, monkeypatch):
+        """Test the default execution path delegates to run_workflow."""
+        config = {
+            "input": "test",
+            "question": "Test?",
+            "output_dir": "test",
+            "plan": [{"step": "extraction", "run": True}],
+        }
+
+        orchestrator = PipelineOrchestrator(
+            config=config,
+            output_base_dir=tmp_path,
+            steps=["extraction"],
+        )
+
+        expected = PipelineResult(success=True, total_token_usage=42)
+        monkeypatch.setattr(orchestrator, "run_workflow", lambda: expected)
+
+        result = orchestrator.run_default()
+
+        assert result is expected
+
+    def test_run_workflow_reports_legacy_step_names(self, tmp_path, monkeypatch):
+        """Test workflow execution returns legacy step names in PipelineResult."""
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                result = WorkflowResult(workflow_id="test")
+                step_result = WorkflowStepResult(
+                    step_id="visualization",
+                    success=True,
+                    outputs=StepOutputs(artifacts={"html": ctx.output_dir / "report.html"}),
+                )
+                if on_step_start:
+                    on_step_start("visualization")
+                if on_step_complete:
+                    on_step_complete("visualization", step_result)
+                result.step_results["visualization"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is True
+        assert [step.step_name for step in result.steps] == ["hierarchical_visualization"]

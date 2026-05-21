@@ -202,6 +202,37 @@ class TestInitialization:
 
         assert config.get("without-html") is True
 
+    def test_initialization_prefers_legacy_without_html_key(self, tmp_path):
+        """Test conflicting without_html flags are reconciled to the legacy key."""
+        from analysis_core.core import initialization
+
+        config_path = tmp_path / "job.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "local",
+                    "without_html": False,
+                    "without-html": True,
+                }
+            )
+        )
+
+        input_dir = tmp_path / "inputs"
+        output_dir = tmp_path / "outputs"
+        input_dir.mkdir()
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=output_dir,
+            input_base_dir=input_dir,
+        )
+
+        assert config["without-html"] is True
+        assert config["without_html"] is True
+
 
 class TestValidateApiKeys:
     """Test API key validation."""
@@ -481,3 +512,369 @@ class TestPipelineOrchestrator:
         assert status["status"] == "running"
         assert status["current_job"] == "extraction"
         assert status["total_token_usage"] == 100
+
+    def test_from_dict_uses_previous_status_for_plan(self, tmp_path):
+        """Test from_dict loads previous status and computes rerun plan."""
+        from analysis_core import PipelineOrchestrator
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+        (output_dir / "args.csv").write_text("arg-id,argument\nA1,test\n", encoding="utf-8")
+        (output_dir / "hierarchical_status.json").write_text(
+            json.dumps(
+                {
+                    "completed_jobs": [
+                        {
+                            "step": "extraction",
+                            "params": {
+                                "limit": 1000,
+                                "workers": 3,
+                                "prompt": "",
+                                "model": "dummy",
+                                "properties": [],
+                            },
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+                "extraction": {"limit": 1000, "workers": 3, "prompt": "", "model": "dummy", "properties": []},
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        extraction_plan = next(step for step in orchestrator.get_plan() if step["step"] == "extraction")
+        assert extraction_plan["run"] is False
+        assert extraction_plan["reason"] == "nothing changed"
+        assert "previous" in orchestrator.config
+
+    def test_from_dict_prefers_legacy_without_html_key(self, tmp_path):
+        """Test from_dict reconciles conflicting without_html variants."""
+        from analysis_core import PipelineOrchestrator
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+                "without_html": False,
+                "without-html": True,
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        assert orchestrator.config["without-html"] is True
+        assert orchestrator.config["without_html"] is True
+
+    def test_from_dict_preserves_explicit_plan(self, tmp_path):
+        """Test from_dict keeps caller-provided plan instead of recomputing it."""
+        from analysis_core import PipelineOrchestrator
+
+        explicit_plan = [
+            {"step": "extraction", "run": True, "reason": "scoped test"},
+            {"step": "embedding", "run": False, "reason": "scoped test"},
+        ]
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+                "plan": explicit_plan,
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        assert orchestrator.get_plan() == explicit_plan
+
+    def test_run_workflow_persists_status_file(self, tmp_path, monkeypatch):
+        """Test workflow mode writes hierarchical_status.json with completed jobs."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        config = {
+            "name": "demo",
+            "input": "demo",
+            "question": "Test?",
+            "provider": "local",
+            "model": "dummy",
+            "extraction": {},
+        }
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config=config,
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                result = WorkflowResult(
+                    workflow_id="test",
+                    total_token_usage=12,
+                    total_token_input=5,
+                    total_token_output=7,
+                )
+                step_result = WorkflowStepResult(
+                    step_id="extraction",
+                    success=True,
+                    outputs=StepOutputs(
+                        artifacts={"arguments": ctx.output_dir / "args.csv"},
+                        token_usage=12,
+                        token_input=5,
+                        token_output=7,
+                    ),
+                )
+                if on_step_start:
+                    on_step_start("extraction")
+                if on_step_complete:
+                    on_step_complete("extraction", step_result)
+                result.step_results["extraction"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is True
+        status_path = tmp_path / "outputs" / "demo" / "hierarchical_status.json"
+        assert status_path.exists()
+
+        status_data = json.loads(status_path.read_text(encoding="utf-8"))
+        assert status_data["status"] == "completed"
+        assert status_data["total_token_usage"] == 12
+        assert status_data["token_usage_input"] == 5
+        assert status_data["token_usage_output"] == 7
+        assert len(status_data["completed_jobs"]) == 1
+        assert status_data["completed_jobs"][0]["step"] == "extraction"
+
+    def test_run_workflow_carries_forward_previously_completed_jobs(self, tmp_path, monkeypatch):
+        """Test workflow mode preserves older completed jobs in previously_completed_jobs."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+        (output_dir / "hierarchical_status.json").write_text(
+            json.dumps(
+                {
+                    "completed_jobs": [
+                        {"step": "extraction", "params": {}},
+                        {"step": "embedding", "params": {}},
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                result = WorkflowResult(workflow_id="test")
+                step_result = WorkflowStepResult(
+                    step_id="embedding",
+                    success=True,
+                    outputs=StepOutputs(artifacts={"embeddings": ctx.output_dir / "embeddings.pkl"}),
+                )
+                if on_step_start:
+                    on_step_start("embedding")
+                if on_step_complete:
+                    on_step_complete("embedding", step_result)
+                result.step_results["embedding"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        orchestrator.run_workflow()
+
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert any(job["step"] == "embedding" for job in status_data["completed_jobs"])
+        assert any(job["step"] == "extraction" for job in status_data["previously_completed_jobs"])
+
+    def test_run_workflow_records_failed_step_error_and_keeps_current_job(self, tmp_path, monkeypatch):
+        """Test workflow failures preserve the failed step in status and expose its error."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                result = WorkflowResult(workflow_id="test", success=False)
+                step_result = WorkflowStepResult(
+                    step_id="embedding",
+                    success=False,
+                    error="Step 'embedding' failed: boom",
+                )
+                if on_step_start:
+                    on_step_start("embedding")
+                if on_step_complete:
+                    on_step_complete("embedding", step_result)
+                result.step_results["embedding"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is False
+        assert result.error == "Step 'embedding' failed: boom"
+
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["status"] == "error"
+        assert status_data["current_job"] == "embedding"
+        assert status_data["error"] == "Step 'embedding' failed: boom"
+
+    def test_run_workflow_exception_carries_forward_previous_jobs_and_stack_trace(self, tmp_path, monkeypatch):
+        """Test unexpected workflow exceptions still preserve rerun history and traceback."""
+        from analysis_core import PipelineOrchestrator
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+        (output_dir / "hierarchical_status.json").write_text(
+            json.dumps(
+                {
+                    "completed_jobs": [
+                        {"step": "extraction", "params": {}},
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                if on_step_start:
+                    on_step_start("embedding")
+                raise RuntimeError("engine exploded")
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is False
+        assert result.error == "engine exploded"
+
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["status"] == "error"
+        assert status_data["current_job"] == "embedding"
+        assert status_data["error"] == "engine exploded"
+        assert "RuntimeError: engine exploded" in status_data["error_stack_trace"]
+        assert any(job["step"] == "extraction" for job in status_data["previously_completed_jobs"])
+
+    def test_run_workflow_exception_preserves_accumulated_token_usage(self, tmp_path, monkeypatch):
+        """Test engine exceptions keep token usage already recorded by completed steps."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                step_result = WorkflowStepResult(
+                    step_id="embedding",
+                    success=True,
+                    outputs=StepOutputs(
+                        artifacts={"embeddings": ctx.output_dir / "embeddings.pkl"},
+                        token_usage=9,
+                        token_input=4,
+                        token_output=5,
+                    ),
+                )
+                if on_step_start:
+                    on_step_start("embedding")
+                if on_step_complete:
+                    on_step_complete("embedding", step_result)
+                raise RuntimeError("engine exploded after embedding")
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is False
+        assert result.error == "engine exploded after embedding"
+        assert result.total_token_usage == 9
+
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["total_token_usage"] == 9
+        assert status_data["token_usage_input"] == 4
+        assert status_data["token_usage_output"] == 5

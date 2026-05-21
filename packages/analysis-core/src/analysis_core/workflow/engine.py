@@ -6,7 +6,7 @@ based on their definitions and configurations.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from analysis_core.plugin import (
     PluginRegistry,
@@ -59,6 +59,9 @@ class WorkflowEngine:
         workflow: WorkflowDefinition,
         config: dict[str, Any],
         ctx: StepContext,
+        on_step_start: Callable[[str], None] | None = None,
+        on_step_complete: Callable[[str, StepResult], None] | None = None,
+        skip_steps: set[str] | None = None,
     ) -> WorkflowResult:
         """
         Execute a workflow.
@@ -83,12 +86,24 @@ class WorkflowEngine:
         result = WorkflowResult(workflow_id=workflow.id)
 
         # Track artifacts produced by each step
-        artifacts: dict[str, Path] = {}
+        artifacts = self._build_initial_artifacts(config, ctx)
 
         # Execute steps in order
         for step_id in execution_order:
             step = workflow.get_step(step_id)
             if step is None:
+                continue
+            if on_step_start:
+                on_step_start(step_id)
+
+            if skip_steps and step_id in skip_steps:
+                result.step_results[step_id] = StepResult(
+                    step_id=step_id,
+                    success=True,
+                    skipped=True,
+                )
+                if on_step_complete:
+                    on_step_complete(step_id, result.step_results[step_id])
                 continue
 
             # Check condition
@@ -98,6 +113,8 @@ class WorkflowEngine:
                     success=True,
                     skipped=True,
                 )
+                if on_step_complete:
+                    on_step_complete(step_id, result.step_results[step_id])
                 continue
 
             # Get plugin
@@ -110,6 +127,8 @@ class WorkflowEngine:
                         skipped=True,
                         error=f"Plugin '{step.plugin}' not found (optional step)",
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                     continue
                 else:
                     raise WorkflowExecutionError(f"Plugin '{step.plugin}' not found for step '{step_id}'")
@@ -145,6 +164,8 @@ class WorkflowEngine:
                         error=error_msg,
                         skipped=True,
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                     continue
                 else:
                     result.step_results[step_id] = StepResult(
@@ -152,6 +173,8 @@ class WorkflowEngine:
                         success=False,
                         error=error_msg,
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                     result.success = False
                     break
 
@@ -174,6 +197,8 @@ class WorkflowEngine:
                     success=True,
                     outputs=outputs,
                 )
+                if on_step_complete:
+                    on_step_complete(step_id, result.step_results[step_id])
 
             except Exception as e:
                 error_msg = f"Step '{step_id}' failed: {str(e)}"
@@ -186,16 +211,61 @@ class WorkflowEngine:
                         error=error_msg,
                         skipped=True,
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                 else:
                     result.step_results[step_id] = StepResult(
                         step_id=step_id,
                         success=False,
                         error=error_msg,
                     )
+                    if on_step_complete:
+                        on_step_complete(step_id, result.step_results[step_id])
                     result.success = False
                     break
 
         return result
+
+    def _build_initial_artifacts(
+        self,
+        config: dict[str, Any],
+        ctx: StepContext,
+    ) -> dict[str, Path]:
+        """
+        Seed workflow artifacts that exist before any plugin executes.
+
+        The legacy pipeline treats the input CSV as an implicit starting point.
+        To preserve that behavior for the workflow engine, expose the resolved
+        comments CSV as the initial ``comments`` artifact when ``config["input"]``
+        is available.
+        """
+        artifacts: dict[str, Path] = {}
+
+        input_name = config.get("input")
+        if isinstance(input_name, str) and input_name:
+            input_path = Path(input_name)
+            if input_path.suffix:
+                artifacts["comments"] = ctx.input_dir / input_path
+            else:
+                artifacts["comments"] = ctx.input_dir / input_path.with_suffix(".csv")
+
+        output_artifacts = {
+            "arguments": "args.csv",
+            "relations": "relations.csv",
+            "embeddings": "embeddings.pkl",
+            "clusters": "hierarchical_clusters.csv",
+            "initial_labels": "hierarchical_initial_labels.csv",
+            "merge_labels": "hierarchical_merge_labels.csv",
+            "overview": "hierarchical_overview.txt",
+            "result": "hierarchical_result.json",
+            "html": "report.html",
+        }
+        for artifact_id, filename in output_artifacts.items():
+            artifact_path = ctx.output_dir / filename
+            if artifact_path.exists():
+                artifacts[artifact_id] = artifact_path
+
+        return artifacts
 
     def _resolve_step_config(
         self,
