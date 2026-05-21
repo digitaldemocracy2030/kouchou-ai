@@ -26,6 +26,7 @@ COPY apps/static-site-builder/package.json apps/static-site-builder/
 RUN pnpm install --frozen-lockfile
 
 COPY packages/report-schema packages/report-schema
+COPY apps/shared apps/shared
 COPY apps/admin apps/admin
 
 ENV NEXT_DISABLE_FETCH_DURING_BUILD=true
