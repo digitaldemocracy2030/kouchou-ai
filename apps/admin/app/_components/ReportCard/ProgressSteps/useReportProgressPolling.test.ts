@@ -74,13 +74,13 @@ describe("useReportProgressPoll", () => {
   it("APIからcurrent_stepが返された時にprogressが更新される", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ current_step: "processing" }),
+      json: async () => ({ current_step: "extraction" }),
     } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
 
     await waitFor(() => {
-      expect(result.current.progress).toBe("processing");
+      expect(result.current.progress).toBe("extraction");
     });
   });
 
@@ -132,7 +132,7 @@ describe("useReportProgressPoll", () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ current_step: "processing" }),
+        json: async () => ({ current_step: "extraction" }),
       } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
@@ -147,7 +147,7 @@ describe("useReportProgressPoll", () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(result.current.progress).toBe("processing");
+      expect(result.current.progress).toBe("extraction");
     });
   });
 
@@ -157,7 +157,7 @@ describe("useReportProgressPoll", () => {
       .mockRejectedValueOnce(new Error("Network error"))
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ current_step: "processing" }),
+        json: async () => ({ current_step: "extraction" }),
       } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
@@ -179,7 +179,7 @@ describe("useReportProgressPoll", () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(3);
-      expect(result.current.progress).toBe("processing");
+      expect(result.current.progress).toBe("extraction");
     });
   });
 
@@ -240,7 +240,7 @@ describe("useReportProgressPoll", () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ current_step: "processing" }),
+        json: async () => ({ current_step: "extraction" }),
       } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
@@ -264,7 +264,7 @@ describe("useReportProgressPoll", () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(3);
-      expect(result.current.progress).toBe("processing");
+      expect(result.current.progress).toBe("extraction");
     });
   });
 
@@ -275,7 +275,7 @@ describe("useReportProgressPoll", () => {
           setTimeout(() => {
             resolve({
               ok: true,
-              json: async () => ({ current_step: "processing" }),
+              json: async () => ({ current_step: "extraction" }),
             } as Response);
           }, 1000);
         }),

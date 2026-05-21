@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { stepKeys } from "./ProgressSteps";
+import { stepKeys } from "./progressStepsConfig";
 
 type Progress = (typeof stepKeys)[number] | "loading" | "completed" | "error";
 type StepJsonResponse = {
