@@ -674,6 +674,44 @@ def test_monitor_process_preserves_existing_report_status_during_aggregation_rer
     ]
 
 
+def test_monitor_process_persists_error_log_excerpt_when_process_fails(monkeypatch, tmp_path):
+    import json
+
+    from src.services import report_launcher
+
+    slug = "demo"
+    report_dir = tmp_path / "reports"
+    config_dir = tmp_path / "configs"
+    (report_dir / slug).mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+
+    log_path = report_dir / slug / report_launcher.ANALYSIS_LOG_FILENAME
+    log_path.write_text("line 1\nline 2\nRuntimeError: boom", encoding="utf-8")
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_launcher.settings, "CONFIG_DIR", config_dir)
+
+    calls = {"statuses": []}
+
+    class DummyProcess:
+        def wait(self):
+            return 1
+
+    monkeypatch.setattr(
+        report_launcher, "set_status", lambda current_slug, status: calls["statuses"].append((current_slug, status))
+    )
+
+    report_launcher._monitor_process(DummyProcess(), slug)
+
+    status_data = json.loads((report_dir / slug / "hierarchical_status.json").read_text(encoding="utf-8"))
+    assert status_data["status"] == "error"
+    assert status_data["current_job"] == "error"
+    assert status_data["error"] == "line 1\nline 2\nRuntimeError: boom"
+    assert status_data["error_log_path"] == report_launcher.ANALYSIS_LOG_FILENAME
+    assert status_data["error_log_excerpt"] == "line 1\nline 2\nRuntimeError: boom"
+    assert calls["statuses"] == [(slug, "error")]
+
+
 def test_execute_aggregation_runs_monitor_flow_and_preserves_existing_status(monkeypatch, tmp_path):
     import json
     import subprocess

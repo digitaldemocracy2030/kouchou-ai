@@ -106,13 +106,21 @@ describe("useReportProgressPoll", () => {
   it("current_stepがerrorの時にprogressがerrorに設定される", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ current_step: "error" }),
+      json: async () => ({
+        current_step: "error",
+        status: "error",
+        error_message: "Step failed",
+        error_log_excerpt: "trace line",
+      }),
     } as Response);
 
     const { result } = renderHook(() => useReportProgressPoll("test-slug"));
 
     await waitFor(() => {
       expect(result.current.progress).toBe("error");
+      expect(result.current.isError).toBe(true);
+      expect(result.current.errorMessage).toBe("Step failed");
+      expect(result.current.errorLogExcerpt).toBe("trace line");
     });
   });
 
@@ -195,6 +203,7 @@ describe("useReportProgressPoll", () => {
     await waitFor(() => {
       expect(result.current.progress).toBe("loading");
       expect(result.current.isError).toBe(true);
+      expect(result.current.errorMessage).toBe("レポート生成状況の取得に失敗しました。");
     });
   });
 
@@ -215,6 +224,7 @@ describe("useReportProgressPoll", () => {
     await waitFor(() => {
       expect(result.current.progress).toBe("loading");
       expect(result.current.isError).toBe(true);
+      expect(result.current.errorMessage).toBe("レポート生成状況の取得に失敗しました。");
     });
   });
 

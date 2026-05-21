@@ -187,6 +187,34 @@ async def test_get_current_step_with_failed_workflow_step(async_client, test_slu
                 assert data["token_usage_output"] == 198
                 assert data["provider"] == "openai"
                 assert data["model"] == "gpt-4o-mini"
+                assert data["error_message"] == "Step 'embedding' failed: boom"
+
+
+@pytest.mark.asyncio
+async def test_get_current_step_with_error_log_excerpt(async_client, test_slug, tmp_path):
+    status_data = {
+        "status": "error",
+        "current_job": "embedding",
+        "error": "Step 'embedding' failed: boom",
+        "error_log_path": "analysis.log",
+    }
+
+    report_dir = tmp_path / "reports"
+    log_dir = report_dir / test_slug
+    log_dir.mkdir(parents=True)
+    (log_dir / "hierarchical_status.json").write_text(json.dumps(status_data), encoding="utf-8")
+    (log_dir / "analysis.log").write_text("trace line 1\ntrace line 2", encoding="utf-8")
+
+    mock_status_file = MagicMock(spec=Path)
+    mock_status_file.exists.return_value = True
+
+    with patch("src.routers.admin_report.settings") as mock_settings:
+        mock_settings.REPORT_DIR = report_dir
+        response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["error_log_path"] == "analysis.log"
+        assert data["error_log_excerpt"] == "trace line 1\ntrace line 2"
 
 
 @pytest.mark.asyncio
@@ -221,3 +249,4 @@ async def test_get_current_step_exception(async_client, test_slug):
         assert data["token_usage"] == 0
         assert data["token_usage_input"] == 0
         assert data["token_usage_output"] == 0
+        assert data["error_message"] is None

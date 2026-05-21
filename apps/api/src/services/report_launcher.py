@@ -14,6 +14,8 @@ from src.services.report_sync import ReportSyncService
 from src.utils.logger import setup_logger
 
 logger = setup_logger()
+ANALYSIS_LOG_FILENAME = "analysis.log"
+MAX_ERROR_LOG_CHARS = 4000
 
 
 def _build_config(report_input: ReportInput) -> dict[str, Any]:
@@ -127,7 +129,57 @@ def save_input_file(report_input: ReportInput) -> Path:
     return input_path
 
 
-def _monitor_process(process: subprocess.Popen, slug: str) -> None:
+def _analysis_log_path(slug: str) -> Path:
+    return settings.REPORT_DIR / slug / ANALYSIS_LOG_FILENAME
+
+
+def _read_log_excerpt(log_path: Path, max_chars: int = MAX_ERROR_LOG_CHARS) -> str | None:
+    if not log_path.exists():
+        return None
+
+    try:
+        content = log_path.read_text(encoding="utf-8", errors="replace").strip()
+    except Exception as exc:
+        logger.warning(f"Failed to read analysis log for {log_path}: {exc}")
+        return None
+
+    if not content:
+        return None
+
+    if len(content) <= max_chars:
+        return content
+
+    return content[-max_chars:]
+
+
+def _ensure_error_status_payload(slug: str) -> None:
+    status_file = settings.REPORT_DIR / slug / "hierarchical_status.json"
+    log_path = _analysis_log_path(slug)
+    log_excerpt = _read_log_excerpt(log_path)
+
+    status_data: dict[str, Any]
+    if status_file.exists():
+        try:
+            with open(status_file, encoding="utf-8") as f:
+                status_data = json.load(f)
+        except Exception as exc:
+            logger.warning(f"Failed to load status file for {slug}: {exc}")
+            status_data = {}
+    else:
+        status_data = {}
+
+    status_data["status"] = "error"
+    status_data["current_job"] = status_data.get("current_job") or "error"
+    status_data["error"] = status_data.get("error") or log_excerpt or "analysis-core exited with a non-zero status"
+    status_data["error_log_path"] = ANALYSIS_LOG_FILENAME
+    status_data["error_log_excerpt"] = log_excerpt
+
+    status_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(status_file, "w", encoding="utf-8") as f:
+        json.dump(status_data, f, indent=2, ensure_ascii=False)
+
+
+def _monitor_process(process: subprocess.Popen, slug: str, log_file: Any | None = None) -> None:
     """
     サブプロセスの実行を監視し、完了時にステータスを更新する
 
@@ -135,51 +187,65 @@ def _monitor_process(process: subprocess.Popen, slug: str) -> None:
         process: 監視対象のサブプロセス
         slug: レポートのスラッグ
     """
-    retcode = process.wait()
-    if retcode == 0:
-        # レポート生成成功時、ステータスを更新
-        try:
-            status_file = settings.REPORT_DIR / slug / "hierarchical_status.json"
-            if status_file.exists():
-                with open(status_file) as f:
-                    status_data = json.load(f)
-                    total_token_usage = status_data.get("total_token_usage", 0)
-                    token_usage_input = status_data.get("token_usage_input", 0)
-                    token_usage_output = status_data.get("token_usage_output", 0)
+    try:
+        retcode = process.wait()
+        if retcode == 0:
+            # レポート生成成功時、ステータスを更新
+            try:
+                status_file = settings.REPORT_DIR / slug / "hierarchical_status.json"
+                if status_file.exists():
+                    with open(status_file, encoding="utf-8") as f:
+                        status_data = json.load(f)
+                        total_token_usage = status_data.get("total_token_usage", 0)
+                        token_usage_input = status_data.get("token_usage_input", 0)
+                        token_usage_output = status_data.get("token_usage_output", 0)
 
-                    config_file = settings.CONFIG_DIR / f"{slug}.json"
-                    provider = None
-                    model = None
-                    if config_file.exists():
-                        with open(config_file) as f:
-                            config_data = json.load(f)
-                            provider = config_data.get("provider")
-                            model = config_data.get("model")
+                        config_file = settings.CONFIG_DIR / f"{slug}.json"
+                        provider = None
+                        model = None
+                        if config_file.exists():
+                            with open(config_file, encoding="utf-8") as f:
+                                config_data = json.load(f)
+                                provider = config_data.get("provider")
+                                model = config_data.get("model")
 
-                    logger.info(
-                        f"Found token usage in status file for {slug}: total={total_token_usage}, input={token_usage_input}, output={token_usage_output}, provider={provider}, model={model}"
-                    )
-                    update_token_usage(
-                        slug, total_token_usage, token_usage_input, token_usage_output, provider or None, model or None
-                    )
-        except Exception as e:
-            logger.error(f"Error updating token usage for {slug}: {e}")
+                        logger.info(
+                            f"Found token usage in status file for {slug}: total={total_token_usage}, input={token_usage_input}, output={token_usage_output}, provider={provider}, model={model}"
+                        )
+                        update_token_usage(
+                            slug, total_token_usage, token_usage_input, token_usage_output, provider or None, model or None
+                        )
+            except Exception as e:
+                logger.error(f"Error updating token usage for {slug}: {e}")
 
-        set_status(slug, "ready")
+            set_status(slug, "ready")
 
-        logger.info(f"Syncing files for {slug} to storage")
-        report_sync_service = ReportSyncService()
-        # レポートファイルをストレージに同期し、JSONファイル以外を削除
-        report_sync_service.sync_report_files_to_storage(slug)
-        # 入力ファイルをストレージに同期し、ローカルファイルを削除
-        report_sync_service.sync_input_file_to_storage(slug)
-        # 設定ファイルをストレージに同期
-        report_sync_service.sync_config_file_to_storage(slug)
-        # ステータスファイルをストレージに同期
-        report_sync_service.sync_status_file_to_storage()
+            logger.info(f"Syncing files for {slug} to storage")
+            report_sync_service = ReportSyncService()
+            # レポートファイルをストレージに同期し、JSONファイル以外を削除
+            report_sync_service.sync_report_files_to_storage(slug)
+            # 入力ファイルをストレージに同期し、ローカルファイルを削除
+            report_sync_service.sync_input_file_to_storage(slug)
+            # 設定ファイルをストレージに同期
+            report_sync_service.sync_config_file_to_storage(slug)
+            # ステータスファイルをストレージに同期
+            report_sync_service.sync_status_file_to_storage()
 
-    else:
-        set_status(slug, "error")
+        else:
+            _ensure_error_status_payload(slug)
+            set_status(slug, "error")
+    finally:
+        if log_file is not None:
+            log_file.close()
+
+
+def _launch_analysis_process(cmd: list[str], slug: str, env: dict[str, str]) -> subprocess.Popen:
+    report_dir = settings.REPORT_DIR / slug
+    report_dir.mkdir(parents=True, exist_ok=True)
+    log_file = _analysis_log_path(slug).open("a", encoding="utf-8")
+    process = subprocess.Popen(cmd, env=env, stdout=log_file, stderr=subprocess.STDOUT)
+    threading.Thread(target=_monitor_process, args=(process, slug, log_file), daemon=True).start()
+    return process
 
 
 def launch_report_generation(report_input: ReportInput, user_api_key: str | None = None) -> None:
@@ -196,8 +262,7 @@ def launch_report_generation(report_input: ReportInput, user_api_key: str | None
         if user_api_key:
             env["USER_API_KEY"] = user_api_key
 
-        process = subprocess.Popen(cmd, env=env)
-        threading.Thread(target=_monitor_process, args=(process, report_input.input), daemon=True).start()
+        _launch_analysis_process(cmd, report_input.input, env)
     except Exception as e:
         set_status(report_input.input, "error")
         logger.error(f"Error launching report generation: {e}")
@@ -215,8 +280,7 @@ def launch_report_generation_from_config(config_path: Path, slug: str, user_api_
         if user_api_key:
             env["USER_API_KEY"] = user_api_key
 
-        process = subprocess.Popen(cmd, env=env)
-        threading.Thread(target=_monitor_process, args=(process, slug), daemon=True).start()
+        _launch_analysis_process(cmd, slug, env)
     except Exception as e:
         set_status(slug, "error")
         logger.error(f"Error launching report generation from config: {e}")
@@ -235,8 +299,7 @@ def execute_aggregation(slug: str, user_api_key: str | None = None) -> bool:
         if user_api_key:
             env["USER_API_KEY"] = user_api_key
 
-        process = subprocess.Popen(cmd, env=env)
-        threading.Thread(target=_monitor_process, args=(process, slug), daemon=True).start()
+        _launch_analysis_process(cmd, slug, env)
         return True
     except Exception as e:
         logger.error(f"Error executing aggregation: {e}")
