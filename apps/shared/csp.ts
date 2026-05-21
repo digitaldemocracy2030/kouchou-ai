@@ -33,6 +33,8 @@ type BuildCspOptions = {
   isDevelopment?: boolean;
 };
 
+type CspDirective = [directive: string, values: string[]];
+
 export const buildCspHeaderValue = ({
   apiBasePath,
   publicApiBasePath,
@@ -56,7 +58,7 @@ export const buildCspHeaderValue = ({
     connectSrc.push(GOOGLE_TAG_MANAGER_ORIGIN, GOOGLE_ANALYTICS_ORIGIN, GOOGLE_ANALYTICS_REGION_ORIGIN);
   }
 
-  return [
+  const directives: CspDirective[] = [
     ["default-src", ["'self'"]],
     ["base-uri", ["'self'"]],
     ["object-src", ["'none'"]],
@@ -66,7 +68,7 @@ export const buildCspHeaderValue = ({
     ["img-src", unique(imgSrc)],
     ["font-src", unique(fontSrc)],
     ["connect-src", unique(connectSrc)],
-  ]
-    .map(([directive, values]) => `${directive} ${values.join(" ")}`)
-    .join("; ");
+  ];
+
+  return directives.map(([directive, values]) => `${directive} ${values.join(" ")}`).join("; ");
 };
