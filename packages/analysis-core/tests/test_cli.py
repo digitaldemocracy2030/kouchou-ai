@@ -70,6 +70,7 @@ class TestCLI:
         # Create input directory
         input_dir = tmp_path / "inputs"
         input_dir.mkdir()
+        (input_dir / "test.csv").write_text("comment-id,comment-body\n1,test\n", encoding="utf-8")
 
         # Create output directory
         output_dir = tmp_path / "outputs"
@@ -92,10 +93,82 @@ class TestCLI:
             cwd=PACKAGE_ROOT,
         )
         assert result.returncode == 0
+        assert "Preflight validation passed." in result.stdout
         assert "Execution Plan" in result.stdout
         assert "extraction" in result.stdout
         assert "embedding" in result.stdout
         assert not (output_dir / "test_config" / "hierarchical_status.json").exists()
+
+    def test_cli_validate_config(self, tmp_path):
+        """Test standalone config validation mode."""
+        config_path = tmp_path / "test_config.json"
+        config_path.write_text(json.dumps({"input": "test", "question": "Test question?", "provider": "openai"}))
+
+        result = subprocess.run(
+            [sys.executable, "-m", "analysis_core", "--config", str(config_path), "--validate-config"],
+            capture_output=True,
+            text=True,
+            cwd=PACKAGE_ROOT,
+        )
+
+        assert result.returncode == 0
+        assert "Preflight validation passed." in result.stdout
+        assert "Config:" in result.stdout
+
+    def test_cli_validate_input(self, tmp_path):
+        """Test standalone input validation mode."""
+        config_path = tmp_path / "test_config.json"
+        config_path.write_text(json.dumps({"input": "demo", "question": "Test question?", "provider": "openai"}))
+        input_dir = tmp_path / "inputs"
+        input_dir.mkdir()
+        (input_dir / "demo.csv").write_text("comment-id,comment-body\n1,test\n", encoding="utf-8")
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "analysis_core",
+                "--config",
+                str(config_path),
+                "--validate-input",
+                "--input-dir",
+                str(input_dir),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=PACKAGE_ROOT,
+        )
+
+        assert result.returncode == 0
+        assert "Preflight validation passed." in result.stdout
+        assert "Input:" in result.stdout
+
+    def test_cli_validate_input_reports_missing_columns(self, tmp_path):
+        """Test input validation reports a useful CSV schema error."""
+        config_path = tmp_path / "test_config.json"
+        config_path.write_text(json.dumps({"input": "demo", "question": "Test question?", "provider": "openai"}))
+        input_dir = tmp_path / "inputs"
+        input_dir.mkdir()
+        (input_dir / "demo.csv").write_text("comment-id,text\n1,test\n", encoding="utf-8")
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "analysis_core",
+                "--config",
+                str(config_path),
+                "--validate-input",
+                "--input-dir",
+                str(input_dir),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=PACKAGE_ROOT,
+        )
+
+        assert result.returncode == 1
+        assert "missing required columns" in result.stderr
 
     def test_cli_uses_default_execution_path(self, monkeypatch, tmp_path, capsys):
         """Test CLI execution delegates to run_default()."""

@@ -109,6 +109,15 @@ my-project/
 └── outputs/          # 自動生成される
 ```
 
+`config.json` の `"input": "my-comments"` は、既定では `inputs/my-comments.csv` を指します。別ディレクトリを使いたい場合は `--input-dir` と `--output-dir` で filesystem 上の基準パスを切り替えます。
+
+```bash
+kouchou-analyze \
+  --config /path/to/project/config.json \
+  --input-dir /path/to/project/inputs \
+  --output-dir /path/to/project/outputs
+```
+
 ### 実行前の確認（dry-run）
 
 ```bash
@@ -129,7 +138,20 @@ Execution Plan:
   [RUN] hierarchical_visualization: no trace of previous run
 ```
 
+`--dry-run` は単に plan を表示するだけでなく、current CLI path に対する **cheap preflight** も兼ねます。`config.json` の構造、解決された input CSV の存在、入力ヘッダ（最低 `comment-id`, `comment-body`）がここで確認されます。API key 検証や実際のパイプライン実行は行いません。
+
 `hierarchical_visualization` ステップは自己完結型の `report.html` を生成します（Plotly CDN のみ参照、データは inline）。これは CLI でのローカル確認用 sidecar artifact であり、canonical output は `hierarchical_result.json` です。HTML を生成したくない場合は `--without-html` を指定してください。
+
+### validation only
+
+設定だけ、あるいは入力 CSV だけを明示的に検証したい場合は次を使います。
+
+```bash
+kouchou-analyze --config config.json --validate-config
+kouchou-analyze --config config.json --validate-input
+```
+
+`--validate-input` は current execution path で本当に入力 CSV が必要な場合だけ `inputs/<input>.csv` を検証します。たとえば `--only hierarchical_visualization` のような再利用経路では、入力 CSV を必須にしません。
 
 ### 分析の実行
 
@@ -217,9 +239,12 @@ kouchou-analyze --help
 | オプション | 説明 |
 |-----------|------|
 | `--config`, `-c` | 設定ファイルのパス（必須） |
-| `--dry-run` | 実行計画のみ表示 |
+| `--dry-run` | cheap preflight 後に実行計画を表示して終了 |
+| `--validate-config` | config の構造だけ検証して終了 |
+| `--validate-input` | 解決された input CSV の存在と必須カラムを検証して終了 |
 | `--force`, `-f` | 全ステップを強制再実行 |
 | `--only`, `-o` | 特定のステップのみ実行 |
+| `--without-html` | HTML生成をスキップ |
 | `--output-dir` | 出力ディレクトリ（デフォルト: `outputs`） |
 | `--input-dir` | 入力ディレクトリ（デフォルト: `inputs`） |
 
@@ -312,7 +337,13 @@ export GOOGLE_API_KEY="your-key"
 }
 ```
 
-## 10. 結果の可視化
+## 10. output validation の位置づけ
+
+`hierarchical_result.json` などの **出力 artifact の厳密検証** は、current `analysis-core` では runtime の success 条件にはしていません。ここは end-user CLI を重くするより、schema test / e2e / viewer 側の利用で担保する寄りにしてあります。
+
+つまり CLI の preflight は `config` と `input` の fail-fast に集中し、post-run artifact validation は主に **developer/test concern** として扱います。
+
+## 11. 結果の可視化
 
 結果JSONは Matplotlib 等で可視化できます：
 

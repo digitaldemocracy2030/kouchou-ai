@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from analysis_core import __version__
+from analysis_core.core import plan_requires_input, validate_input_file
 from analysis_core.orchestrator import PipelineOrchestrator
 
 
@@ -68,6 +69,16 @@ def main() -> int:
         help="Show execution plan without running",
     )
     parser.add_argument(
+        "--validate-config",
+        action="store_true",
+        help="Validate the config file against the current CLI schema and exit",
+    )
+    parser.add_argument(
+        "--validate-input",
+        action="store_true",
+        help="Validate the resolved input CSV path and required columns, then exit",
+    )
+    parser.add_argument(
         "--version",
         "-v",
         action="version",
@@ -89,17 +100,35 @@ def main() -> int:
             only=args.only,
             skip_interaction=args.skip_interaction,
             without_html=args.without_html,
-            validate_api_keys_early=not args.dry_run,
-            persist_status=not args.dry_run,
+            validate_api_keys_early=not (args.dry_run or args.validate_config or args.validate_input),
+            persist_status=not (args.dry_run or args.validate_config or args.validate_input),
             output_base_dir=args.output_dir,
             input_base_dir=args.input_dir,
         )
 
+        plan = orchestrator.get_plan()
+        should_validate_input = args.validate_input or args.dry_run or (
+            not args.validate_config and plan_requires_input(plan)
+        )
+        validated_input_path = None
+        if should_validate_input:
+            validated_input_path = validate_input_file(orchestrator.config, orchestrator.input_base_dir, plan)
+
+        if args.validate_config or args.validate_input:
+            print("Preflight validation passed.")
+            print(f"  Config: {args.config}")
+            if args.validate_input and validated_input_path is not None:
+                print(f"  Input: {validated_input_path}")
+            return 0
+
         # Show plan if dry-run
         if args.dry_run:
+            print("Preflight validation passed.")
+            if validated_input_path is not None:
+                print(f"  Input: {validated_input_path}")
             print("Execution Plan:")
             print("-" * 40)
-            for step in orchestrator.get_plan():
+            for step in plan:
                 status = "RUN" if step.get("run") else "SKIP"
                 reason = step.get("reason", "")
                 print(f"  [{status}] {step['step']}: {reason}")

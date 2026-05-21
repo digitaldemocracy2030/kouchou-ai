@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
+import polars as pl
 from dotenv import load_dotenv
 
 # Default specs - can be overridden
@@ -159,6 +160,48 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
         for key in config.get(step_spec["step"], {}):
             if key not in valid_options:
                 raise Exception(f"Unknown option '{key}' for step '{step_spec['step']}' in config")
+
+
+def plan_requires_input(plan: list[dict[str, Any]] | None) -> bool:
+    """Return True when the current execution plan needs the input CSV."""
+    if not plan:
+        return True
+
+    input_required_steps = {"extraction", "hierarchical_aggregation"}
+    return any(step.get("run", True) and step.get("step") in input_required_steps for step in plan)
+
+
+def validate_input_file(config: dict[str, Any], input_base_dir: Path, plan: list[dict[str, Any]] | None = None) -> Path:
+    """Validate the CSV input path and required columns for the current plan."""
+    input_path = input_base_dir / f"{config['input']}.csv"
+    if not plan_requires_input(plan):
+        return input_path
+
+    if not input_path.exists():
+        raise RuntimeError(f"Input CSV not found: {input_path}")
+
+    try:
+        comments = pl.read_csv(input_path, n_rows=0)
+    except Exception as exc:
+        raise RuntimeError(f"Failed to read input CSV header: {input_path}") from exc
+
+    required_columns = {"comment-id", "comment-body"}
+    missing_columns = sorted(required_columns - set(comments.columns))
+    if missing_columns:
+        raise RuntimeError(
+            f"Input CSV is missing required columns {missing_columns}. "
+            f"Expected at least: ['comment-id', 'comment-body']"
+        )
+
+    property_columns = config.get("extraction", {}).get("properties", [])
+    missing_properties = [column for column in property_columns if column not in comments.columns]
+    if missing_properties:
+        raise RuntimeError(
+            f"Input CSV is missing extraction.properties columns {missing_properties}. "
+            f"Available columns: {comments.columns}"
+        )
+
+    return input_path
 
 
 def decide_what_to_run(
