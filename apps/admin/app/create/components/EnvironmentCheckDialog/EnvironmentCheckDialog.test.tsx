@@ -1,3 +1,4 @@
+import { createUUID } from "@/app/utils/uuid";
 import { system } from "@/components/theme/system";
 import { ChakraProvider } from "@chakra-ui/react";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -15,13 +16,13 @@ jest.mock("lucide-react", () => ({
 jest.mock("./verifyApiKey");
 const mockVerifyApiKey = verifyApiKey as jest.MockedFunction<typeof verifyApiKey>;
 
-// crypto.randomUUIDをモック化
+jest.mock("@/app/utils/uuid", () => ({
+  createUUID: jest.fn(),
+}));
+
+const mockCreateUUID = createUUID as jest.MockedFunction<typeof createUUID>;
+
 const mockUUID = "test-uuid-123";
-Object.defineProperty(global, "crypto", {
-  value: {
-    randomUUID: jest.fn(() => mockUUID),
-  },
-});
 
 // テスト用のChakraUIラッパーコンポーネント
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -38,6 +39,7 @@ const renderEnvironmentCheckDialog = (provider: Provider = "openai") =>
 describe("EnvironmentCheckDialog", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreateUUID.mockReturnValue(mockUUID);
   });
 
   it("初期状態でトリガーボタンが表示される", () => {
@@ -209,17 +211,17 @@ describe("EnvironmentCheckDialog", () => {
   });
 
   it("ダイアログを閉じるとUUIDがリセットされる", async () => {
+    const user = userEvent.setup();
     renderEnvironmentCheckDialog();
 
-    userEvent.click(screen.getByRole("button", { name: /API接続チェック/i }));
+    await user.click(screen.getByRole("button", { name: /API接続チェック/i }));
+
+    const closeButton = await screen.findByRole("button", { name: "Close" });
+    await user.click(closeButton);
 
     await waitFor(() => {
-      const closeButton = screen.getByRole("button", { name: "Close" });
-      userEvent.click(closeButton);
+      expect(mockCreateUUID).toHaveBeenCalledTimes(2);
     });
-
-    // crypto.randomUUIDが再度呼び出されることを確認
-    expect(global.crypto.randomUUID).toHaveBeenCalledTimes(1);
   });
 
   it("チェック中にローディング状態が表示される", async () => {
