@@ -17,6 +17,7 @@ COPY apps/public-viewer/package.json apps/public-viewer/
 RUN pnpm install --frozen-lockfile
 
 COPY packages/report-schema packages/report-schema
+COPY apps/shared apps/shared
 COPY apps/public-viewer apps/public-viewer
 
 RUN node_modules/.bin/tsc --project packages/report-schema/tsconfig.json
