@@ -170,7 +170,9 @@ def _ensure_error_status_payload(slug: str) -> None:
 
     status_data["status"] = "error"
     status_data["current_job"] = status_data.get("current_job") or "error"
-    status_data["error"] = status_data.get("error") or "analysis-core exited with a non-zero status; see error_log_excerpt"
+    status_data["error"] = (
+        status_data.get("error") or "analysis-core exited with a non-zero status; see error_log_excerpt"
+    )
     status_data["error_log_path"] = ANALYSIS_LOG_FILENAME
     status_data["error_log_excerpt"] = log_excerpt
 
