@@ -2,7 +2,7 @@
 
 `broadlistening` 配下には旧パイプライン実装が残っていますが、現在の canonical な実行経路は `packages/analysis-core` です。FastAPI サーバーからのレポート生成も `hierarchical_main.py` ではなく `python -m analysis_core` を subprocess で呼び出します。
 
-`hierarchical_main.py` / `pipeline/steps/` は deprecated layer であり、旧経路の参照用として残っています。workflow default 化の進行により、現在の CLI canonical path は `PipelineOrchestrator.run_default()` → `run_workflow()` です。
+`hierarchical_main.py` / `pipeline/steps/` は deprecated layer であり、旧経路の参照用として残っています。現在の CLI canonical path は `PipelineOrchestrator.run_default()` → `run_workflow()` です。
 
 ## 実行フロー
 

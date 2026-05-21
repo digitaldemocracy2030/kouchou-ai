@@ -5,7 +5,7 @@
 既存の8つのパイプラインステップをプラグインアーキテクチャに変換し、ワークフロー定義で手順を制御できるようにする。
 
 > Note
-> この文書は planning artifact であり、current `main` では plugin / workflow 実装自体は既に存在する。2026-05 時点の branch `codex/refactor-workflow-defaultization` では、CLI default path は `run_default()` → `run_workflow()` へ寄り、API 入口・rerun・failure semantics の接続確認も進行中。
+> この文書は planning artifact であり、current `main` では plugin / workflow 実装自体は既に存在する。CLI default path は `run_default()` → `run_workflow()` であり、API 入口・rerun・failure semantics の接続確認も一通り入っている。残課題は legacy 完全互換そのものより、docs 整理と Phase 8 の deprecated layer 削除に寄っている。
 
 ## 前提条件
 
@@ -676,6 +676,8 @@ Phase 3 は規模が大きいため、以下のサブフェーズに分割する
 - デフォルトワークフロー
 - 互換レイヤー
 - Orchestrator対応
+
+2026-05 時点では、このサブフェーズに対応する実装は main に存在し、CLI / API の canonical path も workflow 側へ寄った。したがって Phase 3b は「未実装」ではなく、完了後の cleanup / legacy 削除待ちとして読むのが近い。
 
 ### Phase 3c: 拡張機能（3.8〜3.9）
 - 外部プラグイン読み込み
