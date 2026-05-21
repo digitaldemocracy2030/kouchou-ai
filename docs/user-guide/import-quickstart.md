@@ -10,8 +10,10 @@
 ## 1. インストール
 
 ```bash
-pip install kouchou-ai-analysis-core
+pip install 'kouchou-ai-analysis-core[embeddings,clustering]'
 ```
+
+軽量な base install (`pip install kouchou-ai-analysis-core`) でも top-level import は可能ですが、local embedding や hierarchical clustering を使うには optional extras が必要です。
 
 ## 2. 基本的な使い方
 

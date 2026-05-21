@@ -16,7 +16,7 @@ source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate  # Windows
 
 # パッケージのインストール
-pip install kouchou-ai-analysis-core
+pip install 'kouchou-ai-analysis-core[embeddings,clustering]'
 ```
 
 インストールの確認：
@@ -24,6 +24,8 @@ pip install kouchou-ai-analysis-core
 ```bash
 kouchou-analyze --version
 ```
+
+`kouchou-ai-analysis-core` の base install だけでも `import analysis_core` や dry-run は可能ですが、通常の分析パイプラインでは local embedding / clustering 関連 dependency が必要です。迷ったら `"[embeddings,clustering]"` 付きで入れるのが安全です。
 
 ## 2. 入力CSVの準備
 
@@ -299,7 +301,7 @@ export AZURE_OPENAI_DEPLOYMENT="your-deployment-name"
 ### Gemini を使用する
 
 ```bash
-pip install 'kouchou-ai-analysis-core[gemini]'
+pip install 'kouchou-ai-analysis-core[gemini,embeddings,clustering]'
 export GOOGLE_API_KEY="your-key"
 ```
 

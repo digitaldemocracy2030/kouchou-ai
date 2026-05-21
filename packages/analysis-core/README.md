@@ -13,13 +13,20 @@
 ## インストール
 
 ```bash
-pip install kouchou-ai-analysis-core
+pip install 'kouchou-ai-analysis-core[embeddings,clustering]'
 ```
 
 Geminiサポートを含める場合:
 ```bash
-pip install kouchou-ai-analysis-core[gemini]
+pip install 'kouchou-ai-analysis-core[gemini,embeddings,clustering]'
 ```
+
+軽量な base install だけ欲しい場合:
+```bash
+pip install kouchou-ai-analysis-core
+```
+
+この場合でも `import analysis_core` や dry-run はできますが、local embedding や hierarchical clustering を実行するには対応する extras が必要です。
 
 ## 使用方法
 
@@ -83,7 +90,7 @@ plugins/analysis/
 
 ```bash
 # 依存関係のインストール
-pip install -e ".[dev]"
+pip install -e ".[dev,embeddings,clustering]"
 
 # テストの実行
 pytest
