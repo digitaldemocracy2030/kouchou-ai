@@ -12,6 +12,7 @@ on:
 
 jobs:
   windows-real-machine-setup:
+    if: github.event_name != 'pull_request' || github.event.pull_request.user.login == 'nishio'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 90
     env:
