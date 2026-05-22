@@ -11,6 +11,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages/report-schema packages/report-schema
 COPY apps/static-site-builder apps/static-site-builder
+COPY apps/shared apps/shared
 COPY apps/public-viewer apps/public-viewer
 
 RUN node_modules/.bin/tsc --project packages/report-schema/tsconfig.json
@@ -38,6 +39,7 @@ ENV NODE_ENV=production
 COPY --from=builder /repo/package.json /repo/pnpm-workspace.yaml /repo/.npmrc ./
 COPY --from=builder /repo/node_modules ./node_modules
 COPY --from=builder /repo/packages ./packages
+COPY --from=builder /repo/apps/shared ./apps/shared
 COPY --from=builder /repo/apps/public-viewer ./apps/public-viewer
 # Remove per-package node_modules/.bin shims whose relative paths point to the wrong location
 # due to shamefully-hoist=true; pnpm's PATH injection falls back to /repo/node_modules/.bin/next
