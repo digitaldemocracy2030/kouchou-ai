@@ -1,4 +1,5 @@
 import json
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -38,16 +39,29 @@ async def async_client(app):
         yield client
 
 
-def create_mock_path(exists: bool, read_data: str | None = None):
+def create_mock_path(exists: bool):
     """モックPathオブジェクトを作成するヘルパー"""
     mock_path = MagicMock(spec=Path)
     mock_path.exists.return_value = exists
-    if read_data is not None:
-        mock_path.__truediv__ = lambda self, other: mock_path
-        mock_open = MagicMock()
-        mock_open.__enter__ = MagicMock(return_value=MagicMock(read=lambda: read_data))
-        mock_open.__exit__ = MagicMock(return_value=False)
     return mock_path
+
+
+@contextmanager
+def mock_status_response(status_data: dict):
+    mock_status_file = create_mock_path(exists=True)
+
+    with patch("src.routers.admin_report.settings") as mock_settings:
+        mock_settings.REPORT_DIR.__truediv__ = MagicMock(return_value=MagicMock())
+        mock_settings.REPORT_DIR.__truediv__.return_value.__truediv__ = MagicMock(return_value=mock_status_file)
+        with patch(
+            "builtins.open",
+            return_value=MagicMock(
+                __enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))),
+                __exit__=MagicMock(return_value=False),
+            ),
+        ):
+            with patch("json.load", return_value=status_data):
+                yield
 
 
 @pytest.mark.asyncio
@@ -61,28 +75,14 @@ async def test_get_current_step_with_token_usage(async_client, test_slug):
         "token_usage_output": 500,
     }
 
-    # Mock the Path operations
-    mock_status_file = MagicMock(spec=Path)
-    mock_status_file.exists.return_value = True
-
-    with patch("src.routers.admin_report.settings") as mock_settings:
-        mock_settings.REPORT_DIR.__truediv__ = MagicMock(return_value=MagicMock())
-        mock_settings.REPORT_DIR.__truediv__.return_value.__truediv__ = MagicMock(return_value=mock_status_file)
-        with patch(
-            "builtins.open",
-            return_value=MagicMock(
-                __enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))),
-                __exit__=MagicMock(return_value=False),
-            ),
-        ):
-            with patch("json.load", return_value=status_data):
-                response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
-                assert response.status_code == 200
-                data = response.json()
-                assert data["current_step"] == "extraction"
-                assert data["token_usage"] == 1500
-                assert data["token_usage_input"] == 1000
-                assert data["token_usage_output"] == 500
+    with mock_status_response(status_data):
+        response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["current_step"] == "extraction"
+        assert data["token_usage"] == 1500
+        assert data["token_usage_input"] == 1000
+        assert data["token_usage_output"] == 500
 
 
 @pytest.mark.asyncio
@@ -90,27 +90,14 @@ async def test_get_current_step_with_no_token_usage(async_client, test_slug):
     """get_current_stepエンドポイントがトークン使用量情報がない場合でも適切に動作することをテスト"""
     status_data = {"status": "in_progress", "current_job": "extraction"}
 
-    mock_status_file = MagicMock(spec=Path)
-    mock_status_file.exists.return_value = True
-
-    with patch("src.routers.admin_report.settings") as mock_settings:
-        mock_settings.REPORT_DIR.__truediv__ = MagicMock(return_value=MagicMock())
-        mock_settings.REPORT_DIR.__truediv__.return_value.__truediv__ = MagicMock(return_value=mock_status_file)
-        with patch(
-            "builtins.open",
-            return_value=MagicMock(
-                __enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))),
-                __exit__=MagicMock(return_value=False),
-            ),
-        ):
-            with patch("json.load", return_value=status_data):
-                response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
-                assert response.status_code == 200
-                data = response.json()
-                assert data["current_step"] == "extraction"
-                assert data["token_usage"] == 0
-                assert data["token_usage_input"] == 0
-                assert data["token_usage_output"] == 0
+    with mock_status_response(status_data):
+        response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["current_step"] == "extraction"
+        assert data["token_usage"] == 0
+        assert data["token_usage_input"] == 0
+        assert data["token_usage_output"] == 0
 
 
 @pytest.mark.asyncio
@@ -125,28 +112,15 @@ async def test_get_current_step_with_error(async_client, test_slug):
         "token_usage_output": 30,
     }
 
-    mock_status_file = MagicMock(spec=Path)
-    mock_status_file.exists.return_value = True
-
-    with patch("src.routers.admin_report.settings") as mock_settings:
-        mock_settings.REPORT_DIR.__truediv__ = MagicMock(return_value=MagicMock())
-        mock_settings.REPORT_DIR.__truediv__.return_value.__truediv__ = MagicMock(return_value=mock_status_file)
-        with patch(
-            "builtins.open",
-            return_value=MagicMock(
-                __enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))),
-                __exit__=MagicMock(return_value=False),
-            ),
-        ):
-            with patch("json.load", return_value=status_data):
-                response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
-                assert response.status_code == 200
-                data = response.json()
-                # status が error の場合、current_job も error なので "error" が返る
-                assert data["current_step"] == "error"
-                assert data["token_usage"] == 100
-                assert data["token_usage_input"] == 70
-                assert data["token_usage_output"] == 30
+    with mock_status_response(status_data):
+        response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+        assert response.status_code == 200
+        data = response.json()
+        # status が error の場合、current_job も error なので "error" が返る
+        assert data["current_step"] == "error"
+        assert data["token_usage"] == 100
+        assert data["token_usage_input"] == 70
+        assert data["token_usage_output"] == 30
 
 
 @pytest.mark.asyncio
@@ -163,31 +137,18 @@ async def test_get_current_step_with_failed_workflow_step(async_client, test_slu
         "model": "gpt-4o-mini",
     }
 
-    mock_status_file = MagicMock(spec=Path)
-    mock_status_file.exists.return_value = True
-
-    with patch("src.routers.admin_report.settings") as mock_settings:
-        mock_settings.REPORT_DIR.__truediv__ = MagicMock(return_value=MagicMock())
-        mock_settings.REPORT_DIR.__truediv__.return_value.__truediv__ = MagicMock(return_value=mock_status_file)
-        with patch(
-            "builtins.open",
-            return_value=MagicMock(
-                __enter__=MagicMock(return_value=MagicMock(read=lambda: json.dumps(status_data))),
-                __exit__=MagicMock(return_value=False),
-            ),
-        ):
-            with patch("json.load", return_value=status_data):
-                response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
-                assert response.status_code == 200
-                data = response.json()
-                assert data["status"] == "error"
-                assert data["current_step"] == "embedding"
-                assert data["token_usage"] == 321
-                assert data["token_usage_input"] == 123
-                assert data["token_usage_output"] == 198
-                assert data["provider"] == "openai"
-                assert data["model"] == "gpt-4o-mini"
-                assert data["error_message"] == "Step 'embedding' failed: boom"
+    with mock_status_response(status_data):
+        response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "error"
+        assert data["current_step"] == "embedding"
+        assert data["token_usage"] == 321
+        assert data["token_usage_input"] == 123
+        assert data["token_usage_output"] == 198
+        assert data["provider"] == "openai"
+        assert data["model"] == "gpt-4o-mini"
+        assert data["error_message"] == "Step 'embedding' failed: boom"
 
 
 @pytest.mark.asyncio

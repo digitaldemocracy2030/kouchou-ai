@@ -1,11 +1,38 @@
-def test_user_api_key_propagation_to_env(monkeypatch):
-    # user_api_keyが指定された場合、その値が環境変数USER_API_KEYにセットされてサブプロセスに渡ることを確認
-    import subprocess
-    import threading
+import subprocess
+import threading
 
-    from src.schemas.admin_report import Prompt, ReportInput
-    from src.services import report_launcher
+from src.schemas.admin_report import Prompt, ReportInput
 
+
+class DummyThread:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def start(self):
+        pass
+
+
+def make_report_input(**overrides) -> ReportInput:
+    base = {
+        "input": "dummy",
+        "question": "q",
+        "intro": "i",
+        "model": "m",
+        "provider": "p",
+        "is_pubcom": False,
+        "is_embedded_at_local": False,
+        "local_llm_address": None,
+        "prompt": Prompt(extraction="", initial_labelling="", merge_labelling="", overview=""),
+        "workers": 1,
+        "cluster": [1],
+        "enable_source_link": False,
+        "comments": [],
+    }
+    base.update(overrides)
+    return ReportInput(**base)
+
+
+def patch_subprocess_launch(monkeypatch):
     called = {}
 
     class DummyPopen:
@@ -16,30 +43,17 @@ def test_user_api_key_propagation_to_env(monkeypatch):
         def wait(self):
             return 0
 
-    class DummyThread:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def start(self):
-            pass  # Don't actually start the thread
-
     monkeypatch.setattr(subprocess, "Popen", DummyPopen)
     monkeypatch.setattr(threading, "Thread", DummyThread)
-    report_input = ReportInput(
-        input="dummy",
-        question="q",
-        intro="i",
-        model="m",
-        provider="p",
-        is_pubcom=False,
-        is_embedded_at_local=False,
-        local_llm_address=None,
-        prompt=Prompt(extraction="", initial_labelling="", merge_labelling="", overview=""),
-        workers=1,
-        cluster=[1],
-        enable_source_link=False,
-        comments=[],
-    )
+    return called
+
+
+def test_user_api_key_propagation_to_env(monkeypatch):
+    # user_api_keyが指定された場合、その値が環境変数USER_API_KEYにセットされてサブプロセスに渡ることを確認
+    from src.services import report_launcher
+
+    called = patch_subprocess_launch(monkeypatch)
+    report_input = make_report_input()
     report_launcher.launch_report_generation(report_input, user_api_key="test-key")
     assert called["env"]["USER_API_KEY"] == "test-key"
     assert called["args"][:3] == ["python", "-m", "analysis_core"]
@@ -48,46 +62,10 @@ def test_user_api_key_propagation_to_env(monkeypatch):
 
 def test_env_user_api_key_not_set_when_user_api_key_not_provided(monkeypatch):
     # user_api_keyが指定されない場合、USER_API_KEYが環境変数にセットされずサブプロセスに渡らないことを確認
-    import subprocess
-    import threading
-
-    from src.schemas.admin_report import Prompt, ReportInput
     from src.services import report_launcher
 
-    called = {}
-
-    class DummyPopen:
-        def __init__(self, *args, **kwargs):
-            called["args"] = args[0]
-            called["env"] = kwargs.get("env", {})
-
-        def wait(self):
-            return 0
-
-    class DummyThread:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def start(self):
-            pass  # Don't actually start the thread
-
-    monkeypatch.setattr(subprocess, "Popen", DummyPopen)
-    monkeypatch.setattr(threading, "Thread", DummyThread)
-    report_input = ReportInput(
-        input="dummy",
-        question="q",
-        intro="i",
-        model="m",
-        provider="p",
-        is_pubcom=False,
-        is_embedded_at_local=False,
-        local_llm_address=None,
-        prompt=Prompt(extraction="", initial_labelling="", merge_labelling="", overview=""),
-        workers=1,
-        cluster=[1],
-        enable_source_link=False,
-        comments=[],
-    )
+    called = patch_subprocess_launch(monkeypatch)
+    report_input = make_report_input()
     report_launcher.launch_report_generation(report_input)
     assert "USER_API_KEY" not in called["env"]
     assert "--without-html" in called["args"]
@@ -95,46 +73,10 @@ def test_env_user_api_key_not_set_when_user_api_key_not_provided(monkeypatch):
 
 def test_env_user_api_key_not_set_when_user_api_key_empty(monkeypatch):
     # user_api_keyが空文字列の場合、USER_API_KEYが環境変数にセットされずサブプロセスに渡らないことを確認
-    import subprocess
-    import threading
-
-    from src.schemas.admin_report import Prompt, ReportInput
     from src.services import report_launcher
 
-    called = {}
-
-    class DummyPopen:
-        def __init__(self, *args, **kwargs):
-            called["args"] = args[0]
-            called["env"] = kwargs.get("env", {})
-
-        def wait(self):
-            return 0
-
-    class DummyThread:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def start(self):
-            pass  # Don't actually start the thread
-
-    monkeypatch.setattr(subprocess, "Popen", DummyPopen)
-    monkeypatch.setattr(threading, "Thread", DummyThread)
-    report_input = ReportInput(
-        input="dummy",
-        question="q",
-        intro="i",
-        model="m",
-        provider="p",
-        is_pubcom=False,
-        is_embedded_at_local=False,
-        local_llm_address=None,
-        prompt=Prompt(extraction="", initial_labelling="", merge_labelling="", overview=""),
-        workers=1,
-        cluster=[1],
-        enable_source_link=False,
-        comments=[],
-    )
+    called = patch_subprocess_launch(monkeypatch)
+    report_input = make_report_input()
     report_launcher.launch_report_generation(report_input, user_api_key="")
     assert "USER_API_KEY" not in called["env"]
     assert "--without-html" in called["args"]
@@ -142,30 +84,9 @@ def test_env_user_api_key_not_set_when_user_api_key_empty(monkeypatch):
 
 def test_user_api_key_propagation_to_env_in_aggregation(monkeypatch):
     # user_api_keyが指定された場合、その値が環境変数USER_API_KEYにセットされてサブプロセスに渡ることを確認（集約処理）
-    import subprocess
-    import threading
-
     from src.services import report_launcher
 
-    called = {}
-
-    class DummyPopen:
-        def __init__(self, *args, **kwargs):
-            called["args"] = args[0]
-            called["env"] = kwargs.get("env", {})
-
-        def wait(self):
-            return 0
-
-    class DummyThread:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def start(self):
-            pass  # Don't actually start the thread
-
-    monkeypatch.setattr(subprocess, "Popen", DummyPopen)
-    monkeypatch.setattr(threading, "Thread", DummyThread)
+    called = patch_subprocess_launch(monkeypatch)
     result = report_launcher.execute_aggregation("slug", user_api_key="test-key")
     assert called["env"]["USER_API_KEY"] == "test-key"
     assert called["args"][-2:] == ["--only", "hierarchical_aggregation"]
@@ -174,30 +95,9 @@ def test_user_api_key_propagation_to_env_in_aggregation(monkeypatch):
 
 def test_env_user_api_key_not_set_in_aggregation_when_user_api_key_not_provided(monkeypatch):
     # user_api_keyが指定されない場合、USER_API_KEYが環境変数にセットされずサブプロセスに渡らないことを確認（集約処理）
-    import subprocess
-    import threading
-
     from src.services import report_launcher
 
-    called = {}
-
-    class DummyPopen:
-        def __init__(self, *args, **kwargs):
-            called["args"] = args[0]
-            called["env"] = kwargs.get("env", {})
-
-        def wait(self):
-            return 0
-
-    class DummyThread:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def start(self):
-            pass  # Don't actually start the thread
-
-    monkeypatch.setattr(subprocess, "Popen", DummyPopen)
-    monkeypatch.setattr(threading, "Thread", DummyThread)
+    called = patch_subprocess_launch(monkeypatch)
     result = report_launcher.execute_aggregation("slug")
     assert "USER_API_KEY" not in called["env"]
     assert called["args"][-2:] == ["--only", "hierarchical_aggregation"]
@@ -205,32 +105,11 @@ def test_env_user_api_key_not_set_in_aggregation_when_user_api_key_not_provided(
 
 
 def test_launch_report_generation_from_config_uses_shared_command(monkeypatch, tmp_path):
-    import subprocess
-    import threading
-
     from src.services import report_launcher
 
-    called = {}
+    called = patch_subprocess_launch(monkeypatch)
     config_path = tmp_path / "demo.json"
     config_path.write_text("{}", encoding="utf-8")
-
-    class DummyPopen:
-        def __init__(self, *args, **kwargs):
-            called["args"] = args[0]
-            called["env"] = kwargs.get("env", {})
-
-        def wait(self):
-            return 0
-
-    class DummyThread:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def start(self):
-            pass  # Don't actually start the thread
-
-    monkeypatch.setattr(subprocess, "Popen", DummyPopen)
-    monkeypatch.setattr(threading, "Thread", DummyThread)
 
     report_launcher.launch_report_generation_from_config(config_path, "demo")
 
