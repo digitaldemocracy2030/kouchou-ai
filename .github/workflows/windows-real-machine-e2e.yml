@@ -10,6 +10,10 @@ on:
   schedule:
     - cron: "0 18 * * *"
 
+concurrency:
+  group: windows-real-machine-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows-real-machine-setup:
     if: github.event_name != 'pull_request' || github.event.pull_request.user.login == 'nishio'
