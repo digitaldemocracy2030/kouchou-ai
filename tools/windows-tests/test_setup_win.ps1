@@ -16,7 +16,8 @@ function Invoke-SetupWin {
   param(
     [string]$Workspace,
     [string[]]$InputLines,
-    [bool]$DockerInfoFails = $false
+    [bool]$DockerInfoFails = $false,
+    [string]$ChoiceResponse = ""
   )
 
   $stdoutPath = Join-Path $Workspace "stdout.txt"
@@ -34,7 +35,7 @@ function Invoke-SetupWin {
   $processInfo.Environment["KOUCHOU_AI_SETUP_NONINTERACTIVE"] = "1"
   $processInfo.Environment["KOUCHOU_AI_SKIP_DOCKER_COMPOSE"] = "1"
   $processInfo.Environment["KOUCHOU_AI_FORCE_DOCKER_INFO_FAIL"] = if ($DockerInfoFails) { "1" } else { "" }
-  $processInfo.Environment["KOUCHOU_AI_COMMAND_LOG"] = $commandLogPath
+  $processInfo.Environment["KOUCHOU_AI_CHOICE_RESPONSE"] = $ChoiceResponse
 
   $process = [System.Diagnostics.Process]::Start($processInfo)
   $stdout = ""
@@ -117,7 +118,7 @@ function Test-ValidInputGeneratesEnv {
 function Test-InvalidInputCanAbort {
   $workspace = New-Workspace
   try {
-    $result = Invoke-SetupWin -Workspace $workspace -InputLines @("not-openai", "", "N")
+    $result = Invoke-SetupWin -Workspace $workspace -InputLines @("not-openai", "") -ChoiceResponse "N"
     Assert-True ($result.ExitCode -ne 0) "setup_win.bat should fail when user aborts after invalid key warning"
     Assert-True ($result.Stdout.Contains("警告: 入力されたOpenAI APIキーの形式が正しくない可能性があります。")) "Expected invalid key warning"
     Assert-True ($result.Stdout.Contains("セットアップを中止します。正しいAPIキーを用意してから再度実行してください。")) "Expected abort message"

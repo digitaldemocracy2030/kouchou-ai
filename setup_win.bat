@@ -62,8 +62,18 @@ if defined GEMINI_API_KEY (
 
 REM どちらか不正なら継続確認
 if defined HAS_ERROR (
-  choice /c YN /n /m "続行しますか？ (Y/N): "
-  if errorlevel 2 (
+  set "CHOICE_EXIT=0"
+  if /I "%KOUCHOU_AI_CHOICE_RESPONSE%"=="N" (
+    set "CHOICE_EXIT=2"
+    echo 続行しますか？ (Y/N): N
+  ) else if /I "%KOUCHOU_AI_CHOICE_RESPONSE%"=="Y" (
+    set "CHOICE_EXIT=1"
+    echo 続行しますか？ (Y/N): Y
+  ) else (
+    choice /c YN /n /m "続行しますか？ (Y/N): "
+    set "CHOICE_EXIT=%errorlevel%"
+  )
+  if "%CHOICE_EXIT%"=="2" (
     echo セットアップを中止します。正しいAPIキーを用意してから再度実行してください。
     call :maybe_pause
     exit /b 1
