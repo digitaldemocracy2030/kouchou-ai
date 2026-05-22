@@ -1,6 +1,11 @@
 name: Windows real-machine setup E2E
 
 on:
+  pull_request:
+    paths:
+      - setup_win.bat
+      - compose.yaml
+      - .github/workflows/windows-real-machine-e2e.yml
   workflow_dispatch:
   schedule:
     - cron: "0 18 * * *"
