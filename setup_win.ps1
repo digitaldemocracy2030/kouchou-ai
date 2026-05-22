@@ -1,3 +1,18 @@
+param(
+  [Alias("non-interactive")]
+  [switch] $NonInteractive,
+  [Alias("skip-docker-start")]
+  [switch] $SkipDockerStart,
+  [Alias("skip-api-key-validation")]
+  [switch] $SkipApiKeyValidation,
+  [Alias("openai-api-key")]
+  [AllowEmptyString()]
+  [string] $OpenAiApiKey = "",
+  [Alias("gemini-api-key")]
+  [AllowEmptyString()]
+  [string] $GeminiApiKey = ""
+)
+
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
@@ -86,33 +101,54 @@ try {
   # GUI dialogs are the primary UX, so console encoding failures are non-fatal.
 }
 
-try {
-  docker info *> $null
-} catch {
-  Show-Message -Text $messages.dockerNotRunning -Icon Error
-  exit 1
-}
-
-$openAiKey = Prompt-Value -Prompt $messages.openAiPrompt -Title $messages.dialogTitle
-$geminiKey = Prompt-Value -Prompt $messages.geminiPrompt -Title $messages.dialogTitle
-
-Write-Host "Checking API key formats..."
-
-$warnings = [System.Collections.Generic.List[string]]::new()
-
-if (-not (Test-Prefix -Value $openAiKey -Prefix "sk-")) {
-  $warnings.Add($messages.invalidOpenAi)
-}
-
-if (-not (Test-Prefix -Value $geminiKey -Prefix "AIza")) {
-  $warnings.Add($messages.invalidGemini)
-}
-
-if ($warnings.Count -gt 0) {
-  $warningText = ($warnings -join "`r`n`r`n") + "`r`n`r`n" + $messages.continueInvalid
-  if (-not (Confirm-Message -Text $warningText)) {
-    Show-Message -Text $messages.setupCanceled -Icon Information
+if (-not $SkipDockerStart) {
+  try {
+    docker info *> $null
+  } catch {
+    if ($NonInteractive) {
+      Write-Error "Docker Desktop is not running. Please start Docker Desktop and try again."
+    } else {
+      Show-Message -Text $messages.dockerNotRunning -Icon Error
+    }
     exit 1
+  }
+}
+
+$openAiKey = $OpenAiApiKey
+$geminiKey = $GeminiApiKey
+
+if ([string]::IsNullOrEmpty($openAiKey) -and -not $NonInteractive) {
+  $openAiKey = Prompt-Value -Prompt $messages.openAiPrompt -Title $messages.dialogTitle
+}
+
+if ([string]::IsNullOrEmpty($geminiKey) -and -not $NonInteractive) {
+  $geminiKey = Prompt-Value -Prompt $messages.geminiPrompt -Title $messages.dialogTitle
+}
+
+if (-not $SkipApiKeyValidation) {
+  Write-Host $messages.checkingKeys
+
+  $warnings = [System.Collections.Generic.List[string]]::new()
+
+  if (-not (Test-Prefix -Value $openAiKey -Prefix "sk-")) {
+    $warnings.Add($messages.invalidOpenAi)
+  }
+
+  if (-not (Test-Prefix -Value $geminiKey -Prefix "AIza")) {
+    $warnings.Add($messages.invalidGemini)
+  }
+
+  if ($warnings.Count -gt 0) {
+    if ($NonInteractive) {
+      Write-Error "Setup canceled because an API key format looked invalid."
+      exit 1
+    }
+
+    $warningText = ($warnings -join "`r`n`r`n") + "`r`n`r`n" + $messages.continueInvalid
+    if (-not (Confirm-Message -Text $warningText)) {
+      Show-Message -Text $messages.setupCanceled -Icon Information
+      exit 1
+    }
   }
 }
 
@@ -133,6 +169,11 @@ $envLines = @(
 )
 
 Set-Content -Path (Join-Path $PSScriptRoot ".env") -Value $envLines -Encoding ascii
+
+if ($SkipDockerStart) {
+  Write-Host "Docker startup skipped."
+  exit 0
+}
 
 Show-Message -Text $messages.startingDocker -Icon Information
 & docker compose up -d --build

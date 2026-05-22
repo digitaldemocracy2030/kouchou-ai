@@ -87,6 +87,7 @@ nav:
       - PyPI公開: development/pypi-release.md
       - コードレビューガイドライン: development/code-review-guidelines.md
       - Devinとの協働: development/devin-collaboration.md
+      - Windows 実機セットアップ検証: development/windows-real-machine-setup-verification.md
   - リポジトリ内README:
       - アプリ:
           - admin: repo-readmes/apps/admin.md

@@ -69,6 +69,9 @@ OpenAI APIキーやGemini APIキーを再設定したい場合は、再度 `setu
 
 ## トラブルシューティング
 
+!!! note "Windows 実機での検証を行う開発者・AI エージェント向け"
+    `setup_win.bat` と Docker Desktop (Linux containers) の実機検証観点は、[Windows 実機セットアップ検証手順](../development/windows-real-machine-setup-verification.md) にまとめています。
+
 ### Docker Desktopが起動していない場合
 
 エラーメッセージ「Docker Desktop が起動していません」が表示された場合は、Docker Desktopを起動してから再度`setup_win.bat`を実行してください。Docker Desktopは自動起動設定をしていない限り、毎回手動で起動する必要があります。

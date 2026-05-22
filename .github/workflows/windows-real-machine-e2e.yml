@@ -1,0 +1,78 @@
+name: Windows real-machine setup E2E
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: windows-real-machine-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-real-machine-setup:
+    if: github.actor == 'nishio'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 90
+    env:
+      DOCKER_BIN: C:\Program Files\Docker\Docker\resources\bin\docker.exe
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Show Docker environment
+        shell: cmd
+        run: |
+          "%DOCKER_BIN%" --version
+          "%DOCKER_BIN%" compose version
+          "%DOCKER_BIN%" info
+
+      - name: Clean previous run
+        shell: cmd
+        run: |
+          "%DOCKER_BIN%" compose down -v --remove-orphans || echo No previous compose stack to clean.
+
+      - name: Run setup_win.bat
+        shell: cmd
+        run: |
+          chcp 65001
+          set "PATH=C:\Program Files\Docker\Docker\resources\bin;%PATH%"
+          call setup_win.bat --non-interactive --openai-api-key sk-test --gemini-api-key AIza-test
+
+      - name: Wait for services
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $targets = @(
+            "http://localhost:4000",
+            "http://localhost:3000",
+            "http://localhost:8000/docs"
+          )
+
+          foreach ($target in $targets) {
+            $deadline = (Get-Date).AddMinutes(10)
+            do {
+              & curl.exe --fail --head --silent --show-error --max-time 5 $target
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "$target is reachable"
+                break
+              }
+              Start-Sleep -Seconds 5
+            } while ((Get-Date) -lt $deadline)
+
+            if ((Get-Date) -ge $deadline) {
+              throw "$target did not become reachable"
+            }
+          }
+
+      - name: Show compose state
+        if: always()
+        shell: cmd
+        run: |
+          "%DOCKER_BIN%" compose ps
+          "%DOCKER_BIN%" compose logs --tail=100 api || echo No api logs.
+          "%DOCKER_BIN%" compose logs --tail=100 admin || echo No admin logs.
+          "%DOCKER_BIN%" compose logs --tail=100 public-viewer || echo No public-viewer logs.
+
+      - name: Clean up
+        if: always()
+        shell: cmd
+        run: '"%DOCKER_BIN%" compose down -v --remove-orphans || exit /b 0'
