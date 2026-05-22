@@ -29,10 +29,10 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <ChakraProvider value={system}>{children}</ChakraProvider>
 );
 
-const renderEnvironmentCheckDialog = (provider: Provider = "openai") =>
+const renderEnvironmentCheckDialog = (provider: Provider = "openai", userApiKey?: string) =>
   render(
     <TestWrapper>
-      <EnvironmentCheckDialog provider={provider} />
+      <EnvironmentCheckDialog provider={provider} userApiKey={userApiKey} />
     </TestWrapper>,
   );
 
@@ -90,6 +90,23 @@ describe("EnvironmentCheckDialog", () => {
     });
 
     expect(mockVerifyApiKey.mock.calls[0]?.[0]).toBe("gemini");
+  });
+
+  it("ユーザー入力APIキーがある場合、それを渡して接続チェックを呼び出す", async () => {
+    mockVerifyApiKey.mockResolvedValue({ result: null, error: false });
+    renderEnvironmentCheckDialog("openai", "user-test-key");
+
+    userEvent.click(screen.getByRole("button", { name: /API接続チェック/i }));
+
+    const checkButton = await screen.findByRole("button", { name: "チェックする" });
+    userEvent.click(checkButton);
+
+    await waitFor(() => {
+      expect(mockVerifyApiKey).toHaveBeenCalled();
+    });
+
+    expect(mockVerifyApiKey.mock.calls[0]?.[0]).toBe("openai");
+    expect(mockVerifyApiKey.mock.calls[0]?.[1]).toBe("user-test-key");
   });
 
   it("API接続が成功した場合に成功メッセージが表示される", async () => {

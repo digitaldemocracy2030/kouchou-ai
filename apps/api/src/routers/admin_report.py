@@ -484,6 +484,7 @@ async def get_models(
 
 @router.get("/admin/environment/verify")
 async def verify_api_key(
+    request: Request,
     provider: str = Query("openai"),
     api_key: str = Depends(verify_admin_api_key),
 ) -> dict:
@@ -504,11 +505,13 @@ async def verify_api_key(
             "gemini": "gemini-2.5-flash",
         }
         model = model_map.get(provider, "gpt-4o-mini")
+        user_api_key = request.headers.get("x-user-api-key")
 
         _ = request_to_chat_ai(
             messages=test_messages,
             model=model,
             provider=provider,
+            user_api_key=user_api_key or None,
         )
 
         return {

@@ -431,7 +431,10 @@ export default function Page() {
           <WarningSection />
 
           <VStack mt="11" gap="6">
-            <EnvironmentCheckDialog provider={aiSettings.provider} />
+            <EnvironmentCheckDialog
+              provider={aiSettings.provider}
+              userApiKey={aiSettings.userApiKey.trim() || undefined}
+            />
             {/* 送信ボタン */}
             <HStack gap="4">
               <Button variant="outline" size={"2xl"} w={"140px"} asChild>

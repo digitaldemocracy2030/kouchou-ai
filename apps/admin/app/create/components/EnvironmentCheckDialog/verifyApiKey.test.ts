@@ -80,4 +80,26 @@ describe("verifyApiKey", () => {
       expect.any(Object),
     );
   });
+
+  it("ユーザー入力APIキーがある場合は x-user-api-key ヘッダーで送るべき", async () => {
+    const mockResponse = {
+      success: true,
+      message: "API key verified successfully",
+    };
+
+    (fetch as jest.Mock).mockResolvedValueOnce({
+      json: jest.fn().mockResolvedValueOnce(mockResponse),
+    });
+
+    await verifyApiKey("openai", "user-test-key");
+
+    expect(fetch).toHaveBeenCalledWith("http://localhost:8000/admin/environment/verify?provider=openai", {
+      method: "GET",
+      headers: {
+        "x-api-key": "test-api-key",
+        "x-user-api-key": "user-test-key",
+        "Content-Type": "application/json",
+      },
+    });
+  });
 });
