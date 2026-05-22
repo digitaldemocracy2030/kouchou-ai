@@ -20,19 +20,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Show Docker environment
-        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        shell: cmd
         run: |
-          & $env:DOCKER_BIN --version
-          & $env:DOCKER_BIN compose version
-          & $env:DOCKER_BIN info
+          "%DOCKER_BIN%" --version
+          "%DOCKER_BIN%" compose version
+          "%DOCKER_BIN%" info
 
       - name: Clean previous run
-        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        shell: cmd
         run: |
-          & $env:DOCKER_BIN compose down -v --remove-orphans 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "No previous compose stack to clean."
-          }
+          "%DOCKER_BIN%" compose down -v --remove-orphans || echo No previous compose stack to clean.
 
       - name: Run setup_win.bat
         shell: cmd
@@ -69,14 +66,14 @@ jobs:
 
       - name: Show compose state
         if: always()
-        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        shell: cmd
         run: |
-          & $env:DOCKER_BIN compose ps
-          & $env:DOCKER_BIN compose logs --tail=100 api
-          & $env:DOCKER_BIN compose logs --tail=100 admin
-          & $env:DOCKER_BIN compose logs --tail=100 public-viewer
+          "%DOCKER_BIN%" compose ps
+          "%DOCKER_BIN%" compose logs --tail=100 api || echo No api logs.
+          "%DOCKER_BIN%" compose logs --tail=100 admin || echo No admin logs.
+          "%DOCKER_BIN%" compose logs --tail=100 public-viewer || echo No public-viewer logs.
 
       - name: Clean up
         if: always()
-        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
-        run: '& $env:DOCKER_BIN compose down -v --remove-orphans'
+        shell: cmd
+        run: '"%DOCKER_BIN%" compose down -v --remove-orphans || exit /b 0'
