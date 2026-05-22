@@ -5,8 +5,14 @@ echo Kouchou-AI Setup Tool
 echo =====================
 
 REM Check if Docker Desktop is running
-docker info > nul 2>&1
-if %errorlevel% neq 0 (
+set "DOCKER_INFO_EXIT=0"
+if defined KOUCHOU_AI_FORCE_DOCKER_INFO_FAIL (
+  set "DOCKER_INFO_EXIT=1"
+) else (
+  docker info > nul 2>&1
+  set "DOCKER_INFO_EXIT=%errorlevel%"
+)
+if not "%DOCKER_INFO_EXIT%"=="0" (
   echo Docker Desktop is not running.
   echo Please start Docker Desktop and try again.
   echo 注意: Dockerのインストール直後は再起動が必要な場合があります。
@@ -89,7 +95,11 @@ echo NEXT_PUBLIC_SITE_URL=http://localhost:3000 >> .env
 
 REM Start the environment
 echo Starting Docker environment...
-docker compose up -d --build
+if defined KOUCHOU_AI_SKIP_DOCKER_COMPOSE (
+  echo [test] Skipping docker compose up -d --build
+) else (
+  docker compose up -d --build
+)
 
 echo.
 echo Setup completed!

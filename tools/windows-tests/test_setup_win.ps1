@@ -21,32 +21,7 @@ function Invoke-SetupWin {
 
   $stdoutPath = Join-Path $Workspace "stdout.txt"
   $stderrPath = Join-Path $Workspace "stderr.txt"
-  $dockerLogPath = Join-Path $Workspace "fake-docker.log"
-  $fakeBin = Join-Path $Workspace "fakebin"
-  New-Item -ItemType Directory -Path $fakeBin | Out-Null
-
-  $fakeDocker = @'
-@echo off
-if not "%FAKE_DOCKER_LOG%"=="" (
-  echo %*>> "%FAKE_DOCKER_LOG%"
-)
-
-if "%1"=="info" (
-  if "%FAKE_DOCKER_INFO_FAIL%"=="1" (
-    exit /b 1
-  )
-  echo docker info ok
-  exit /b 0
-)
-
-if "%1"=="compose" (
-  echo docker compose %*
-  exit /b 0
-)
-
-exit /b 0
-'@
-  Set-Content -Path (Join-Path $fakeBin "docker.bat") -Value $fakeDocker -Encoding Ascii
+  $commandLogPath = Join-Path $Workspace "setup-command.log"
 
   $processInfo = New-Object System.Diagnostics.ProcessStartInfo
   $processInfo.FileName = "cmd.exe"
@@ -56,10 +31,10 @@ exit /b 0
   $processInfo.RedirectStandardInput = $true
   $processInfo.RedirectStandardOutput = $true
   $processInfo.RedirectStandardError = $true
-  $processInfo.Environment["PATH"] = "$fakeBin;$env:PATH"
   $processInfo.Environment["KOUCHOU_AI_SETUP_NONINTERACTIVE"] = "1"
-  $processInfo.Environment["FAKE_DOCKER_LOG"] = $dockerLogPath
-  $processInfo.Environment["FAKE_DOCKER_INFO_FAIL"] = if ($DockerInfoFails) { "1" } else { "0" }
+  $processInfo.Environment["KOUCHOU_AI_SKIP_DOCKER_COMPOSE"] = "1"
+  $processInfo.Environment["KOUCHOU_AI_FORCE_DOCKER_INFO_FAIL"] = if ($DockerInfoFails) { "1" } else { "" }
+  $processInfo.Environment["KOUCHOU_AI_COMMAND_LOG"] = $commandLogPath
 
   $process = [System.Diagnostics.Process]::Start($processInfo)
   $stdout = ""
@@ -86,7 +61,7 @@ exit /b 0
     ExitCode = $exitCode
     Stdout = $stdout
     Stderr = $stderr
-    DockerLogPath = $dockerLogPath
+    CommandLogPath = $commandLogPath
     EnvPath = Join-Path $Workspace ".env"
   }
 }
@@ -133,10 +108,7 @@ function Test-ValidInputGeneratesEnv {
     Assert-True ($envText.Contains("OPENAI_API_KEY=sk-test-openai")) "OpenAI API key was not written to .env"
     Assert-True ($envText.Contains("GEMINI_API_KEY=AIzaSyGeminiTest")) "Gemini API key was not written to .env"
     Assert-True ($envText.Contains("NEXT_PUBLIC_API_BASEPATH=http://localhost:8000")) "Expected API base path missing from .env"
-
-    $dockerLog = Get-Content -Path $result.DockerLogPath -Raw
-    Assert-True ($dockerLog.Contains("info")) "docker info should be checked"
-    Assert-True ($dockerLog.Contains("compose up -d --build")) "docker compose up should be invoked"
+    Assert-True ($result.Stdout.Contains("[test] Skipping docker compose up -d --build")) "Expected docker compose skip message"
   } finally {
     Remove-Item -Path $workspace -Recurse -Force
   }
