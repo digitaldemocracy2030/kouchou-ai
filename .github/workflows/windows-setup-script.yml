@@ -34,11 +34,9 @@ jobs:
       - name: Check Docker-not-running path
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path .ci-bin | Out-Null
-          Set-Content -Path .ci-bin\docker.bat -Value "@echo off`r`nexit /b 1`r`n" -Encoding ascii
-          $env:PATH = "$PWD\.ci-bin;$env:PATH"
+          $PSNativeCommandUseErrorActionPreference = $false
 
-          cmd /c "setup_win.bat --non-interactive > setup-output.txt 2>&1"
+          cmd /d /s /c "call .\setup_win.bat --non-interactive > setup-output.txt 2>&1"
           $exitCode = $LASTEXITCODE
           $output = Get-Content setup-output.txt -Raw
           Write-Host $output
@@ -56,9 +54,10 @@ jobs:
       - name: Check non-interactive env generation
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
           Remove-Item .env -ErrorAction SilentlyContinue
 
-          cmd /c "setup_win.bat --non-interactive --skip-docker-start --openai-api-key sk-test --gemini-api-key AIza-test > setup-env-output.txt 2>&1"
+          cmd /d /s /c "call .\setup_win.bat --non-interactive --skip-docker-start --openai-api-key sk-test --gemini-api-key AIza-test > setup-env-output.txt 2>&1"
           $exitCode = $LASTEXITCODE
           $output = Get-Content setup-env-output.txt -Raw
           Write-Host $output
