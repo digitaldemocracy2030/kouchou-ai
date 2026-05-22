@@ -35,6 +35,9 @@ jobs:
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $false
+          New-Item -ItemType Directory -Path .ci-bin | Out-Null
+          Set-Content -Path .ci-bin\docker.bat -Value "@echo off`r`nexit /b 1`r`n" -Encoding ascii
+          $env:PATH = "$PWD\.ci-bin;$env:PATH"
 
           cmd /d /s /c "call .\setup_win.bat --non-interactive > setup-output.txt 2>&1"
           $exitCode = $LASTEXITCODE

@@ -52,7 +52,7 @@ echo =====================
 
 REM Check if Docker Desktop is running unless this run only verifies script behavior.
 if not defined SKIP_DOCKER_START (
-  docker info >nul 2>&1
+  call docker info >nul 2>&1
   if errorlevel 1 (
     echo Docker Desktop is not running.
     echo Please start Docker Desktop and try again.
@@ -136,7 +136,7 @@ if defined SKIP_DOCKER_START (
 
 REM Start the environment.
 echo Starting Docker environment...
-docker compose up -d --build
+call docker compose up -d --build
 if errorlevel 1 (
   echo Docker environment failed to start.
   if not defined NON_INTERACTIVE pause
