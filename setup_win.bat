@@ -1,74 +1,59 @@
 @echo off
 chcp 65001 >nul
+setlocal
 
 echo Kouchou-AI Setup Tool
 echo =====================
 
 REM Check if Docker Desktop is running
-docker info > nul 2>&1
-if %errorlevel% neq 0 (
+docker info >nul 2>&1
+if errorlevel 1 (
   echo Docker Desktop is not running.
   echo Please start Docker Desktop and try again.
-  echo 注意: Dockerのインストール直後は再起動が必要な場合があります。
+  echo Note: You may need to restart Windows after installing Docker Desktop.
   pause
-  exit /b
+  exit /b 1
 )
 
-REM Enter OpenAI API key
-echo OpenAI APIキーを入力してください。（省略可）
+REM Enter API keys
+echo Enter your OpenAI API key. This is optional.
 echo(
-echo 注意: Ctrl+Vが機能しない場合は、右クリックして「貼り付け」を選択してください。
+echo If Ctrl+V does not paste, right-click this window and choose Paste.
 echo(
 set /p OPENAI_API_KEY=Enter your OpenAI API key:
 
-REM Enter Gemini API key
 echo(
-echo Gemini APIキーを入力してください。（省略可）
+echo Enter your Gemini API key. This is optional.
 echo(
-echo 注意: Ctrl+Vが機能しない場合は、右クリックして「貼り付け」を選択してください。
+echo If Ctrl+V does not paste, right-click this window and choose Paste.
 echo(
 set /p GEMINI_API_KEY=Enter your Gemini API key:
 
-REM Validate OpenAI API key format
+REM Validate API key formats
 echo(
-echo APIキーの形式を確認しています...
+echo Checking API key formats...
 set "HAS_ERROR="
 
-REM OpenAI: 入力があるときだけチェック
-echo(
 if defined OPENAI_API_KEY (
-  echo %OPENAI_API_KEY% | findstr /R /C:"^sk-" >nul
-  if errorlevel 1 (
-    echo 警告: 入力されたOpenAI APIキーの形式が正しくない可能性があります。通常は「sk-」で始まります。
+  if /I not "%OPENAI_API_KEY:~0,3%"=="sk-" (
+    echo Warning: The OpenAI API key may be invalid. It usually starts with "sk-".
     set "HAS_ERROR=1"
   )
 )
 
-REM Gemini: 入力があるときだけチェック
-echo(
 if defined GEMINI_API_KEY (
-  echo %GEMINI_API_KEY% | findstr /R /C:"^AIza" >nul
-  if errorlevel 1 (
-    echo 警告: 入力されたGemini APIキーの形式が正しくない可能性があります。通常は「AIza」で始まります。
+  if /I not "%GEMINI_API_KEY:~0,4%"=="AIza" (
+    echo Warning: The Gemini API key may be invalid. It usually starts with "AIza".
     set "HAS_ERROR=1"
   )
 )
 
-REM どちらか不正なら継続確認
 if defined HAS_ERROR (
-  choice /c YN /n /m "続行しますか？ (Y/N): "
+  choice /c YN /n /m "Continue? (Y/N): "
   if errorlevel 2 (
-    echo セットアップを中止します。正しいAPIキーを用意してから再度実行してください。
+    echo Setup canceled. Please prepare the correct API keys and run this file again.
     pause
-    exit /b
-  )
-)
-
-REM Validate Gemini API key format
-if not "%GEMINI_API_KEY%"=="" (
-  echo %GEMINI_API_KEY% | findstr /r "^AIza" > nul
-  if %errorlevel% neq 0 (
-    echo 警告: 入力されたGemini APIキーの形式が正しくない可能性があります。（通常は「AIza」で始まります）
+    exit /b 1
   )
 )
 
