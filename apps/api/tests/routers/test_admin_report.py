@@ -153,6 +153,21 @@ class TestVerifyApiKey:
             assert kwargs["provider"] == "gemini"
             assert kwargs["model"] == "gemini-2.5-flash"
 
+    def test_verify_api_key_uses_user_provided_key_header(self, client):
+        with patch("broadlistening.pipeline.services.llm.request_to_chat_ai") as mock_request:
+            mock_request.return_value = ("ok", 0, 0, 0)
+
+            response = client.get(
+                "/admin/environment/verify?provider=openai",
+                headers={"x-api-key": "test-api-key", "x-user-api-key": "user-test-key"},
+            )
+            assert response.status_code == 200
+            assert response.json()["success"] is True
+
+            mock_request.assert_called_once()
+            _, kwargs = mock_request.call_args
+            assert kwargs["user_api_key"] == "user-test-key"
+
 
 class TestDownloadReportJson:
     def test_download_report_json_success(self, client, tmp_path):

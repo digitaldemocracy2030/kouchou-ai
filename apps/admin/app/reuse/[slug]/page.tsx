@@ -1,18 +1,18 @@
 "use client";
 
-import { Header } from "@/components/Header";
-import { toaster } from "@/components/ui/toaster";
-import { Box, Button, Field, HStack, Heading, Input, Presence, Text, VStack, useDisclosure } from "@chakra-ui/react";
-import { useRouter } from "next/navigation";
-import { type ChangeEvent, useEffect, useMemo, useState } from "react";
-import { ClusterSettingsSection } from "@/app/create/components/ClusterSettingsSection";
+import { duplicateReport } from "@/app/_components/ReportCard/DuplicateReportDialog/actions";
 import { AISettingsSection } from "@/app/create/components/AISettingsSection";
+import { ClusterSettingsSection } from "@/app/create/components/ClusterSettingsSection";
 import { EnvironmentCheckDialog } from "@/app/create/components/EnvironmentCheckDialog/EnvironmentCheckDialog";
 import { useAISettings } from "@/app/create/hooks/useAISettings";
 import { useClusterSettings } from "@/app/create/hooks/useClusterSettings";
 import { usePromptSettings } from "@/app/create/hooks/usePromptSettings";
 import { validateReportId } from "@/app/create/utils/validation";
-import { duplicateReport } from "@/app/_components/ReportCard/DuplicateReportDialog/actions";
+import { Header } from "@/components/Header";
+import { toaster } from "@/components/ui/toaster";
+import { Box, Button, Field, HStack, Heading, Input, Presence, Text, VStack, useDisclosure } from "@chakra-ui/react";
+import { useRouter } from "next/navigation";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 
 type PageProps = {
   params: Promise<{
@@ -433,7 +433,10 @@ export default function Page({ params }: PageProps) {
           </Text>
 
           <VStack mt="8" gap="6">
-            <EnvironmentCheckDialog provider={aiSettings.provider} />
+            <EnvironmentCheckDialog
+              provider={aiSettings.provider}
+              userApiKey={aiSettings.userApiKey.trim() || undefined}
+            />
             <Button
               className={"gradientBg shadow"}
               size={"2xl"}

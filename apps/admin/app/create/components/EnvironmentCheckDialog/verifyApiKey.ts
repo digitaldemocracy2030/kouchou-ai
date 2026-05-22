@@ -12,14 +12,20 @@ type VerificationResult = {
   error_detail?: string;
 };
 
-export const verifyApiKey = async (provider: string) => {
+export const verifyApiKey = async (provider: string, userApiKey?: string) => {
   try {
+    const headers: Record<string, string> = {
+      "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
+      "Content-Type": "application/json",
+    };
+
+    if (userApiKey) {
+      headers["x-user-api-key"] = userApiKey;
+    }
+
     const response = await fetch(`${getApiBaseUrl()}/admin/environment/verify?provider=${provider}`, {
       method: "GET",
-      headers: {
-        "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
-        "Content-Type": "application/json",
-      },
+      headers,
     });
 
     const result = (await response.json()) as VerificationResult;

@@ -22,10 +22,11 @@ import { verifyApiKey } from "./verifyApiKey";
 
 type EnvironmentCheckDialogProps = {
   provider: Provider;
+  userApiKey?: string;
 };
 
-function Dialog({ provider }: EnvironmentCheckDialogProps) {
-  const [state, action, isPending] = useActionState(verifyApiKey.bind(null, provider), {
+function Dialog({ provider, userApiKey }: EnvironmentCheckDialogProps) {
+  const [state, action, isPending] = useActionState(verifyApiKey.bind(null, provider, userApiKey), {
     result: null,
     error: false,
   });
@@ -145,7 +146,7 @@ function Dialog({ provider }: EnvironmentCheckDialogProps) {
   );
 }
 
-export function EnvironmentCheckDialog({ provider }: EnvironmentCheckDialogProps) {
+export function EnvironmentCheckDialog({ provider, userApiKey }: EnvironmentCheckDialogProps) {
   const [uuid, setUUID] = useState(() => createUUID());
 
   return (
@@ -172,7 +173,7 @@ export function EnvironmentCheckDialog({ provider }: EnvironmentCheckDialogProps
           API接続チェック <SquareArrowOutUpRight />
         </Button>
       </DialogTrigger>
-      <Dialog provider={provider} />
+      <Dialog provider={provider} userApiKey={userApiKey} />
     </DialogRoot>
   );
 }
