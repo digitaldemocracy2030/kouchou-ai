@@ -34,7 +34,7 @@
 ### 4. セットアップの実行
 
 1. 展開したフォルダ内の`setup_win.bat`ファイルをダブルクリックします。
-2. プロンプトが表示されたら、OpenAI APIキーとGemini APIキーを入力します（どちらか一方でも可）。
+2. PowerShell のセットアップ画面が開いたら、OpenAI APIキーとGemini APIキーを入力します（どちらか一方でも可）。
    - **注意**: Ctrl+Vでの貼り付けができない場合は、右クリックして「貼り付け」を選択してください。
 3. セットアップが自動的に進行し、APIキーの有効性確認後にDockerコンテナが起動します。
 
@@ -71,7 +71,7 @@ OpenAI APIキーやGemini APIキーを再設定したい場合は、再度 `setu
 
 ### Docker Desktopが起動していない場合
 
-エラーメッセージ「Docker Desktopが実行されていません」が表示された場合は、Docker Desktopを起動してから再度`setup_win.bat`を実行してください。Docker Desktopは自動起動設定をしていない限り、毎回手動で起動する必要があります。
+エラーメッセージ「Docker Desktop が起動していません」が表示された場合は、Docker Desktopを起動してから再度`setup_win.bat`を実行してください。Docker Desktopは自動起動設定をしていない限り、毎回手動で起動する必要があります。
 
 ### Dockerコマンドが認識されない場合
 
