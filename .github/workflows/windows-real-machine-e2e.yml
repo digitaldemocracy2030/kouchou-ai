@@ -55,13 +55,12 @@ jobs:
           foreach ($target in $targets) {
             $deadline = (Get-Date).AddMinutes(10)
             do {
-              try {
-                Invoke-WebRequest $target -UseBasicParsing -TimeoutSec 5 | Out-Null
+              & curl.exe --fail --head --silent --show-error --max-time 5 $target
+              if ($LASTEXITCODE -eq 0) {
                 Write-Host "$target is reachable"
                 break
-              } catch {
-                Start-Sleep -Seconds 5
               }
+              Start-Sleep -Seconds 5
             } while ((Get-Date) -lt $deadline)
 
             if ((Get-Date) -ge $deadline) {
