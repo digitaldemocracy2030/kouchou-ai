@@ -1,7 +1,7 @@
 import type { Argument, Cluster, Config } from "@/type";
 import { Box } from "@chakra-ui/react";
 import type { Annotations, Data, Layout, PlotMouseEvent } from "plotly.js";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
@@ -174,7 +174,7 @@ export function ScatterChart({
   const unhoverHandlerRef = useRef<((data: unknown) => void) | null>(null);
 
   /** 旧 gd からリスナーを解除する */
-  const detachHoverListeners = () => {
+  const detachHoverListeners = useCallback(() => {
     const oldGd = boundGdRef.current;
     if (!oldGd?.removeListener) return;
     if (hoverHandlerRef.current) oldGd.removeListener("plotly_hover", hoverHandlerRef.current);
@@ -182,7 +182,7 @@ export function ScatterChart({
     hoverHandlerRef.current = null;
     unhoverHandlerRef.current = null;
     boundGdRef.current = null;
-  };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -190,29 +190,14 @@ export function ScatterChart({
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       detachHoverListeners();
     };
-  }, []);
+  }, [detachHoverListeners]);
 
   // react-plotly.js の onUpdate は (figure, gd) で呼ばれる。
   // gd は Plotly が .on() メソッドを付与した HTMLElement。
   const onUpdate = (_figure: unknown, graphDiv?: Readonly<HTMLElement>) => {
     // Plotly単体で設定できないデザインを、onUpdateのタイミングでHTMLをオーバーライドして解決する
 
-    // アノテーションの角を丸にする
-    const bgRound = 4;
-    try {
-      for (const g of document.querySelectorAll("g.annotation")) {
-        const bg = g.querySelector("rect.bg");
-        if (bg) {
-          bg.setAttribute("rx", `${bgRound}px`);
-          bg.setAttribute("ry", `${bgRound}px`);
-        }
-      }
-    } catch (error) {
-      console.error("アノテーション要素の角丸化に失敗しました:", error);
-    }
-
-    // プロット操作用アイコンのエリアを「全画面終了」ボタンの下に移動する
-    avoidModBarCoveringShrinkButton();
+    applyScatterChartDomOverrides();
 
     // Plotly gd 要素に hover/unhover イベントを直接登録
     // graphDiv が差し替わった場合は旧リスナーを解除して再登録する
@@ -621,13 +606,43 @@ function convexHull(points: [number, number][]): [number, number][] {
   return hull;
 }
 
-function avoidModBarCoveringShrinkButton(): void {
-  const modeBarContainer = document.querySelector(".modebar-container") as HTMLElement;
-  if (!modeBarContainer) return;
-  const modeBar = modeBarContainer.children[0] as HTMLElement;
+export function applyScatterChartDomOverrides(): void {
+  // アノテーションの角を丸くする
+  const bgRound = 4;
+  try {
+    for (const g of document.querySelectorAll("g.annotation")) {
+      const bg = g.querySelector("rect.bg");
+      if (bg) {
+        bg.setAttribute("rx", `${bgRound}px`);
+        bg.setAttribute("ry", `${bgRound}px`);
+      }
+    }
+  } catch (error) {
+    console.error("アノテーション要素の角丸化に失敗しました:", error);
+  }
+
+  // hover modebar のコンテナは全体を覆うため、ボタン本体以外は pointer event を食わないようにする
+  const modeBarContainer = document.querySelector(".modebar-container") as HTMLElement | null;
+  const modeBar = modeBarContainer?.children[0] as HTMLElement | undefined;
+  if (modeBarContainer) {
+    modeBarContainer.style.pointerEvents = "none";
+  }
+  if (modeBar) {
+    modeBar.style.pointerEvents = "auto";
+  }
+
+  // プロット操作用アイコンのエリアを「全画面終了」ボタンの下に移動する
+  avoidModeBarCoveringShrinkButton(modeBarContainer, modeBar);
+}
+
+export function avoidModeBarCoveringShrinkButton(
+  modeBarContainer: HTMLElement | null,
+  modeBar?: HTMLElement | null,
+): void {
   const shrinkButton = document.getElementById("fullScreenButtons");
-  if (!modeBar || !shrinkButton) return;
-  const modeBarPos = modeBar.getBoundingClientRect();
+  const effectiveModeBar = modeBar ?? (modeBarContainer?.children[0] as HTMLElement | undefined);
+  if (!modeBarContainer || !effectiveModeBar || !shrinkButton) return;
+  const modeBarPos = effectiveModeBar.getBoundingClientRect();
   const btnPos = shrinkButton.getBoundingClientRect();
   const isCovered = !(
     btnPos.top > modeBarPos.bottom ||
@@ -638,5 +653,6 @@ function avoidModBarCoveringShrinkButton(): void {
   if (!isCovered) return;
 
   const diff = btnPos.bottom - modeBarPos.top;
-  modeBarContainer.style.top = `${Number.parseInt(modeBarContainer.style.top.slice(0, -2)) + diff + 10}px`;
+  const currentTop = Number.parseInt(modeBarContainer.style.top.slice(0, -2)) || 0;
+  modeBarContainer.style.top = `${currentTop + diff + 10}px`;
 }
