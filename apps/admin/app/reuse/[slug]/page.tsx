@@ -12,7 +12,7 @@ import { Header } from "@/components/Header";
 import { toaster } from "@/components/ui/toaster";
 import { Box, Button, Field, HStack, Heading, Input, Presence, Text, VStack, useDisclosure } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type PageProps = {
   params: Promise<{
@@ -103,6 +103,45 @@ export default function Page({ params }: PageProps) {
   const aiSettings = useAISettings();
 
   const modelDescription = useMemo(() => aiSettings.getModelDescription(), [aiSettings]);
+  const applyConfigRef = useRef<(nextConfig: ReportConfig) => void>(() => {});
+  applyConfigRef.current = (nextConfig: ReportConfig) => {
+    setConfig(nextConfig);
+    setQuestion(nextConfig.question || "");
+    setIntro(nextConfig.intro || "");
+
+    if (nextConfig.provider) {
+      aiSettings.handleProviderChange(toSelectEvent(nextConfig.provider));
+    }
+    if (nextConfig.model) {
+      aiSettings.handleModelChange(toSelectEvent(nextConfig.model));
+    }
+    if (typeof nextConfig.extraction?.workers === "number") {
+      aiSettings.handleWorkersChange(nextConfig.extraction.workers);
+    }
+    if (typeof nextConfig.is_pubcom === "boolean") {
+      aiSettings.handlePubcomModeChange(nextConfig.is_pubcom);
+    }
+    if (typeof nextConfig.enable_source_link === "boolean") {
+      aiSettings.handleEnableSourceLinkChange(nextConfig.enable_source_link);
+    }
+    if (typeof nextConfig.is_embedded_at_local === "boolean") {
+      aiSettings.setIsEmbeddedAtLocal(nextConfig.is_embedded_at_local);
+    }
+    if (nextConfig.local_llm_address) {
+      aiSettings.setLocalLLMAddress(nextConfig.local_llm_address);
+    }
+
+    const clusterNums = nextConfig.hierarchical_clustering?.cluster_nums || [5, 50];
+    const lv1 = clusterNums[0] ?? 5;
+    const lv2 = clusterNums[1] ?? Math.max(lv1 * 2, 10);
+    clusterSettings.handleLv1Change(lv1);
+    clusterSettings.handleLv2Change(lv2);
+
+    promptSettings.setExtraction(nextConfig.extraction?.prompt || "");
+    promptSettings.setInitialLabelling(nextConfig.hierarchical_initial_labelling?.prompt || "");
+    promptSettings.setMergeLabelling(nextConfig.hierarchical_merge_labelling?.prompt || "");
+    promptSettings.setOverview(nextConfig.hierarchical_overview?.prompt || "");
+  };
 
   useEffect(() => {
     let active = true;
@@ -141,43 +180,7 @@ export default function Page({ params }: PageProps) {
         if (!nextConfig) {
           throw new Error("設定の取得に失敗しました");
         }
-
-        setConfig(nextConfig);
-        setQuestion(nextConfig.question || "");
-        setIntro(nextConfig.intro || "");
-
-        if (nextConfig.provider) {
-          aiSettings.handleProviderChange(toSelectEvent(nextConfig.provider));
-        }
-        if (nextConfig.model) {
-          aiSettings.handleModelChange(toSelectEvent(nextConfig.model));
-        }
-        if (typeof nextConfig.extraction?.workers === "number") {
-          aiSettings.handleWorkersChange(nextConfig.extraction.workers);
-        }
-        if (typeof nextConfig.is_pubcom === "boolean") {
-          aiSettings.handlePubcomModeChange(nextConfig.is_pubcom);
-        }
-        if (typeof nextConfig.enable_source_link === "boolean") {
-          aiSettings.handleEnableSourceLinkChange(nextConfig.enable_source_link);
-        }
-        if (typeof nextConfig.is_embedded_at_local === "boolean") {
-          aiSettings.setIsEmbeddedAtLocal(nextConfig.is_embedded_at_local);
-        }
-        if (nextConfig.local_llm_address) {
-          aiSettings.setLocalLLMAddress(nextConfig.local_llm_address);
-        }
-
-        const clusterNums = nextConfig.hierarchical_clustering?.cluster_nums || [5, 50];
-        const lv1 = clusterNums[0] ?? 5;
-        const lv2 = clusterNums[1] ?? Math.max(lv1 * 2, 10);
-        clusterSettings.handleLv1Change(lv1);
-        clusterSettings.handleLv2Change(lv2);
-
-        promptSettings.setExtraction(nextConfig.extraction?.prompt || "");
-        promptSettings.setInitialLabelling(nextConfig.hierarchical_initial_labelling?.prompt || "");
-        promptSettings.setMergeLabelling(nextConfig.hierarchical_merge_labelling?.prompt || "");
-        promptSettings.setOverview(nextConfig.hierarchical_overview?.prompt || "");
+        applyConfigRef.current(nextConfig);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setConfigError(error instanceof Error ? error.message : "設定の取得に失敗しました");
