@@ -13,9 +13,21 @@
 
 ## 非対象
 
-- GitHub Actions の `windows-latest` hosted runner だけで完結する軽量 regression test
+- GitHub Actions の `windows-latest` hosted runner だけで Docker Desktop + Linux containers の実セットアップを完結させること
 - WSL 内で `setup_linux.sh` を実行する導線
 - Windows ネイティブ環境で個別サービスを手動起動する開発者向け導線
+
+## テスト層の分け方
+
+Windows セットアップ検証は、重さと再現できる範囲が異なるため、次の 3 層に分けます。
+
+| 層 | 目的 | 実行環境 | 頻度 |
+| --- | --- | --- | --- |
+| Script test | 文字化け、構文、`.env` 生成、入力分岐を検出する | GitHub hosted `windows-latest` | 全 PR |
+| Compose smoke | `docker compose up` で主要サービスが起動することを確認する | Linux runner でも可 | 全 PR または main |
+| Real Windows E2E | Windows + Docker Desktop + `setup_win.bat` の実導線を確認する | self-hosted Windows runner / 実機 | nightly / release 前 |
+
+このページは主に Real Windows E2E の観測手順を扱います。あわせて、`setup_win.bat` の明らかな壊れ方は `windows-latest` 上の Script test で早めに検出します。
 
 ## 事前準備
 
@@ -66,6 +78,31 @@ docker info
 - 不正な形式の API キーでは警告が表示され、続行するか選べる
 - `.env` が生成される
 - `docker compose up -d --build` が実行される
+
+## CI / AI エージェント向け非対話モード
+
+CI や AI エージェントが `setup_win.bat` を確認する場合は、対話入力の代わりに非対話モードを使えます。
+
+```bat
+setup_win.bat --non-interactive --skip-docker-start --openai-api-key sk-test --gemini-api-key AIza-test
+```
+
+利用できるオプション:
+
+| オプション | 用途 |
+| --- | --- |
+| `--non-interactive` | `set /p`, `choice`, `pause` を避け、CI で止まらないようにする |
+| `--skip-docker-start` | Docker Desktop の確認と `docker compose up -d --build` をスキップし、`.env` 生成までを見る |
+| `--skip-api-key-validation` | API キー形式チェックをスキップする |
+| `--openai-api-key <value>` | OpenAI API キーを引数で渡す |
+| `--gemini-api-key <value>` | Gemini API キーを引数で渡す |
+
+GitHub hosted `windows-latest` では Docker Desktop + Linux containers の実セットアップまでは見ません。代わりに、次のような軽量チェックを行います。
+
+- `setup_win.bat` が ASCII / UTF-8 として読める
+- Docker 未起動時に期待したエラーで終了する
+- 非対話モードで `.env` が生成される
+- 出力に mojibake replacement character が混じらない
 
 ## 起動確認
 

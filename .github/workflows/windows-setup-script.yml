@@ -1,0 +1,85 @@
+name: Windows setup script
+
+on:
+  pull_request:
+    paths:
+      - setup_win.bat
+      - .github/workflows/windows-setup-script.yml
+  push:
+    branches: [main]
+    paths:
+      - setup_win.bat
+      - .github/workflows/windows-setup-script.yml
+
+jobs:
+  windows-setup-script:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check setup_win.bat encoding
+        shell: pwsh
+        run: |
+          $bytes = [System.IO.File]::ReadAllBytes("setup_win.bat")
+          $text = [System.Text.Encoding]::UTF8.GetString($bytes)
+          if ($text.Contains([char]0xfffd)) {
+            throw "setup_win.bat may contain invalid UTF-8"
+          }
+
+          $nonAscii = $text.ToCharArray() | Where-Object { [int]$_ -gt 127 } | Select-Object -First 1
+          if ($null -ne $nonAscii) {
+            throw "setup_win.bat should stay ASCII-only to avoid Windows code page regressions"
+          }
+
+      - name: Check Docker-not-running path
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path .ci-bin | Out-Null
+          Set-Content -Path .ci-bin\docker.bat -Value "@echo off`r`nexit /b 1`r`n" -Encoding ascii
+          $env:PATH = "$PWD\.ci-bin;$env:PATH"
+
+          cmd /c "setup_win.bat --non-interactive > setup-output.txt 2>&1"
+          $exitCode = $LASTEXITCODE
+          $output = Get-Content setup-output.txt -Raw
+          Write-Host $output
+
+          if ($exitCode -ne 1) {
+            throw "Expected setup_win.bat to exit 1 when Docker is not running, got $exitCode"
+          }
+          if ($output -notmatch "Docker Desktop is not running") {
+            throw "Expected Docker-not-running message was not printed"
+          }
+          if ($output.Contains([char]0xfffd)) {
+            throw "setup_win.bat output contains mojibake replacement characters"
+          }
+
+      - name: Check non-interactive env generation
+        shell: pwsh
+        run: |
+          Remove-Item .env -ErrorAction SilentlyContinue
+
+          cmd /c "setup_win.bat --non-interactive --skip-docker-start --openai-api-key sk-test --gemini-api-key AIza-test > setup-env-output.txt 2>&1"
+          $exitCode = $LASTEXITCODE
+          $output = Get-Content setup-env-output.txt -Raw
+          Write-Host $output
+
+          if ($exitCode -ne 0) {
+            throw "Expected setup_win.bat env generation to exit 0, got $exitCode"
+          }
+          if ($output.Contains([char]0xfffd)) {
+            throw "setup_win.bat output contains mojibake replacement characters"
+          }
+          if (-not (Test-Path .env)) {
+            throw ".env was not generated"
+          }
+
+          $envText = Get-Content .env -Raw
+          if ($envText -notmatch "OPENAI_API_KEY=sk-test") {
+            throw "OPENAI_API_KEY was not written to .env"
+          }
+          if ($envText -notmatch "GEMINI_API_KEY=AIza-test") {
+            throw "GEMINI_API_KEY was not written to .env"
+          }
+          if ($envText -notmatch "NEXT_PUBLIC_API_BASEPATH=http://localhost:8000") {
+            throw "NEXT_PUBLIC_API_BASEPATH was not written to .env"
+          }

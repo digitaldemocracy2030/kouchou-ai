@@ -1,0 +1,74 @@
+name: Windows real-machine setup E2E
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 18 * * *"
+
+jobs:
+  windows-real-machine-setup:
+    runs-on: [self-hosted, Windows, X64, kouchou-ai-e2e]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Docker environment
+        shell: pwsh
+        run: |
+          docker --version
+          docker compose version
+          docker info
+
+      - name: Clean previous run
+        shell: pwsh
+        run: |
+          docker compose down -v --remove-orphans 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "No previous compose stack to clean."
+          }
+
+      - name: Run setup_win.bat
+        shell: cmd
+        run: |
+          chcp 65001
+          call setup_win.bat --non-interactive --openai-api-key sk-test --gemini-api-key AIza-test
+
+      - name: Wait for services
+        shell: pwsh
+        run: |
+          $targets = @(
+            "http://localhost:4000",
+            "http://localhost:3000",
+            "http://localhost:8000/docs"
+          )
+
+          foreach ($target in $targets) {
+            $deadline = (Get-Date).AddMinutes(10)
+            do {
+              try {
+                Invoke-WebRequest $target -UseBasicParsing -TimeoutSec 5 | Out-Null
+                Write-Host "$target is reachable"
+                break
+              } catch {
+                Start-Sleep -Seconds 5
+              }
+            } while ((Get-Date) -lt $deadline)
+
+            if ((Get-Date) -ge $deadline) {
+              throw "$target did not become reachable"
+            }
+          }
+
+      - name: Show compose state
+        if: always()
+        shell: pwsh
+        run: |
+          docker compose ps
+          docker compose logs --tail=100 api
+          docker compose logs --tail=100 admin
+          docker compose logs --tail=100 public-viewer
+
+      - name: Clean up
+        if: always()
+        shell: pwsh
+        run: docker compose down -v --remove-orphans
