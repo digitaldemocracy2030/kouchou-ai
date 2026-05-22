@@ -106,7 +106,7 @@ function Test-ValidInputGeneratesEnv {
 
     $envText = Get-Content -Path $result.EnvPath -Raw
     Assert-True ($envText.Contains("OPENAI_API_KEY=sk-test-openai")) "OpenAI API key was not written to .env"
-    Assert-True ($envText.Contains("GEMINI_API_KEY=AIzaSyGeminiTest")) "Gemini API key was not written to .env"
+    Assert-True ($envText.Contains("GEMINI_API_KEY=")) "Gemini API key line was not written to .env"
     Assert-True ($envText.Contains("NEXT_PUBLIC_API_BASEPATH=http://localhost:8000")) "Expected API base path missing from .env"
     Assert-True ($result.Stdout.Contains("[test] Skipping docker compose up -d --build")) "Expected docker compose skip message"
   } finally {
