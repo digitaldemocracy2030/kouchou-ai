@@ -10,8 +10,8 @@ if %errorlevel% neq 0 (
   echo Docker Desktop is not running.
   echo Please start Docker Desktop and try again.
   echo 注意: Dockerのインストール直後は再起動が必要な場合があります。
-  pause
-  exit /b
+  call :maybe_pause
+  exit /b 1
 )
 
 REM Enter OpenAI API key
@@ -59,8 +59,8 @@ if defined HAS_ERROR (
   choice /c YN /n /m "続行しますか？ (Y/N): "
   if errorlevel 2 (
     echo セットアップを中止します。正しいAPIキーを用意してから再度実行してください。
-    pause
-    exit /b
+    call :maybe_pause
+    exit /b 1
   )
 )
 
@@ -97,4 +97,10 @@ echo You can now access the following URLs in your browser:
 echo   http://localhost:3000 - Report Viewer
 echo   http://localhost:4000 - Admin Panel
 echo.
+call :maybe_pause
+exit /b 0
+
+:maybe_pause
+if defined KOUCHOU_AI_SETUP_NONINTERACTIVE exit /b 0
 pause
+exit /b 0

@@ -1,0 +1,27 @@
+name: Windows Setup Script
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'setup_win.bat'
+      - 'tools/windows-tests/**'
+      - '.github/workflows/windows-setup-script.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'setup_win.bat'
+      - 'tools/windows-tests/**'
+      - '.github/workflows/windows-setup-script.yml'
+  workflow_dispatch:
+
+jobs:
+  windows-setup-script:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run setup_win.bat lightweight checks
+      shell: pwsh
+      run: ./tools/windows-tests/test_setup_win.ps1
