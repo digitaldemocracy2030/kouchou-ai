@@ -6,6 +6,7 @@ from unittest.mock import mock_open, patch
 import pytest
 
 from src.schemas.report import Report, ReportStatus, ReportVisibility
+from src.services import report_status
 from src.services.report_status import add_analysis_data, convert_old_format_status
 
 
@@ -137,6 +138,23 @@ class TestReportStatus:
         # 結果を検証
         assert result == {}
 
+    def test_fill_missing_slug_from_status_key(self):
+        """slug フィールドが欠落している場合、status key から補完する"""
+        input_data = {
+            "missing-slug": {
+                "status": "ready",
+                "title": "テストタイトル",
+                "description": "テスト説明",
+                "is_pubcom": True,
+                "visibility": "public",
+                "created_at": "2025-05-13T07:56:58.405239+00:00",
+            }
+        }
+
+        result = convert_old_format_status(deepcopy(input_data))
+
+        assert result["missing-slug"]["slug"] == "missing-slug"
+
     def test_mixed_format_data(self, mixed_format_data):
         """旧形式と新形式が混在したデータのテスト"""
         # 入力データのコピーを作成して元のデータが変更されないようにする
@@ -158,6 +176,29 @@ class TestReportStatus:
         assert "visibility" in result["new-slug"]
         assert result["new-slug"]["visibility"] == original_new_visibility
         assert "is_public" not in result["new-slug"]
+
+    @patch("src.services.report_status.STATE_FILE", Path("/fake/report_status.json"))
+    def test_load_status_as_reports_fills_missing_slug(self):
+        """一覧読み出し時にも key 由来の slug 補完で ValidationError を避ける"""
+        status_data = {
+            "legacy-report": {
+                "status": "ready",
+                "title": "Legacy Report",
+                "description": "Legacy Description",
+                "is_pubcom": False,
+                "visibility": "public",
+                "created_at": "2025-05-13T07:56:58.405239+00:00",
+            }
+        }
+
+        report_status._report_status.clear()
+
+        with patch("builtins.open", mock_open(read_data=json.dumps(status_data))):
+            reports = report_status.load_status_as_reports()
+
+        assert len(reports) == 1
+        assert reports[0].slug == "legacy-report"
+        assert reports[0].status == ReportStatus.READY
 
 
 class TestAddAnalysisData:

@@ -26,6 +26,9 @@ def convert_old_format_status(status: dict) -> dict:
     旧形式では公開/非公開をis_publicで管理していたが、新形式ではvisibilityで管理している
     """
     for slug, report_status in status.items():
+        if "slug" not in report_status:
+            report_status["slug"] = slug
+
         if "is_public" in report_status:
             report_status["visibility"] = (
                 ReportVisibility.PUBLIC.value if report_status["is_public"] else ReportVisibility.PRIVATE.value
