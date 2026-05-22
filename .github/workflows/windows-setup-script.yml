@@ -53,6 +53,7 @@ jobs:
           if ($output.Contains([char]0xfffd)) {
             throw "setup_win.bat output contains mojibake replacement characters"
           }
+          exit 0
 
       - name: Check non-interactive env generation
         shell: pwsh
@@ -85,3 +86,4 @@ jobs:
           if ($envText -notmatch "NEXT_PUBLIC_API_BASEPATH=http://localhost:8000") {
             throw "NEXT_PUBLIC_API_BASEPATH was not written to .env"
           }
+          exit 0
