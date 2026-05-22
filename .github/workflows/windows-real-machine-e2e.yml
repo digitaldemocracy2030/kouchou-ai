@@ -1,28 +1,23 @@
 name: Windows real-machine setup E2E
 
 on:
-  pull_request:
-    paths:
-      - setup_win.bat
-      - compose.yaml
-      - .github/workflows/windows-real-machine-e2e.yml
   workflow_dispatch:
-  schedule:
-    - cron: "0 18 * * *"
 
 concurrency:
-  group: windows-real-machine-e2e-${{ github.event.pull_request.number || github.ref }}
+  group: windows-real-machine-e2e-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   windows-real-machine-setup:
-    if: github.event_name != 'pull_request' || github.event.pull_request.user.login == 'nishio'
+    if: github.actor == 'nishio'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 90
     env:
       DOCKER_BIN: C:\Program Files\Docker\Docker\resources\bin\docker.exe
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
 
       - name: Show Docker environment
         shell: cmd
