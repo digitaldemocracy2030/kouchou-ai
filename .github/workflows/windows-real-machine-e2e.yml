@@ -14,20 +14,22 @@ jobs:
   windows-real-machine-setup:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 90
+    env:
+      DOCKER_BIN: C:\Program Files\Docker\Docker\resources\bin\docker.exe
     steps:
       - uses: actions/checkout@v4
 
       - name: Show Docker environment
         shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
-          docker --version
-          docker compose version
-          docker info
+          & $env:DOCKER_BIN --version
+          & $env:DOCKER_BIN compose version
+          & $env:DOCKER_BIN info
 
       - name: Clean previous run
         shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
-          docker compose down -v --remove-orphans 2>$null
+          & $env:DOCKER_BIN compose down -v --remove-orphans 2>$null
           if ($LASTEXITCODE -ne 0) {
             Write-Host "No previous compose stack to clean."
           }
@@ -36,6 +38,7 @@ jobs:
         shell: cmd
         run: |
           chcp 65001
+          set "PATH=C:\Program Files\Docker\Docker\resources\bin;%PATH%"
           call setup_win.bat --non-interactive --openai-api-key sk-test --gemini-api-key AIza-test
 
       - name: Wait for services
@@ -68,12 +71,12 @@ jobs:
         if: always()
         shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
-          docker compose ps
-          docker compose logs --tail=100 api
-          docker compose logs --tail=100 admin
-          docker compose logs --tail=100 public-viewer
+          & $env:DOCKER_BIN compose ps
+          & $env:DOCKER_BIN compose logs --tail=100 api
+          & $env:DOCKER_BIN compose logs --tail=100 admin
+          & $env:DOCKER_BIN compose logs --tail=100 public-viewer
 
       - name: Clean up
         if: always()
         shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
-        run: docker compose down -v --remove-orphans
+        run: '& $env:DOCKER_BIN compose down -v --remove-orphans'
