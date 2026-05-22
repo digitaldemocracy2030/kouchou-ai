@@ -104,7 +104,12 @@ try {
 if (-not $SkipDockerStart) {
   try {
     docker info *> $null
+    $dockerInfoExitCode = $LASTEXITCODE
   } catch {
+    $dockerInfoExitCode = 1
+  }
+
+  if ($dockerInfoExitCode -ne 0) {
     if ($NonInteractive) {
       Write-Error "Docker Desktop is not running. Please start Docker Desktop and try again."
     } else {
@@ -175,11 +180,24 @@ if ($SkipDockerStart) {
   exit 0
 }
 
-Show-Message -Text $messages.startingDocker -Icon Information
+if ($NonInteractive) {
+  Write-Host $messages.startingDocker
+} else {
+  Show-Message -Text $messages.startingDocker -Icon Information
+}
+
 & docker compose up -d --build
 if ($LASTEXITCODE -ne 0) {
-  Show-Message -Text $messages.dockerComposeFailed -Icon Error
+  if ($NonInteractive) {
+    Write-Error "Docker environment failed to start."
+  } else {
+    Show-Message -Text $messages.dockerComposeFailed -Icon Error
+  }
   exit $LASTEXITCODE
 }
 
-Show-Message -Text $messages.setupCompleted -Icon Information
+if ($NonInteractive) {
+  Write-Host $messages.setupCompleted
+} else {
+  Show-Message -Text $messages.setupCompleted -Icon Information
+}
