@@ -12,7 +12,7 @@ on:
 
 jobs:
   windows-real-machine-setup:
-    runs-on: [self-hosted, Windows, X64, kouchou-ai-e2e]
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
