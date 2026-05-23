@@ -18,15 +18,17 @@ Remember that Kouchou-AI is a broadlistening system for the Digital Democracy 20
 - Expect Ollama to use the ELYZA-JP model by default.
 
 ## Key directories
-- Use `apps/api/broadlistening/pipeline/` for pipeline steps, services, and outputs.
+- Use `packages/analysis-core/src/analysis_core/` for analysis steps, orchestration, services, and workflows.
+- Use `apps/api/broadlistening/pipeline/` for runtime configs, inputs, and outputs managed by the API.
 - Use `apps/public-viewer/components/charts/` and `apps/public-viewer/components/report/` for report UI and charts.
 - Use `apps/admin/app/create/` and `apps/admin/app/create/hooks/` for report creation UI.
 - Use `apps/api/src/routers/`, `apps/api/src/services/`, `apps/api/src/schemas/`, and `apps/api/src/repositories/` for API layers.
 
 ## Pipeline architecture and report flow
 - Follow the flow: CSV upload -> API validation -> pipeline run -> hierarchical output -> public viewer.
-- Start pipeline orchestration at `apps/api/broadlistening/pipeline/hierarchical_main.py`.
-- Expect outputs under `apps/api/broadlistening/pipeline/outputs/{report_id}/`.
+- Start API-side orchestration at `apps/api/src/services/report_launcher.py`.
+- Start CLI-side orchestration at `packages/analysis-core/src/analysis_core/__main__.py` and `packages/analysis-core/src/analysis_core/orchestrator.py`.
+- Expect API-managed outputs under `apps/api/broadlistening/pipeline/outputs/{report_id}/`.
 
 ## Technology stack
 - Treat the backend as FastAPI + OpenAI GPT models + sentence-transformers + pandas/numpy/scipy.

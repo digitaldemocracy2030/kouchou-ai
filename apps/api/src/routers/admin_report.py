@@ -490,7 +490,7 @@ async def verify_api_key(
 ) -> dict:
     """Verify the API key for the specified provider by making a simple chat request."""
 
-    from broadlistening.pipeline.services.llm import request_to_chat_ai
+    from analysis_core.services.llm import request_to_chat_ai
 
     try:
         test_messages = [

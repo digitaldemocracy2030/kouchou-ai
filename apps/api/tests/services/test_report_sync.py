@@ -254,7 +254,7 @@ class TestReportSyncService:
         assert not (slug_dir / "test.txt").exists()  # 非JSONファイルは削除されている
 
     def test_cleanup_report_files_removes_report_html(self, report_sync_service: ReportSyncService, tmp_path: Path):
-        """report.html は CLI 専用 sidecar なので保持対象にしない。"""
+        """report.html は CLI ローカル確認用 HTML なので保持対象にしない。"""
         slug_dir = tmp_path / "test-slug"
         slug_dir.mkdir()
         (slug_dir / "hierarchical_result.json").write_text('{"ok": true}', encoding="utf-8")

@@ -91,10 +91,7 @@ lint.ignore = [
 combine-as-imports = true
 force-single-line = false
 relative-imports-order = "closest-to-furthest"
-known-first-party = ["src", "broadlistening", "tests"]
+known-first-party = ["src", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # `__init__.py` での未使用importを許可
-# Deprecated files - E402 allowed due to sys.path manipulation before imports
-"broadlistening/pipeline/hierarchical_main.py" = ["E402"]
-"broadlistening/pipeline/hierarchical_utils.py" = ["E402"]

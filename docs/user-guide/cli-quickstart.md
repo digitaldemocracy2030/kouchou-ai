@@ -140,7 +140,7 @@ Execution Plan:
 
 `--dry-run` は単に plan を表示するだけでなく、current CLI path に対する **cheap preflight** も兼ねます。`config.json` の構造、解決された input CSV の存在、入力ヘッダ（最低 `comment-id`, `comment-body`）がここで確認されます。API key 検証や実際のパイプライン実行は行いません。
 
-`hierarchical_visualization` ステップは自己完結型の `report.html` を生成します（Plotly CDN のみ参照、データは inline）。これは CLI でのローカル確認用 sidecar artifact であり、canonical output は `hierarchical_result.json` です。HTML を生成したくない場合は `--without-html` を指定してください。
+`hierarchical_visualization` ステップは自己完結型の `report.html` を生成します（Plotly CDN のみ参照、データは inline）。これは CLI でのローカル確認用補助 HTML であり、canonical output は `hierarchical_result.json` です。HTML を生成したくない場合は `--without-html` を指定してください。
 
 ### validation only
 
@@ -187,7 +187,7 @@ Output directory: outputs/config
 ```
 outputs/config/
 ├── hierarchical_result.json    # 最終結果（Webビューア用 / report.html の元データ）
-├── report.html                 # CLI ローカル確認用の自己完結型 HTML sidecar
+├── report.html                 # CLI ローカル確認用の自己完結型 HTML
 ├── hierarchical_overview.txt   # AI生成の要約テキスト
 ├── hierarchical_clusters.csv   # クラスタリング結果
 ├── hierarchical_initial_labels.csv

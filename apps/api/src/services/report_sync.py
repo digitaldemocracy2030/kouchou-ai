@@ -29,8 +29,8 @@ class ReportSyncService:
     )
     # ``report.html`` is intentionally excluded. The Web product uses
     # ``hierarchical_result.json`` as the canonical stored/distributed artifact
-    # and renders it in public-viewer; the self-contained HTML report is a
-    # CLI-side local inspection artifact only.
+    # and renders it in public-viewer; the self-contained HTML report is for
+    # CLI-side local inspection only.
 
     def __init__(self):
         self.storage_service = get_storage_service()
