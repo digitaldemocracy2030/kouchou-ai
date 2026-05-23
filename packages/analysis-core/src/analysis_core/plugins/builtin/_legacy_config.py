@@ -52,7 +52,7 @@ def resolve_input_location(
             input_name = configured_input
 
         comments_path = inputs.artifacts.get("comments")
-        if comments_path is not None:
+        if not (isinstance(configured_input, str) and configured_input) and comments_path is not None:
             comments_path = Path(comments_path)
             input_name = comments_path.stem
             input_base_dir = comments_path.parent

@@ -45,8 +45,8 @@ def test_visualization_plugin_reports_report_html_path(tmp_path, monkeypatch):
     assert outputs.artifacts["html"] == output_dir / "report.html"
 
 
-def test_extraction_plugin_passes_resolved_input_and_output_paths(tmp_path, monkeypatch):
-    """The workflow plugin should pass input/output base dirs to legacy steps."""
+def test_extraction_plugin_keeps_explicit_input_over_comments_fallback(tmp_path, monkeypatch):
+    """Explicit configured input should win over comments-derived fallback."""
 
     output_dir = tmp_path / "custom-output" / "demo"
     input_dir = tmp_path / "custom-input"
@@ -79,7 +79,61 @@ def test_extraction_plugin_passes_resolved_input_and_output_paths(tmp_path, monk
         ctx,
         StepInputs(
             artifacts={"comments": comments_path},
-            config={"input": "ignored-by-comments-artifact"},
+            config={"input": "configured-input"},
+        ),
+        {
+            "extraction": {
+                "model": "test-model",
+                "prompt": "extract",
+                "workers": 2,
+                "limit": 10,
+                "properties": [],
+            }
+        },
+    )
+
+    assert seen["input"] == "configured-input"
+    assert seen["_input_base_dir"] == str(input_dir)
+    assert seen["_output_base_dir"] == str(output_dir.parent)
+    assert outputs.artifacts["arguments"] == output_dir / "args.csv"
+    assert outputs.artifacts["relations"] == output_dir / "relations.csv"
+
+
+def test_extraction_plugin_uses_comments_path_as_input_fallback(tmp_path, monkeypatch):
+    """Comments artifact should provide input slug and base dir when config omits it."""
+
+    output_dir = tmp_path / "custom-output" / "demo"
+    input_dir = tmp_path / "custom-input"
+    comments_dir = input_dir / "nested"
+    comments_path = comments_dir / "sample-comments.csv"
+    output_dir.mkdir(parents=True)
+    comments_dir.mkdir(parents=True)
+    comments_path.write_text("comment-id,comment-body\n1,test\n", encoding="utf-8")
+
+    ctx = StepContext(
+        output_dir=output_dir,
+        input_dir=input_dir,
+        dataset="demo",
+        provider="local",
+        model="dummy-model",
+        local_llm_address="127.0.0.1:9999",
+    )
+
+    seen = {}
+
+    def fake_extraction(config):
+        seen.update(config)
+        (output_dir / "args.csv").write_text("arg-id,argument\na1,test\n", encoding="utf-8")
+        (output_dir / "relations.csv").write_text("arg-id,comment-id\na1,1\n", encoding="utf-8")
+
+    extraction_module = importlib.import_module("analysis_core.steps.extraction")
+    monkeypatch.setattr(extraction_module, "extraction", fake_extraction)
+
+    outputs = extraction_plugin.run(
+        ctx,
+        StepInputs(
+            artifacts={"comments": comments_path},
+            config={},
         ),
         {
             "extraction": {
