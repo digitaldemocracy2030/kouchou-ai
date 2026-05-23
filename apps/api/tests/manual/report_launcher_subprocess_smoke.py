@@ -64,9 +64,7 @@ def _analysis_core_python() -> Path:
 def _prepend_analysis_core_python(monkeypatch: pytest.MonkeyPatch) -> None:
     analysis_core_python = _analysis_core_python()
     if not analysis_core_python.exists():
-        pytest.skip(
-            "analysis-core virtualenv is missing. Run `cd packages/analysis-core && rye sync` first."
-        )
+        pytest.skip("analysis-core virtualenv is missing. Run `cd packages/analysis-core && rye sync` first.")
 
     analysis_core_bin = str(analysis_core_python.parent)
     current_path = os.environ.get("PATH", "")
