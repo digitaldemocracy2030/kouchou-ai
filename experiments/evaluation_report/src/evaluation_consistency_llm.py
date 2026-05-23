@@ -1,8 +1,8 @@
 import sys
 from pathlib import Path
 
-# このスクリプトから3階層上の server/ を PYTHONPATH に追加
-root_path = Path(__file__).resolve().parents[3] / "server"
+# このスクリプトから repo 直下の analysis-core/src を PYTHONPATH に追加
+root_path = Path(__file__).resolve().parents[3] / "packages" / "analysis-core" / "src"
 sys.path.insert(0, str(root_path))
 
 import argparse
@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 import pandas as pd
-from broadlistening.pipeline.services.llm import request_to_chat_ai
+from analysis_core.services.llm import request_to_chat_ai
 
 
 def get_criteria_clarity() -> str:

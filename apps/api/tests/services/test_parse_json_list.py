@@ -1,4 +1,4 @@
-from broadlistening.pipeline.services.parse_json_list import parse_extraction_response
+from analysis_core.services.parse_json_list import parse_extraction_response
 
 
 class TestParseJsonList:

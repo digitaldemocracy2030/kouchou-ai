@@ -71,8 +71,8 @@ def load_config(path: Path) -> dict[str, Any]:
     """
     Load a legacy configuration file.
 
-    This function maintains compatibility with the existing hierarchical_main.py
-    configuration format.
+    This function maintains compatibility with the pre-workflow JSON
+    configuration format still embedded in older reports.
     """
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)

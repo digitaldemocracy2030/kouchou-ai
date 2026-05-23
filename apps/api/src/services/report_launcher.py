@@ -64,8 +64,8 @@ def _build_analysis_core_command(config_path: Path, only: str | None = None) -> 
 
     The Web product treats ``hierarchical_result.json`` as the canonical
     artifact and renders it through ``public-viewer``. We therefore keep
-    ``--without-html`` enabled here so the CLI-only ``report.html`` sidecar
-    is not generated, stored, or distributed by the API path.
+    ``--without-html`` enabled here so the CLI-only local ``report.html``
+    artifact is not generated, stored, or distributed by the API path.
     """
     cmd = [
         "python",

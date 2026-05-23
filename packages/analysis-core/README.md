@@ -40,7 +40,7 @@ pip install kouchou-ai-analysis-core
 kouchou-analyze --config config.json
 ```
 
-CLI の canonical output は `hierarchical_result.json` です。既定ではローカル確認用の sidecar artifact として `report.html` も生成しますが、これは保存・配信の対象ではありません。
+CLI の canonical output は `hierarchical_result.json` です。既定ではローカル確認用の補助 HTML として `report.html` も生成しますが、これは保存・配信の対象ではありません。
 
 ### ライブラリとして
 

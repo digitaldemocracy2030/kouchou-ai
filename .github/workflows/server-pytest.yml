@@ -6,15 +6,25 @@ on:
     paths:
       - 'apps/api/**/*.py'
       - 'apps/api/pyproject.toml'
+      - 'apps/api/requirements*.lock'
       - 'apps/api/tests/**/*.py'
       - 'apps/api/pytest.ini'
+      - 'packages/analysis-core/**/*.py'
+      - 'packages/analysis-core/pyproject.toml'
+      - 'packages/analysis-core/requirements*.lock'
+      - '.github/workflows/server-pytest.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'apps/api/**/*.py'
       - 'apps/api/pyproject.toml'
+      - 'apps/api/requirements*.lock'
       - 'apps/api/tests/**/*.py'
       - 'apps/api/pytest.ini'
+      - 'packages/analysis-core/**/*.py'
+      - 'packages/analysis-core/pyproject.toml'
+      - 'packages/analysis-core/requirements*.lock'
+      - '.github/workflows/server-pytest.yml'
 
 jobs:
   test:
@@ -36,6 +46,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements-dev.lock
+        pip install -e ../../packages/analysis-core
 
     - name: Run tests with pytest
       run: |

@@ -128,7 +128,7 @@ class TestUpdateReportVisibility:
 
 class TestVerifyApiKey:
     def test_verify_api_key_openai(self, client):
-        with patch("broadlistening.pipeline.services.llm.request_to_chat_ai") as mock_request:
+        with patch("analysis_core.services.llm.request_to_chat_ai") as mock_request:
             mock_request.return_value = ("ok", 0, 0, 0)
 
             response = client.get("/admin/environment/verify?provider=openai", headers={"x-api-key": "test-api-key"})
@@ -141,7 +141,7 @@ class TestVerifyApiKey:
             assert kwargs["model"] == "gpt-4o-mini"
 
     def test_verify_api_key_gemini(self, client):
-        with patch("broadlistening.pipeline.services.llm.request_to_chat_ai") as mock_request:
+        with patch("analysis_core.services.llm.request_to_chat_ai") as mock_request:
             mock_request.return_value = ("ok", 0, 0, 0)
 
             response = client.get("/admin/environment/verify?provider=gemini", headers={"x-api-key": "test-api-key"})
@@ -154,7 +154,7 @@ class TestVerifyApiKey:
             assert kwargs["model"] == "gemini-2.5-flash"
 
     def test_verify_api_key_uses_user_provided_key_header(self, client):
-        with patch("broadlistening.pipeline.services.llm.request_to_chat_ai") as mock_request:
+        with patch("analysis_core.services.llm.request_to_chat_ai") as mock_request:
             mock_request.return_value = ("ok", 0, 0, 0)
 
             response = client.get(

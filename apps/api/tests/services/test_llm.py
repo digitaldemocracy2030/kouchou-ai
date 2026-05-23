@@ -4,10 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import openai
 import pytest
-from openai import AzureOpenAI  # noqa: F401
-from pydantic import BaseModel, Field
-
-from broadlistening.pipeline.services.llm import (
+from analysis_core.services.llm import (
     _validate_model,
     extract_embedding_values,
     request_to_azure_chatcompletion,
@@ -16,6 +13,8 @@ from broadlistening.pipeline.services.llm import (
     request_to_embed,  # noqa: F401
     request_to_openai,
 )
+from openai import AzureOpenAI  # noqa: F401
+from pydantic import BaseModel, Field
 
 
 class TestLLMService:
@@ -66,7 +65,7 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_openai_response
 
-        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             response, token_input, token_output, token_total = request_to_openai(messages, model="gpt-4")
 
         assert response == "This is a test response"
@@ -89,7 +88,7 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_openai_response
 
-        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             response, token_input, token_output, token_total = request_to_openai(messages, model="gpt-4", is_json=True)
 
         assert response == "This is a test response"
@@ -101,7 +100,7 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_openai_response
 
-        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             request_to_openai(messages, model="gpt-4", is_json=True)
             args, kwargs = mock_client.chat.completions.create.call_args
             assert kwargs["response_format"] == {"type": "json_object"}
@@ -136,7 +135,7 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_openai_response
 
-        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             response, token_input, token_output, token_total = request_to_openai(
                 messages, model="gpt-4", json_schema=json_schema
             )
@@ -169,7 +168,7 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_client.beta.chat.completions.parse.return_value = mock_openai_parse_response
 
-        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             response, token_input, token_output, token_total = request_to_openai(
                 messages, model="gpt-4", json_schema=TestModel
             )
@@ -212,7 +211,7 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_client.chat.completions.create.side_effect = side_effects
 
-        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             # リトライ後に正常なレスポンスが返されることを確認
             response, token_input, token_output, token_total = request_to_openai(messages, model="gpt-4")
             assert response == "This is a test response after retry"
@@ -238,7 +237,7 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_client.chat.completions.create.side_effect = [rate_limit_error] * 4
 
-        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             # 3回リトライしても失敗するため、最終的に例外が発生する
             with pytest.raises(openai.RateLimitError):
                 request_to_openai(messages, model="gpt-4")
@@ -260,7 +259,7 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_client.chat.completions.create.side_effect = auth_error
 
-        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             with pytest.raises(openai.AuthenticationError):
                 request_to_openai(messages, model="gpt-4")
 
@@ -281,7 +280,7 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_client.chat.completions.create.side_effect = bad_request_error
 
-        with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             with pytest.raises(openai.BadRequestError):
                 request_to_openai(messages, model="gpt-4")
 
@@ -309,7 +308,7 @@ class TestLLMService:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.AzureOpenAI", return_value=mock_client):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 response, token_input, token_output, token_total = request_to_azure_chatcompletion(messages)
 
         assert response == "This is a test response"
@@ -342,7 +341,7 @@ class TestLLMService:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.AzureOpenAI", return_value=mock_client):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 response, token_input, token_output, token_total = request_to_azure_chatcompletion(
                     messages, is_json=True
                 )
@@ -395,7 +394,7 @@ class TestLLMService:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.AzureOpenAI", return_value=mock_client):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 response, token_input, token_output, token_total = request_to_azure_chatcompletion(
                     messages, json_schema=json_schema
                 )
@@ -446,7 +445,7 @@ class TestLLMService:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.AzureOpenAI", return_value=mock_client):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 response, token_input, token_output, token_total = request_to_azure_chatcompletion(
                     messages, json_schema=TestModel
                 )
@@ -485,7 +484,7 @@ class TestLLMService:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.AzureOpenAI", return_value=mock_client):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 with pytest.raises(openai.RateLimitError):
                     request_to_azure_chatcompletion(messages)
 
@@ -531,7 +530,7 @@ class TestLLMService:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.AzureOpenAI", return_value=mock_client):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 # リトライ後に正常なレスポンスが返されることを確認
                 response, token_input, token_output, token_total = request_to_azure_chatcompletion(messages)
                 assert response == "This is a test response after retry"
@@ -567,7 +566,7 @@ class TestLLMService:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.AzureOpenAI", return_value=mock_client):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 # 3回リトライしても失敗するため、最終的に例外が発生する
                 with pytest.raises(openai.RateLimitError):
                     request_to_azure_chatcompletion(messages)
@@ -581,7 +580,7 @@ class TestLLMService:
 
         # request_to_openaiをモック化
         with patch(
-            "broadlistening.pipeline.services.llm.request_to_openai", return_value=("OpenAI response", 50, 50, 100)
+            "analysis_core.services.llm.request_to_openai", return_value=("OpenAI response", 50, 50, 100)
         ) as mock_request_to_openai:
             response, token_input, token_output, token_total = request_to_chat_ai(
                 messages, model="gpt-4o", provider="openai"
@@ -591,7 +590,7 @@ class TestLLMService:
         assert token_input == 50
         assert token_output == 50
         assert token_total == 100
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, None, None)
+        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, None, None, 300)
 
     def test_request_to_chat_openai_use_azure(self, mock_openai_response):
         """request_to_chat_openai: provider=azureの場合はrequest_to_azure_chatcompletionを使用する"""
@@ -602,7 +601,7 @@ class TestLLMService:
 
         # request_to_azure_chatcompletionをモック化
         with patch(
-            "broadlistening.pipeline.services.llm.request_to_azure_chatcompletion",
+            "analysis_core.services.llm.request_to_azure_chatcompletion",
             return_value=("Azure response", 75, 75, 150),
         ) as mock_request_to_azure:
             response, token_input, token_output, token_total = request_to_chat_ai(
@@ -613,7 +612,7 @@ class TestLLMService:
         assert token_input == 75
         assert token_output == 75
         assert token_total == 150
-        mock_request_to_azure.assert_called_once_with(messages, True, None, None)
+        mock_request_to_azure.assert_called_once_with(messages, True, None, None, 300)
 
     def test_request_to_chat_openai_with_json_schema(self, mock_openai_response):
         """request_to_chat_openai: json_schemaパラメータを指定できる"""
@@ -639,7 +638,7 @@ class TestLLMService:
 
         # request_to_openaiをモック化
         with patch(
-            "broadlistening.pipeline.services.llm.request_to_openai", return_value=("OpenAI response", 100, 100, 200)
+            "analysis_core.services.llm.request_to_openai", return_value=("OpenAI response", 100, 100, 200)
         ) as mock_request_to_openai:
             response, token_input, token_output, token_total = request_to_chat_ai(
                 messages, model="gpt-4o", json_schema=json_schema, provider="openai"
@@ -649,7 +648,7 @@ class TestLLMService:
         assert token_input == 100
         assert token_output == 100
         assert token_total == 200
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, json_schema, None)
+        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, json_schema, None, 300)
 
     def test_request_to_chat_openai_with_pydantic_model(self, mock_openai_response):
         """request_to_chat_openai: Pydantic BaseModelを指定できる"""
@@ -664,7 +663,7 @@ class TestLLMService:
 
         # request_to_openaiをモック化
         with patch(
-            "broadlistening.pipeline.services.llm.request_to_openai", return_value=("OpenAI response", 125, 125, 250)
+            "analysis_core.services.llm.request_to_openai", return_value=("OpenAI response", 125, 125, 250)
         ) as mock_request_to_openai:
             response, token_input, token_output, token_total = request_to_chat_ai(
                 messages, model="gpt-4o", json_schema=TestModel, provider="openai"
@@ -674,7 +673,7 @@ class TestLLMService:
         assert token_input == 125
         assert token_output == 125
         assert token_total == 250
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, TestModel, None)
+        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, TestModel, None, 300)
 
     def test_validate_model_valid(self):
         """_validate_model: 有効なモデルの場合は例外を発生させない"""
@@ -714,7 +713,7 @@ class TestLLMService:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+            with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
                 response, token_input, token_output, token_total = request_to_chat_ai(
                     messages=messages,
                     model=model,
@@ -731,7 +730,7 @@ class TestLLMService:
             temperature=0,
             n=1,
             seed=0,
-            timeout=30,
+            timeout=300,
         )
 
     def test_request_to_chat_ai_use_openrouter_without_env(self):
@@ -801,7 +800,7 @@ class TestLLMService:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.OpenAI", return_value=mock_client):
+            with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
                 with pytest.raises(openai.RateLimitError):
                     request_to_chat_ai(messages=messages, model=model, provider="openrouter")
 
@@ -833,8 +832,8 @@ class TestLLMService:
         env_vars = {"GEMINI_API_KEY": "test-api-key"}
         with patch.dict(os.environ, env_vars):
             with (
-                patch("broadlistening.pipeline.services.llm.genai", genai_module),
-                patch("broadlistening.pipeline.services.llm.genai_errors", genai_errors),
+                patch("analysis_core.services.llm.genai", genai_module),
+                patch("analysis_core.services.llm.genai_errors", genai_errors),
             ):
                 response, token_input, token_output, token_total = request_to_chat_ai(
                     messages=messages, model=model, provider="gemini"
@@ -848,7 +847,10 @@ class TestLLMService:
         mock_models.generate_content.assert_called_once_with(
             model=model,
             contents=[{"role": "user", "parts": [{"text": "Hello!"}]}],
-            config={"system_instruction": "You are a helpful assistant."},
+            config={
+                "system_instruction": "You are a helpful assistant.",
+                "http_options": {"timeout": 300000},
+            },
         )
 
     def test_request_to_chat_ai_use_gemini_without_env(self):
@@ -863,8 +865,8 @@ class TestLLMService:
         genai_errors = types.SimpleNamespace(ClientError=Exception, ServerError=Exception)
 
         with (
-            patch("broadlistening.pipeline.services.llm.genai", genai_module),
-            patch("broadlistening.pipeline.services.llm.genai_errors", genai_errors),
+            patch("analysis_core.services.llm.genai", genai_module),
+            patch("analysis_core.services.llm.genai_errors", genai_errors),
             patch.dict(os.environ, {}, clear=True),
         ):
             with pytest.raises(RuntimeError) as excinfo:
@@ -896,9 +898,9 @@ class TestLLMService:
         env_vars = {"GEMINI_API_KEY": "test-api-key"}
         with patch.dict(os.environ, env_vars):
             with (
-                patch("broadlistening.pipeline.services.llm.genai", genai_module),
-                patch("broadlistening.pipeline.services.llm.genai_errors", genai_errors),
-                patch("broadlistening.pipeline.services.llm.time.sleep", return_value=None),
+                patch("analysis_core.services.llm.genai", genai_module),
+                patch("analysis_core.services.llm.genai_errors", genai_errors),
+                patch("analysis_core.services.llm.time.sleep", return_value=None),
             ):
                 with pytest.raises(RuntimeError) as excinfo:
                     request_to_chat_ai(messages=messages, model=model, provider="gemini")
@@ -919,7 +921,7 @@ class TestLLMService:
 
         env_vars = {"GEMINI_API_KEY": "test-api-key"}
         with patch.dict(os.environ, env_vars):
-            with patch("broadlistening.pipeline.services.llm.genai", genai_module):
+            with patch("analysis_core.services.llm.genai", genai_module):
                 embeds = request_to_embed(args, model, provider="gemini")
 
         assert embeds == [[0.1, 0.2], [0.3, 0.4]]
