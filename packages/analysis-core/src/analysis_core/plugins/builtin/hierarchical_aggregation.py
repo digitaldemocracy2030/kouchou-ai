@@ -4,7 +4,6 @@ Hierarchical aggregation step plugin.
 Aggregates all results into a final JSON output file.
 """
 
-from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
@@ -13,6 +12,7 @@ from analysis_core.plugin import (
     StepOutputs,
     step_plugin,
 )
+from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_config
 
 
 @step_plugin(
@@ -44,26 +44,13 @@ def hierarchical_aggregation_plugin(
 
     step_config = config.get("hierarchical_aggregation", config)
 
-    # Build legacy config - aggregation needs many fields from full config
     legacy_config = inputs.config.copy() if inputs.config else {}
-    comments_path = inputs.artifacts.get("comments")
-    input_name = inputs.config.get("input", ctx.dataset)
-    input_base_dir = ctx.input_dir
-    if comments_path is not None:
-        input_name = Path(comments_path).stem
-        input_base_dir = Path(comments_path).parent
     legacy_config.update(
-        {
-            "output_dir": ctx.dataset,
-            "input": input_name,
-            "provider": ctx.provider,
-            "_input_base_dir": str(input_base_dir),
-            "_output_base_dir": str(ctx.output_dir.parent),
-            "hierarchical_aggregation": {
-                "hidden_properties": step_config.get("hidden_properties", {}),
-            },
-        }
+        build_legacy_runtime_config(ctx, inputs, include_input=True)
     )
+    legacy_config["hierarchical_aggregation"] = {
+        "hidden_properties": step_config.get("hidden_properties", {}),
+    }
 
     # Ensure required fields exist
     if "extraction" not in legacy_config:
