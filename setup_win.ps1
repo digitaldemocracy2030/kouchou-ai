@@ -91,7 +91,7 @@ function Test-Prefix {
     return $true
   }
 
-  return $Value.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)
+  return $Value.StartsWith($Prefix, [System.StringComparison]::Ordinal)
 }
 
 try {
@@ -102,11 +102,11 @@ try {
 }
 
 if (-not $SkipDockerStart) {
-  try {
-    docker info *> $null
-    $dockerInfoExitCode = $LASTEXITCODE
-  } catch {
+  if ($null -eq (Get-Command docker -ErrorAction SilentlyContinue)) {
     $dockerInfoExitCode = 1
+  } else {
+    & docker info *> $null
+    $dockerInfoExitCode = $LASTEXITCODE
   }
 
   if ($dockerInfoExitCode -ne 0) {
@@ -128,6 +128,18 @@ if ([string]::IsNullOrEmpty($openAiKey) -and -not $NonInteractive) {
 
 if ([string]::IsNullOrEmpty($geminiKey) -and -not $NonInteractive) {
   $geminiKey = Prompt-Value -Prompt $messages.geminiPrompt -Title $messages.dialogTitle
+}
+
+$openAiKey = $openAiKey.Trim()
+$geminiKey = $geminiKey.Trim()
+
+if ($openAiKey -match "[`r`n]" -or $geminiKey -match "[`r`n]") {
+  if ($NonInteractive) {
+    Write-Error "API keys must be single-line values."
+  } else {
+    Show-Message -Text "API key must be a single-line value." -Icon Error
+  }
+  exit 1
 }
 
 if (-not $SkipApiKeyValidation) {
