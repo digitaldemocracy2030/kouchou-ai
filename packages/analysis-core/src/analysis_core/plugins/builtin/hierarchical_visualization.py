@@ -12,6 +12,7 @@ from analysis_core.plugin import (
     StepOutputs,
     step_plugin,
 )
+from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_config
 
 
 @step_plugin(
@@ -43,13 +44,10 @@ def hierarchical_visualization_plugin(
     )
 
     step_config = config.get("hierarchical_visualization", config)
-    legacy_config = {
-        "output_dir": ctx.dataset,
-        "_output_base_dir": str(ctx.output_dir.parent),
-        "report_dir": step_config.get("report_dir", "../report"),
-        "report_html_title": step_config.get("report_html_title"),
-        "report_url_pattern": step_config.get("report_url_pattern"),
-    }
+    legacy_config = build_legacy_runtime_config(ctx, inputs)
+    legacy_config["report_dir"] = step_config.get("report_dir", "../report")
+    legacy_config["report_html_title"] = step_config.get("report_html_title")
+    legacy_config["report_url_pattern"] = step_config.get("report_url_pattern")
 
     viz_impl(legacy_config)
 

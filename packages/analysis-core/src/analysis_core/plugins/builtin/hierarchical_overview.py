@@ -12,6 +12,7 @@ from analysis_core.plugin import (
     StepOutputs,
     step_plugin,
 )
+from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_config
 
 
 @step_plugin(
@@ -43,19 +44,10 @@ def hierarchical_overview_plugin(
     )
 
     step_config = config.get("hierarchical_overview", config)
-    legacy_config = {
-        "output_dir": ctx.dataset,
-        "provider": ctx.provider,
-        "local_llm_address": ctx.local_llm_address,
-        "_output_base_dir": str(ctx.output_dir.parent),
-        "hierarchical_overview": {
-            "prompt": step_config.get("prompt", ""),
-            "model": step_config.get("model", ctx.model),
-        },
-        # Token tracking
-        "total_token_usage": 0,
-        "token_usage_input": 0,
-        "token_usage_output": 0,
+    legacy_config = build_legacy_runtime_config(ctx, inputs, include_token_usage=True)
+    legacy_config["hierarchical_overview"] = {
+        "prompt": step_config.get("prompt", ""),
+        "model": step_config.get("model", ctx.model),
     }
 
     overview_impl(legacy_config)

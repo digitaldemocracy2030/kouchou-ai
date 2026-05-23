@@ -12,6 +12,7 @@ from analysis_core.plugin import (
     StepOutputs,
     step_plugin,
 )
+from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_config
 
 
 @step_plugin(
@@ -40,15 +41,10 @@ def embedding_plugin(
     from analysis_core.steps.embedding import embedding as embedding_impl
 
     step_config = config.get("embedding", config)
-    legacy_config = {
-        "output_dir": ctx.dataset,
-        "provider": ctx.provider,
-        "local_llm_address": ctx.local_llm_address,
-        "is_embedded_at_local": inputs.config.get("is_embedded_at_local", False),
-        "_output_base_dir": str(ctx.output_dir.parent),
-        "embedding": {
-            "model": step_config.get("model", "text-embedding-3-small"),
-        },
+    legacy_config = build_legacy_runtime_config(ctx, inputs)
+    legacy_config["is_embedded_at_local"] = inputs.config.get("is_embedded_at_local", False)
+    legacy_config["embedding"] = {
+        "model": step_config.get("model", "text-embedding-3-small"),
     }
 
     embedding_impl(legacy_config)
