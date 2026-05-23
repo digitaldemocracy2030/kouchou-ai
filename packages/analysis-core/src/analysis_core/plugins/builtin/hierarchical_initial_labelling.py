@@ -12,6 +12,7 @@ from analysis_core.plugin import (
     StepOutputs,
     step_plugin,
 )
+from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_config
 
 
 @step_plugin(
@@ -45,20 +46,12 @@ def hierarchical_initial_labelling_plugin(
     )
 
     step_config = config.get("hierarchical_initial_labelling", config)
-    legacy_config = {
-        "output_dir": ctx.dataset,
-        "provider": ctx.provider,
-        "local_llm_address": ctx.local_llm_address,
-        "hierarchical_initial_labelling": {
-            "sampling_num": step_config.get("sampling_num", 10),
-            "prompt": step_config.get("prompt", ""),
-            "model": step_config.get("model", ctx.model),
-            "workers": step_config.get("workers", 3),
-        },
-        # Token tracking
-        "total_token_usage": 0,
-        "token_usage_input": 0,
-        "token_usage_output": 0,
+    legacy_config = build_legacy_runtime_config(ctx, inputs, include_token_usage=True)
+    legacy_config["hierarchical_initial_labelling"] = {
+        "sampling_num": step_config.get("sampling_num", 10),
+        "prompt": step_config.get("prompt", ""),
+        "model": step_config.get("model", ctx.model),
+        "workers": step_config.get("workers", 3),
     }
 
     labelling_impl(legacy_config)

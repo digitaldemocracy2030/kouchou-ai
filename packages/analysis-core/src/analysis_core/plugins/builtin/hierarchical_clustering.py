@@ -12,6 +12,7 @@ from analysis_core.plugin import (
     StepOutputs,
     step_plugin,
 )
+from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_config
 
 
 @step_plugin(
@@ -42,11 +43,9 @@ def hierarchical_clustering_plugin(
     )
 
     step_config = config.get("hierarchical_clustering", config)
-    legacy_config = {
-        "output_dir": ctx.dataset,
-        "hierarchical_clustering": {
-            "cluster_nums": step_config.get("cluster_nums"),
-        },
+    legacy_config = build_legacy_runtime_config(ctx, inputs)
+    legacy_config["hierarchical_clustering"] = {
+        "cluster_nums": step_config.get("cluster_nums"),
     }
 
     clustering_impl(legacy_config)

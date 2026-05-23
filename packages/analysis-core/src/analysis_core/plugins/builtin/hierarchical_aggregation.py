@@ -12,6 +12,7 @@ from analysis_core.plugin import (
     StepOutputs,
     step_plugin,
 )
+from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_config
 
 
 @step_plugin(
@@ -43,18 +44,13 @@ def hierarchical_aggregation_plugin(
 
     step_config = config.get("hierarchical_aggregation", config)
 
-    # Build legacy config - aggregation needs many fields from full config
     legacy_config = inputs.config.copy() if inputs.config else {}
     legacy_config.update(
-        {
-            "output_dir": ctx.dataset,
-            "input": inputs.config.get("input", ctx.dataset),
-            "provider": ctx.provider,
-            "hierarchical_aggregation": {
-                "hidden_properties": step_config.get("hidden_properties", {}),
-            },
-        }
+        build_legacy_runtime_config(ctx, inputs, include_input=True)
     )
+    legacy_config["hierarchical_aggregation"] = {
+        "hidden_properties": step_config.get("hidden_properties", {}),
+    }
 
     # Ensure required fields exist
     if "extraction" not in legacy_config:

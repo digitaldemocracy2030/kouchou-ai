@@ -12,6 +12,7 @@ from analysis_core.plugin import (
     StepOutputs,
     step_plugin,
 )
+from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_config
 
 
 @step_plugin(
@@ -44,24 +45,14 @@ def extraction_plugin(
     # Import here to avoid circular imports
     from analysis_core.steps.extraction import extraction as extraction_impl
 
-    # Build legacy config format for compatibility
     step_config = config.get("extraction", config)
-    legacy_config = {
-        "output_dir": ctx.dataset,
-        "input": inputs.config.get("input", ctx.dataset),
-        "provider": ctx.provider,
-        "local_llm_address": ctx.local_llm_address,
-        "extraction": {
-            "model": step_config.get("model", ctx.model),
-            "prompt": step_config.get("prompt", ""),
-            "workers": step_config.get("workers", 1),
-            "limit": step_config.get("limit", 1000),
-            "properties": step_config.get("properties", []),
-        },
-        # Token tracking
-        "total_token_usage": 0,
-        "token_usage_input": 0,
-        "token_usage_output": 0,
+    legacy_config = build_legacy_runtime_config(ctx, inputs, include_input=True, include_token_usage=True)
+    legacy_config["extraction"] = {
+        "model": step_config.get("model", ctx.model),
+        "prompt": step_config.get("prompt", ""),
+        "workers": step_config.get("workers", 1),
+        "limit": step_config.get("limit", 1000),
+        "properties": step_config.get("properties", []),
     }
 
     # Run the extraction
