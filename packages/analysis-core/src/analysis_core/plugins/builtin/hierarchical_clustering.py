@@ -44,6 +44,7 @@ def hierarchical_clustering_plugin(
     step_config = config.get("hierarchical_clustering", config)
     legacy_config = {
         "output_dir": ctx.dataset,
+        "_output_base_dir": str(ctx.output_dir.parent),
         "hierarchical_clustering": {
             "cluster_nums": step_config.get("cluster_nums"),
         },

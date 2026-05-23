@@ -45,6 +45,7 @@ def embedding_plugin(
         "provider": ctx.provider,
         "local_llm_address": ctx.local_llm_address,
         "is_embedded_at_local": inputs.config.get("is_embedded_at_local", False),
+        "_output_base_dir": str(ctx.output_dir.parent),
         "embedding": {
             "model": step_config.get("model", "text-embedding-3-small"),
         },

@@ -4,6 +4,7 @@ Extraction step plugin.
 Extracts opinions/arguments from comments using LLM.
 """
 
+from pathlib import Path
 from typing import Any
 
 from analysis_core.plugin import (
@@ -44,13 +45,22 @@ def extraction_plugin(
     # Import here to avoid circular imports
     from analysis_core.steps.extraction import extraction as extraction_impl
 
+    comments_path = inputs.artifacts.get("comments")
+    input_name = inputs.config.get("input", ctx.dataset)
+    input_base_dir = ctx.input_dir
+    if comments_path is not None:
+        input_name = Path(comments_path).stem
+        input_base_dir = Path(comments_path).parent
+
     # Build legacy config format for compatibility
     step_config = config.get("extraction", config)
     legacy_config = {
         "output_dir": ctx.dataset,
-        "input": inputs.config.get("input", ctx.dataset),
+        "input": input_name,
         "provider": ctx.provider,
         "local_llm_address": ctx.local_llm_address,
+        "_input_base_dir": str(input_base_dir),
+        "_output_base_dir": str(ctx.output_dir.parent),
         "extraction": {
             "model": step_config.get("model", ctx.model),
             "prompt": step_config.get("prompt", ""),
