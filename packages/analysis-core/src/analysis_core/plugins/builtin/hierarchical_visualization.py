@@ -45,6 +45,7 @@ def hierarchical_visualization_plugin(
     step_config = config.get("hierarchical_visualization", config)
     legacy_config = {
         "output_dir": ctx.dataset,
+        "_output_base_dir": str(ctx.output_dir.parent),
         "report_dir": step_config.get("report_dir", "../report"),
         "report_html_title": step_config.get("report_html_title"),
         "report_url_pattern": step_config.get("report_url_pattern"),

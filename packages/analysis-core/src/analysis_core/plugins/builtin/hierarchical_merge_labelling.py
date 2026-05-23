@@ -49,6 +49,7 @@ def hierarchical_merge_labelling_plugin(
         "output_dir": ctx.dataset,
         "provider": ctx.provider,
         "local_llm_address": ctx.local_llm_address,
+        "_output_base_dir": str(ctx.output_dir.parent),
         "hierarchical_merge_labelling": {
             "sampling_num": step_config.get("sampling_num", 10),
             "prompt": step_config.get("prompt", ""),

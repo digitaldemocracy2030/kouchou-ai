@@ -47,6 +47,7 @@ def hierarchical_overview_plugin(
         "output_dir": ctx.dataset,
         "provider": ctx.provider,
         "local_llm_address": ctx.local_llm_address,
+        "_output_base_dir": str(ctx.output_dir.parent),
         "hierarchical_overview": {
             "prompt": step_config.get("prompt", ""),
             "model": step_config.get("model", ctx.model),
