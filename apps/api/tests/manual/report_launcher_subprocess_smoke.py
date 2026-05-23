@@ -247,7 +247,7 @@ class LocalLLMServerProcess:
     def address(self) -> str:
         return f"127.0.0.1:{self.port}"
 
-    def __enter__(self) -> "LocalLLMServerProcess":
+    def __enter__(self) -> LocalLLMServerProcess:
         self._process = multiprocessing.Process(target=_serve_fake_local_llm, args=(self.port,), daemon=True)
         self._process.start()
         self._wait_until_ready()
