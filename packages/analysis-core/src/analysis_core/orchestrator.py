@@ -54,6 +54,10 @@ DEFAULT_STEP_MODULES: dict[str, tuple[str, str]] = {
         "analysis_core.steps.hierarchical_initial_labelling",
         "hierarchical_initial_labelling",
     ),
+    "hierarchical_label_refinement": (
+        "analysis_core.steps.hierarchical_label_refinement",
+        "hierarchical_label_refinement",
+    ),
     "hierarchical_merge_labelling": (
         "analysis_core.steps.hierarchical_merge_labelling",
         "hierarchical_merge_labelling",
@@ -98,6 +102,7 @@ class PipelineOrchestrator:
         "hierarchical_clustering",
         "hierarchical_initial_labelling",
         "hierarchical_merge_labelling",
+        "hierarchical_label_refinement",
         "hierarchical_overview",
         "hierarchical_aggregation",
         "hierarchical_visualization",
@@ -137,6 +142,7 @@ class PipelineOrchestrator:
         persist_status: bool = True,
         output_base_dir: Path | None = None,
         input_base_dir: Path | None = None,
+        reuse_from: str | None = None,
     ) -> "PipelineOrchestrator":
         """
         Create an orchestrator from a config file.
@@ -157,6 +163,7 @@ class PipelineOrchestrator:
             persist_status: Persist running/completed status to hierarchical_status.json
             output_base_dir: Base directory for outputs
             input_base_dir: Base directory for inputs
+            reuse_from: Reuse intermediate outputs from another job directory
 
         Returns:
             Initialized PipelineOrchestrator
@@ -173,6 +180,7 @@ class PipelineOrchestrator:
             persist_status=persist_status,
             output_base_dir=output_base_dir,
             input_base_dir=input_base_dir,
+            reuse_from=reuse_from,
             steps_module=steps_module,
         )
 
@@ -331,7 +339,7 @@ class PipelineOrchestrator:
             Initialized PipelineOrchestrator
         """
         from analysis_core.compat import normalize_config
-        from analysis_core.core.orchestration import _PACKAGE_DIR, decide_what_to_run, load_specs, validate_api_keys
+        from analysis_core.core.orchestration import decide_what_to_run, get_specs_path_for_mode, load_specs, validate_api_keys
 
         # Normalize config with defaults
         normalized = normalize_config(config.copy())
@@ -362,7 +370,7 @@ class PipelineOrchestrator:
             previous = json.loads(status_file.read_text(encoding="utf-8"))
             normalized["previous"] = previous
 
-        specs = load_specs(_PACKAGE_DIR / "specs" / "hierarchical_specs.json")
+        specs = load_specs(get_specs_path_for_mode(normalized.get("analysis_mode", "hierarchical")))
         if "plan" in config:
             normalized["plan"] = config["plan"]
         else:
@@ -387,16 +395,18 @@ class PipelineOrchestrator:
         from analysis_core.compat import create_step_context_from_config
         from analysis_core.workflow import WorkflowEngine
         from analysis_core.workflow.definition import StepResult as WorkflowStepResult
-        from analysis_core.workflows import HIERARCHICAL_DEFAULT_WORKFLOW
+        from analysis_core.workflows import get_workflow_for_mode
 
         start_time = datetime.now()
-        workflow = HIERARCHICAL_DEFAULT_WORKFLOW
+        workflow = get_workflow_for_mode(self.config.get("analysis_mode", "hierarchical"))
         plan_step_to_workflow_step = {
             "extraction": "extraction",
             "embedding": "embedding",
             "hierarchical_clustering": "clustering",
+            "llm_grouping": "llm_grouping",
             "hierarchical_initial_labelling": "initial_labelling",
             "hierarchical_merge_labelling": "merge_labelling",
+            "hierarchical_label_refinement": "label_refinement",
             "hierarchical_overview": "overview",
             "hierarchical_aggregation": "aggregation",
             "hierarchical_visualization": "visualization",

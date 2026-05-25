@@ -102,7 +102,7 @@ class TestPipelineIntegration:
         assert result.steps[0].success is False
 
     def test_full_plan_execution(self, tmp_path):
-        """Test that all 8 steps are planned for execution."""
+        """Test that all hierarchical workflow steps are planned for execution."""
         # Create config file
         config_path = tmp_path / "test.json"
         config_path.write_text(
@@ -128,8 +128,7 @@ class TestPipelineIntegration:
 
         plan = orchestrator.get_plan()
 
-        # All 8 steps should be in the plan
-        assert len(plan) == 8
+        assert len(plan) == 9
 
         step_names = [p["step"] for p in plan]
         expected_steps = [
@@ -138,6 +137,7 @@ class TestPipelineIntegration:
             "hierarchical_clustering",
             "hierarchical_initial_labelling",
             "hierarchical_merge_labelling",
+            "hierarchical_label_refinement",
             "hierarchical_overview",
             "hierarchical_aggregation",
             "hierarchical_visualization",

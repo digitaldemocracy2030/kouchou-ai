@@ -102,13 +102,60 @@ OVERVIEW_PROMPT = """/system
 出力は日本語で行ってください。
 """
 
+LABEL_REFINEMENT_PROMPT = """以下は top-level cluster 群です。cluster 集合全体を見て、各 cluster の label と description を再作成してください。
+
+mode: {mode}
+max_label_length: {max_label_length}
+
+# 目的
+- 各 cluster が何を代表しているかを保つ
+- sibling 同士の違いが見えるようにする
+- 粒度を揃える
+- 似た言い回しや重複を減らす
+
+# 指示
+- すべての cluster_id をそのまま維持してください
+- 各 cluster について label と description を返してください
+- label は current_label をそのまま焼き直すのではなく、内容に基づいて書き換えてください
+- description は代表性を保ちつつ、隣接 cluster との差も伝わるようにしてください
+- mode が `setwise_refine_short` の時は、label をできるだけ `max_label_length` 以内に収め、一覧で並んだ時に scan しやすい表現へ寄せてください
+- JSON だけを返してください
+
+入力:
+{cluster_set}
+"""
+
+LLM_GROUPING_DISCOVERY_PROMPT = """あなたは意見分析のアシスタントです。
+与えられた意見群を、内容上まとまりのある少数のグループへ整理してください。
+
+# 指示
+- グループは内容ベースでまとめてください
+- 賛成 / 反対が同じトピックに混ざるなら、その違いが重要かどうかを見て判断してください
+- 出力する group_id は g1, g2, ... の形式にしてください
+- label は短く具体的に、description は何がそのグループを特徴づけるかを2〜3文で説明してください
+- JSON だけを返してください
+"""
+
+LLM_GROUPING_ASSIGNMENT_PROMPT = """あなたは意見分析のアシスタントです。
+既知のグループ定義に基づいて、各意見を最も近いグループへ1つだけ割り当ててください。
+
+# 指示
+- 新しいグループは作らないでください
+- group_id は与えられた候補から必ず1つ選んでください
+- 意見文そのものを優先して判断し、表面的な単語一致だけに引きずられないでください
+- JSON だけを返してください
+"""
+
 
 # Mapping from step names to default prompts
 DEFAULT_PROMPTS = {
     "extraction": EXTRACTION_PROMPT,
     "hierarchical_initial_labelling": INITIAL_LABELLING_PROMPT,
     "hierarchical_merge_labelling": MERGE_LABELLING_PROMPT,
+    "hierarchical_label_refinement": LABEL_REFINEMENT_PROMPT,
     "hierarchical_overview": OVERVIEW_PROMPT,
+    "llm_grouping_discovery": LLM_GROUPING_DISCOVERY_PROMPT,
+    "llm_grouping_assignment": LLM_GROUPING_ASSIGNMENT_PROMPT,
 }
 
 

@@ -128,6 +128,12 @@ class TestStepImports:
 
         assert hierarchical_merge_labelling is not None
 
+    def test_label_refinement_step(self):
+        """Test label refinement step import."""
+        from analysis_core.steps import hierarchical_label_refinement
+
+        assert hierarchical_label_refinement is not None
+
     def test_overview_step(self):
         """Test overview step import."""
         from analysis_core.steps import hierarchical_overview
@@ -154,6 +160,7 @@ class TestStepImports:
             hierarchical_aggregation,
             hierarchical_clustering,
             hierarchical_initial_labelling,
+            hierarchical_label_refinement,
             hierarchical_merge_labelling,
             hierarchical_overview,
             hierarchical_visualization,
@@ -164,13 +171,14 @@ class TestStepImports:
             embedding,
             hierarchical_clustering,
             hierarchical_initial_labelling,
+            hierarchical_label_refinement,
             hierarchical_merge_labelling,
             hierarchical_overview,
             hierarchical_aggregation,
             hierarchical_visualization,
         ]
         assert all(step is not None for step in steps)
-        assert len(steps) == 8
+        assert len(steps) == 9
 
 
 class TestConfigModule:

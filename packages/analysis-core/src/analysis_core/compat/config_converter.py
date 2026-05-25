@@ -21,9 +21,11 @@ def _get_step_source_codes() -> dict[str, str]:
         hierarchical_aggregation,
         hierarchical_clustering,
         hierarchical_initial_labelling,
+        hierarchical_label_refinement,
         hierarchical_merge_labelling,
         hierarchical_overview,
         hierarchical_visualization,
+        llm_grouping,
     )
 
     step_functions = {
@@ -31,10 +33,12 @@ def _get_step_source_codes() -> dict[str, str]:
         "embedding": embedding,
         "hierarchical_clustering": hierarchical_clustering,
         "hierarchical_initial_labelling": hierarchical_initial_labelling,
+        "hierarchical_label_refinement": hierarchical_label_refinement,
         "hierarchical_merge_labelling": hierarchical_merge_labelling,
         "hierarchical_overview": hierarchical_overview,
         "hierarchical_aggregation": hierarchical_aggregation,
         "hierarchical_visualization": hierarchical_visualization,
+        "llm_grouping": llm_grouping,
     }
 
     source_codes = {}
@@ -72,6 +76,7 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     # Top-level defaults
     result.setdefault("model", "gpt-4o-mini")
     result.setdefault("provider", "openai")
+    result.setdefault("analysis_mode", "hierarchical")
     result.setdefault("is_embedded_at_local", False)
     result.setdefault("is_pubcom", False)
     result.setdefault("intro", "")
@@ -100,6 +105,16 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     if "hierarchical_clustering" in source_codes:
         clustering.setdefault("source_code", source_codes["hierarchical_clustering"])
 
+    llm_grouping = result.setdefault("llm_grouping", {})
+    llm_grouping.setdefault("group_count", None)
+    llm_grouping.setdefault("discovery_sample_size", 80)
+    llm_grouping.setdefault("assignment_batch_size", 25)
+    llm_grouping.setdefault("discovery_prompt", get_default_prompt("llm_grouping_discovery") or "")
+    llm_grouping.setdefault("assignment_prompt", get_default_prompt("llm_grouping_assignment") or "")
+    llm_grouping.setdefault("model", result["model"])
+    if "llm_grouping" in source_codes:
+        llm_grouping.setdefault("source_code", source_codes["llm_grouping"])
+
     # Initial labelling defaults
     initial_labelling = result.setdefault("hierarchical_initial_labelling", {})
     initial_labelling.setdefault("sampling_num", 10)
@@ -117,6 +132,14 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     merge_labelling.setdefault("workers", 3)
     if "hierarchical_merge_labelling" in source_codes:
         merge_labelling.setdefault("source_code", source_codes["hierarchical_merge_labelling"])
+
+    label_refinement = result.setdefault("hierarchical_label_refinement", {})
+    label_refinement.setdefault("mode", "none")
+    label_refinement.setdefault("prompt", get_default_prompt("hierarchical_label_refinement") or "")
+    label_refinement.setdefault("model", result["model"])
+    label_refinement.setdefault("max_label_length", 24)
+    if "hierarchical_label_refinement" in source_codes:
+        label_refinement.setdefault("source_code", source_codes["hierarchical_label_refinement"])
 
     # Overview defaults
     overview = result.setdefault("hierarchical_overview", {})

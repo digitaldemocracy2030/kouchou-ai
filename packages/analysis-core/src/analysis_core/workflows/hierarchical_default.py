@@ -77,9 +77,20 @@ def create_hierarchical_workflow(
             },
         ),
         WorkflowStep(
+            id="label_refinement",
+            plugin="analysis.hierarchical_label_refinement",
+            depends_on=["merge_labelling"],
+            config={
+                "mode": "${config.hierarchical_label_refinement.mode}",
+                "prompt": "${config.hierarchical_label_refinement.prompt}",
+                "model": "${config.hierarchical_label_refinement.model}",
+                "max_label_length": "${config.hierarchical_label_refinement.max_label_length}",
+            },
+        ),
+        WorkflowStep(
             id="overview",
             plugin="analysis.hierarchical_overview",
-            depends_on=["merge_labelling"],
+            depends_on=["label_refinement"],
             config={
                 "prompt": "${config.hierarchical_overview.prompt}",
                 "model": "${config.hierarchical_overview.model}",
@@ -88,7 +99,7 @@ def create_hierarchical_workflow(
         WorkflowStep(
             id="aggregation",
             plugin="analysis.hierarchical_aggregation",
-            depends_on=["extraction", "clustering", "merge_labelling", "overview"],
+            depends_on=["extraction", "clustering", "label_refinement", "overview"],
             config={
                 "hidden_properties": "${config.hierarchical_aggregation.hidden_properties}",
             },
@@ -103,9 +114,7 @@ def create_hierarchical_workflow(
                 depends_on=["aggregation"],
                 optional=True,
                 condition="${not config.without_html}",
-                config={
-                    "report_dir": "${config.report_dir}",
-                },
+                config={},
             )
         )
 

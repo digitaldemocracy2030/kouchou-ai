@@ -45,9 +45,19 @@
         "use_llm": true
     },
     {
+        "step": "hierarchical_label_refinement",
+        "filename": "hierarchical_merge_labels.csv",
+        "dependencies": {
+            "params": ["mode", "max_label_length"],
+            "steps": ["hierarchical_merge_labelling"]
+        },
+        "options": {"mode": "none", "max_label_length": 24},
+        "use_llm": true
+    },
+    {
         "step": "hierarchical_overview",
         "filename": "hierarchical_overview.txt",
-        "dependencies": {"params": [], "steps": ["hierarchical_merge_labelling"]},
+        "dependencies": {"params": [], "steps": ["hierarchical_label_refinement"]},
         "options": {},
         "use_llm": true
     },
@@ -60,7 +70,7 @@
                 "extraction",
                 "hierarchical_clustering",
                 "hierarchical_initial_labelling",
-                "hierarchical_merge_labelling",
+                "hierarchical_label_refinement",
                 "hierarchical_overview"
             ]
         },

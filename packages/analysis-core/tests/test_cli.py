@@ -99,6 +99,67 @@ class TestCLI:
         assert "embedding" in result.stdout
         assert not (output_dir / "test_config" / "hierarchical_status.json").exists()
 
+    def test_cli_dry_run_with_reuse_from_skips_seeded_steps(self, tmp_path):
+        """Test CLI --reuse-from seeds previous artifacts for comparison runs."""
+        config_path = tmp_path / "test_config.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test question?",
+                    "provider": "local",
+                }
+            )
+        )
+
+        input_dir = tmp_path / "inputs"
+        input_dir.mkdir()
+        (input_dir / "test.csv").write_text("comment-id,comment-body\n1,test\n", encoding="utf-8")
+
+        output_dir = tmp_path / "outputs"
+        source_dir = output_dir / "baseline"
+        source_dir.mkdir(parents=True)
+        (source_dir / "args.csv").write_text("arg-id,argument\nA1,test\n", encoding="utf-8")
+        (source_dir / "relations.csv").write_text("arg-id,comment-id\nA1,1\n", encoding="utf-8")
+        (source_dir / "embeddings.pkl").write_bytes(b"pickle-placeholder")
+        (source_dir / "hierarchical_status.json").write_text(
+            json.dumps(
+                {
+                    "status": "completed",
+                    "completed_jobs": [
+                        {"step": "extraction", "params": {"limit": 1000}},
+                        {"step": "embedding", "params": {"model": "text-embedding-3-small"}},
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "analysis_core",
+                "--config",
+                str(config_path),
+                "--dry-run",
+                "--reuse-from",
+                "baseline",
+                "--input-dir",
+                str(input_dir),
+                "--output-dir",
+                str(output_dir),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=PACKAGE_ROOT,
+        )
+
+        assert result.returncode == 0
+        assert "Seeded outputs for test_config from baseline: extraction, embedding" in result.stdout
+        assert "[SKIP] extraction: nothing changed" in result.stdout
+        assert "[SKIP] embedding: nothing changed" in result.stdout
+
     def test_cli_validate_config(self, tmp_path):
         """Test standalone config validation mode."""
         config_path = tmp_path / "test_config.json"

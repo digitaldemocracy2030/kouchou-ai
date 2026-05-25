@@ -446,7 +446,11 @@ class TestOrchestratorPathsIntegration:
             run_steps = [step["step"] for step in plan if step["run"]]
             skipped_steps = [step["step"] for step in plan if not step["run"]]
 
-            assert run_steps == ["hierarchical_overview", "hierarchical_aggregation"]
+            assert run_steps == [
+                "hierarchical_label_refinement",
+                "hierarchical_overview",
+                "hierarchical_aggregation",
+            ]
             assert skipped_steps == [
                 "extraction",
                 "embedding",
@@ -456,10 +460,12 @@ class TestOrchestratorPathsIntegration:
                 "hierarchical_visualization",
             ]
 
+            refinement_step = next(step for step in plan if step["step"] == "hierarchical_label_refinement")
             overview_step = next(step for step in plan if step["step"] == "hierarchical_overview")
             aggregation_step = next(step for step in plan if step["step"] == "hierarchical_aggregation")
             visualization_step = next(step for step in plan if step["step"] == "hierarchical_visualization")
 
+            assert refinement_step["reason"] == "no trace of previous run"
             assert overview_step["reason"] == "previous data not found"
             assert aggregation_step["reason"] == "previous data not found"
             assert visualization_step["reason"] == "skipping html output"

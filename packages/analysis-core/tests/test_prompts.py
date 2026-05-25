@@ -7,6 +7,7 @@ from analysis_core.prompts import (
     DEFAULT_PROMPTS,
     EXTRACTION_PROMPT,
     INITIAL_LABELLING_PROMPT,
+    LABEL_REFINEMENT_PROMPT,
     MERGE_LABELLING_PROMPT,
     OVERVIEW_PROMPT,
     get_default_prompt,
@@ -40,11 +41,18 @@ class TestDefaultPrompts:
         assert len(OVERVIEW_PROMPT) > 0
         assert "リサーチアシスタント" in OVERVIEW_PROMPT
 
+    def test_label_refinement_prompt_exists(self):
+        """Test that label refinement prompt is defined."""
+        assert LABEL_REFINEMENT_PROMPT is not None
+        assert len(LABEL_REFINEMENT_PROMPT) > 0
+        assert "top-level cluster" in LABEL_REFINEMENT_PROMPT
+
     def test_default_prompts_mapping(self):
         """Test that DEFAULT_PROMPTS maps step names to prompts."""
         assert "extraction" in DEFAULT_PROMPTS
         assert "hierarchical_initial_labelling" in DEFAULT_PROMPTS
         assert "hierarchical_merge_labelling" in DEFAULT_PROMPTS
+        assert "hierarchical_label_refinement" in DEFAULT_PROMPTS
         assert "hierarchical_overview" in DEFAULT_PROMPTS
 
     def test_get_default_prompt_extraction(self):
@@ -61,6 +69,11 @@ class TestDefaultPrompts:
         """Test get_default_prompt for merge labelling step."""
         prompt = get_default_prompt("hierarchical_merge_labelling")
         assert prompt == MERGE_LABELLING_PROMPT
+
+    def test_get_default_prompt_label_refinement(self):
+        """Test get_default_prompt for label refinement step."""
+        prompt = get_default_prompt("hierarchical_label_refinement")
+        assert prompt == LABEL_REFINEMENT_PROMPT
 
     def test_get_default_prompt_overview(self):
         """Test get_default_prompt for overview step."""
@@ -96,6 +109,7 @@ class TestPromptsInConfig:
         config = initialization(
             config_path=config_path,
             skip_interaction=True,
+            validate_api_keys_early=False,
             output_base_dir=tmp_path / "outputs",
             input_base_dir=tmp_path / "inputs",
         )
@@ -104,6 +118,7 @@ class TestPromptsInConfig:
         assert config["extraction"]["prompt"] == EXTRACTION_PROMPT
         assert config["hierarchical_initial_labelling"]["prompt"] == INITIAL_LABELLING_PROMPT
         assert config["hierarchical_merge_labelling"]["prompt"] == MERGE_LABELLING_PROMPT
+        assert config["hierarchical_label_refinement"]["prompt"] == LABEL_REFINEMENT_PROMPT
         assert config["hierarchical_overview"]["prompt"] == OVERVIEW_PROMPT
 
     def test_initialization_preserves_custom_prompts(self, tmp_path: Path):
@@ -130,6 +145,7 @@ class TestPromptsInConfig:
         config = initialization(
             config_path=config_path,
             skip_interaction=True,
+            validate_api_keys_early=False,
             output_base_dir=tmp_path / "outputs",
             input_base_dir=tmp_path / "inputs",
         )
@@ -138,3 +154,4 @@ class TestPromptsInConfig:
         assert config["extraction"]["prompt"] == custom_prompt
         # Other steps should still use defaults
         assert config["hierarchical_initial_labelling"]["prompt"] == INITIAL_LABELLING_PROMPT
+        assert config["hierarchical_label_refinement"]["prompt"] == LABEL_REFINEMENT_PROMPT

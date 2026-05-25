@@ -9,9 +9,11 @@ _STEP_MODULES = {
     "hierarchical_aggregation": "analysis_core.steps.hierarchical_aggregation",
     "hierarchical_clustering": "analysis_core.steps.hierarchical_clustering",
     "hierarchical_initial_labelling": "analysis_core.steps.hierarchical_initial_labelling",
+    "hierarchical_label_refinement": "analysis_core.steps.hierarchical_label_refinement",
     "hierarchical_merge_labelling": "analysis_core.steps.hierarchical_merge_labelling",
     "hierarchical_overview": "analysis_core.steps.hierarchical_overview",
     "hierarchical_visualization": "analysis_core.steps.hierarchical_visualization",
+    "llm_grouping": "analysis_core.steps.llm_grouping",
 }
 
 __all__ = [
@@ -19,10 +21,12 @@ __all__ = [
     "embedding",
     "hierarchical_clustering",
     "hierarchical_initial_labelling",
+    "hierarchical_label_refinement",
     "hierarchical_merge_labelling",
     "hierarchical_overview",
     "hierarchical_aggregation",
     "hierarchical_visualization",
+    "llm_grouping",
 ]
 
 

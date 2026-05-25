@@ -25,6 +25,7 @@ class TestStepFunctionsUsePaths:
             hierarchical_aggregation,
             hierarchical_clustering,
             hierarchical_initial_labelling,
+            hierarchical_label_refinement,
             hierarchical_merge_labelling,
             hierarchical_overview,
         )
@@ -34,6 +35,7 @@ class TestStepFunctionsUsePaths:
             "embedding": embedding,
             "hierarchical_clustering": hierarchical_clustering,
             "hierarchical_initial_labelling": hierarchical_initial_labelling,
+            "hierarchical_label_refinement": hierarchical_label_refinement,
             "hierarchical_merge_labelling": hierarchical_merge_labelling,
             "hierarchical_overview": hierarchical_overview,
             "hierarchical_aggregation": hierarchical_aggregation,
@@ -119,6 +121,16 @@ class TestStepFunctionsUsePaths:
         assert "_output_base_dir" in source, "hierarchical_merge_labelling should use _output_base_dir"
         assert 'config.get("_output_base_dir"' in source, (
             "hierarchical_merge_labelling should get _output_base_dir from config"
+        )
+
+    def test_hierarchical_label_refinement_uses_configurable_paths(self):
+        """Test that hierarchical_label_refinement function uses config paths."""
+        from analysis_core.steps.hierarchical_label_refinement import hierarchical_label_refinement
+
+        source = inspect.getsource(hierarchical_label_refinement)
+        assert "_output_base_dir" in source, "hierarchical_label_refinement should use _output_base_dir"
+        assert 'config.get("_output_base_dir"' in source, (
+            "hierarchical_label_refinement should get _output_base_dir from config"
         )
 
     def test_hierarchical_overview_uses_configurable_paths(self):
