@@ -241,6 +241,7 @@ class TestInitialization:
         monkeypatch.setenv("USER_API_KEY", "runtime-user-key")
 
         config_path = tmp_path / "job.json"
+
         config_path.write_text(
             json.dumps(
                 {
@@ -265,6 +266,66 @@ class TestInitialization:
         assert "user_api_key" not in config
         status = json.loads((output_dir / "job" / "hierarchical_status.json").read_text())
         assert "user_api_key" not in status
+
+    def test_initialization_can_seed_from_previous_output(self, tmp_path):
+        """Test reuse_from seeds reusable artifacts and skips upstream steps."""
+        from analysis_core.core import initialization
+
+        config_path = tmp_path / "compare_job.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "local",
+                }
+            )
+        )
+
+        input_dir = tmp_path / "inputs"
+        output_dir = tmp_path / "outputs"
+        input_dir.mkdir()
+
+        source_dir = output_dir / "source_job"
+        source_dir.mkdir(parents=True)
+        (source_dir / "args.csv").write_text("arg-id,argument\nA1,test\n", encoding="utf-8")
+        (source_dir / "relations.csv").write_text("arg-id,comment-id\nA1,1\n", encoding="utf-8")
+        (source_dir / "embeddings.pkl").write_bytes(b"pickle-placeholder")
+        report_dir = source_dir / "report"
+        report_dir.mkdir()
+        (report_dir / "index.html").write_text("<html></html>", encoding="utf-8")
+        (source_dir / "hierarchical_status.json").write_text(
+            json.dumps(
+                {
+                    "status": "completed",
+                    "completed_jobs": [
+                        {"step": "extraction", "params": {"limit": 1000}},
+                        {"step": "embedding", "params": {"model": "text-embedding-3-small"}},
+                        {"step": "hierarchical_visualization", "params": {}},
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=output_dir,
+            input_base_dir=input_dir,
+            reuse_from="source_job",
+        )
+
+        seeded_dir = output_dir / "compare_job"
+        assert (seeded_dir / "args.csv").exists()
+        assert (seeded_dir / "relations.csv").exists()
+        assert (seeded_dir / "embeddings.pkl").exists()
+        assert (seeded_dir / "report" / "index.html").exists()
+        assert config["previous"]["reused_from"].endswith("source_job")
+
+        plan_by_step = {item["step"]: item for item in config["plan"]}
+        assert plan_by_step["extraction"]["run"] is False
+        assert plan_by_step["embedding"]["run"] is False
+        assert plan_by_step["hierarchical_clustering"]["run"] is True
 
 
 class TestValidateApiKeys:
