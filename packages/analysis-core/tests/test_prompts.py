@@ -7,6 +7,8 @@ from analysis_core.prompts import (
     DEFAULT_PROMPTS,
     EXTRACTION_PROMPT,
     INITIAL_LABELLING_PROMPT,
+    LLM_GROUPING_ASSIGNMENT_PROMPT,
+    LLM_GROUPING_DISCOVERY_PROMPT,
     MERGE_LABELLING_PROMPT,
     OVERVIEW_PROMPT,
     get_default_prompt,
@@ -40,12 +42,21 @@ class TestDefaultPrompts:
         assert len(OVERVIEW_PROMPT) > 0
         assert "リサーチアシスタント" in OVERVIEW_PROMPT
 
+    def test_llm_grouping_prompts_exist(self):
+        """Test that LLM grouping prompts are defined."""
+        assert len(LLM_GROUPING_DISCOVERY_PROMPT) > 0
+        assert len(LLM_GROUPING_ASSIGNMENT_PROMPT) > 0
+        assert "グループ" in LLM_GROUPING_DISCOVERY_PROMPT
+        assert "group_id" in LLM_GROUPING_ASSIGNMENT_PROMPT
+
     def test_default_prompts_mapping(self):
         """Test that DEFAULT_PROMPTS maps step names to prompts."""
         assert "extraction" in DEFAULT_PROMPTS
         assert "hierarchical_initial_labelling" in DEFAULT_PROMPTS
         assert "hierarchical_merge_labelling" in DEFAULT_PROMPTS
         assert "hierarchical_overview" in DEFAULT_PROMPTS
+        assert "llm_grouping_discovery" in DEFAULT_PROMPTS
+        assert "llm_grouping_assignment" in DEFAULT_PROMPTS
 
     def test_get_default_prompt_extraction(self):
         """Test get_default_prompt for extraction step."""
@@ -66,6 +77,11 @@ class TestDefaultPrompts:
         """Test get_default_prompt for overview step."""
         prompt = get_default_prompt("hierarchical_overview")
         assert prompt == OVERVIEW_PROMPT
+
+    def test_get_default_prompt_llm_grouping(self):
+        """Test get_default_prompt for LLM grouping prompts."""
+        assert get_default_prompt("llm_grouping_discovery") == LLM_GROUPING_DISCOVERY_PROMPT
+        assert get_default_prompt("llm_grouping_assignment") == LLM_GROUPING_ASSIGNMENT_PROMPT
 
     def test_get_default_prompt_unknown_step(self):
         """Test get_default_prompt returns None for unknown step."""
@@ -96,6 +112,7 @@ class TestPromptsInConfig:
         config = initialization(
             config_path=config_path,
             skip_interaction=True,
+            validate_api_keys_early=False,
             output_base_dir=tmp_path / "outputs",
             input_base_dir=tmp_path / "inputs",
         )
@@ -130,6 +147,7 @@ class TestPromptsInConfig:
         config = initialization(
             config_path=config_path,
             skip_interaction=True,
+            validate_api_keys_early=False,
             output_base_dir=tmp_path / "outputs",
             input_base_dir=tmp_path / "inputs",
         )
@@ -138,3 +156,30 @@ class TestPromptsInConfig:
         assert config["extraction"]["prompt"] == custom_prompt
         # Other steps should still use defaults
         assert config["hierarchical_initial_labelling"]["prompt"] == INITIAL_LABELLING_PROMPT
+
+    def test_initialization_adds_llm_grouping_prompts(self, tmp_path: Path):
+        """Test that initialization adds default LLM grouping prompts."""
+        from analysis_core.core.orchestration import initialization
+
+        config_path = tmp_path / "test.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test question?",
+                    "provider": "local",
+                    "analysis_mode": "llm_grouping",
+                }
+            )
+        )
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            validate_api_keys_early=False,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        assert config["llm_grouping"]["discovery_prompt"] == LLM_GROUPING_DISCOVERY_PROMPT
+        assert config["llm_grouping"]["assignment_prompt"] == LLM_GROUPING_ASSIGNMENT_PROMPT

@@ -12,6 +12,7 @@ _STEP_MODULES = {
     "hierarchical_merge_labelling": "analysis_core.steps.hierarchical_merge_labelling",
     "hierarchical_overview": "analysis_core.steps.hierarchical_overview",
     "hierarchical_visualization": "analysis_core.steps.hierarchical_visualization",
+    "llm_grouping": "analysis_core.steps.llm_grouping",
 }
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "hierarchical_overview",
     "hierarchical_aggregation",
     "hierarchical_visualization",
+    "llm_grouping",
 ]
 
 

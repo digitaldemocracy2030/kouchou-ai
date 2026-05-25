@@ -7,6 +7,7 @@ This module provides the fundamental building blocks for pipeline orchestration.
 from analysis_core.core.orchestration import (
     decide_what_to_run,
     get_specs,
+    get_specs_path_for_mode,
     initialization,
     load_specs,
     plan_requires_input,
@@ -29,6 +30,7 @@ __all__ = [
     # Orchestration
     "load_specs",
     "get_specs",
+    "get_specs_path_for_mode",
     "validate_config",
     "decide_what_to_run",
     "plan_requires_input",

@@ -1,0 +1,63 @@
+[
+  {
+    "step": "extraction",
+    "filename": "args.csv",
+    "dependencies": { "params": ["limit"], "steps": [] },
+    "options": {
+      "limit": 1000,
+      "workers": 1,
+      "properties": [],
+      "categories": {},
+      "category_batch_size": 5
+    },
+    "use_llm": true
+  },
+  {
+    "step": "embedding",
+    "filename": "embeddings.pkl",
+    "dependencies": { "params": ["model"], "steps": ["extraction"] },
+    "options": { "model": "text-embedding-3-small" }
+  },
+  {
+    "step": "llm_grouping",
+    "filename": "hierarchical_clusters.csv",
+    "dependencies": {
+      "params": ["group_count", "discovery_sample_size", "assignment_batch_size"],
+      "steps": ["extraction", "embedding"]
+    },
+    "options": {
+      "group_count": null,
+      "discovery_sample_size": 80,
+      "assignment_batch_size": 25,
+      "discovery_prompt": "",
+      "assignment_prompt": "",
+      "model": "gpt-4o-mini"
+    },
+    "use_llm": true
+  },
+  {
+    "step": "hierarchical_overview",
+    "filename": "hierarchical_overview.txt",
+    "dependencies": { "params": [], "steps": ["llm_grouping"] },
+    "options": {},
+    "use_llm": true
+  },
+  {
+    "step": "hierarchical_aggregation",
+    "filename": "hierarchical_result.json",
+    "dependencies": {
+      "params": [],
+      "steps": ["extraction", "llm_grouping", "hierarchical_overview"]
+    },
+    "options": {
+      "sampling_num": 5000,
+      "hidden_properties": {}
+    }
+  },
+  {
+    "step": "hierarchical_visualization",
+    "filename": "report",
+    "dependencies": { "params": ["replacements"], "steps": ["hierarchical_aggregation"] },
+    "options": { "replacements": [] }
+  }
+]

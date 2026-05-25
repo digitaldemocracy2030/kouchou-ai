@@ -23,6 +23,12 @@ _specs: list[dict[str, Any]] = []
 _PACKAGE_DIR = Path(__file__).parent.parent
 
 
+def get_specs_path_for_mode(analysis_mode: str) -> Path:
+    """Return the pipeline specs file for the requested analysis mode."""
+    specs_name = "llm_grouping_specs.json" if analysis_mode == "llm_grouping" else "hierarchical_specs.json"
+    return _PACKAGE_DIR / "specs" / specs_name
+
+
 def sync_without_html_keys(config: dict[str, Any]) -> None:
     """Keep ``without_html`` and ``without-html`` aligned in-place."""
     if "without-html" in config:
@@ -142,6 +148,7 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
         "is_pubcom",
         "is_embedded_at_local",
         "provider",
+        "analysis_mode",
         "local_llm_address",
         "enable_source_link",
         "without_html",
@@ -464,16 +471,16 @@ def initialization(
         output_base_dir = Path("outputs")
     if input_base_dir is None:
         input_base_dir = Path("inputs")
-    if specs_path is None:
-        specs_path = _PACKAGE_DIR / "specs" / "hierarchical_specs.json"
-
-    # Load specs
-    specs = load_specs(specs_path)
-
     # Load config
     job_name = config_path.stem
     with open(config_path, "r", encoding="utf-8") as f:
         config = json.load(f)
+
+    if specs_path is None:
+        specs_path = get_specs_path_for_mode(config.get("analysis_mode", "hierarchical"))
+
+    # Load specs
+    specs = load_specs(specs_path)
 
     # Validate config
     validate_config(config, specs)
@@ -563,6 +570,14 @@ def initialization(
                 default_prompt = get_default_prompt(step)
                 if default_prompt:
                     config[step]["prompt"] = default_prompt
+
+        if step == "llm_grouping":
+            from analysis_core.prompts import get_default_prompt
+
+            if not config[step].get("discovery_prompt"):
+                config[step]["discovery_prompt"] = get_default_prompt("llm_grouping_discovery") or ""
+            if not config[step].get("assignment_prompt"):
+                config[step]["assignment_prompt"] = get_default_prompt("llm_grouping_assignment") or ""
 
     # Create output directory if needed
     output_path = output_base_dir / output_dir
