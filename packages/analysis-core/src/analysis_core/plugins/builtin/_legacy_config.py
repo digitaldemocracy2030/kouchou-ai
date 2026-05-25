@@ -20,6 +20,8 @@ def build_legacy_runtime_config(
         "provider": ctx.provider,
         "local_llm_address": ctx.local_llm_address,
     }
+    if ctx.user_api_key:
+        legacy_config["user_api_key"] = ctx.user_api_key
 
     if include_input:
         input_name, input_base_dir = resolve_input_location(ctx, inputs)

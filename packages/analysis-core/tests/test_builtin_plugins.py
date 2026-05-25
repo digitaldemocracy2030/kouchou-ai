@@ -63,6 +63,7 @@ def test_extraction_plugin_keeps_explicit_input_over_comments_fallback(tmp_path,
         provider="local",
         model="dummy-model",
         local_llm_address="127.0.0.1:9999",
+        user_api_key="ctx-user-key",
     )
 
     seen = {}
@@ -95,6 +96,7 @@ def test_extraction_plugin_keeps_explicit_input_over_comments_fallback(tmp_path,
     assert seen["input"] == "configured-input"
     assert seen["_input_base_dir"] == str(input_dir)
     assert seen["_output_base_dir"] == str(output_dir.parent)
+    assert seen["user_api_key"] == "ctx-user-key"
     assert outputs.artifacts["arguments"] == output_dir / "args.csv"
     assert outputs.artifacts["relations"] == output_dir / "relations.csv"
 

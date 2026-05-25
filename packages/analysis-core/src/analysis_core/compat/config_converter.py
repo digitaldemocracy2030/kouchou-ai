@@ -184,6 +184,7 @@ def create_step_context_from_config(
     """
     from pathlib import Path
 
+    from analysis_core.core.orchestration import resolve_user_api_key
     from analysis_core.plugin import StepContext
 
     dataset = output_dir or config.get("output_dir", config.get("name", "analysis"))
@@ -195,5 +196,5 @@ def create_step_context_from_config(
         provider=config.get("provider", "openai"),
         model=config.get("model", "gpt-4o-mini"),
         local_llm_address=config.get("local_llm_address"),
-        user_api_key=config.get("user_api_key"),
+        user_api_key=resolve_user_api_key(config),
     )

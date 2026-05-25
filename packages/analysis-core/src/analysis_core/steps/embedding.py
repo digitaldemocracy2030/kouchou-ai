@@ -10,6 +10,7 @@ from analysis_core.services.llm import request_to_embed
 def embedding(config):
     model = config["embedding"]["model"]
     is_embedded_at_local = config["is_embedded_at_local"]
+    user_api_key = config.get("user_api_key") or os.getenv("USER_API_KEY")
     # print("start embedding")
     # print(f"embedding model: {model}, is_embedded_at_local: {is_embedded_at_local}")
 
@@ -29,7 +30,7 @@ def embedding(config):
             is_embedded_at_local,
             config["provider"],
             local_llm_address=config.get("local_llm_address"),
-            user_api_key=os.getenv("USER_API_KEY"),
+            user_api_key=user_api_key,
         )
         embeddings.extend(embeds)
     # Store as list[dict] for polars compatibility

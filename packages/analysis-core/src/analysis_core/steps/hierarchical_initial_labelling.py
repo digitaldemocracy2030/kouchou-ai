@@ -159,13 +159,14 @@ def process_initial_labelling(
         {"role": "user", "content": input},
     ]
     try:
+        user_api_key = config.get("user_api_key") if config is not None else None
         response_text, token_input, token_output, token_total = request_to_chat_ai(
             messages=messages,
             model=model,
             provider=provider,
             json_schema=LabellingFromat,
             local_llm_address=local_llm_address,
-            user_api_key=os.getenv("USER_API_KEY"),
+            user_api_key=user_api_key or os.getenv("USER_API_KEY"),
         )
 
         # トークン使用量を累積（configが渡されている場合）

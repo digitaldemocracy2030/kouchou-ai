@@ -233,6 +233,39 @@ class TestInitialization:
         assert config["without-html"] is True
         assert config["without_html"] is True
 
+    def test_initialization_uses_runtime_user_api_key_for_validation(self, tmp_path, monkeypatch):
+        """Test USER_API_KEY satisfies fail-fast provider validation without persisting it."""
+        from analysis_core.core import initialization
+
+        monkeypatch.setenv("OPENAI_API_KEY", "")
+        monkeypatch.setenv("USER_API_KEY", "runtime-user-key")
+
+        config_path = tmp_path / "job.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "openai",
+                }
+            )
+        )
+
+        input_dir = tmp_path / "inputs"
+        output_dir = tmp_path / "outputs"
+        input_dir.mkdir()
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=output_dir,
+            input_base_dir=input_dir,
+        )
+
+        assert "user_api_key" not in config
+        status = json.loads((output_dir / "job" / "hierarchical_status.json").read_text())
+        assert "user_api_key" not in status
+
 
 class TestValidateApiKeys:
     """Test API key validation."""
