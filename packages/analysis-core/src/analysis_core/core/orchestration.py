@@ -82,17 +82,25 @@ def _seed_reused_outputs(
         with open(source_status_file, encoding="utf-8") as f:
             source_status = json.load(f)
 
+    completed_jobs = source_status.get("completed_jobs", []) + source_status.get("previously_completed_jobs", [])
+    status_by_step = {job.get("step"): job for job in completed_jobs if job.get("step")}
     reusable_steps = []
     for step_spec in specs:
+        step_name = step_spec["step"]
+        source_job = status_by_step.get(step_name)
+        if not source_job:
+            continue
+
         source_artifact = source_dir / step_spec["filename"]
         if not source_artifact.exists():
             continue
 
         copied_files = [source_artifact]
-        if step_spec["step"] == "extraction":
+        if step_name == "extraction":
             relations = source_dir / "relations.csv"
-            if relations.exists():
-                copied_files.append(relations)
+            if not relations.exists():
+                continue
+            copied_files.append(relations)
 
         for artifact in copied_files:
             target = dest_dir / artifact.name
@@ -100,24 +108,21 @@ def _seed_reused_outputs(
                 shutil.copytree(artifact, target, dirs_exist_ok=True)
             else:
                 shutil.copy2(artifact, target)
-        reusable_steps.append(step_spec["step"])
+        reusable_steps.append(step_name)
 
     if not reusable_steps:
         raise RuntimeError(f"No reusable artifacts found in {source_dir}")
 
-    completed_jobs = source_status.get("completed_jobs", []) + source_status.get("previously_completed_jobs", [])
-    status_by_step = {job.get("step"): job for job in completed_jobs if job.get("step")}
     seeded_jobs = []
     for step_spec in specs:
         step_name = step_spec["step"]
         if step_name not in reusable_steps:
             continue
-        current_params = dict(config.get(step_name, {}))
         source_job = status_by_step.get(step_name, {})
         seeded_jobs.append(
             {
                 "step": step_name,
-                "params": current_params or source_job.get("params", {}),
+                "params": source_job.get("params", {}),
             }
         )
 

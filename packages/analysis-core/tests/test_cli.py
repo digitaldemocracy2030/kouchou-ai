@@ -102,6 +102,8 @@ class TestCLI:
 
     def test_cli_dry_run_with_reuse_from_skips_seeded_steps(self, tmp_path):
         """Test CLI --reuse-from seeds previous artifacts for comparison runs."""
+        from analysis_core.prompts import get_default_prompt
+
         config_path = tmp_path / "test_config.json"
         config_path.write_text(
             json.dumps(
@@ -128,7 +130,14 @@ class TestCLI:
                 {
                     "status": "completed",
                     "completed_jobs": [
-                        {"step": "extraction", "params": {"limit": 1000}},
+                        {
+                            "step": "extraction",
+                            "params": {
+                                "limit": 1000,
+                                "model": "gpt-4o-mini",
+                                "prompt": get_default_prompt("extraction"),
+                            },
+                        },
                         {"step": "embedding", "params": {"model": "text-embedding-3-small"}},
                     ],
                 }
