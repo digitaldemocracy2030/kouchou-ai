@@ -26,6 +26,7 @@ $messages = ConvertFrom-Json @'
   "openAiPrompt": "OpenAI API \u30ad\u30fc\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002\\n\u7a7a\u6b04\u306e\u307e\u307e\u3067\u3082\u9032\u3081\u307e\u3059\u3002\\n\\nCtrl+V \u3067\u8cbc\u308a\u4ed8\u3051\u3067\u304d\u306a\u3044\u5834\u5408\u306f\u3001\u53f3\u30af\u30ea\u30c3\u30af\u3057\u3066\u8cbc\u308a\u4ed8\u3051\u3066\u304f\u3060\u3055\u3044\u3002",
   "geminiPrompt": "Gemini API \u30ad\u30fc\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002\\n\u7a7a\u6b04\u306e\u307e\u307e\u3067\u3082\u9032\u3081\u307e\u3059\u3002\\n\\nCtrl+V \u3067\u8CBC\u308a\u4ed8\u3051\u3067\u304d\u306a\u3044\u5834\u5408\u306f\u3001\u53f3\u30af\u30ea\u30c3\u30af\u3057\u3066\u8cbc\u308a\u4ed8\u3051\u3066\u304f\u3060\u3055\u3044\u3002",
   "checkingKeys": "API \u30ad\u30fc\u306e\u5f62\u5f0f\u3092\u78ba\u8a8d\u3057\u3066\u3044\u307e\u3059...",
+  "singleLineApiKeyError": "API \u30ad\u30fc\u306f 1 \u884c\u3067\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
   "invalidOpenAi": "\u5165\u529b\u3055\u308c\u305f OpenAI API \u30ad\u30fc\u306e\u5f62\u5f0f\u304c\u6b63\u3057\u304f\u306a\u3044\u53ef\u80fd\u6027\u304c\u3042\u308a\u307e\u3059\u3002\u901a\u5e38\u306f \"sk-\" \u3067\u59cb\u307e\u308a\u307e\u3059\u3002",
   "invalidGemini": "\u5165\u529b\u3055\u308c\u305f Gemini API \u30ad\u30fc\u306e\u5f62\u5f0f\u304c\u6b63\u3057\u304f\u306a\u3044\u53ef\u80fd\u6027\u304c\u3042\u308a\u307e\u3059\u3002\u901a\u5e38\u306f \"AIza\" \u3067\u59cb\u307e\u308a\u307e\u3059\u3002",
   "continueInvalid": "\u5165\u529b\u5024\u306e\u5f62\u5f0f\u306b\u6c17\u306b\u306a\u308b\u70b9\u304c\u3042\u308a\u307e\u3059\u3002\u3053\u306e\u307e\u307e\u7d9a\u884c\u3057\u307e\u3059\u304b\uff1f",
@@ -137,7 +138,7 @@ if ($openAiKey -match "[`r`n]" -or $geminiKey -match "[`r`n]") {
   if ($NonInteractive) {
     Write-Error "API keys must be single-line values."
   } else {
-    Show-Message -Text "API key must be a single-line value." -Icon Error
+    Show-Message -Text $messages.singleLineApiKeyError -Icon Error
   }
   exit 1
 }
@@ -198,14 +199,21 @@ if ($NonInteractive) {
   Show-Message -Text $messages.startingDocker -Icon Information
 }
 
-& docker compose up -d --build
-if ($LASTEXITCODE -ne 0) {
+$composeExitCode = 0
+Push-Location $PSScriptRoot
+try {
+  & docker compose up -d --build
+  $composeExitCode = $LASTEXITCODE
+} finally {
+  Pop-Location
+}
+if ($composeExitCode -ne 0) {
   if ($NonInteractive) {
-    Write-Error "Docker environment failed to start."
+    [Console]::Error.WriteLine("Docker environment failed to start.")
   } else {
     Show-Message -Text $messages.dockerComposeFailed -Icon Error
   }
-  exit $LASTEXITCODE
+  exit $composeExitCode
 }
 
 if ($NonInteractive) {
