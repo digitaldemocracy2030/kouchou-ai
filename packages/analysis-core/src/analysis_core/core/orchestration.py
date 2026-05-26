@@ -25,6 +25,8 @@ _PACKAGE_DIR = Path(__file__).parent.parent
 
 def get_specs_path_for_mode(analysis_mode: str) -> Path:
     """Return the pipeline specs file for the requested analysis mode."""
+    if analysis_mode not in {"hierarchical", "llm_grouping"}:
+        raise ValueError(f"Unknown analysis_mode: {analysis_mode}")
     specs_name = "llm_grouping_specs.json" if analysis_mode == "llm_grouping" else "hierarchical_specs.json"
     return _PACKAGE_DIR / "specs" / specs_name
 

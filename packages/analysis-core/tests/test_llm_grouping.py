@@ -1,10 +1,12 @@
 """Tests for the LLM grouping workflow mode."""
 
 import importlib
+import json
 import pickle
 
 import numpy as np
 import polars as pl
+import pytest
 
 from analysis_core.orchestrator import PipelineOrchestrator
 
@@ -48,6 +50,26 @@ def test_run_workflow_uses_llm_grouping_workflow_when_mode_is_enabled(tmp_path, 
 
     assert seen["workflow_id"] == "llm-grouping-compatible"
     assert [step.step_name for step in result.steps] == ["llm_grouping"]
+
+
+def test_get_specs_path_for_mode_rejects_unknown_mode():
+    """Unknown analysis modes should fail fast instead of silently falling back."""
+    from analysis_core.core.orchestration import get_specs_path_for_mode
+
+    with pytest.raises(ValueError, match="Unknown analysis_mode: unexpected_mode"):
+        get_specs_path_for_mode("unexpected_mode")
+
+
+def test_llm_grouping_specs_treat_prompt_changes_as_dependencies():
+    """Prompt fields must participate in rerun invalidation."""
+    from analysis_core.core.orchestration import get_specs_path_for_mode
+
+    specs_path = get_specs_path_for_mode("llm_grouping")
+    specs = json.loads(specs_path.read_text(encoding="utf-8"))
+    llm_grouping_spec = next(spec for spec in specs if spec["step"] == "llm_grouping")
+
+    assert "discovery_prompt" in llm_grouping_spec["dependencies"]["params"]
+    assert "assignment_prompt" in llm_grouping_spec["dependencies"]["params"]
 
 
 def test_llm_grouping_step_creates_viewer_compatible_outputs(tmp_path, monkeypatch):
@@ -134,3 +156,75 @@ def test_llm_grouping_step_creates_viewer_compatible_outputs(tmp_path, monkeypat
     assert clusters["cluster-level-1-id"].to_list() == ["g1", "g1", "g2"]
     assert labels.select(["id", "label"]).to_dict(as_series=False) == {"id": ["g1", "g2"], "label": ["交通", "公園"]}
     assert config["total_token_usage"] == 45
+
+
+def test_llm_grouping_uses_legacy_embedding_order_when_arg_ids_are_missing(tmp_path, monkeypatch):
+    """Legacy embedding lists without arg-id keys should fall back to positional matching."""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+
+    output_dir = tmp_path / "outputs" / "demo"
+    output_dir.mkdir(parents=True)
+    with open(output_dir / "embeddings.pkl", "wb") as f:
+        pickle.dump(
+            [
+                {"embedding": [0.1, 0.2, 0.3]},
+                {"embedding": [0.2, 0.1, 0.3]},
+            ],
+            f,
+        )
+
+    class FakeUMAP:
+        def __init__(self, n_components, n_neighbors):
+            self.n_components = n_components
+            self.n_neighbors = n_neighbors
+
+        def fit_transform(self, embeddings):
+            return np.asarray(embeddings[:, :2])
+
+    monkeypatch.setattr(llm_grouping_step, "_load_clustering_dependencies", lambda: (FakeUMAP, None, None))
+
+    result = llm_grouping_step._project_embeddings_to_xy(str(tmp_path / "outputs"), "demo", ["a1", "a2"])
+    assert result.shape == (2, 2)
+
+
+def test_llm_grouping_reports_missing_embedding_arg_ids(tmp_path):
+    """Missing embeddings should raise a clear error with the missing ids."""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+
+    output_dir = tmp_path / "outputs" / "demo"
+    output_dir.mkdir(parents=True)
+    with open(output_dir / "embeddings.pkl", "wb") as f:
+        pickle.dump([{"arg-id": "a1", "embedding": [0.1, 0.2, 0.3]}], f)
+
+    with pytest.raises(ValueError, match=r"Missing embeddings for arg ids: \['a2'\]"):
+        llm_grouping_step._project_embeddings_to_xy(str(tmp_path / "outputs"), "demo", ["a1", "a2"])
+
+
+def test_assign_groups_uses_safe_batch_size_for_non_positive_input(monkeypatch):
+    """Non-positive batch sizes should still process all arguments consistently."""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+
+    captured_messages = []
+
+    def fake_request_to_chat_ai(**kwargs):
+        captured_messages.append(kwargs["messages"][1]["content"])
+        arg_id = f"a{len(captured_messages)}"
+        return {"assignments": [{"arg_id": arg_id, "group_id": "g1"}]}, 0, 0, 0
+
+    monkeypatch.setattr(llm_grouping_step, "request_to_chat_ai", fake_request_to_chat_ai)
+
+    groups = [llm_grouping_step.GroupDefinition(group_id="g1", label="交通", description="公共交通")]
+    assignments = llm_grouping_step._assign_groups(
+        arg_ids=["a1", "a2"],
+        arguments=["電車", "バス"],
+        groups=groups,
+        batch_size=0,
+        prompt="assign",
+        model="dummy-model",
+        provider="local",
+        local_llm_address=None,
+        config={},
+    )
+
+    assert assignments == {"a1": "g1", "a2": "g1"}
+    assert len(captured_messages) == 2

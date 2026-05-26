@@ -190,9 +190,10 @@ def _assign_groups(
     allowed_group_ids = {group.group_id for group in groups}
     group_text = "\n".join(f"- {group.group_id}: {group.label}\n  {group.description}" for group in groups)
 
-    for start in range(0, len(arg_ids), max(1, batch_size)):
-        batch_ids = arg_ids[start : start + batch_size]
-        batch_arguments = arguments[start : start + batch_size]
+    safe_batch_size = max(1, batch_size)
+    for start in range(0, len(arg_ids), safe_batch_size):
+        batch_ids = arg_ids[start : start + safe_batch_size]
+        batch_arguments = arguments[start : start + safe_batch_size]
         batch_lines = "\n".join(
             f"- {arg_id}: {argument}" for arg_id, argument in zip(batch_ids, batch_arguments, strict=True)
         )
@@ -239,7 +240,19 @@ def _project_embeddings_to_xy(output_base_dir: str, dataset: str, arg_ids: list[
         embeddings_data = pickle.load(f)
 
     if isinstance(embeddings_data, list):
-        embed_by_id = {item["arg-id"]: item["embedding"] for item in embeddings_data}
+        embed_by_id = {}
+        for index, item in enumerate(embeddings_data):
+            item_arg_id = item.get("arg-id") if isinstance(item, dict) else None
+            if item_arg_id is None and index < len(arg_ids):
+                item_arg_id = arg_ids[index]
+            if item_arg_id is None:
+                continue
+            embed_by_id[item_arg_id] = item["embedding"]
+
+        missing_arg_ids = [arg_id for arg_id in arg_ids if arg_id not in embed_by_id]
+        if missing_arg_ids:
+            raise ValueError(f"Missing embeddings for arg ids: {missing_arg_ids}")
+
         embeddings_array = np.asarray([embed_by_id[arg_id] for arg_id in arg_ids])
     else:
         embeddings_array = np.asarray(embeddings_data["embedding"].values.tolist())

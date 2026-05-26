@@ -22,7 +22,7 @@
     "step": "llm_grouping",
     "filename": "hierarchical_clusters.csv",
     "dependencies": {
-      "params": ["group_count", "discovery_sample_size", "assignment_batch_size"],
+      "params": ["group_count", "discovery_sample_size", "assignment_batch_size", "discovery_prompt", "assignment_prompt"],
       "steps": ["extraction", "embedding"]
     },
     "options": {
