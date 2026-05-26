@@ -90,10 +90,49 @@ class TestBuildHtml:
         out = build_html(_minimal_payload())
         assert "const ENABLE_SOURCE_LINK = false;" in out
 
+    def test_uses_default_layout_catalog_when_present(self) -> None:
+        payload = _minimal_payload()
+        payload["layouts"] = {
+            "embedding_umap": {
+                "kind": "point_layout",
+                "points": {
+                    "A1_0": {"x": 0.1, "y": 0.2},
+                    "A2_0": {"x": -0.3, "y": 0.4},
+                },
+            },
+            "semantic_island_map": {
+                "kind": "cluster_first",
+                "points": {
+                    "A1_0": {"x": 9.1, "y": 9.2},
+                    "A2_0": {"x": -8.3, "y": -8.4},
+                },
+            },
+        }
+        payload["default_layout_id"] = "semantic_island_map"
+
+        out = build_html(payload)
+
+        assert 'const selectedLayoutId = data.default_layout_id || "embedding_umap";' in out
+        assert 'const layoutCatalog = data.layouts || {};' in out
+        assert '"default_layout_id":"semantic_island_map"' in out
+        assert '"A1_0":{"x":9.1,"y":9.2}' in out
+
     def test_palette_is_inlined(self) -> None:
         out = build_html(_minimal_payload())
         # A representative color from the public-viewer-derived palette
         assert SOFT_COLORS[0] in out
+
+    def test_mst_controls_and_helpers_are_inlined(self) -> None:
+        out = build_html(_minimal_payload())
+        assert 'id="show-mst" checked' in out
+        assert 'id="use-mst-layout" checked' in out
+        assert "Show MST skeleton" in out
+        assert "Use MST layout" in out
+        assert "function buildMstEdges(points)" in out
+        assert "function layoutTree(points, mstEdges, options = {})" in out
+        assert "function layoutRigidBridgeClusters(clusters, clusterLayouts, initialCenters, bridgeEdges)" in out
+        assert "layout=MST" in out
+        assert "intra-cluster MST edges" in out
 
     def test_escapes_script_end_in_payload(self) -> None:
         payload = _minimal_payload()

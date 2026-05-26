@@ -361,6 +361,12 @@ _TEMPLATE = """<!DOCTYPE html>
     <label>
       <input type="checkbox" id="show-labels" checked> Show cluster labels
     </label>
+    <label>
+      <input type="checkbox" id="show-mst" checked> Show MST skeleton
+    </label>
+    <label>
+      <input type="checkbox" id="use-mst-layout" checked> Use MST layout
+    </label>
     <span id="scatter-meta"></span>
   </div>
   <div id="scatter"></div>
@@ -413,13 +419,416 @@ _TEMPLATE = """<!DOCTYPE html>
     }}[c]));
   }}
 
+  function sqDist(a, b) {{
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return dx * dx + dy * dy;
+  }}
+
+  function buildMstEdges(points) {{
+    if (points.length <= 1) return [];
+    const visited = new Set([0]);
+    const edges = [];
+
+    while (visited.size < points.length) {{
+      let bestFrom = -1;
+      let bestTo = -1;
+      let bestDist = Infinity;
+
+      visited.forEach(fromIdx => {{
+        for (let toIdx = 0; toIdx < points.length; toIdx += 1) {{
+          if (visited.has(toIdx)) continue;
+          const dist = sqDist(points[fromIdx], points[toIdx]);
+          if (dist < bestDist) {{
+            bestDist = dist;
+            bestFrom = fromIdx;
+            bestTo = toIdx;
+          }}
+        }}
+      }});
+
+      if (bestTo === -1) break;
+      visited.add(bestTo);
+      edges.push([points[bestFrom], points[bestTo]]);
+    }}
+
+    return edges;
+  }}
+
+  function buildIndexedMst(points) {{
+    if (points.length <= 1) return [];
+    const visited = new Set([0]);
+    const edges = [];
+
+    while (visited.size < points.length) {{
+      let bestFrom = -1;
+      let bestTo = -1;
+      let bestDist = Infinity;
+
+      visited.forEach(fromIdx => {{
+        for (let toIdx = 0; toIdx < points.length; toIdx += 1) {{
+          if (visited.has(toIdx)) continue;
+          const dist = sqDist(points[fromIdx], points[toIdx]);
+          if (dist < bestDist) {{
+            bestDist = dist;
+            bestFrom = fromIdx;
+            bestTo = toIdx;
+          }}
+        }}
+      }});
+
+      if (bestTo === -1) break;
+      visited.add(bestTo);
+      edges.push([bestFrom, bestTo, Math.sqrt(bestDist)]);
+    }}
+
+    return edges;
+  }}
+
+  function buildAdjacency(count, edges) {{
+    const adj = Array.from({{ length: count }}, () => []);
+    edges.forEach(([a, b, dist]) => {{
+      adj[a].push({{ to: b, dist }});
+      adj[b].push({{ to: a, dist }});
+    }});
+    return adj;
+  }}
+
+  function pickRoot(points) {{
+    if (points.length <= 1) return 0;
+    const cx = points.reduce((s, p) => s + p.x, 0) / points.length;
+    const cy = points.reduce((s, p) => s + p.y, 0) / points.length;
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    points.forEach((p, idx) => {{
+      const dist = (p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy);
+      if (dist < bestDist) {{
+        bestDist = dist;
+        bestIdx = idx;
+      }}
+    }});
+    return bestIdx;
+  }}
+
+  function computeSubtreeSizes(adj, node, parent, sizes) {{
+    let size = 1;
+    adj[node].forEach(({{ to }}) => {{
+      if (to === parent) return;
+      size += computeSubtreeSizes(adj, to, node, sizes);
+    }});
+    sizes[node] = size;
+    return size;
+  }}
+
+  function layoutTree(points, mstEdges, options = {{}}) {{
+    if (points.length === 0) return [];
+    if (points.length === 1) return [{{ ...points[0], layoutX: 0, layoutY: 0 }}];
+
+    const adj = buildAdjacency(points.length, mstEdges);
+    const root = pickRoot(points);
+    const sizes = Array(points.length).fill(1);
+    computeSubtreeSizes(adj, root, -1, sizes);
+
+    const avgEdge = mstEdges.length
+      ? mstEdges.reduce((s, [, , dist]) => s + dist, 0) / mstEdges.length
+      : 1;
+    const minEdge = options.minEdgeLength ?? Math.max(avgEdge * 0.9, 0.8);
+    const depthScale = options.depthScale ?? 0.9;
+    const positions = Array(points.length);
+
+    function place(node, parent, startAngle, endAngle, px, py, depth) {{
+      positions[node] = {{ ...points[node], layoutX: px, layoutY: py }};
+      const children = adj[node].filter(edge => edge.to !== parent);
+      if (children.length === 0) return;
+
+      const total = children.reduce((s, edge) => s + sizes[edge.to], 0);
+      let cursor = startAngle;
+
+      children
+        .sort((a, b) => sizes[b.to] - sizes[a.to])
+        .forEach(edge => {{
+          const share = total > 0 ? (endAngle - startAngle) * (sizes[edge.to] / total) : 0;
+          const childStart = cursor;
+          const childEnd = cursor + share;
+          const angle = (childStart + childEnd) / 2;
+          const length = Math.max(minEdge, edge.dist * depthScale + depth * 0.12);
+          const nx = px + Math.cos(angle) * length;
+          const ny = py + Math.sin(angle) * length;
+          place(edge.to, node, childStart, childEnd, nx, ny, depth + 1);
+          cursor = childEnd;
+        }});
+    }}
+
+    place(root, -1, -Math.PI, Math.PI, 0, 0, 0);
+    return positions;
+  }}
+
+  function normalizeClusterLayout(points, targetRadius) {{
+    if (points.length === 0) return [];
+    let maxRadius = 0;
+    points.forEach(p => {{
+      const radius = Math.hypot(p.layoutX, p.layoutY);
+      if (radius > maxRadius) maxRadius = radius;
+    }});
+    const scale = maxRadius > 0 ? targetRadius / maxRadius : 1;
+    return points.map(p => ({{
+      ...p,
+      layoutX: p.layoutX * scale,
+      layoutY: p.layoutY * scale,
+    }}));
+  }}
+
+  function buildClusterBridgeCandidates(clusters, groups) {{
+    const bridges = [];
+    for (let i = 0; i < clusters.length; i += 1) {{
+      for (let j = i + 1; j < clusters.length; j += 1) {{
+        const left = clusters[i];
+        const right = clusters[j];
+        const leftPoints = groups[left.id] || [];
+        const rightPoints = groups[right.id] || [];
+        if (leftPoints.length === 0 || rightPoints.length === 0) continue;
+
+        let best = null;
+        for (let a = 0; a < leftPoints.length; a += 1) {{
+          for (let b = 0; b < rightPoints.length; b += 1) {{
+            const dist2 = sqDist(leftPoints[a], rightPoints[b]);
+            if (!best || dist2 < best.dist2) {{
+              best = {{
+                leftClusterId: left.id,
+                rightClusterId: right.id,
+                leftPointIndex: a,
+                rightPointIndex: b,
+                leftPoint: leftPoints[a],
+                rightPoint: rightPoints[b],
+                leftArgId: leftPoints[a].arg_id,
+                rightArgId: rightPoints[b].arg_id,
+                dist2,
+              }};
+            }}
+          }}
+        }}
+        if (best) bridges.push(best);
+      }}
+    }}
+    return bridges;
+  }}
+
+  function selectClusterBridgeMst(clusters, bridgeCandidates) {{
+    if (clusters.length <= 1) return [];
+    const clusterIndex = Object.fromEntries(clusters.map((c, idx) => [c.id, idx]));
+    const visited = new Set([0]);
+    const chosen = [];
+
+    while (visited.size < clusters.length) {{
+      let best = null;
+      bridgeCandidates.forEach(candidate => {{
+        const leftIdx = clusterIndex[candidate.leftClusterId];
+        const rightIdx = clusterIndex[candidate.rightClusterId];
+        const leftVisited = visited.has(leftIdx);
+        const rightVisited = visited.has(rightIdx);
+        if (leftVisited === rightVisited) return;
+        if (!best || candidate.dist2 < best.dist2) best = candidate;
+      }});
+
+      if (!best) break;
+      chosen.push(best);
+      visited.add(clusterIndex[best.leftClusterId]);
+      visited.add(clusterIndex[best.rightClusterId]);
+    }}
+
+    return chosen;
+  }}
+
+  function rotateLocalPoint(point, rotation) {{
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    return {{
+      x: point.layoutX * cos - point.layoutY * sin,
+      y: point.layoutX * sin + point.layoutY * cos,
+    }};
+  }}
+
+  function clampMagnitude(x, y, limit) {{
+    const length = Math.hypot(x, y);
+    if (length <= limit || length === 0) return {{ x, y }};
+    const scale = limit / length;
+    return {{ x: x * scale, y: y * scale }};
+  }}
+
+  function endpointWorld(body, localPoint) {{
+    const rotated = rotateLocalPoint(localPoint, body.rotation);
+    return {{
+      x: body.x + rotated.x,
+      y: body.y + rotated.y,
+      localX: rotated.x,
+      localY: rotated.y,
+    }};
+  }}
+
+  function layoutRigidBridgeClusters(clusters, clusterLayouts, initialCenters, bridgeEdges) {{
+    const centerById = Object.fromEntries(initialCenters.map(center => [center.id, center]));
+    const bodies = {{}};
+    clusters.forEach(cluster => {{
+      const points = clusterLayouts[cluster.id] || [];
+      const radius = Math.max(
+        cluster.radius || 0,
+        ...points.map(point => Math.hypot(point.layoutX, point.layoutY)),
+      ) + 0.65;
+      const center = centerById[cluster.id] || {{ layoutX: 0, layoutY: 0 }};
+      bodies[cluster.id] = {{
+        id: cluster.id,
+        x: center.layoutX,
+        y: center.layoutY,
+        radius,
+        rotation: 0,
+      }};
+    }});
+
+    const localByClusterAndArg = Object.fromEntries(
+      clusters.map(cluster => [
+        cluster.id,
+        Object.fromEntries((clusterLayouts[cluster.id] || []).map(point => [point.arg_id, point])),
+      ]),
+    );
+
+    const resolvedBridgeEdges = bridgeEdges
+      .map(edge => {{
+        const leftBody = bodies[edge.leftClusterId];
+        const rightBody = bodies[edge.rightClusterId];
+        const leftLocal = localByClusterAndArg[edge.leftClusterId]?.[edge.leftArgId];
+        const rightLocal = localByClusterAndArg[edge.rightClusterId]?.[edge.rightArgId];
+        if (!leftBody || !rightBody || !leftLocal || !rightLocal) return null;
+        return {{
+          ...edge,
+          leftBody,
+          rightBody,
+          leftLocal,
+          rightLocal,
+          target: 0.8,
+        }};
+      }})
+      .filter(Boolean);
+
+    for (let iter = 0; iter < 180; iter += 1) {{
+      const forces = Object.fromEntries(Object.keys(bodies).map(id => [id, {{ x: 0, y: 0, torque: 0 }}]));
+      const ids = Object.keys(bodies);
+
+      for (let i = 0; i < ids.length; i += 1) {{
+        for (let j = i + 1; j < ids.length; j += 1) {{
+          const a = bodies[ids[i]];
+          const b = bodies[ids[j]];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.hypot(dx, dy) || 0.001;
+          const minDist = a.radius + b.radius + 1.6;
+          if (dist < minDist) {{
+            const push = (minDist - dist) * 0.12;
+            const ux = dx / dist;
+            const uy = dy / dist;
+            forces[a.id].x -= ux * push;
+            forces[a.id].y -= uy * push;
+            forces[b.id].x += ux * push;
+            forces[b.id].y += uy * push;
+          }}
+        }}
+      }}
+
+      resolvedBridgeEdges.forEach(edge => {{
+        const leftEndpoint = endpointWorld(edge.leftBody, edge.leftLocal);
+        const rightEndpoint = endpointWorld(edge.rightBody, edge.rightLocal);
+        const dx = rightEndpoint.x - leftEndpoint.x;
+        const dy = rightEndpoint.y - leftEndpoint.y;
+        const dist = Math.hypot(dx, dy) || 0.001;
+        const pull = (dist - edge.target) * 0.045;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        const fx = ux * pull;
+        const fy = uy * pull;
+
+        forces[edge.leftClusterId].x += fx;
+        forces[edge.leftClusterId].y += fy;
+        forces[edge.rightClusterId].x -= fx;
+        forces[edge.rightClusterId].y -= fy;
+        forces[edge.leftClusterId].torque += leftEndpoint.localX * fy - leftEndpoint.localY * fx;
+        forces[edge.rightClusterId].torque += rightEndpoint.localX * (-fy) - rightEndpoint.localY * (-fx);
+      }});
+
+      ids.forEach(id => {{
+        const body = bodies[id];
+        const force = clampMagnitude(forces[id].x, forces[id].y, 0.24);
+        body.x += force.x;
+        body.y += force.y;
+        const inertia = Math.max(body.radius * body.radius, 1);
+        const rotationStep = Math.max(-0.045, Math.min(0.045, (forces[id].torque / inertia) * 0.25));
+        body.rotation += rotationStep;
+      }});
+
+      const cx = ids.reduce((sum, id) => sum + bodies[id].x, 0) / Math.max(ids.length, 1);
+      const cy = ids.reduce((sum, id) => sum + bodies[id].y, 0) / Math.max(ids.length, 1);
+      ids.forEach(id => {{
+        bodies[id].x -= cx;
+        bodies[id].y -= cy;
+      }});
+    }}
+
+    const finalLayouts = {{}};
+    clusters.forEach(cluster => {{
+      const body = bodies[cluster.id];
+      finalLayouts[cluster.id] = (clusterLayouts[cluster.id] || []).map(point => {{
+        const rotated = rotateLocalPoint(point, body.rotation);
+        return {{
+          ...point,
+          clusterId: cluster.id,
+          finalX: body.x + rotated.x,
+          finalY: body.y + rotated.y,
+        }};
+      }});
+    }});
+
+    const finalByClusterAndArg = Object.fromEntries(
+      clusters.map(cluster => [
+        cluster.id,
+        Object.fromEntries((finalLayouts[cluster.id] || []).map(point => [point.arg_id, point])),
+      ]),
+    );
+    const bridgeSegments = resolvedBridgeEdges
+      .map(edge => {{
+        const left = finalByClusterAndArg[edge.leftClusterId]?.[edge.leftArgId];
+        const right = finalByClusterAndArg[edge.rightClusterId]?.[edge.rightArgId];
+        if (!left || !right) return null;
+        return [
+          {{ x: left.finalX, y: left.finalY }},
+          {{ x: right.finalX, y: right.finalY }},
+        ];
+      }})
+      .filter(Boolean);
+
+    return {{ clusterLayouts: finalLayouts, bridgeSegments }};
+  }}
+
+  function edgesToSegments(edges) {{
+    const xs = [];
+    const ys = [];
+    edges.forEach(([a, b]) => {{
+      xs.push(a.x, b.x, null);
+      ys.push(a.y, b.y, null);
+    }});
+    return {{ x: xs, y: ys }};
+  }}
+
   function init() {{
     if (typeof Plotly === "undefined") {{ setTimeout(init, 50); return; }}
     const data = JSON.parse(document.getElementById("report-data").textContent);
     const byId = Object.fromEntries(data.clusters.map(c => [c.id, c]));
+    const layoutCatalog = data.layouts || {{}};
+    const selectedLayoutId = data.default_layout_id || "embedding_umap";
+    const selectedLayout = layoutCatalog[selectedLayoutId] || null;
+    const layoutPoints = selectedLayout && selectedLayout.points ? selectedLayout.points : {{}};
 
     const select = document.getElementById("color-level");
     const labelToggle = document.getElementById("show-labels");
+    const mstToggle = document.getElementById("show-mst");
+    const mstLayoutToggle = document.getElementById("use-mst-layout");
     const meta = document.getElementById("scatter-meta");
 
     const ANNOTATION_WIDTH = 228, ANNOTATION_FONT = 14;
@@ -439,19 +848,104 @@ _TEMPLATE = """<!DOCTYPE html>
         const cid = a.cluster_ids.find(id => byId[id] && byId[id].level === level);
         if (!cid) return;
         if (!groups[cid]) groups[cid] = [];
-        groups[cid].push(a);
+        const layoutPoint = layoutPoints[a.arg_id] || null;
+        groups[cid].push({{
+          ...a,
+          x: Number(layoutPoint ? layoutPoint.x : a.x),
+          y: Number(layoutPoint ? layoutPoint.y : a.y),
+        }});
       }});
 
-      const traces = clusters
+      const clusterEdgeTraces = [];
+      const centroidPoints = [];
+      const clusterLayouts = {{}};
+      const clusterLocalMst = {{}};
+      const clusterRadii = {{}};
+      let mstEdgeCount = 0;
+
+      clusters.forEach(c => {{
+        const pts = groups[c.id] || [];
+        if (pts.length === 0) return;
+        const mstIndexed = buildIndexedMst(pts);
+        const mstEdges = mstIndexed.map(([a, b]) => [pts[a], pts[b]]);
+        mstEdgeCount += mstEdges.length;
+        const baseRadius = 1.4 + Math.sqrt(pts.length) * 0.55;
+        const localLayout = normalizeClusterLayout(layoutTree(pts, mstIndexed), baseRadius);
+        clusterLayouts[c.id] = localLayout;
+        clusterLocalMst[c.id] = mstIndexed;
+        clusterRadii[c.id] = baseRadius;
+        centroidPoints.push({{
+          id: c.id,
+          x: pts.reduce((s, a) => s + a.x, 0) / pts.length,
+          y: pts.reduce((s, a) => s + a.y, 0) / pts.length,
+          radius: baseRadius,
+        }});
+      }});
+
+      const clusterBridgeCandidates = buildClusterBridgeCandidates(clusters, groups);
+      const clusterBridgeMst = selectClusterBridgeMst(clusters, clusterBridgeCandidates);
+      const bridgeTreeEdges = clusterBridgeMst.map(edge => ([
+        clusters.findIndex(c => c.id === edge.leftClusterId),
+        clusters.findIndex(c => c.id === edge.rightClusterId),
+        Math.sqrt(edge.dist2),
+      ]));
+      const centroidLayout = normalizeClusterLayout(
+        layoutTree(
+          centroidPoints,
+          bridgeTreeEdges,
+          {{
+            minEdgeLength: 6.5,
+            depthScale: 1.15,
+          }},
+        ),
+        Math.max(10, clusters.length * 2.4),
+      );
+
+      let bridgeEdges = [];
+      if (mstLayoutToggle.checked) {{
+        const rigidLayout = layoutRigidBridgeClusters(
+          centroidPoints,
+          clusterLayouts,
+          centroidLayout,
+          clusterBridgeMst,
+        );
+        Object.entries(rigidLayout.clusterLayouts).forEach(([clusterId, nodes]) => {{
+          clusterLayouts[clusterId] = nodes;
+        }});
+        bridgeEdges = rigidLayout.bridgeSegments;
+      }} else {{
+        bridgeEdges = clusterBridgeMst.map(edge => [
+          {{ x: edge.leftPoint.x, y: edge.leftPoint.y }},
+          {{ x: edge.rightPoint.x, y: edge.rightPoint.y }},
+        ]);
+      }}
+      const bridgeSegments = edgesToSegments(
+        bridgeEdges,
+      );
+      const bridgeTrace = centroidPoints.length > 1 ? {{
+        type: "scatter",
+        mode: "lines",
+        x: bridgeSegments.x,
+        y: bridgeSegments.y,
+        hoverinfo: "skip",
+        line: {{
+          color: "rgba(55, 65, 81, 0.55)",
+          width: 1.6,
+          dash: "dot",
+        }},
+        showlegend: false,
+      }} : null;
+
+      const pointTraces = clusters
         .map(c => {{
-          const pts = groups[c.id] || [];
+          const pts = (mstLayoutToggle.checked ? clusterLayouts[c.id] : groups[c.id]) || [];
           if (pts.length === 0) return null;
           return {{
             type: "scattergl",
             mode: "markers",
             name: c.label,
-            x: pts.map(a => a.x),
-            y: pts.map(a => a.y),
+            x: pts.map(a => mstLayoutToggle.checked ? a.finalX : a.x),
+            y: pts.map(a => mstLayoutToggle.checked ? a.finalY : a.y),
             text: pts.map(a => {{
               const body = "<b>" + escapeHtml(c.label) + "</b><br>" +
                 escapeHtml(a.argument).replace(/(.{{30}})/g, "$1<br>");
@@ -475,12 +969,49 @@ _TEMPLATE = """<!DOCTYPE html>
         }})
         .filter(Boolean);
 
+      if (mstToggle.checked) {{
+        clusters.forEach(c => {{
+          const pts = (mstLayoutToggle.checked ? clusterLayouts[c.id] : groups[c.id]) || [];
+          if (pts.length <= 1) return;
+          const mstIndexed = buildIndexedMst(groups[c.id] || []);
+          const lineSegments = mstIndexed.map(([a, b]) => {{
+            const from = pts[a];
+            const to = pts[b];
+            return [
+              {{ x: mstLayoutToggle.checked ? from.finalX : from.x, y: mstLayoutToggle.checked ? from.finalY : from.y }},
+              {{ x: mstLayoutToggle.checked ? to.finalX : to.x, y: mstLayoutToggle.checked ? to.finalY : to.y }},
+            ];
+          }});
+          const segments = edgesToSegments(lineSegments);
+          clusterEdgeTraces.push({{
+            type: "scatter",
+            mode: "lines",
+            x: segments.x,
+            y: segments.y,
+            hoverinfo: "skip",
+            line: {{
+              color: alpha(colorOf[c.id], 0.35),
+              width: 1.4,
+            }},
+            showlegend: false,
+          }});
+        }});
+      }}
+
+      const traces = mstToggle.checked
+        ? [
+            ...clusterEdgeTraces,
+            ...(bridgeTrace ? [bridgeTrace] : []),
+            ...pointTraces,
+          ]
+        : pointTraces;
+
       const annotations = labelToggle.checked
         ? clusters.map(c => {{
-            const pts = groups[c.id] || [];
+            const pts = (mstLayoutToggle.checked ? clusterLayouts[c.id] : groups[c.id]) || [];
             if (pts.length === 0) return null;
-            const cx = pts.reduce((s, a) => s + a.x, 0) / pts.length;
-            const cy = pts.reduce((s, a) => s + a.y, 0) / pts.length;
+            const cx = pts.reduce((s, a) => s + (mstLayoutToggle.checked ? a.finalX : a.x), 0) / pts.length;
+            const cy = pts.reduce((s, a) => s + (mstLayoutToggle.checked ? a.finalY : a.y), 0) / pts.length;
             return {{
               x: cx, y: cy,
               text: wrap(c.label, ANNOTATION_WIDTH, ANNOTATION_FONT),
@@ -494,12 +1025,12 @@ _TEMPLATE = """<!DOCTYPE html>
           }}).filter(Boolean)
         : [];
 
-      return {{ traces, annotations, clusters }};
+      return {{ traces, annotations, clusters, mstEdgeCount, bridgeEdgeCount: clusterBridgeMst.length }};
     }}
 
     function redraw() {{
       const lvl = parseInt(select.value, 10);
-      const {{ traces, annotations, clusters }} = build(lvl);
+      const {{ traces, annotations, clusters, mstEdgeCount, bridgeEdgeCount }} = build(lvl);
       const layout = {{
         uirevision: "scatter",
         margin: {{ l: 0, r: 0, b: 0, t: 0 }},
@@ -526,11 +1057,15 @@ _TEMPLATE = """<!DOCTYPE html>
         scatterEl._clickBound = true;
       }}
       meta.textContent = clusters.length + " clusters / " + data.arguments.length + " args" +
+        (mstLayoutToggle.checked ? " / layout=MST (" + selectedLayoutId + " base)" : " / layout=" + selectedLayoutId) +
+        (mstToggle.checked ? " / " + mstEdgeCount + " intra-cluster MST edges / " + bridgeEdgeCount + " bridge edges" : "") +
         (ENABLE_SOURCE_LINK ? " (click a point to open source)" : "");
     }}
 
     select.addEventListener("change", redraw);
     labelToggle.addEventListener("change", redraw);
+    mstToggle.addEventListener("change", redraw);
+    mstLayoutToggle.addEventListener("change", redraw);
 
     redraw();
   }}

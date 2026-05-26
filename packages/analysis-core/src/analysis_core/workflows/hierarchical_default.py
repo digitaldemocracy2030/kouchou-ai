@@ -8,7 +8,8 @@ This workflow implements the standard analysis pipeline:
 4. Label clusters at each level
 5. Generate overview summary
 6. Aggregate results
-7. (Optional) Generate HTML visualization
+7. Generate optional derived layouts for visualization
+8. (Optional) Generate HTML visualization
 """
 
 from analysis_core.workflow import WorkflowDefinition, WorkflowStep
@@ -93,6 +94,12 @@ def create_hierarchical_workflow(
                 "hidden_properties": "${config.hierarchical_aggregation.hidden_properties}",
             },
         ),
+        WorkflowStep(
+            id="layout_generation",
+            plugin="analysis.hierarchical_layout_generation",
+            depends_on=["aggregation", "embedding"],
+            config={},
+        ),
     ]
 
     if include_visualization:
@@ -100,7 +107,7 @@ def create_hierarchical_workflow(
             WorkflowStep(
                 id="visualization",
                 plugin="analysis.hierarchical_visualization",
-                depends_on=["aggregation"],
+                depends_on=["layout_generation"],
                 optional=True,
                 condition="${not config.without_html}",
                 config={

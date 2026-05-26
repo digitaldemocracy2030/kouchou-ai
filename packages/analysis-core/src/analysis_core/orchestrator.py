@@ -60,6 +60,10 @@ DEFAULT_STEP_MODULES: dict[str, tuple[str, str]] = {
     ),
     "hierarchical_overview": ("analysis_core.steps.hierarchical_overview", "hierarchical_overview"),
     "hierarchical_aggregation": ("analysis_core.steps.hierarchical_aggregation", "hierarchical_aggregation"),
+    "hierarchical_layout_generation": (
+        "analysis_core.steps.hierarchical_layout_generation",
+        "hierarchical_layout_generation",
+    ),
     "hierarchical_visualization": ("analysis_core.steps.hierarchical_visualization", "hierarchical_visualization"),
 }
 
@@ -100,6 +104,7 @@ class PipelineOrchestrator:
         "hierarchical_merge_labelling",
         "hierarchical_overview",
         "hierarchical_aggregation",
+        "hierarchical_layout_generation",
         "hierarchical_visualization",
     ]
 
@@ -399,6 +404,7 @@ class PipelineOrchestrator:
             "hierarchical_merge_labelling": "merge_labelling",
             "hierarchical_overview": "overview",
             "hierarchical_aggregation": "aggregation",
+            "hierarchical_layout_generation": "layout_generation",
             "hierarchical_visualization": "visualization",
         }
         workflow_step_to_plan_step = {v: k for k, v in plan_step_to_workflow_step.items()}
