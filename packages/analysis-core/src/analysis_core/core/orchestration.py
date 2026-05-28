@@ -8,6 +8,7 @@ with configurable paths and reduced external dependencies.
 import inspect
 import json
 import os
+import shutil
 import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -43,6 +44,98 @@ def resolve_user_api_key(config: dict[str, Any] | None = None) -> str | None:
         if user_api_key:
             return str(user_api_key)
     return os.getenv("USER_API_KEY") or None
+
+
+def _resolve_reuse_source(output_base_dir: Path, reuse_from: str) -> Path:
+    """Resolve a reusable output directory from a job name or explicit path."""
+    candidate = Path(reuse_from).expanduser()
+    if candidate.exists():
+        return candidate.resolve()
+    return (output_base_dir / reuse_from).resolve()
+
+
+def _seed_reused_outputs(
+    *,
+    config: dict[str, Any],
+    output_base_dir: Path,
+    specs: list[dict[str, Any]],
+) -> None:
+    """Copy reusable step outputs from another job into the current output dir."""
+    reuse_from = config.get("reuse_from")
+    if not reuse_from:
+        return
+
+    dest_dir = output_base_dir / config["output_dir"]
+    status_file = dest_dir / "hierarchical_status.json"
+    if status_file.exists():
+        return
+
+    source_dir = _resolve_reuse_source(output_base_dir, reuse_from)
+    if not source_dir.exists():
+        raise RuntimeError(f"reuse_from source not found: {reuse_from}")
+    if not source_dir.is_dir():
+        raise RuntimeError(f"reuse_from must point to a directory: {source_dir}")
+
+    source_status_file = source_dir / "hierarchical_status.json"
+    source_status: dict[str, Any] = {}
+    if source_status_file.exists():
+        with open(source_status_file, encoding="utf-8") as f:
+            source_status = json.load(f)
+
+    completed_jobs = source_status.get("completed_jobs", []) + source_status.get("previously_completed_jobs", [])
+    status_by_step = {job.get("step"): job for job in completed_jobs if job.get("step")}
+    reusable_steps = []
+    for step_spec in specs:
+        step_name = step_spec["step"]
+        source_job = status_by_step.get(step_name)
+        if not source_job:
+            continue
+
+        source_artifact = source_dir / step_spec["filename"]
+        if not source_artifact.exists():
+            continue
+
+        copied_files = [source_artifact]
+        if step_name == "extraction":
+            relations = source_dir / "relations.csv"
+            if not relations.exists():
+                continue
+            copied_files.append(relations)
+
+        for artifact in copied_files:
+            target = dest_dir / artifact.name
+            if artifact.is_dir():
+                shutil.copytree(artifact, target, dirs_exist_ok=True)
+            else:
+                shutil.copy2(artifact, target)
+        reusable_steps.append(step_name)
+
+    if not reusable_steps:
+        raise RuntimeError(f"No reusable artifacts found in {source_dir}")
+
+    seeded_jobs = []
+    for step_spec in specs:
+        step_name = step_spec["step"]
+        if step_name not in reusable_steps:
+            continue
+        source_job = status_by_step.get(step_name, {})
+        seeded_jobs.append(
+            {
+                "step": step_name,
+                "params": source_job.get("params", {}),
+            }
+        )
+
+    seeded_status = {
+        "status": "completed",
+        "completed_jobs": seeded_jobs,
+        "previously_completed_jobs": [],
+        "reused_from": str(source_dir),
+    }
+    with open(status_file, "w", encoding="utf-8") as f:
+        json.dump(seeded_status, f, indent=2, ensure_ascii=False)
+
+    print(f"Seeded outputs for {config['output_dir']} from {source_dir.name}: {', '.join(reusable_steps)}")
 
 
 def load_specs(specs_path: Path) -> list[dict[str, Any]]:
@@ -155,6 +248,7 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
         "enable_source_link",
         "without_html",
         "without-html",
+        "reuse_from",
     ]
     step_names = [x["step"] for x in specs]
 
@@ -446,6 +540,7 @@ def initialization(
     input_base_dir: Path | None = None,
     specs_path: Path | None = None,
     steps_module: Any = None,
+    reuse_from: str | None = None,
 ) -> dict[str, Any]:
     """
     Initialize pipeline configuration.
@@ -462,6 +557,7 @@ def initialization(
         input_base_dir: Base directory for inputs (default: inputs/)
         specs_path: Path to specs JSON file (default: package specs)
         steps_module: Module containing step functions (for source code extraction)
+        reuse_from: Reuse intermediate outputs from another job directory
 
     Returns:
         Initialized configuration dictionary
@@ -505,6 +601,8 @@ def initialization(
         config["force"] = True
     if only:
         config["only"] = only
+    if reuse_from:
+        config["reuse_from"] = reuse_from
     if skip_interaction:
         config["skip-interaction"] = True
     if without_html:
@@ -515,23 +613,6 @@ def initialization(
     sync_without_html_keys(config)
 
     output_dir = config["output_dir"]
-
-    # Check if job has run before
-    previous: dict[str, Any] | bool = False
-    status_file = output_base_dir / output_dir / "hierarchical_status.json"
-    if status_file.exists():
-        with open(status_file, "r", encoding="utf-8") as f:
-            previous = json.load(f)
-        config["previous"] = previous
-
-    # Crash if job is already running and locked
-    if previous and isinstance(previous, dict) and previous.get("status") == "running":
-        lock_until = previous.get("lock_until")
-        if lock_until and datetime.fromisoformat(lock_until) > datetime.now():
-            print("Job already running and locked. Try again in 5 minutes.")
-            raise Exception("Job already running.")
-        else:
-            print("Hum, the last Job crashed a while ago...Proceeding!")
 
     # Set default LLM model
     if "model" not in config:
@@ -577,6 +658,25 @@ def initialization(
     output_path = output_base_dir / output_dir
     if not output_path.exists():
         output_path.mkdir(parents=True, exist_ok=True)
+
+    _seed_reused_outputs(config=config, output_base_dir=output_base_dir, specs=specs)
+
+    # Check if job has run before
+    previous: dict[str, Any] | bool = False
+    status_file = output_base_dir / output_dir / "hierarchical_status.json"
+    if status_file.exists():
+        with open(status_file, "r", encoding="utf-8") as f:
+            previous = json.load(f)
+        config["previous"] = previous
+
+    # Crash if job is already running and locked
+    if previous and isinstance(previous, dict) and previous.get("status") == "running":
+        lock_until = previous.get("lock_until")
+        if lock_until and datetime.fromisoformat(lock_until) > datetime.now():
+            print("Job already running and locked. Try again in 5 minutes.")
+            raise Exception("Job already running.")
+        else:
+            print("Hum, the last Job crashed a while ago...Proceeding!")
 
     # Decide what to run
     plan = decide_what_to_run(config, previous if isinstance(previous, dict) else None, specs, output_base_dir)

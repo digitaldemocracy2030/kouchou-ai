@@ -64,6 +64,11 @@ def main() -> int:
         help="Base directory for inputs (default: inputs)",
     )
     parser.add_argument(
+        "--reuse-from",
+        type=str,
+        help="Reuse intermediate outputs from another job directory or output name",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show execution plan without running",
@@ -104,6 +109,7 @@ def main() -> int:
             persist_status=not (args.dry_run or args.validate_config or args.validate_input),
             output_base_dir=args.output_dir,
             input_base_dir=args.input_dir,
+            reuse_from=args.reuse_from,
         )
 
         plan = orchestrator.get_plan()
