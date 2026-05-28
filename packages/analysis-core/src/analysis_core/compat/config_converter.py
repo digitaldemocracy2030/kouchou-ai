@@ -10,7 +10,7 @@ from typing import Any
 
 from analysis_core.prompts import get_default_prompt
 from analysis_core.workflow import WorkflowDefinition
-from analysis_core.workflows import HIERARCHICAL_DEFAULT_WORKFLOW
+from analysis_core.workflows import get_workflow_for_mode
 
 
 def _get_step_source_codes() -> dict[str, str]:
@@ -24,6 +24,7 @@ def _get_step_source_codes() -> dict[str, str]:
         hierarchical_merge_labelling,
         hierarchical_overview,
         hierarchical_visualization,
+        llm_grouping,
     )
 
     step_functions = {
@@ -35,6 +36,7 @@ def _get_step_source_codes() -> dict[str, str]:
         "hierarchical_overview": hierarchical_overview,
         "hierarchical_aggregation": hierarchical_aggregation,
         "hierarchical_visualization": hierarchical_visualization,
+        "llm_grouping": llm_grouping,
     }
 
     source_codes = {}
@@ -72,6 +74,7 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     # Top-level defaults
     result.setdefault("model", "gpt-4o-mini")
     result.setdefault("provider", "openai")
+    result.setdefault("analysis_mode", "hierarchical")
     result.setdefault("is_embedded_at_local", False)
     result.setdefault("is_pubcom", False)
     result.setdefault("intro", "")
@@ -99,6 +102,19 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     clustering = result.setdefault("hierarchical_clustering", {})
     if "hierarchical_clustering" in source_codes:
         clustering.setdefault("source_code", source_codes["hierarchical_clustering"])
+
+    # LLM grouping defaults
+    llm_grouping = result.setdefault("llm_grouping", {})
+    llm_grouping.setdefault("group_count", None)
+    llm_grouping.setdefault("discovery_sample_size", 80)
+    llm_grouping.setdefault("assignment_batch_size", 25)
+    if not llm_grouping.get("discovery_prompt"):
+        llm_grouping["discovery_prompt"] = get_default_prompt("llm_grouping_discovery") or ""
+    if not llm_grouping.get("assignment_prompt"):
+        llm_grouping["assignment_prompt"] = get_default_prompt("llm_grouping_assignment") or ""
+    llm_grouping.setdefault("model", result["model"])
+    if "llm_grouping" in source_codes:
+        llm_grouping.setdefault("source_code", source_codes["llm_grouping"])
 
     # Initial labelling defaults
     initial_labelling = result.setdefault("hierarchical_initial_labelling", {})
@@ -157,9 +173,7 @@ def convert_legacy_config(
     # Normalize the config first
     normalized = normalize_config(legacy_config)
 
-    # Use the default hierarchical workflow
-    # In the future, we could detect different workflow types from config
-    workflow = HIERARCHICAL_DEFAULT_WORKFLOW
+    workflow = get_workflow_for_mode(normalized.get("analysis_mode", "hierarchical"))
 
     return workflow, normalized
 

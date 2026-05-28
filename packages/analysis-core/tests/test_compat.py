@@ -13,6 +13,7 @@ class TestNormalizeConfig:
 
         assert result["model"] == "gpt-4o-mini"
         assert result["provider"] == "openai"
+        assert result["analysis_mode"] == "hierarchical"
         assert result["is_embedded_at_local"] is False
         assert result["is_pubcom"] is False
 
@@ -44,6 +45,18 @@ class TestNormalizeConfig:
         assert "hierarchical_clustering" in result
         assert "cluster_nums" not in result["hierarchical_clustering"]
 
+    def test_fills_llm_grouping_defaults(self):
+        """Test that llm_grouping defaults are filled in."""
+        config = {}
+        result = normalize_config(config)
+
+        assert "llm_grouping" in result
+        assert result["llm_grouping"]["group_count"] is None
+        assert result["llm_grouping"]["discovery_sample_size"] == 80
+        assert result["llm_grouping"]["assignment_batch_size"] == 25
+        assert len(result["llm_grouping"]["discovery_prompt"]) > 0
+        assert len(result["llm_grouping"]["assignment_prompt"]) > 0
+
     def test_fills_labelling_defaults(self):
         """Test that labelling defaults are filled in."""
         config = {}
@@ -69,6 +82,7 @@ class TestNormalizeConfig:
             "hierarchical_overview",
             "hierarchical_aggregation",
             "hierarchical_visualization",
+            "llm_grouping",
         ]
 
         for step in steps:

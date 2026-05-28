@@ -128,6 +128,12 @@ class TestStepImports:
 
         assert hierarchical_merge_labelling is not None
 
+    def test_llm_grouping_step(self):
+        """Test LLM grouping step import."""
+        from analysis_core.steps import llm_grouping
+
+        assert llm_grouping is not None
+
     def test_overview_step(self):
         """Test overview step import."""
         from analysis_core.steps import hierarchical_overview
@@ -157,6 +163,7 @@ class TestStepImports:
             hierarchical_merge_labelling,
             hierarchical_overview,
             hierarchical_visualization,
+            llm_grouping,
         )
 
         steps = [
@@ -165,12 +172,13 @@ class TestStepImports:
             hierarchical_clustering,
             hierarchical_initial_labelling,
             hierarchical_merge_labelling,
+            llm_grouping,
             hierarchical_overview,
             hierarchical_aggregation,
             hierarchical_visualization,
         ]
         assert all(step is not None for step in steps)
-        assert len(steps) == 8
+        assert len(steps) == 9
 
 
 class TestConfigModule:

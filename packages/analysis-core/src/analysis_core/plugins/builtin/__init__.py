@@ -14,10 +14,11 @@ def register_all(registry: "PluginRegistry") -> None:
     """
     Register all built-in plugins with the registry.
 
-    This function registers the 8 standard analysis steps:
+    This function registers the standard analysis steps:
     - analysis.extraction
     - analysis.embedding
     - analysis.hierarchical_clustering
+    - analysis.llm_grouping
     - analysis.hierarchical_initial_labelling
     - analysis.hierarchical_merge_labelling
     - analysis.hierarchical_overview
@@ -36,11 +37,13 @@ def register_all(registry: "PluginRegistry") -> None:
     from analysis_core.plugins.builtin.hierarchical_merge_labelling import hierarchical_merge_labelling_plugin
     from analysis_core.plugins.builtin.hierarchical_overview import hierarchical_overview_plugin
     from analysis_core.plugins.builtin.hierarchical_visualization import hierarchical_visualization_plugin
+    from analysis_core.plugins.builtin.llm_grouping import llm_grouping_plugin
 
     plugins = [
         extraction_plugin,
         embedding_plugin,
         hierarchical_clustering_plugin,
+        llm_grouping_plugin,
         hierarchical_initial_labelling_plugin,
         hierarchical_merge_labelling_plugin,
         hierarchical_overview_plugin,
