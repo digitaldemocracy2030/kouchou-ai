@@ -53,16 +53,31 @@ make azure-create-storage
 
 ### 4. Blob Storage の疎通確認
 
-環境構築後は、通常運用の前に API から Blob Storage へ書き込み疎通確認ができることを確認してください。
+環境構築後は、通常運用の前に API から Blob Storage へ書き込みと read-back ができることを確認してください。
 
 ```bash
 cd apps/api
 rye run python scripts/test_storage.py
 ```
 
-`scripts/test_storage.py` では、現在の storage 設定で初期化できることと、テストファイルの upload が通ることを確認します。
+`scripts/test_storage.py` では、現在の storage 設定で初期化できること、テストファイルの upload が通ること、同じ blob を download して内容一致することを確認します。
 
 ## 既存レポートの永続化 {#persist-reports}
+
+### 0. Azure Blob Storage からローカルへ復元
+
+storage 側を canonical store として、status / reports / configs / inputs を
+ローカルファイルシステムへ復元するには以下を使います。
+
+```bash
+python tools/scripts/download_reports_from_azure.py
+```
+
+特定レポートだけを落とす場合:
+
+```bash
+python tools/scripts/download_reports_from_azure.py --slug your-report-slug
+```
 
 ### 1. レポートのアップロード
 
@@ -123,7 +138,7 @@ ErrorCode:AuthorizationPermissionMismatch
 
 ### 既存の `fetch_reports.py` について
 
-`fetch_reports.py` は通常運用の safety net から外しました。現行の本線は `ReportSyncService` による Azure Blob Storage への同期と、起動時の `initialize_from_storage()` による復元です。public `/reports` scrape は private / unlisted レポートを扱えず、canonical store としても不適切なため、運用手順には含めていません。
+`fetch_reports.py` は通常運用の safety net から外しました。現行の本線は `ReportSyncService` による Azure Blob Storage への同期と、起動時の `initialize_from_storage()` による復元です。public `/reports` scrape は private / unlisted レポートを扱えず、canonical store としても不適切なため、必要なら `tools/scripts/download_reports_from_azure.py` で storage から直接復元する方針に切り替えています。
 
 ## 運用コマンド {#operations}
 
