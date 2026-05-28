@@ -4,10 +4,6 @@
 
 ## スクリプト一覧
 
-### fetch_reports.py
-既存のAPIサーバーからレポートデータを取得し、ローカル環境に保存するスクリプト。
-新しい環境へのデータ移行に使用します。
-
 ### upload_reports_to_azure.py
 ローカル環境のレポートデータをAzure Blob Storageにアップロードするスクリプト。
 Azure環境への移行時に使用します。
@@ -22,9 +18,6 @@ Azure Blob Storageへのアクセス権限（Storage Blob Data Contributor）を
 一般的な実行手順：
 
 ```bash
-# レポートデータの取得
-python tools/scripts/fetch_reports.py --api-url https://your-api-url
-
 # Azure Blob Storageへのアクセス権限付与
 ./tools/scripts/assign_storage_role.sh
 

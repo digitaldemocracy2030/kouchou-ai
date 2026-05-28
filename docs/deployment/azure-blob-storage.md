@@ -15,16 +15,6 @@
 
 ## 環境設定 {#setup}
 
-### 0. 既存レポートのバックアップ
-
-```bash
-python scripts/fetch_reports.py --api-url https://your-api-url
-```
-
-このスクリプトは全てのレポートをローカル環境にダウンロードします。
-
-注: 完了した分析の最終結果データのみを保存します。
-
 ### 1. 環境変数の設定
 
 `.env`ファイルに以下の設定を追加します：
@@ -61,6 +51,17 @@ make azure-create-storage
 
 このスクリプトは、現在ログインしているユーザーに「Storage Blob Data Contributor」ロールを付与します。
 
+### 4. Blob Storage の疎通確認
+
+環境構築後は、通常運用の前に API から Blob Storage の読み書きができることを確認してください。
+
+```bash
+cd apps/api
+rye run python scripts/test_storage.py
+```
+
+この確認では、現在の storage 設定で初期化できることと、テストファイルの upload が通ることを見ます。
+
 ## 既存レポートの永続化 {#persist-reports}
 
 ### 1. レポートのアップロード
@@ -68,7 +69,7 @@ make azure-create-storage
 既存のレポートをAzure Blob Storageにアップロードするには、以下のスクリプトを使用します：
 
 ```bash
-python scripts/upload_reports_to_azure.py
+python tools/scripts/upload_reports_to_azure.py
 ```
 
 ### 2. APIコンテナの再起動
@@ -119,6 +120,10 @@ ErrorCode:AuthorizationPermissionMismatch
    ```bash
    make azure-restart-api
    ```
+
+### 既存の `fetch_reports.py` について
+
+`fetch_reports.py` は通常運用の safety net から外しました。現行の本線は `ReportSyncService` による Azure Blob Storage への同期と、起動時の `initialize_from_storage()` による復元です。public `/reports` scrape は private / unlisted レポートを扱えず、canonical store としても不適切なため、運用手順には含めていません。
 
 ## 運用コマンド {#operations}
 
