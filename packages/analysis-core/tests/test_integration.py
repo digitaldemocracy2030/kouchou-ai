@@ -102,7 +102,7 @@ class TestPipelineIntegration:
         assert result.steps[0].success is False
 
     def test_full_plan_execution(self, tmp_path):
-        """Test that all 8 steps are planned for execution."""
+        """Test that all default steps are planned for execution."""
         # Create config file
         config_path = tmp_path / "test.json"
         config_path.write_text(
@@ -128,7 +128,7 @@ class TestPipelineIntegration:
 
         plan = orchestrator.get_plan()
 
-        # All 8 steps should be in the plan
+        # All 8 default steps should be in the plan
         assert len(plan) == 8
 
         step_names = [p["step"] for p in plan]

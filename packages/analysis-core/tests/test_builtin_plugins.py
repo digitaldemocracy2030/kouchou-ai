@@ -4,6 +4,7 @@ import importlib
 
 from analysis_core.plugin import StepContext, StepInputs
 from analysis_core.plugins.builtin.extraction import extraction_plugin
+from analysis_core.plugins.builtin.hierarchical_layout_generation import hierarchical_layout_generation_plugin
 from analysis_core.plugins.builtin.hierarchical_visualization import hierarchical_visualization_plugin
 
 
@@ -43,6 +44,51 @@ def test_visualization_plugin_reports_report_html_path(tmp_path, monkeypatch):
     )
 
     assert outputs.artifacts["html"] == output_dir / "report.html"
+
+
+def test_layout_generation_plugin_reports_result_path(tmp_path, monkeypatch):
+    """Layout generation mutates hierarchical_result.json in place."""
+
+    output_dir = tmp_path / "out"
+    input_dir = tmp_path / "in"
+    output_dir.mkdir()
+    input_dir.mkdir()
+
+    ctx = StepContext(
+        output_dir=output_dir,
+        input_dir=input_dir,
+        dataset="demo",
+        provider="local",
+        model="dummy",
+    )
+
+    seen = {}
+
+    def fake_layout_generation(config):
+        seen.update(config)
+        (output_dir / "hierarchical_result.json").write_text("{}", encoding="utf-8")
+
+    layout_module = importlib.import_module("analysis_core.steps.hierarchical_layout_generation")
+    monkeypatch.setattr(layout_module, "hierarchical_layout_generation", fake_layout_generation)
+
+    outputs = hierarchical_layout_generation_plugin.run(
+        ctx,
+        StepInputs(
+            artifacts={
+                "result": output_dir / "hierarchical_result.json",
+                "embeddings": output_dir / "embeddings.pkl",
+            },
+            config={"analysis_mode": "llm_grouping"},
+        ),
+        {
+            "layout_generation": {
+                "default_layout": "semantic_island_map",
+            }
+        },
+    )
+
+    assert seen["layout_generation"]["default_layout"] == "semantic_island_map"
+    assert outputs.artifacts["result"] == output_dir / "hierarchical_result.json"
 
 
 def test_extraction_plugin_keeps_explicit_input_over_comments_fallback(tmp_path, monkeypatch):
