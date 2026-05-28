@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: azure-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
   AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
