@@ -36,6 +36,15 @@ def sync_without_html_keys(config: dict[str, Any]) -> None:
     config["without_html"] = canonical
 
 
+def resolve_user_api_key(config: dict[str, Any] | None = None) -> str | None:
+    """Resolve the runtime user-provided API key without persisting it."""
+    if config:
+        user_api_key = config.get("user_api_key")
+        if user_api_key:
+            return str(user_api_key)
+    return os.getenv("USER_API_KEY") or None
+
+
 def load_specs(specs_path: Path) -> list[dict[str, Any]]:
     """Load pipeline step specifications from a JSON file."""
     global _specs
@@ -482,7 +491,7 @@ def initialization(
     # This ensures we catch missing API keys before starting any pipeline steps
     provider = config.get("provider", "openai")
     if validate_api_keys_early:
-        validate_api_keys(provider)
+        validate_api_keys(provider, resolve_user_api_key(config))
 
     # Set output directory
     config["output_dir"] = job_name

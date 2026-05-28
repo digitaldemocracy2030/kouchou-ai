@@ -191,12 +191,15 @@ class TestPipelinePathsIntegration:
         with patch("analysis_core.steps.embedding.request_to_embed") as mock_embed:
             mock_embed.return_value = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
 
+            sample_config["user_api_key"] = "config-user-key"
+
             # Run embedding
             embedding(sample_config)
 
         # Verify output file was created in the correct location
         embeddings_file = output_subdir / "embeddings.pkl"
         assert embeddings_file.exists(), f"embeddings.pkl not found at {embeddings_file}"
+        assert mock_embed.call_args.kwargs["user_api_key"] == "config-user-key"
 
         # Verify hardcoded path was NOT used
         hardcoded_embeddings = Path("outputs") / sample_config["output_dir"] / "embeddings.pkl"

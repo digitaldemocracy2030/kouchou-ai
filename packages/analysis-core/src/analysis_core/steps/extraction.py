@@ -61,6 +61,7 @@ def extraction(config):
     limit = config["extraction"]["limit"]
     property_columns = config["extraction"]["properties"]
     timeout_seconds = config["extraction"].get("timeout_seconds", EXTRACTION_WAIT_TIMEOUT_SECONDS)
+    user_api_key = config.get("user_api_key") or os.getenv("USER_API_KEY")
 
     if "provider" not in config:
         raise RuntimeError("provider is not set")
@@ -87,7 +88,15 @@ def extraction(config):
         batch = comment_ids[i : i + workers]
         batch_inputs = [comments_lookup[id]["comment-body"] for id in batch]
         batch_results = extract_batch(
-            batch_inputs, prompt, model, workers, provider, config.get("local_llm_address"), config, timeout_seconds
+            batch_inputs,
+            prompt,
+            model,
+            workers,
+            provider,
+            config.get("local_llm_address"),
+            config,
+            timeout_seconds,
+            user_api_key,
         )
 
         for comment_id, extracted_args in zip(batch, batch_results, strict=False):
@@ -133,11 +142,24 @@ def extract_batch(
     local_llm_address=None,
     config=None,
     timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
+    user_api_key=None,
 ):
     """Run argument extraction concurrently for a batch of comment texts."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures_with_index = [
-            (i, executor.submit(extract_arguments, input, prompt, model, provider, local_llm_address, timeout_seconds))
+            (
+                i,
+                executor.submit(
+                    extract_arguments,
+                    input,
+                    prompt,
+                    model,
+                    provider,
+                    local_llm_address,
+                    timeout_seconds,
+                    user_api_key,
+                ),
+            )
             for i, input in enumerate(batch)
         ]
 
@@ -185,6 +207,7 @@ def extract_arguments(
     provider="openai",
     local_llm_address=None,
     timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
+    user_api_key=None,
 ):
     """Send a single comment to the LLM and return extracted arguments."""
     messages = [
@@ -199,7 +222,7 @@ def extract_arguments(
             json_schema=ExtractionResponse,
             provider=provider,
             local_llm_address=local_llm_address,
-            user_api_key=os.getenv("USER_API_KEY"),
+            user_api_key=user_api_key or os.getenv("USER_API_KEY"),
             timeout_seconds=timeout_seconds,
         )
         items = parse_extraction_response(response)

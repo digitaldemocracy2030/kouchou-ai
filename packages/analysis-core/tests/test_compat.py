@@ -122,6 +122,7 @@ class TestCreateStepContextFromConfig:
             "provider": "azure",
             "model": "gpt-4o",
             "local_llm_address": "http://localhost:11434",
+            "user_api_key": "config-user-key",
         }
         ctx = create_step_context_from_config(config)
 
@@ -129,6 +130,15 @@ class TestCreateStepContextFromConfig:
         assert ctx.provider == "azure"
         assert ctx.model == "gpt-4o"
         assert ctx.local_llm_address == "http://localhost:11434"
+        assert ctx.user_api_key == "config-user-key"
+
+    def test_uses_user_api_key_from_env(self, monkeypatch):
+        """Test that StepContext picks up runtime user API key from env."""
+        monkeypatch.setenv("USER_API_KEY", "env-user-key")
+
+        ctx = create_step_context_from_config({"output_dir": "my-output"})
+
+        assert ctx.user_api_key == "env-user-key"
 
     def test_output_dir_override(self):
         """Test that output_dir parameter overrides config."""
