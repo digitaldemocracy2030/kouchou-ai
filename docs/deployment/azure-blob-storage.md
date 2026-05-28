@@ -53,14 +53,14 @@ make azure-create-storage
 
 ### 4. Blob Storage の疎通確認
 
-環境構築後は、通常運用の前に API から Blob Storage の読み書きができることを確認してください。
+環境構築後は、通常運用の前に API から Blob Storage へ書き込み疎通確認ができることを確認してください。
 
 ```bash
 cd apps/api
 rye run python scripts/test_storage.py
 ```
 
-この確認では、現在の storage 設定で初期化できることと、テストファイルの upload が通ることを見ます。
+`scripts/test_storage.py` では、現在の storage 設定で初期化できることと、テストファイルの upload が通ることを確認します。
 
 ## 既存レポートの永続化 {#persist-reports}
 
