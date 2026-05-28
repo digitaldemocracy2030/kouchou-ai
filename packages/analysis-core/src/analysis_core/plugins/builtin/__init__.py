@@ -22,7 +22,6 @@ def register_all(registry: "PluginRegistry") -> None:
     - analysis.hierarchical_merge_labelling
     - analysis.hierarchical_overview
     - analysis.hierarchical_aggregation
-    - analysis.hierarchical_layout_generation
     - analysis.hierarchical_visualization
 
     Args:
@@ -34,7 +33,6 @@ def register_all(registry: "PluginRegistry") -> None:
     from analysis_core.plugins.builtin.hierarchical_aggregation import hierarchical_aggregation_plugin
     from analysis_core.plugins.builtin.hierarchical_clustering import hierarchical_clustering_plugin
     from analysis_core.plugins.builtin.hierarchical_initial_labelling import hierarchical_initial_labelling_plugin
-    from analysis_core.plugins.builtin.hierarchical_layout_generation import hierarchical_layout_generation_plugin
     from analysis_core.plugins.builtin.hierarchical_merge_labelling import hierarchical_merge_labelling_plugin
     from analysis_core.plugins.builtin.hierarchical_overview import hierarchical_overview_plugin
     from analysis_core.plugins.builtin.hierarchical_visualization import hierarchical_visualization_plugin
@@ -47,7 +45,6 @@ def register_all(registry: "PluginRegistry") -> None:
         hierarchical_merge_labelling_plugin,
         hierarchical_overview_plugin,
         hierarchical_aggregation_plugin,
-        hierarchical_layout_generation_plugin,
         hierarchical_visualization_plugin,
     ]
 

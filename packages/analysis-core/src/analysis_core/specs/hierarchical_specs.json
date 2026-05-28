@@ -70,22 +70,9 @@
         }
     },
     {
-        "step": "hierarchical_layout_generation",
-        "filename": "hierarchical_result.json",
-        "dependencies": {"params": [], "steps": ["hierarchical_aggregation", "embedding"]},
-        "options": {
-            "default_layout": "embedding_umap",
-            "semantic_island_map": {
-                "enabled": null,
-                "center_scale": 8.5,
-                "island_shrink": 0.72
-            }
-        }
-    },
-    {
         "step": "hierarchical_visualization",
         "filename": "report",
-        "dependencies": {"params": ["replacements"], "steps": ["hierarchical_layout_generation"]},
+        "dependencies": {"params": ["replacements"], "steps": ["hierarchical_aggregation"]},
         "options": {"replacements": []}
     }
 ]

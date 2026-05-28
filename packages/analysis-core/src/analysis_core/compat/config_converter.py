@@ -21,7 +21,6 @@ def _get_step_source_codes() -> dict[str, str]:
         hierarchical_aggregation,
         hierarchical_clustering,
         hierarchical_initial_labelling,
-        hierarchical_layout_generation,
         hierarchical_merge_labelling,
         hierarchical_overview,
         hierarchical_visualization,
@@ -35,7 +34,6 @@ def _get_step_source_codes() -> dict[str, str]:
         "hierarchical_merge_labelling": hierarchical_merge_labelling,
         "hierarchical_overview": hierarchical_overview,
         "hierarchical_aggregation": hierarchical_aggregation,
-        "hierarchical_layout_generation": hierarchical_layout_generation,
         "hierarchical_visualization": hierarchical_visualization,
     }
 
@@ -132,14 +130,6 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     aggregation.setdefault("hidden_properties", {})
     if "hierarchical_aggregation" in source_codes:
         aggregation.setdefault("source_code", source_codes["hierarchical_aggregation"])
-
-    layout_generation = result.setdefault("layout_generation", {})
-    semantic_layout = layout_generation.setdefault("semantic_island_map", {})
-    semantic_layout.setdefault("enabled", None)
-    semantic_layout.setdefault("center_scale", 8.5)
-    semantic_layout.setdefault("island_shrink", 0.72)
-    if "hierarchical_layout_generation" in source_codes:
-        layout_generation.setdefault("source_code", source_codes["hierarchical_layout_generation"])
 
     # Visualization defaults
     visualization = result.setdefault("hierarchical_visualization", {})

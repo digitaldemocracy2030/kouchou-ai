@@ -146,12 +146,6 @@ class TestStepImports:
 
         assert hierarchical_visualization is not None
 
-    def test_layout_generation_step(self):
-        """Test layout generation step import."""
-        from analysis_core.steps import hierarchical_layout_generation
-
-        assert hierarchical_layout_generation is not None
-
     def test_all_steps_from_init(self):
         """Test all steps can be imported from steps module."""
         from analysis_core.steps import (
@@ -160,7 +154,6 @@ class TestStepImports:
             hierarchical_aggregation,
             hierarchical_clustering,
             hierarchical_initial_labelling,
-            hierarchical_layout_generation,
             hierarchical_merge_labelling,
             hierarchical_overview,
             hierarchical_visualization,
@@ -174,11 +167,10 @@ class TestStepImports:
             hierarchical_merge_labelling,
             hierarchical_overview,
             hierarchical_aggregation,
-            hierarchical_layout_generation,
             hierarchical_visualization,
         ]
         assert all(step is not None for step in steps)
-        assert len(steps) == 9
+        assert len(steps) == 8
 
 
 class TestConfigModule:

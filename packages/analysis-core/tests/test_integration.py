@@ -128,8 +128,8 @@ class TestPipelineIntegration:
 
         plan = orchestrator.get_plan()
 
-        # All default steps should be in the plan
-        assert len(plan) == 9
+        # All 8 default steps should be in the plan
+        assert len(plan) == 8
 
         step_names = [p["step"] for p in plan]
         expected_steps = [
@@ -140,7 +140,6 @@ class TestPipelineIntegration:
             "hierarchical_merge_labelling",
             "hierarchical_overview",
             "hierarchical_aggregation",
-            "hierarchical_layout_generation",
             "hierarchical_visualization",
         ]
         assert step_names == expected_steps

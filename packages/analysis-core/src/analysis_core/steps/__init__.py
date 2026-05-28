@@ -9,7 +9,6 @@ _STEP_MODULES = {
     "hierarchical_aggregation": "analysis_core.steps.hierarchical_aggregation",
     "hierarchical_clustering": "analysis_core.steps.hierarchical_clustering",
     "hierarchical_initial_labelling": "analysis_core.steps.hierarchical_initial_labelling",
-    "hierarchical_layout_generation": "analysis_core.steps.hierarchical_layout_generation",
     "hierarchical_merge_labelling": "analysis_core.steps.hierarchical_merge_labelling",
     "hierarchical_overview": "analysis_core.steps.hierarchical_overview",
     "hierarchical_visualization": "analysis_core.steps.hierarchical_visualization",
@@ -23,7 +22,6 @@ __all__ = [
     "hierarchical_merge_labelling",
     "hierarchical_overview",
     "hierarchical_aggregation",
-    "hierarchical_layout_generation",
     "hierarchical_visualization",
 ]
 

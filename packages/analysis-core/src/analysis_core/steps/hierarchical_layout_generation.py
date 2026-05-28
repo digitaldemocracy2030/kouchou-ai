@@ -12,7 +12,11 @@ import json
 import math
 import pickle
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import numpy as np
+
 
 def hierarchical_layout_generation(config: dict[str, Any]) -> None:
     """Augment ``hierarchical_result.json`` with derived named layouts."""

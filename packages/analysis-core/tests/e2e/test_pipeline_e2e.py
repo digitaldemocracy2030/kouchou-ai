@@ -34,7 +34,6 @@ def _scoped_pipeline_config(pipeline_config, enabled_steps):
         "hierarchical_merge_labelling",
         "hierarchical_overview",
         "hierarchical_aggregation",
-        "hierarchical_layout_generation",
         "hierarchical_visualization",
     ]
     enabled = set(enabled_steps)
@@ -182,7 +181,6 @@ class TestPipelineE2E:
         assert [job["step"] for job in status_data["completed_jobs"]] == [
             "hierarchical_overview",
             "hierarchical_aggregation",
-            "hierarchical_layout_generation",
         ]
         assert {
             job["step"]

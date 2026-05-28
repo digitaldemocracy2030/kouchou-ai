@@ -446,11 +446,7 @@ class TestOrchestratorPathsIntegration:
             run_steps = [step["step"] for step in plan if step["run"]]
             skipped_steps = [step["step"] for step in plan if not step["run"]]
 
-            assert run_steps == [
-                "hierarchical_overview",
-                "hierarchical_aggregation",
-                "hierarchical_layout_generation",
-            ]
+            assert run_steps == ["hierarchical_overview", "hierarchical_aggregation"]
             assert skipped_steps == [
                 "extraction",
                 "embedding",

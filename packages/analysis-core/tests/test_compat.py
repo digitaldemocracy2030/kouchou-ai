@@ -68,7 +68,6 @@ class TestNormalizeConfig:
             "hierarchical_merge_labelling",
             "hierarchical_overview",
             "hierarchical_aggregation",
-            "layout_generation",
             "hierarchical_visualization",
         ]
 
