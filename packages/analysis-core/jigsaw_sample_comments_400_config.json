@@ -1,0 +1,27 @@
+{
+  "question": "AIに対して人々はどのような期待と懸念を持っているのか？",
+  "input": "sample_comments_400_jp",
+  "intro": "この実験は、400件の日本語コメントに対してJigsaw的なLLM groupingを試し、散布図互換表示の限界を観察することを目的としています。",
+  "model": "gpt-4o-mini",
+  "provider": "openai",
+  "analysis_mode": "llm_grouping",
+  "enable_source_link": false,
+  "extraction": {
+    "workers": 3,
+    "limit": 400,
+    "properties": []
+  },
+  "embedding": {
+    "model": "text-embedding-3-small"
+  },
+  "llm_grouping": {
+    "group_count": 8,
+    "discovery_sample_size": 80,
+    "assignment_batch_size": 25,
+    "discovery_prompt": "あなたは意見分析のアシスタントです。与えられた意見群を、内容上まとまりのある少数のグループへ整理してください。グループは内容ベースでまとめ、出力する group_id は g1, g2, ... の形式にしてください。label は短く具体的に、description は何がそのグループを特徴づけるかを2〜3文で説明してください。JSON だけを返してください。",
+    "assignment_prompt": "あなたは意見分析のアシスタントです。既知のグループ定義に基づいて、各意見を最も近いグループへ1つだけ割り当ててください。新しいグループは作らず、group_id は与えられた候補から必ず1つ選んでください。JSON だけを返してください。"
+  },
+  "hierarchical_aggregation": {
+    "hidden_properties": {}
+  }
+}

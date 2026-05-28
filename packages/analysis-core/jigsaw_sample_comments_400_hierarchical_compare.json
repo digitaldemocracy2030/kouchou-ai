@@ -1,0 +1,23 @@
+{
+  "question": "AIに対して人々はどのような期待と懸念を持っているのか？",
+  "input": "sample_comments_400_jp",
+  "intro": "この比較実験は、同一の 422 argument と embedding を使い、従来の hierarchical clustering と LLM grouping の違いを観察することを目的としています。",
+  "model": "gpt-4o-mini",
+  "provider": "openai",
+  "analysis_mode": "hierarchical",
+  "enable_source_link": false,
+  "extraction": {
+    "workers": 3,
+    "limit": 400,
+    "properties": []
+  },
+  "embedding": {
+    "model": "text-embedding-3-small"
+  },
+  "hierarchical_clustering": {
+    "cluster_nums": [8]
+  },
+  "hierarchical_aggregation": {
+    "hidden_properties": {}
+  }
+}

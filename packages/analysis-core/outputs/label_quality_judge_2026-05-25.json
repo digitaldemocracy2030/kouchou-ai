@@ -1,0 +1,219 @@
+{
+  "criteria": {
+    "consistency": 30,
+    "specificity": 25,
+    "coverage": 25,
+    "distinctiveness": 20
+  },
+  "methods": {
+    "llm_grouping": [
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 20,
+        "coverage_score": 22,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見例と一貫しており、主要論点を捉えていますが、他クラスタとやや重複しています。具体性を高めるとさらに良くなります。",
+        "cluster_id": "g3",
+        "label": "AIの社会的役割",
+        "size": 101
+      },
+      {
+        "total_score": 75,
+        "consistency_score": 25,
+        "specificity_score": 20,
+        "coverage_score": 20,
+        "distinctiveness_score": 10,
+        "feedback": "ラベルと説明は意見例と概ね一致しており、具体性もあるが、他クラスタとラベルが重複しているため区別性に欠ける。ラベルをより具体的にすることで改善が可能。",
+        "cluster_id": "g4",
+        "label": "AIの技術的利点",
+        "size": 93
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 20,
+        "coverage_score": 22,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見例と一貫しており、主要論点を捉えています。ただし、他クラスタとやや重複しているため、区別性がやや低いです。具体性をもう少し強化するとさらに良くなります。",
+        "cluster_id": "g1",
+        "label": "AIのビジネス影響",
+        "size": 84
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見例とよく一致し、具体性と網羅性も高い。ただし、他クラスタとラベルが重複しており、区別性がやや低い。",
+        "cluster_id": "g2",
+        "label": "AIの自動化と雇用",
+        "size": 42
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 30,
+        "specificity_score": 20,
+        "coverage_score": 20,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見例と一貫しており、主要論点を捉えています。ただし、他クラスタとやや重複が見られるため、区別性を高める工夫が必要です。",
+        "cluster_id": "g7",
+        "label": "AIの倫理と規制",
+        "size": 31
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 20,
+        "coverage_score": 22,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見例と概ね一致しており、具体性もあるが、他クラスタとの区別がやや不明瞭。特に『AIの未来展望』と『AIのビジネス影響』との重複が見られる。",
+        "cluster_id": "g8",
+        "label": "AIの未来展望",
+        "size": 29
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見例とよく一致し、具体性も高いです。ただし、他クラスタとラベルが重複しており、区別性がやや低いです。ラベルの差別化が求められます。",
+        "cluster_id": "g5",
+        "label": "AIと医療",
+        "size": 28
+      },
+      {
+        "total_score": 95,
+        "consistency_score": 30,
+        "specificity_score": 25,
+        "coverage_score": 25,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見例と一貫しており、具体的で明確です。主要論点も網羅されていますが、他クラスタとラベルが重複しているため、区別性がやや低いです。",
+        "cluster_id": "g6",
+        "label": "AIの教育と学習",
+        "size": 14
+      }
+    ],
+    "hierarchical": [
+      {
+        "total_score": 85,
+        "consistency_score": 30,
+        "specificity_score": 20,
+        "coverage_score": 20,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見例と一貫しており、主要な論点を捉えていますが、他クラスタとやや重複しているため、区別性がやや低いです。",
+        "cluster_id": "1_0",
+        "label": "AIによるマーケティングと物流の革新",
+        "size": 38
+      },
+      {
+        "total_score": 75,
+        "consistency_score": 25,
+        "specificity_score": 20,
+        "coverage_score": 20,
+        "distinctiveness_score": 10,
+        "feedback": "ラベルと説明は意見例と概ね一致しており、具体性もあるが、他クラスタとの区別がやや不十分で重複が見られる。",
+        "cluster_id": "1_5",
+        "label": "AIによる生産性向上と国際競争力の強化",
+        "size": 59
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見例と一貫しており、具体性も高いです。ただし、他クラスタとラベルが類似しており、区別性がやや低いです。ラベルをより独自性のあるものにすると良いでしょう。",
+        "cluster_id": "1_3",
+        "label": "AIによる金融分野のリスク評価とデータ戦略の革新",
+        "size": 50
+      },
+      {
+        "total_score": 70,
+        "consistency_score": 20,
+        "specificity_score": 15,
+        "coverage_score": 20,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルは意見例とやや一致しているが、具体性に欠ける。法整備の重要性は意見例に直接反映されていない。他クラスタとやや重複しているため、区別性が低い。",
+        "cluster_id": "1_6",
+        "label": "AIによる企業戦略の強化と法整備の重要性",
+        "size": 43
+      },
+      {
+        "total_score": 78,
+        "consistency_score": 25,
+        "specificity_score": 20,
+        "coverage_score": 18,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見例と概ね一致しており、具体性もあるが、意見例の多様性を完全に網羅していない。類似のラベルが他クラスタに存在するため、区別性がやや低い。",
+        "cluster_id": "1_7",
+        "label": "AIの倫理と安全性の確保に向けた外部監査の重要性",
+        "size": 52
+      },
+      {
+        "total_score": 90,
+        "consistency_score": 30,
+        "specificity_score": 20,
+        "coverage_score": 25,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見例と一貫しており、主要論点を網羅しています。具体性も高いですが、他クラスタとの区別がやや曖昧な部分があります。",
+        "cluster_id": "1_2",
+        "label": "AIによる健康管理と遠隔医療の革新",
+        "size": 40
+      },
+      {
+        "total_score": 75,
+        "consistency_score": 25,
+        "specificity_score": 20,
+        "coverage_score": 20,
+        "distinctiveness_score": 10,
+        "feedback": "ラベルと説明は意見例と概ね一致しているが、データバイアスの懸念が説明に含まれていない。ラベルは他クラスタとやや重複しているため、より具体的な表現が望ましい。",
+        "cluster_id": "1_1",
+        "label": "AIによる環境問題解決への貢献と技術革新",
+        "size": 63
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 20,
+        "coverage_score": 22,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルは意見例と一貫しており、具体性もあるが、他クラスタとの区別がやや不明瞭。プライバシーと交通渋滞の具体例を強調するとさらに良い。",
+        "cluster_id": "1_4",
+        "label": "AI技術による生活の質向上とプライバシーの重要性",
+        "size": 77
+      }
+    ]
+  },
+  "averages": {
+    "llm_grouping": {
+      "total_score": 85,
+      "consistency_score": 28.1,
+      "specificity_score": 21.1,
+      "coverage_score": 22.1,
+      "distinctiveness_score": 13.6
+    },
+    "hierarchical": {
+      "total_score": 80.4,
+      "consistency_score": 26.4,
+      "specificity_score": 19.6,
+      "coverage_score": 21,
+      "distinctiveness_score": 13.4
+    }
+  },
+  "overall_judgment": {
+    "winner": "llm_grouping",
+    "reason": "LLM groupingは具体的で読みやすく、重複が少ない。各クラスタが明確で、代表性が高い。",
+    "llm_grouping_strengths": [
+      "具体的なテーマ分け",
+      "重複が少ない"
+    ],
+    "hierarchical_strengths": [
+      "詳細な技術的視点",
+      "多様な分野への適用"
+    ],
+    "main_tradeoff": "LLMは読みやすさ重視、Hierarchicalは技術的詳細重視。"
+  }
+}

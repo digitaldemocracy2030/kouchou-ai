@@ -1,0 +1,313 @@
+{
+  "criteria": {
+    "consistency": 30,
+    "specificity": 25,
+    "coverage": 25,
+    "distinctiveness": 20
+  },
+  "methods": {
+    "hier_8_40_none": [
+      {
+        "total_score": 90,
+        "consistency_score": 28,
+        "specificity_score": 23,
+        "coverage_score": 24,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は一貫しており、AIの顧客体験向上と業務効率化に関する意見群を的確に反映しています。具体的な事例も挙げられており、内容は明確です。ただし、他のクラスタとの区別がやや弱く、特に「業務効率化」という点が重複しているため、区別性に若干の改善が必要です。",
+        "cluster_id": "1_1",
+        "label": "AI技術による顧客体験の向上と業務効率化の推進",
+        "size": 93
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は一貫しており、AI技術の国際交流や社会変革に関する意見をよく反映しています。具体性も高く、主要な論点を捉えていますが、他クラスタとの区別がやや弱い点が見受けられます。",
+        "cluster_id": "1_2",
+        "label": "AI技術による国際交流と社会変革の推進",
+        "size": 36
+      },
+      {
+        "total_score": 88,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は一貫しており、AI技術の業務効率化に関する具体的な利点を示しています。意見例も関連性が高く、主要論点を捉えていますが、他クラスタとの区別がやや弱い点が見受けられます。",
+        "cluster_id": "1_3",
+        "label": "AI技術による業務効率化と競争力向上の推進",
+        "size": 55
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は一貫しており、AIのエンターテイメントと研究開発への影響を具体的に示しています。ただし、他のクラスタとの区別がやや弱く、特に「業務効率化」関連のラベルと重複する部分があります。全体的には良好な評価です。",
+        "cluster_id": "1_4",
+        "label": "AI技術によるエンターテイメントと研究開発の革新",
+        "size": 26
+      },
+      {
+        "total_score": 90,
+        "consistency_score": 28,
+        "specificity_score": 24,
+        "coverage_score": 23,
+        "distinctiveness_score": 19,
+        "feedback": "ラベルと説明は一貫しており、AI技術の医療、教育、生活への影響を具体的に示しています。意見群も主要な論点を捉えており、他のクラスタと比較しても明確に区別されています。ただし、もう少し具体的な事例を挙げることで、さらに具体性が向上するでしょう。",
+        "cluster_id": "1_5",
+        "label": "AI技術による医療・教育・生活の質向上と効率化",
+        "size": 50
+      },
+      {
+        "total_score": 88,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は一貫しており、AI技術の持続可能性や災害対応に関する意見をよく反映しています。具体性も高く、主要な論点を捉えていますが、他クラスタとの区別がやや弱い部分があります。全体的に質の高いクラスタです。",
+        "cluster_id": "1_6",
+        "label": "AI技術を活用した持続可能な社会の構築と災害対応の強化",
+        "size": 46
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は一貫しており、AI技術の公共安全と社会福祉への影響を具体的に示しています。ただし、他のクラスタとの区別がやや弱く、特に「公共サービス」との重複が見られます。全体的に質の高い評価ですが、もう少し独自性を強調できるとさらに良いでしょう。",
+        "cluster_id": "1_7",
+        "label": "AI技術による公共安全と社会福祉の向上に向けた取り組み",
+        "size": 52
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は一貫しており、AI技術の公共サービスへの影響を具体的に示しています。意見例も関連性が高いですが、他クラスタとの区別がやや弱い点が見受けられます。全体的に質は高いですが、さらなる明確化が望まれます。",
+        "cluster_id": "1_8",
+        "label": "AI技術による公共サービスと都市インフラの効率化と安全性向上",
+        "size": 64
+      }
+    ],
+    "hier_8_40_setwise": [
+      {
+        "total_score": 88,
+        "consistency_score": 28,
+        "specificity_score": 23,
+        "coverage_score": 22,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見群の内容をよく反映しており、一貫性が高いです。具体的なAIの活用例も示されていますが、もう少し詳細な事例があればさらに良いでしょう。他クラスタとの区別はやや弱い部分がありますが、全体的には質の高いクラスタラベルです。",
+        "cluster_id": "1_1",
+        "label": "AIによる顧客体験と業務効率の向上",
+        "size": 93
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 20,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見群の内容をよく反映しており、一貫性が高いです。ただし、具体性においてはもう少し詳細な事例が欲しいところです。網羅性は良好ですが、他クラスタとの区別がやや弱い印象があります。全体的に質の高いクラスタです。",
+        "cluster_id": "1_2",
+        "label": "AIによる国際交流と社会変革",
+        "size": 36
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 20,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見群の内容をほぼ一貫して表しており、特に製造業や物流におけるAIの役割が明確です。ただし、具体性においてはもう少し詳細な事例があると良いでしょう。また、他クラスタとの区別がやや弱い部分もありますが、全体的には良好な評価です。",
+        "cluster_id": "1_3",
+        "label": "AIによる業務効率化と競争力強化",
+        "size": 55
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見群の内容をほぼ一貫して表現しており、特にAIの創造性や効率化に関する意見が反映されています。ただし、具体性においてはもう少し詳細な事例が欲しいところです。他クラスタとの区別はやや弱いですが、エンターテイメントと研究開発の融合は明確です。",
+        "cluster_id": "1_4",
+        "label": "AIによるエンターテイメントと研究開発の革新",
+        "size": 26
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見群の内容をほぼ一貫して表しており、特に医療と教育に関する具体例が挙げられています。ただし、日常生活の具体的な側面がやや不足しており、他クラスタとの区別がやや弱い点が見受けられます。",
+        "cluster_id": "1_5",
+        "label": "AIによる医療・教育・生活の質向上",
+        "size": 50
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見群の内容をほぼ一貫して表しており、AIの役割が明確に示されています。ただし、具体的な事例や数値が不足しており、もう少し具体性が求められます。他のクラスタとの区別はできていますが、もう少し独自性があればさらに良い評価が得られるでしょう。",
+        "cluster_id": "1_6",
+        "label": "AIによる持続可能な社会と災害対応",
+        "size": 46
+      },
+      {
+        "total_score": 75,
+        "consistency_score": 25,
+        "specificity_score": 20,
+        "coverage_score": 20,
+        "distinctiveness_score": 10,
+        "feedback": "ラベルと説明はAIの公共安全と社会福祉に関連しており、一貫性は高いが、具体性や網羅性に欠ける部分がある。倫理やプライバシーの問題が意見に含まれているが、これらがどのようにAIの導入に影響するかの具体例が不足している。他クラスタとの区別はやや弱い。",
+        "cluster_id": "1_7",
+        "label": "AIによる公共安全と社会福祉の向上",
+        "size": 52
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見群の内容をほぼ一貫して表しており、特に公共サービスや都市インフラに関連する点が強調されています。具体性も高く、AIの役割が明確です。ただし、他クラスタとの区別がやや弱く、特に「公共安全」との重複が見られます。",
+        "cluster_id": "1_8",
+        "label": "AIによる公共サービスと都市インフラの革新",
+        "size": 64
+      }
+    ],
+    "hier_8_40_short": [
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は一貫しており、AIによる顧客体験向上に関する意見が明確に反映されています。具体的な内容も含まれていますが、他のクラスタとの区別がやや弱い点が見受けられます。全体的に質の高いクラスタですが、さらなる明確化が求められます。",
+        "cluster_id": "1_1",
+        "label": "AIによる顧客体験向上",
+        "size": 93
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 20,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は一貫しており、AIの国際交流促進に関する意見が多く含まれています。ただし、具体的な事例や詳細が不足しており、他クラスタとの区別がやや弱い点が見受けられます。全体的には良好な評価です。",
+        "cluster_id": "1_2",
+        "label": "AIによる国際交流促進",
+        "size": 36
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見群の内容をよく反映しており、一貫性が高いです。具体性もあり、特に製造業や物流に焦点を当てています。ただし、他のクラスタとの区別がやや弱く、もう少し独自性を強調できるとさらに良いでしょう。",
+        "cluster_id": "1_3",
+        "label": "AIによる業務効率化",
+        "size": 55
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見群の内容をよく反映しており、一貫性が高いです。具体性もあり、AIの役割が明確に示されています。ただし、他のクラスタとの区別がやや弱く、特に「AIによる業務効率化」との重複が見られます。全体的には良好な評価です。",
+        "cluster_id": "1_4",
+        "label": "AIによるエンタメと研究革新",
+        "size": 26
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は医療と教育におけるAIの革新を一貫して表現しており、具体的な事例も含まれています。ただし、他のクラスタとの区別がやや弱く、特に「業務効率化」との重複が見られます。全体的には良好な評価です。",
+        "cluster_id": "1_5",
+        "label": "AIによる医療と教育の革新",
+        "size": 50
+      },
+      {
+        "total_score": 88,
+        "consistency_score": 28,
+        "specificity_score": 24,
+        "coverage_score": 22,
+        "distinctiveness_score": 18,
+        "feedback": "ラベルと説明は意見群の内容をよく反映しており、一貫性が高いです。具体的な役割や期待される効果も明確ですが、もう少し具体的な事例があればさらに良かったでしょう。他クラスタとの区別も明確で、全体的に質の高いクラスタです。",
+        "cluster_id": "1_6",
+        "label": "AIによる持続可能な社会構築",
+        "size": 46
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 20,
+        "distinctiveness_score": 15,
+        "feedback": "ラベルと説明は意見群の内容を概ね一貫して表しており、AIの公共安全と福祉向上に関連する具体的な要素を示しています。ただし、倫理やプライバシーに関する意見が多く、全体の網羅性がやや欠けている印象があります。他クラスタとの区別はできていますが、もう少し明確にする余地があります。",
+        "cluster_id": "1_7",
+        "label": "AIによる公共安全と福祉向上",
+        "size": 52
+      },
+      {
+        "total_score": 85,
+        "consistency_score": 28,
+        "specificity_score": 22,
+        "coverage_score": 23,
+        "distinctiveness_score": 12,
+        "feedback": "ラベルと説明は意見群の内容と高い一貫性を持ち、公共サービスの効率化に関連する具体的な要素を示しています。ただし、他のクラスタとの区別がやや弱く、特に「業務効率化」との重複が見られます。全体として良好な評価ですが、さらなる明確化が望まれます。",
+        "cluster_id": "1_8",
+        "label": "AIによる公共サービスの効率化",
+        "size": 64
+      }
+    ]
+  },
+  "averages": {
+    "hier_8_40_none": {
+      "total_score": 87.0,
+      "consistency_score": 28.0,
+      "specificity_score": 22.4,
+      "coverage_score": 23.1,
+      "distinctiveness_score": 14.0
+    },
+    "hier_8_40_setwise": {
+      "total_score": 84.1,
+      "consistency_score": 27.6,
+      "specificity_score": 21.9,
+      "coverage_score": 21.8,
+      "distinctiveness_score": 12.9
+    },
+    "hier_8_40_short": {
+      "total_score": 85.4,
+      "consistency_score": 28.0,
+      "specificity_score": 22.2,
+      "coverage_score": 22.1,
+      "distinctiveness_score": 13.5
+    }
+  },
+  "overall_judgment": {
+    "winner": "hier_8_40_setwise",
+    "reason": "読みやすさと代表性が高く、ラベル同士の重複が少ないため、情報の明確さが保たれています。また、粒度も揃っており、バランスが取れています。",
+    "ranking": [
+      "hier_8_40_setwise",
+      "hier_8_40_none",
+      "hier_8_40_short"
+    ],
+    "tradeoff": "hier_8_40_noneは詳細な説明があるが、やや冗長で読みづらい。hier_8_40_shortは簡潔だが、情報がやや不足する可能性がある。"
+  }
+}

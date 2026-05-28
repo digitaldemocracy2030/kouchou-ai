@@ -1,0 +1,31 @@
+{
+  "question": "AIに対して人々はどのような期待と懸念を持っているのか？",
+  "input": "sample_comments_400_jp",
+  "intro": "この比較実験は、同一の422 argumentとembeddingを使い、cluster_nums [8, 40] の従来hierarchical clusteringに対して top-level label refinement prompt 差だけを観察することを目的としています。",
+  "model": "gpt-4o-mini",
+  "provider": "openai",
+  "analysis_mode": "hierarchical",
+  "enable_source_link": false,
+  "extraction": {
+    "workers": 3,
+    "limit": 400,
+    "properties": []
+  },
+  "embedding": {
+    "model": "text-embedding-3-small"
+  },
+  "hierarchical_clustering": {
+    "cluster_nums": [
+      8,
+      40
+    ]
+  },
+  "hierarchical_aggregation": {
+    "hidden_properties": {}
+  },
+  "hierarchical_label_refinement": {
+    "mode": "setwise_refine",
+    "max_label_length": 20,
+    "prompt": "以下は top-level cluster 群です。cluster 集合全体を見て、各 cluster の label と description を再作成してください。\n\nmode: setwise_refine\nmax_label_length: 20\n\n# 目的\n- 各 cluster が何を代表しているかを保つ\n- sibling 同士の違いが一目で分かるようにする\n- 粒度を揃える\n- 似た言い回しや重複を減らす\n\n# 指示\n- すべての cluster_id をそのまま維持してください\n- 各 cluster について label と description を返してください\n- label は 20 文字前後までに保ち、一覧で見たときに見分けやすくしてください\n- 特に sibling と重なりやすい語を避け、違いが出る語を前半に置いてください\n- 似た構文を並べすぎないでください\n- description では代表性を保ちつつ、この cluster が隣とどう違うかを1文含めてください\n- JSON だけを返してください\n\n入力:\n{cluster_set}\n"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "question": "AIに対して人々はどのような期待と懸念を持っているのか？",
+  "input": "sample_comments_400_jp",
+  "intro": "この比較実験は、同一の422 argumentとembeddingを使い、cluster_nums [8, 40] の従来hierarchical clusteringに対して top-level label refinement prompt 差だけを観察することを目的としています。",
+  "model": "gpt-4o-mini",
+  "provider": "openai",
+  "analysis_mode": "hierarchical",
+  "enable_source_link": false,
+  "extraction": {
+    "workers": 3,
+    "limit": 400,
+    "properties": []
+  },
+  "embedding": {
+    "model": "text-embedding-3-small"
+  },
+  "hierarchical_clustering": {
+    "cluster_nums": [
+      8,
+      40
+    ]
+  },
+  "hierarchical_aggregation": {
+    "hidden_properties": {}
+  },
+  "hierarchical_label_refinement": {
+    "mode": "setwise_refine_short",
+    "max_label_length": 18,
+    "prompt": "以下は top-level cluster 群です。cluster 集合全体を見て、各 cluster の label と description を再作成してください。\n\nmode: setwise_refine_short\nmax_label_length: 18\n\n# 目的\n- 各 cluster が何を代表しているかを保つ\n- sibling 同士の違いが見えるようにする\n- 粒度を揃える\n- 短いが意味が痩せない見出しにする\n\n# 指示\n- すべての cluster_id をそのまま維持してください\n- 各 cluster について label と description を返してください\n- label はできるだけ 18 文字以内に収めてください\n- ただし短くしすぎず、少なくとも領域名や用途が1つ分かるようにしてください\n- sibling と区別しにくい場合は、最も特徴的な対象領域を入れてください\n- description は代表性を保ちつつ、取りこぼしが出ないようにしてください\n- JSON だけを返してください\n\n入力:\n{cluster_set}\n"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question": "AIに対して人々はどのような期待と懸念を持っているのか？",
+  "input": "sample_comments_400_jp",
+  "intro": "この比較実験は、同一の422 argumentとembeddingを使い、cluster_nums [8, 40] の従来hierarchical clusteringに対して top-level label refinement の mode 差だけを観察することを目的としています。",
+  "model": "gpt-4o-mini",
+  "provider": "openai",
+  "analysis_mode": "hierarchical",
+  "enable_source_link": false,
+  "extraction": {
+    "workers": 3,
+    "limit": 400,
+    "properties": []
+  },
+  "embedding": {
+    "model": "text-embedding-3-small"
+  },
+  "hierarchical_clustering": {
+    "cluster_nums": [8, 40]
+  },
+  "hierarchical_label_refinement": {
+    "mode": "setwise_refine_short",
+    "max_label_length": 18
+  },
+  "hierarchical_aggregation": {
+    "hidden_properties": {}
+  }
+}

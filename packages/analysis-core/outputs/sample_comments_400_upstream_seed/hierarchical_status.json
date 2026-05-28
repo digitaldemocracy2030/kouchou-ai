@@ -1,0 +1,33 @@
+{
+  "status": "completed",
+  "completed_jobs": [
+    {
+      "step": "extraction",
+      "completed": "2026-05-25T09:52:14.985892",
+      "duration": 0.0,
+      "params": {
+        "workers": 3,
+        "limit": 400,
+        "properties": [],
+        "categories": {},
+        "category_batch_size": 5,
+        "source_code": "def extraction(config):\n    \"\"\"Extract arguments from comments using LLM, skipping empty/whitespace-only entries.\"\"\"\n    dataset = config[\"output_dir\"]\n    output_base_dir = config.get(\"_output_base_dir\", \"outputs\")\n    input_base_dir = config.get(\"_input_base_dir\", \"inputs\")\n    path = f\"{output_base_dir}/{dataset}/args.csv\"\n    model = config[\"extraction\"][\"model\"]\n    prompt = config[\"extraction\"][\"prompt\"]\n    workers = config[\"extraction\"][\"workers\"]\n    limit = config[\"extraction\"][\"limit\"]\n    property_columns = config[\"extraction\"][\"properties\"]\n    timeout_seconds = config[\"extraction\"].get(\"timeout_seconds\", EXTRACTION_WAIT_TIMEOUT_SECONDS)\n\n    if \"provider\" not in config:\n        raise RuntimeError(\"provider is not set\")\n    provider = config[\"provider\"]\n\n    # カラム名だけを読み込み、必要なカラムが含まれているか確認する\n    input_path = f\"{input_base_dir}/{config['input']}.csv\"\n    comments = pl.read_csv(input_path, n_rows=0)\n    _validate_property_columns(property_columns, comments)\n    # エラーが出なかった場合、すべての行を読み込む\n    comments = pl.read_csv(input_path, columns=[\"comment-id\", \"comment-body\"] + config[\"extraction\"][\"properties\"])\n\n    # 空文字列・空白のみのコメントを除外する (#583)\n    comments = _filter_empty_comments(comments)\n\n    comment_ids = comments[\"comment-id\"].to_list()[:limit]\n    comments_lookup = {row[\"comment-id\"]: row for row in comments.iter_rows(named=True)}\n    update_progress(config, total=len(comment_ids))\n\n    argument_map = {}\n    relation_rows = []\n\n    for i in tqdm(range(0, len(comment_ids), workers)):\n        batch = comment_ids[i : i + workers]\n        batch_inputs = [comments_lookup[id][\"comment-body\"] for id in batch]\n        batch_results = extract_batch(\n            batch_inputs, prompt, model, workers, provider, config.get(\"local_llm_address\"), config, timeout_seconds\n        )\n\n        for comment_id, extracted_args in zip(batch, batch_results, strict=False):\n            for j, arg in enumerate(extracted_args):\n                if arg not in argument_map:\n                    # argumentテーブルに追加\n                    arg_id = f\"A{comment_id}_{j}\"\n                    argument = arg\n                    argument_map[arg] = {\n                        \"arg-id\": arg_id,\n                        \"argument\": argument,\n                    }\n                else:\n                    arg_id = argument_map[arg][\"arg-id\"]\n\n                # relationテーブルにcommentとargの関係を追加\n                relation_row = {\n                    \"arg-id\": arg_id,\n                    \"comment-id\": comment_id,\n                }\n                relation_rows.append(relation_row)\n\n        update_progress(config, incr=len(batch))\n\n    # DataFrame化\n    results = pl.DataFrame(list(argument_map.values()))\n    relation_df = pl.DataFrame(relation_rows)\n\n    if len(results) == 0:\n        raise RuntimeError(\"result is empty, maybe bad prompt\")\n\n    results.write_csv(path)\n    # comment-idとarg-idの関係を保存\n    relation_df.write_csv(f\"{output_base_dir}/{dataset}/relations.csv\")\n",
+        "model": "gpt-4o-mini",
+        "prompt": "あなたは専門的なリサーチアシスタントです。与えられたテキストから、意見を抽出して整理してください。\n\n# 指示\n* 入出力の例に記載したような形式で文字列のリストを返してください\n  * 必要な場合は2つの別個の意見に分割してください。多くの場合は1つの議論にまとめる方が望ましいです。\n* 整理した意見は日本語で出力してください\n\n## 入出力の例\n/human\n\nAIテクノロジーは、そのライフサイクル全体における環境負荷を削減することに焦点を当てて開発されるべきです。\n\n/ai\n\n{\n  \"extractedOpinionList\": [\n    \"AIテクノロジーは、そのライフサイクル全体における環境負荷を削減することに焦点を当てて開発されるべきです。\"\n  ]\n}\n\n/human\n\nAIの能力、限界、倫理的考慮事項について、市民を教育する必要がある。また、教育できる人材を養成する必要がある。\n\n/ai\n\n{\n  \"extractedOpinionList\": [\n    \"AIの能力、限界、倫理的考慮事項について、市民を教育すべき\",\n    \"AIに関する教育をできる人材を養成すべき\"\n  ]\n}\n\n/human\n\nAIはエネルギーグリッドを最適化し、無駄や炭素排出を削減できます。\n\n/ai\n\n{\n  \"extractedOpinionList\": [\n    \"AIはエネルギーグリッドを最適化して炭素排出を削減できる\"\n  ]\n}\n"
+      },
+      "token_usage": 219781
+    },
+    {
+      "step": "embedding",
+      "completed": "2026-05-25T09:52:18.274014",
+      "duration": 0.0,
+      "params": {
+        "model": "text-embedding-3-small",
+        "source_code": "def embedding(config):\n    model = config[\"embedding\"][\"model\"]\n    is_embedded_at_local = config[\"is_embedded_at_local\"]\n    # print(\"start embedding\")\n    # print(f\"embedding model: {model}, is_embedded_at_local: {is_embedded_at_local}\")\n\n    dataset = config[\"output_dir\"]\n    output_base_dir = config.get(\"_output_base_dir\", \"outputs\")\n    path = f\"{output_base_dir}/{dataset}/embeddings.pkl\"\n    arguments = pl.read_csv(f\"{output_base_dir}/{dataset}/args.csv\", columns=[\"arg-id\", \"argument\"])\n    embeddings = []\n    batch_size = 1000\n    arg_ids = arguments[\"arg-id\"].to_list()\n    arg_texts = arguments[\"argument\"].to_list()\n    for i in tqdm(range(0, len(arguments), batch_size)):\n        args = arg_texts[i : i + batch_size]\n        embeds = request_to_embed(\n            args,\n            model,\n            is_embedded_at_local,\n            config[\"provider\"],\n            local_llm_address=config.get(\"local_llm_address\"),\n            user_api_key=os.getenv(\"USER_API_KEY\"),\n        )\n        embeddings.extend(embeds)\n    # Store as list[dict] for polars compatibility\n    embedding_data = [{\"arg-id\": arg_ids[i], \"embedding\": e} for i, e in enumerate(embeddings)]\n    with open(path, \"wb\") as f:\n        pickle.dump(embedding_data, f)\n"
+      },
+      "token_usage": 0
+    }
+  ],
+  "previously_completed_jobs": [],
+  "seed_kind": "upstream_only"
+}
