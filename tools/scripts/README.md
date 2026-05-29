@@ -33,6 +33,12 @@ python tools/scripts/download_reports_from_azure.py
 python tools/scripts/upload_reports_to_azure.py
 ```
 
+## 環境変数
+
+`download_reports_from_azure.py` は `apps/api/src/config.py` を読むため、`.env` または環境変数で `ADMIN_API_KEY`, `PUBLIC_API_KEY`, `OPENAI_API_KEY`, `STORAGE_TYPE`, `AZURE_BLOB_STORAGE_ACCOUNT_NAME`, `AZURE_BLOB_STORAGE_CONTAINER_NAME` を与えてください。
+
+`upload_reports_to_azure.py` は少なくとも `STORAGE_TYPE`, `AZURE_BLOB_STORAGE_ACCOUNT_NAME`, `AZURE_BLOB_STORAGE_CONTAINER_NAME` が必要です。
+
 ## アップロード後のコンテナ再起動
 
 レポートをアップロードした後、変更を反映させるにはAPIコンテナの再起動が必要です：

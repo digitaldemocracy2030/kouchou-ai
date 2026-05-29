@@ -25,6 +25,9 @@ rye run python scripts/test_storage.py
 - テストファイルを upload できるか確認する
 - 同じ blob を download して内容一致するか確認する
 
+前提:
+- `.env` または環境変数で `ADMIN_API_KEY`, `PUBLIC_API_KEY`, `OPENAI_API_KEY`, `STORAGE_TYPE`, `AZURE_BLOB_STORAGE_ACCOUNT_NAME`, `AZURE_BLOB_STORAGE_CONTAINER_NAME` を与える
+
 これは health check です。レポート全件の退避や復元には使いません。
 
 ### 2. Storage からローカルへ復元
@@ -44,6 +47,9 @@ python tools/scripts/download_reports_from_azure.py --slug your-report-slug
 - `status / reports / configs / inputs` を current layout に合わせて復元する
 - deploy 前退避、ローカル調査、移行作業の基点に使う
 
+前提:
+- `.env` または環境変数で `ADMIN_API_KEY`, `PUBLIC_API_KEY`, `OPENAI_API_KEY`, `STORAGE_TYPE`, `AZURE_BLOB_STORAGE_ACCOUNT_NAME`, `AZURE_BLOB_STORAGE_CONTAINER_NAME` を与える
+
 ### 3. ローカルから Storage へアップロード
 
 ```bash
@@ -57,6 +63,7 @@ python tools/scripts/upload_reports_to_azure.py
 
 注意:
 - この script は移行用途です。通常の分析実行後同期は `ReportSyncService` が担当します
+- `.env` または環境変数で `STORAGE_TYPE`, `AZURE_BLOB_STORAGE_ACCOUNT_NAME`, `AZURE_BLOB_STORAGE_CONTAINER_NAME` を与える
 
 ## 使い分け
 

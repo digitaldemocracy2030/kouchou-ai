@@ -62,6 +62,8 @@ rye run python scripts/test_storage.py
 
 `scripts/test_storage.py` では、現在の storage 設定で初期化できること、テストファイルの upload が通ること、同じ blob を download して内容一致することを確認します。
 
+実行時は `STORAGE_TYPE`, `AZURE_BLOB_STORAGE_ACCOUNT_NAME`, `AZURE_BLOB_STORAGE_CONTAINER_NAME` に加え、`apps/api/src/config.py` が読む `ADMIN_API_KEY`, `PUBLIC_API_KEY`, `OPENAI_API_KEY` も環境変数として必要です。
+
 ## 既存レポートの永続化 {#persist-reports}
 
 ### 0. Azure Blob Storage からローカルへ復元
@@ -78,6 +80,8 @@ python tools/scripts/download_reports_from_azure.py
 ```bash
 python tools/scripts/download_reports_from_azure.py --slug your-report-slug
 ```
+
+この script も `apps/api/src/config.py` を読むため、`.env` または環境変数で `ADMIN_API_KEY`, `PUBLIC_API_KEY`, `OPENAI_API_KEY`, `STORAGE_TYPE`, `AZURE_BLOB_STORAGE_ACCOUNT_NAME`, `AZURE_BLOB_STORAGE_CONTAINER_NAME` を与えてから実行してください。
 
 ### 1. レポートのアップロード
 
