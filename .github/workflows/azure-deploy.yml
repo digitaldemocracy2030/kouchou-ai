@@ -92,15 +92,6 @@ jobs:
             mv .env.azure "$ENV_AZURE_TMP"
           fi
 
-          # レポートのバックアップを取得
-          if [ -n "$API_DOMAIN" ]; then
-            echo "レポートのバックアップを取得中..."
-            python3 tools/scripts/fetch_reports.py --api-url https://$API_DOMAIN
-          else
-            echo "❌ レポートのバックアップが取得できませんでした"
-            exit 1
-          fi
-
           # 全イメージを並列ビルド
           build_pids=()
           docker build --platform linux/amd64 \
