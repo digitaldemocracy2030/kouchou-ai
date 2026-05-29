@@ -30,15 +30,21 @@ def download_single_report(report_sync_service: ReportSyncService, slug: str) ->
     storage_service = report_sync_service.storage_service
 
     remote_input_file_path = f"{report_sync_service.REMOTE_INPUT_DIR_PREFIX}/{slug}.csv"
-    remote_config_file_path = f"{report_sync_service.REMOTE_CONFIG_DIR_PREFIX}/{slug}.json"
+    remote_config_file_path = (
+        f"{report_sync_service.REMOTE_CONFIG_DIR_PREFIX}/{slug}.json"
+    )
     local_input_file_path = settings.INPUT_DIR / f"{slug}.csv"
     local_config_file_path = settings.CONFIG_DIR / f"{slug}.json"
 
     local_input_file_path.parent.mkdir(parents=True, exist_ok=True)
     local_config_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    input_success = storage_service.download_file(remote_input_file_path, str(local_input_file_path))
-    config_success = storage_service.download_file(remote_config_file_path, str(local_config_file_path))
+    input_success = storage_service.download_file(
+        remote_input_file_path, str(local_input_file_path)
+    )
+    config_success = storage_service.download_file(
+        remote_config_file_path, str(local_config_file_path)
+    )
     report_success = report_sync_service.download_report_artifacts(
         slug, report_sync_service.PRESERVED_REPORT_FILES
     )
@@ -69,7 +75,9 @@ def main() -> int:
         reports_success = report_sync_service.download_all_report_results_from_storage()
         config_success = report_sync_service.download_all_config_files_from_storage()
         input_success = report_sync_service.download_all_input_files_from_storage()
-        success = status_success and reports_success and config_success and input_success
+        success = (
+            status_success and reports_success and config_success and input_success
+        )
         if not success:
             print("❌ Failed to download one or more storage-backed datasets")
             return 1

@@ -53,10 +53,10 @@ python tools/scripts/upload_reports_to_azure.py
 用途:
 - ローカルにあるレポートデータを Azure Blob Storage へアップロードする
 - 既存のローカル成果物を storage-backed 運用へ移行する
+- `status / outputs / configs / inputs` を storage layout に合わせてアップロードする
 
 注意:
 - この script は移行用途です。通常の分析実行後同期は `ReportSyncService` が担当します
-- current implementation は主に `outputs/` と `status/` を対象にしているため、必要に応じて `configs/` / `inputs/` も含めた運用確認をしてください
 
 ## 使い分け
 

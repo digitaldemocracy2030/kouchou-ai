@@ -10,7 +10,7 @@ Azure Blob Storage を canonical store として、status / reports / configs / 
 `--slug` を付けると特定レポートだけを落とせます。
 
 ### upload_reports_to_azure.py
-ローカル環境のレポートデータをAzure Blob Storageにアップロードするスクリプト。
+ローカル環境の status / reports / configs / inputs をAzure Blob Storageにアップロードするスクリプト。
 Azure環境への移行時に使用します。
 
 ### assign_storage_role.sh
