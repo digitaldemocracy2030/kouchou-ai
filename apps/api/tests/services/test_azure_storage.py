@@ -308,3 +308,22 @@ class TestAzureBlobStorageService:
                 assert "test/dir/subdir/file3.txt" in remote_paths
                 # jsonは指定したsuffixに一致しないためダウンロードされない
                 assert "test/dir/file2.json" not in remote_paths
+
+    def test_download_directory_failure(
+        self, azure_storage: AzureBlobStorageService, mock_blob_service_client: tuple[MagicMock, MagicMock]
+    ):
+        """download_directory: 1件でもダウンロードに失敗した場合はFalseを返す"""
+        _, container_client_mock = mock_blob_service_client
+
+        blob1 = MagicMock()
+        blob1.name = "test/dir/file1.txt"
+        blob2 = MagicMock()
+        blob2.name = "test/dir/file2.txt"
+        container_client_mock.list_blobs.return_value = [blob1, blob2]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch.object(azure_storage, "download_file", side_effect=[True, False]) as mock_download_file:
+                result = azure_storage.download_directory("test/dir", temp_dir, target_suffixes=(".txt",))
+
+                assert result is False
+                assert mock_download_file.call_count == 2

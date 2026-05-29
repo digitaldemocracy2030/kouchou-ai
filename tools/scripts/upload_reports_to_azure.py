@@ -3,8 +3,10 @@ Script to upload existing reports from local filesystem to Azure Blob Storage.
 
 This script:
 1. Reads local report files from the apps/api/broadlistening/pipeline/outputs directory
-2. Reads the report_status.json file from apps/api/data
-3. Uploads these files to Azure Blob Storage with the appropriate structure
+2. Reads local config files from the apps/api/broadlistening/pipeline/configs directory
+3. Reads local input files from the apps/api/broadlistening/pipeline/inputs directory
+4. Reads the report_status.json file from apps/api/data
+5. Uploads these files to Azure Blob Storage with the appropriate structure
 
 Usage:
     python upload_reports_to_azure.py [--test]
@@ -34,7 +36,21 @@ SCRIPT_DIR = Path(__file__).parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
 SERVER_DIR = REPO_ROOT / "apps" / "api"
 OUTPUT_DIR = SERVER_DIR / "broadlistening" / "pipeline" / "outputs"
+CONFIG_DIR = SERVER_DIR / "broadlistening" / "pipeline" / "configs"
+INPUT_DIR = SERVER_DIR / "broadlistening" / "pipeline" / "inputs"
 STATUS_FILE = SERVER_DIR / "data" / "report_status.json"
+PRESERVED_REPORT_FILES = (
+    ".json",
+    "final_result_with_comments.csv",
+    "embeddings.pkl",
+    "hierarchical_initial_labels.csv",
+    "hierarchical_merge_labels.csv",
+    "hierarchical_result.json",
+    "args.csv",
+    "hierarchical_clusters.csv",
+    "relations.csv",
+    "hierarchical_overview.txt",
+)
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -192,7 +208,7 @@ def check_environment():
 
 
 def upload_reports(test_mode=False):
-    """Upload all local reports to Azure Blob Storage."""
+    """Upload all local storage-backed report data to Azure Blob Storage."""
     uploader = AzureBlobUploader()
 
     if not uploader.check_environment():
@@ -203,6 +219,14 @@ def upload_reports(test_mode=False):
 
     if not OUTPUT_DIR.exists():
         logger.error(f"Output directory not found: {OUTPUT_DIR}")
+        return False
+
+    if not CONFIG_DIR.exists():
+        logger.error(f"Config directory not found: {CONFIG_DIR}")
+        return False
+
+    if not INPUT_DIR.exists():
+        logger.error(f"Input directory not found: {INPUT_DIR}")
         return False
 
     if not STATUS_FILE.exists():
@@ -222,9 +246,10 @@ def upload_reports(test_mode=False):
     if test_mode:
         logger.info("Running in test mode. No files will be uploaded.")
         logger.info(f"Would upload status file: {STATUS_FILE}")
-        logger.info(f"Would upload reports from: {OUTPUT_DIR}")
-        for slug in status_data:
-            logger.info(f"Would upload report: {slug}")
+        logger.info(f"Would upload reports from: {OUTPUT_DIR} -> outputs/")
+        logger.info(f"Would upload configs from: {CONFIG_DIR} -> configs/")
+        logger.info(f"Would upload inputs from: {INPUT_DIR} -> inputs/")
+        logger.info(f"Status contains {len(status_data)} report entries.")
         return True
 
     logger.info("Uploading status file...")
@@ -238,29 +263,32 @@ def upload_reports(test_mode=False):
 
     logger.info("Status file uploaded successfully.")
 
-    success_count = 0
-    total_count = 0
+    upload_results = [status_upload_success]
 
-    for slug in status_data:
-        total_count += 1
-        report_dir = OUTPUT_DIR / slug
+    logger.info("Uploading report outputs...")
+    reports_upload_success = uploader.upload_directory(
+        str(OUTPUT_DIR), "outputs", target_suffixes=PRESERVED_REPORT_FILES
+    )
+    upload_results.append(reports_upload_success)
 
-        if not report_dir.exists():
-            logger.warning(f"Report directory not found for slug: {slug}")
-            continue
+    logger.info("Uploading configs...")
+    config_upload_success = uploader.upload_directory(
+        str(CONFIG_DIR), "configs", target_suffixes=(".json",)
+    )
+    upload_results.append(config_upload_success)
 
-        logger.info(f"Uploading report: {slug}")
+    logger.info("Uploading inputs...")
+    input_upload_success = uploader.upload_directory(
+        str(INPUT_DIR), "inputs", target_suffixes=(".csv",)
+    )
+    upload_results.append(input_upload_success)
 
-        upload_success = uploader.upload_directory(str(report_dir), f"outputs/{slug}")
+    if not all(upload_results):
+        logger.error("One or more storage-backed datasets failed to upload.")
+        return False
 
-        if upload_success:
-            success_count += 1
-            logger.info(f"Successfully uploaded report: {slug}")
-        else:
-            logger.error(f"Failed to upload report: {slug}")
-
-    logger.info(f"Uploaded {success_count} out of {total_count} reports.")
-    return success_count > 0
+    logger.info(f"Uploaded storage-backed data for {len(status_data)} report entries.")
+    return True
 
 
 def main():

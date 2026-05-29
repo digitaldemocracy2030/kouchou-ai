@@ -54,6 +54,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install requests python-dotenv
+          pip install -r apps/api/requirements.lock
 
       - name: 環境変数ファイルの準備
         run: |
@@ -83,6 +84,11 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
 
+      - name: Blob Storage health check
+        run: |
+          cd apps/api
+          python scripts/test_storage.py
+
       - name: Azure環境のデプロイ
         run: |
           set -euo pipefail
@@ -90,15 +96,6 @@ jobs:
           ENV_AZURE_TMP="${RUNNER_TEMP}/.env.azure"
           if [ -f .env.azure ]; then
             mv .env.azure "$ENV_AZURE_TMP"
-          fi
-
-          # レポートのバックアップを取得
-          if [ -n "$API_DOMAIN" ]; then
-            echo "レポートのバックアップを取得中..."
-            python3 tools/scripts/fetch_reports.py --api-url https://$API_DOMAIN
-          else
-            echo "❌ レポートのバックアップが取得できませんでした"
-            exit 1
           fi
 
           # 全イメージを並列ビルド

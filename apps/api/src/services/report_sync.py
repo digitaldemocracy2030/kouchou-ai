@@ -143,8 +143,7 @@ class ReportSyncService:
 
         try:
             remote_status_file_path = f"{self.REMOTE_STATUS_FILE_PREFIX}/report_status.json"
-            self.storage_service.download_file(remote_status_file_path, str(self.LOCAL_STATUS_FILE_PATH))
-            return True
+            return self.storage_service.download_file(remote_status_file_path, str(self.LOCAL_STATUS_FILE_PATH))
         except FileNotFoundError:
             logger.warning(f"ストレージにステータスファイルが存在しません: {remote_status_file_path}")
             return False
@@ -167,12 +166,11 @@ class ReportSyncService:
             bool: ダウンロードに成功した場合はTrue、失敗した場合はFalse
         """
         try:
-            self.storage_service.download_directory(
+            return self.storage_service.download_directory(
                 remote_dir_prefix,
                 str(local_dir),
                 target_suffixes=target_suffixes,
             )
-            return True
         except FileNotFoundError:
             logger.warning(f"ストレージに{file_type_name}が存在しません: {remote_dir_prefix}")
             return False

@@ -1,6 +1,6 @@
 # Azure Blob Storage 移行ガイド
 
-このガイドでは、広聴AIアプリケーションでAzure Blob Storageを使用してレポートデータを永続化する方法について説明します。
+このガイドでは、広聴AIアプリケーションでAzure Blob Storageを使用してレポートデータを永続化する方法について説明します。restore / upload / health check 用の補助スクリプトの使い分けは [Storage Snapshot Operations](./storage-snapshot-operations.md) を参照してください。
 
 ## 目次
 
@@ -14,16 +14,6 @@
 2025-04-08以前に作成されたAzure Container Apps環境では、コンテナが再起動されるとコンテナ内のファイルが失われます。Azure Blob Storageを使用することで、レポートデータを永続的に保存し、コンテナが再起動されても利用可能な状態を維持できます。
 
 ## 環境設定 {#setup}
-
-### 0. 既存レポートのバックアップ
-
-```bash
-python scripts/fetch_reports.py --api-url https://your-api-url
-```
-
-このスクリプトは全てのレポートをローカル環境にダウンロードします。
-
-注: 完了した分析の最終結果データのみを保存します。
 
 ### 1. 環境変数の設定
 
@@ -61,14 +51,44 @@ make azure-create-storage
 
 このスクリプトは、現在ログインしているユーザーに「Storage Blob Data Contributor」ロールを付与します。
 
+### 4. Blob Storage の疎通確認
+
+環境構築後は、通常運用の前に API から Blob Storage へ書き込みと read-back ができることを確認してください。
+
+```bash
+cd apps/api
+rye run python scripts/test_storage.py
+```
+
+`scripts/test_storage.py` では、現在の storage 設定で初期化できること、テストファイルの upload が通ること、同じ blob を download して内容一致することを確認します。
+
+実行時は `STORAGE_TYPE`, `AZURE_BLOB_STORAGE_ACCOUNT_NAME`, `AZURE_BLOB_STORAGE_CONTAINER_NAME` に加え、`apps/api/src/config.py` が読む `ADMIN_API_KEY`, `PUBLIC_API_KEY`, `OPENAI_API_KEY` も環境変数として必要です。
+
 ## 既存レポートの永続化 {#persist-reports}
+
+### 0. Azure Blob Storage からローカルへ復元
+
+storage 側を canonical store として、status / reports / configs / inputs を
+ローカルファイルシステムへ復元するには以下を使います。
+
+```bash
+python tools/scripts/download_reports_from_azure.py
+```
+
+特定レポートだけを落とす場合:
+
+```bash
+python tools/scripts/download_reports_from_azure.py --slug your-report-slug
+```
+
+この script も `apps/api/src/config.py` を読むため、`.env` または環境変数で `ADMIN_API_KEY`, `PUBLIC_API_KEY`, `OPENAI_API_KEY`, `STORAGE_TYPE`, `AZURE_BLOB_STORAGE_ACCOUNT_NAME`, `AZURE_BLOB_STORAGE_CONTAINER_NAME` を与えてから実行してください。
 
 ### 1. レポートのアップロード
 
 既存のレポートをAzure Blob Storageにアップロードするには、以下のスクリプトを使用します：
 
 ```bash
-python scripts/upload_reports_to_azure.py
+python tools/scripts/upload_reports_to_azure.py
 ```
 
 ### 2. APIコンテナの再起動
@@ -119,6 +139,10 @@ ErrorCode:AuthorizationPermissionMismatch
    ```bash
    make azure-restart-api
    ```
+
+### 既存の `fetch_reports.py` について
+
+`fetch_reports.py` は通常運用の safety net から外しました。現行の本線は `ReportSyncService` による Azure Blob Storage への同期と、起動時の `initialize_from_storage()` による復元です。public `/reports` scrape は private / unlisted レポートを扱えず、canonical store としても不適切なため、必要なら `tools/scripts/download_reports_from_azure.py` で storage から直接復元する方針に切り替えています。
 
 ## 運用コマンド {#operations}
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Azure Blob Storage接続テストと確認方法
 
-このスクリプトはAzure Blob Storageへの接続をテストし、ファイルのアップロードが正常に動作するか確認します。
+このスクリプトはAzure Blob Storageへの接続をテストし、ファイルのアップロードと
+ダウンロードが正常に動作するか確認します。
 
 実行方法:
     cd server && rye run python scripts/test_storage.py
@@ -16,6 +17,8 @@ Azure Blob Storage Account URL: https://<BLOB_STORAGE_NAME>.blob.core.windows.ne
 Storage service initialized: AzureBlobStorageService
 2025-09-25 12:31:46 [info     ] ファイルをアップロードしました。パス: 'test_upload.txt' パス: 'test/test_upload.txt' [app]
 ✅ Upload successful to: test/test_upload.txt
+2025-09-25 12:31:47 [info     ] ファイルをダウンロードしました。パス: 'test/test_upload.txt' ローカルパス: 'test_download.txt' [app]
+✅ Download and content verification successful: test/test_upload.txt
 
 Azure Storage内のファイル確認方法:
 
@@ -63,42 +66,83 @@ Azure Storage内のファイル確認方法:
 
 import os
 import sys
+from pathlib import Path
+from uuid import uuid4
 
 # serverフォルダから実行する場合のパス設定
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.config import settings
-from src.services.storage import get_storage_service
+from src.services.storage import AzureBlobStorageService, get_storage_service
+
+
+def cleanup_local_files(*paths: str) -> None:
+    """Remove temporary local files if they exist."""
+    for path in paths:
+        if os.path.exists(path):
+            os.remove(path)
+
+
+def cleanup_remote_file(storage_service, remote_path: str) -> None:
+    """Remove the uploaded test blob when running against Azure Blob Storage."""
+    if not isinstance(storage_service, AzureBlobStorageService):
+        return
+    try:
+        storage_service.container_client.delete_blob(remote_path, delete_snapshots="include")
+        print(f"🧹 Deleted remote test blob: {remote_path}")
+    except Exception as e:
+        print(f"⚠️ Failed to delete remote test blob: {remote_path} ({e})")
+
 
 print(f"STORAGE_TYPE: {settings.STORAGE_TYPE}")
 print(f"AZURE_BLOB_STORAGE_ACCOUNT_NAME: {settings.AZURE_BLOB_STORAGE_ACCOUNT_NAME}")
 print(f"AZURE_BLOB_STORAGE_CONTAINER_NAME: {settings.AZURE_BLOB_STORAGE_CONTAINER_NAME}")
 print(f"Azure Blob Storage Account URL: {settings.azure_blob_storage_account_url}")
 
+probe_id = uuid4().hex
+test_file_path = f"test_upload_{probe_id}.txt"
+downloaded_file_path = f"test_download_{probe_id}.txt"
+remote_path = f"test/test_upload_{probe_id}.txt"
+
 try:
     storage_service = get_storage_service()
     print(f"Storage service initialized: {storage_service.__class__.__name__}")
 
-    # テストファイルを作成
-    test_file_path = "test_upload.txt"
-    with open(test_file_path, "w") as f:
-        f.write("Test upload to Azure Blob Storage")
+    test_content = "Test upload to Azure Blob Storage"
 
-    # アップロードテスト
-    remote_path = "test/test_upload.txt"
-    result = storage_service.upload_file(test_file_path, remote_path)
+    Path(test_file_path).write_text(test_content, encoding="utf-8")
 
-    if hasattr(storage_service, "upload_file"):
-        if result:
-            print(f"✅ Upload successful to: {remote_path}")
-        else:
-            print("❌ Upload failed")
+    upload_success = storage_service.upload_file(test_file_path, remote_path)
+    if not upload_success:
+        print("❌ Upload failed")
+        cleanup_local_files(test_file_path, downloaded_file_path)
+        sys.exit(1)
+    print(f"✅ Upload successful to: {remote_path}")
 
-    # クリーンアップ
-    os.remove(test_file_path)
+    download_success = storage_service.download_file(remote_path, downloaded_file_path)
+    if not download_success:
+        print(f"❌ Download failed: {remote_path}")
+        cleanup_local_files(test_file_path, downloaded_file_path)
+        cleanup_remote_file(storage_service, remote_path)
+        sys.exit(1)
+
+    downloaded_content = Path(downloaded_file_path).read_text(encoding="utf-8")
+    if downloaded_content != test_content:
+        print(f"❌ Downloaded content mismatch: {remote_path}")
+        cleanup_local_files(test_file_path, downloaded_file_path)
+        cleanup_remote_file(storage_service, remote_path)
+        sys.exit(1)
+
+    print(f"✅ Download and content verification successful: {remote_path}")
+
+    cleanup_local_files(test_file_path, downloaded_file_path)
+    cleanup_remote_file(storage_service, remote_path)
 
 except Exception as e:
     print(f"❌ Error: {e}")
+    cleanup_local_files(test_file_path, downloaded_file_path)
+    if "storage_service" in locals():
+        cleanup_remote_file(storage_service, remote_path)
     import traceback
 
     traceback.print_exc()
