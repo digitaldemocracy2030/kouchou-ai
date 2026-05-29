@@ -45,8 +45,9 @@ docker compose up
 - admin: <http://localhost:4000>
 - api: <http://localhost:8000/docs>
 
-!!! note "`.env` を編集したら再ビルドが必要なことがある"
-    一部の環境変数はビルド時に埋め込まれるため、変更後は `docker compose down && docker compose up --build` が必要です。詳細は [開発者向けスタートガイド](https://digitaldemocracy2030.github.io/kouchou-ai/development/developer-quickstart) を参照。
+> **Note**: `.env` を編集したら再ビルドが必要なことがある
+>
+> 一部の環境変数はビルド時に埋め込まれるため、変更後は `docker compose down && docker compose up --build` が必要です。詳細は [開発者向けスタートガイド](https://digitaldemocracy2030.github.io/kouchou-ai/development/developer-quickstart) を参照。
 
 その他のモード（フロントだけ触る / native 起動 / CLI 利用）と、環境変数の置き場所・よくある落とし穴は [開発者向けスタートガイド](https://digitaldemocracy2030.github.io/kouchou-ai/development/developer-quickstart) にまとめています。
 

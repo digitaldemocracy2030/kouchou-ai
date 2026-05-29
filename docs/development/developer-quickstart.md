@@ -50,7 +50,7 @@ docker compose up
 docker compose --profile ollama up -d
 ```
 
-詳細は [README](https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/README.md) の「ローカル LLM の使用」節を参照。
+利用するモデルは事前に `ollama pull <model>` で取得しておくと、admin UI のモデル一覧から選択できます。サポートされるモデルは [Ollama 公式モデルライブラリ](https://ollama.com/library) を参照してください。
 
 ### よくある落とし穴（Mode 1）
 
