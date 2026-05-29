@@ -28,6 +28,14 @@ def main():
     parser.add_argument("--max-samples", type=int, help="LLMプロンプトに含める最大意見数（省略可）")
     parser.add_argument("--mode", choices=["api", "print"], default="api", help="LLM評価の実行モード（api or print）")
     parser.add_argument("--model", help="使用するOpenAIモデル名（例: gpt-4o）")
+    parser.add_argument(
+        "--judge",
+        choices=["legacy", "rubric", "both"],
+        default="legacy",
+        help="LLM judge の種類。legacy は従来の1〜5点評価、rubric はcriteria単位のルーブリック評価",
+    )
+    parser.add_argument("--provider", default="openai", help="rubric judge で使うLLM provider")
+    parser.add_argument("--local-llm-address", help="provider=local のときのOpenAI互換APIアドレス")
     args = parser.parse_args()
 
     dataset = args.dataset
@@ -41,22 +49,40 @@ def main():
     # mode=print の場合は先にLLMプロンプト出力のみ行い、結果を使うように案内
     if args.mode == "print":
         for level in levels:
-            print(f"\n=== ステップ: LLMプロンプト出力（level {level}） ===")
+            if args.judge in ("legacy", "both"):
+                print(f"\n=== ステップ: 旧LLMプロンプト出力（level {level}） ===")
 
-            # prompt_level{level}.txt の出力を前提として評価スクリプトに任せる
-            cmd = (
-                f"python {script_path('evaluation_consistency_llm.py')} "
-                f"--dataset {dataset} --level {level} --mode print"
-            )
-            if args.max_samples:
-                cmd += f" --max-samples {args.max_samples}"
-            if args.model:
-                cmd += f" --model {args.model}"
+                # prompt_level{level}.txt の出力を前提として評価スクリプトに任せる
+                cmd = (
+                    f"python {script_path('evaluation_consistency_llm.py')} "
+                    f"--dataset {dataset} --level {level} --mode print"
+                )
+                if args.max_samples:
+                    cmd += f" --max-samples {args.max_samples}"
+                if args.model:
+                    cmd += f" --model {args.model}"
 
-            run_command(cmd, f"LLMプロンプト出力（level {level}）")
+                run_command(cmd, f"旧LLMプロンプト出力（level {level}）")
 
-            print(f"📄 定性評価用プロンプトを output/{dataset}/prompt_level{level}.txt に保存しました。")
-            print(f"💾 実行結果を output/{dataset}/evaluation_consistency_llm_level{level}.json に保存すれば、CSVやHTMLで利用できます。")
+                print(f"📄 定性評価用プロンプトを output/{dataset}/prompt_level{level}.txt に保存しました。")
+                print(f"💾 実行結果を output/{dataset}/evaluation_consistency_llm_level{level}.json に保存すれば、CSVやHTMLで利用できます。")
+
+            if args.judge in ("rubric", "both"):
+                print(f"\n=== ステップ: ルーブリックjudgeプロンプト出力（level {level}） ===")
+                cmd = (
+                    f"python {script_path('evaluation_label_rubric_llm.py')} "
+                    f"--dataset {dataset} --level {level} --mode print"
+                )
+                if args.max_samples:
+                    cmd += f" --max-samples {args.max_samples}"
+                if args.model:
+                    cmd += f" --model {args.model}"
+                cmd += f" --provider {args.provider}"
+                if args.local_llm_address:
+                    cmd += f" --local-llm-address {args.local_llm_address}"
+                run_command(cmd, f"ルーブリックjudgeプロンプト出力（level {level}）")
+
+                print(f"📄 ルーブリック評価用プロンプトを output/{dataset}/label_rubric_prompt_level{level}.txt に保存しました。")
         return
 
     for level in levels:
@@ -73,29 +99,50 @@ def main():
             run_command(cmd, f"シルエットスコア計算（level {level}）")
 
     for level in levels:
-        print(f"\n=== ステップ2: LLM評価（level {level}） ===")
-        out_path = input_dir / f"evaluation_consistency_llm_level{level}.json"
-        if out_path.exists():
-            print(f"✅ 出力ファイルが存在するためスキップします: {out_path}")
-        else:
-            cmd = (
-                f"python {script_path('evaluation_consistency_llm.py')} "
-                f"--dataset {dataset} --level {level} --mode {args.mode}"
-            )
-            if args.max_samples:
-                cmd += f" --max-samples {args.max_samples}"
-            if args.model:
-                cmd += f" --model {args.model}"
+        if args.judge in ("legacy", "both"):
+            print(f"\n=== ステップ2: 旧LLM評価（level {level}） ===")
+            out_path = input_dir / f"evaluation_consistency_llm_level{level}.json"
+            if out_path.exists():
+                print(f"✅ 出力ファイルが存在するためスキップします: {out_path}")
+            else:
+                cmd = (
+                    f"python {script_path('evaluation_consistency_llm.py')} "
+                    f"--dataset {dataset} --level {level} --mode {args.mode}"
+                )
+                if args.max_samples:
+                    cmd += f" --max-samples {args.max_samples}"
+                if args.model:
+                    cmd += f" --model {args.model}"
 
-            run_command(cmd, f"LLM評価（level {level}）")
+                run_command(cmd, f"旧LLM評価（level {level}）")
 
-    print(f"\n=== ステップ3: CSV出力 ===")
+        if args.judge in ("rubric", "both"):
+            print(f"\n=== ステップ2: ルーブリックjudge評価（level {level}） ===")
+            out_path = input_dir / f"evaluation_label_rubric_level{level}.json"
+            if out_path.exists():
+                print(f"✅ 出力ファイルが存在するためスキップします: {out_path}")
+            else:
+                cmd = (
+                    f"python {script_path('evaluation_label_rubric_llm.py')} "
+                    f"--dataset {dataset} --level {level} --mode {args.mode}"
+                )
+                if args.max_samples:
+                    cmd += f" --max-samples {args.max_samples}"
+                if args.model:
+                    cmd += f" --model {args.model}"
+                cmd += f" --provider {args.provider}"
+                if args.local_llm_address:
+                    cmd += f" --local-llm-address {args.local_llm_address}"
+
+                run_command(cmd, f"ルーブリックjudge評価（level {level}）")
+
+    print("\n=== ステップ3: CSV出力 ===")
     run_command(f"python {script_path('generate_csv.py')} {dataset}", "CSV出力")
-    print(f"✓ CSV出力完了:")
+    print("✓ CSV出力完了:")
     print(f" - クラスタ: {output_dir / 'cluster_evaluation.csv'}")
     print(f" - 意見:     {output_dir / 'comment_evaluation.csv'}")
 
-    print(f"\n=== ステップ4: HTMLレポート生成 ===")
+    print("\n=== ステップ4: HTMLレポート生成 ===")
     run_command(f"python {script_path('generate_html.py')} {dataset}", "HTMLレポート生成")
     print(f"✓ HTML出力完了: {output_dir / 'report.html'}")
 

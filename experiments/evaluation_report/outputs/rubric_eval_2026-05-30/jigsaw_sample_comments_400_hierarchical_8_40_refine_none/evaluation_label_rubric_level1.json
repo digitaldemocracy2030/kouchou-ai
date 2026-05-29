@@ -1,0 +1,1252 @@
+{
+  "_meta": {
+    "rubric_version": "label-quality-v0",
+    "level": 1,
+    "model": "gpt-4o-mini",
+    "provider": "openai",
+    "sample_mode": "all",
+    "max_samples": 1000,
+    "token_usage_input": 42658,
+    "token_usage_output": 7614,
+    "token_usage_total": 50272
+  },
+  "_label_set": {
+    "rubric_version": "label-quality-v0",
+    "comment": "全体的に良好なラベルセットですが、さらなる明確化のために、各ラベルの具体的な内容を強調することをお勧めします。",
+    "score": 50,
+    "max_score": 50,
+    "score_rate": 1.0,
+    "score_5": 5,
+    "fatal_flags": [],
+    "criteria_results": [
+      {
+        "id": "SET_DISTINCT_HEADINGS",
+        "axis": "distinctiveness",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "主要ラベルが、先頭数語だけ見ても互いに区別できる",
+        "rationale": "主要ラベルの先頭語が十分に異なるため。",
+        "evidence": [
+          "AI技術による顧客体験の向上と業務効率化の推進",
+          "AI技術による国際交流と社会変革の推進",
+          "AI技術による業務効率化と競争力向上の推進",
+          "AI技術によるエンターテイメントと研究開発の革新",
+          "AI技術による医療・教育・生活の質向上と効率化",
+          "AI技術を活用した持続可能な社会の構築と災害対応の強化",
+          "AI技術による公共安全と社会福祉の向上に向けた取り組み",
+          "AI技術による公共サービスと都市インフラの効率化と安全性向上"
+        ]
+      },
+      {
+        "id": "SET_GRANULARITY",
+        "axis": "granularity",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "ラベル間で粒度が大きくずれていない",
+        "rationale": "ラベル間で粒度が大きくずれていないため。",
+        "evidence": [
+          "各ラベルは異なるテーマを持ちながらも、AI技術に関連している"
+        ]
+      },
+      {
+        "id": "SET_COVERAGE",
+        "axis": "coverage",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "top-level label set が、提示されたクラスタ群の主要テーマを概ね覆っている",
+        "rationale": "提示されたクラスタ群の主要テーマを概ね覆っているため。",
+        "evidence": [
+          "各ラベルはAI技術の多様な応用を示している"
+        ]
+      },
+      {
+        "id": "SET_NO_PREFIX_NOISE",
+        "axis": "scanability",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "共通接頭辞が差分理解を邪魔していない",
+        "rationale": "共通接頭辞が差分理解を邪魔していないため。",
+        "evidence": [
+          "各ラベルは異なる焦点を持っている"
+        ]
+      },
+      {
+        "id": "SET_REGISTER_CONSISTENT",
+        "axis": "register",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "label set 全体で語調が揃っている",
+        "rationale": "label set 全体で語調が揃っているため。",
+        "evidence": [
+          "全てのラベルが「AI技術による」と始まっている"
+        ]
+      },
+      {
+        "id": "SET_DUPLICATE_PAIR",
+        "axis": "distinctiveness",
+        "points": -20,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "ほぼ同じ意味の label pair がある",
+        "rationale": "ほぼ同じ意味の label pair が存在しないため。",
+        "evidence": [
+          "各ラベルは異なるテーマを持っている"
+        ]
+      },
+      {
+        "id": "SET_HIDDEN_RESIDUAL",
+        "axis": "coverage",
+        "points": -15,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "大きなクラスタの重要テーマが label set 上で見えなくなっている",
+        "rationale": "大きなクラスタの重要テーマが label set 上で見えなくなっていないため。",
+        "evidence": [
+          "全ての主要テーマがラベルに反映されている"
+        ]
+      }
+    ],
+    "unknown_criteria_results": []
+  },
+  "_summary": {
+    "cluster_count": 8,
+    "average_score_rate": 1.0,
+    "average_score_5": 5,
+    "fatal_cluster_count": 0,
+    "fatal_clusters": [],
+    "label_set_score_rate": 1.0,
+    "label_set_fatal_flags": []
+  },
+  "1_1": {
+    "rubric_version": "label-quality-v0",
+    "cluster_id": "1_1",
+    "label": "AI技術による顧客体験の向上と業務効率化の推進",
+    "description": "AIの導入により、企業はデータ管理やカスタマーエクスペリエンスを大幅に向上させることが期待されています。具体的には、AIを活用したシステムが個々の顧客ニーズに基づいたカスタマイズサービスを提供し、ユーザーの行動分析を通じてサービス改善を実現します。また、デジタルマーケティング戦略の最適化や生産プロセスの効率化を通じて、企業の競争力を強化し、業務の自動化を進めることが可能になります。これにより、顧客満足度の向上と業務効率の改善が同時に達成されることが期待されています。",
+    "comment": "全体的に良好なラベルと説明ですが、他のsiblingとの区別をさらに明確にするために、具体的な事例を追加すると良いでしょう。",
+    "score": 80,
+    "max_score": 80,
+    "score_rate": 1.0,
+    "score_5": 5,
+    "fatal_flags": [],
+    "criteria_results": [
+      {
+        "id": "COV_MAIN_TOPIC",
+        "axis": "coverage",
+        "points": 20,
+        "criteria_met": true,
+        "signed_score": 20,
+        "criterion": "ラベルが、提示された意見群で最も中心的な論点を含んでいる",
+        "rationale": "提示された意見の中心論点をラベルが含んでいるため。",
+        "evidence": [
+          "AIの利用は業務効率化に大いに貢献すると思う",
+          "AIを利用したシステムは、企業の業務改善に大きく貢献する。"
+        ]
+      },
+      {
+        "id": "COV_TOP_AXES",
+        "axis": "coverage",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "クラスタが複数軸を含む場合、上位2〜3軸がラベルまたは説明に出ている",
+        "rationale": "業務効率化と顧客体験の向上という上位軸がラベルに含まれているため。",
+        "evidence": [
+          "AIの導入は中小企業にも手軽に行える環境が整いつつある。",
+          "AIは、個々のニーズに合わせたカスタマイズサービスを可能にする。"
+        ]
+      },
+      {
+        "id": "GROUND_LABEL",
+        "axis": "grounding",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "ラベルの主要語が、提示された意見または子クラスタのラベル・説明から根拠づけられる",
+        "rationale": "ラベルの主要語が提示された意見から根拠づけられているため。",
+        "evidence": [
+          "AIは大量のデータ解析において非常に強力である。",
+          "AIによるデータ解析は、企業経営の意思決定を強化する。"
+        ]
+      },
+      {
+        "id": "DESC_BOUNDARY",
+        "axis": "description",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "説明がクラスタの担当範囲を補い、ラベルだけでは落ちる論点を補っている",
+        "rationale": "説明がラベルだけでは落ちる論点を補っているため。",
+        "evidence": [
+          "AIを活用したシステムが個々の顧客ニーズに基づいたカスタマイズサービスを提供し、ユーザーの行動分析を通じてサービス改善を実現します。"
+        ]
+      },
+      {
+        "id": "DIST_SIBLING",
+        "axis": "distinctiveness",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "sibling label 一覧と比べて、このラベルの担当範囲が区別できる",
+        "rationale": "このラベルの担当範囲が他のsiblingと区別できるため。",
+        "evidence": [
+          "AI技術による顧客体験の向上と業務効率化の推進"
+        ]
+      },
+      {
+        "id": "SCAN_LENGTH",
+        "axis": "scanability",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "ラベルが一覧UIでscan可能な長さに収まり、汎用接頭辞だけで差分を隠していない",
+        "rationale": "ラベルが一覧UIでscan可能な長さに収まっているため。",
+        "evidence": [
+          "AI技術による顧客体験の向上と業務効率化の推進"
+        ]
+      },
+      {
+        "id": "REGISTER_OK",
+        "axis": "register",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "public / policy 文脈で不自然な口語・過度なmarketing語になっていない",
+        "rationale": "不自然な口語や過度なマーケティング語が含まれていないため。",
+        "evidence": [
+          "AI技術による顧客体験の向上と業務効率化の推進"
+        ]
+      },
+      {
+        "id": "UNSUPPORTED_AXIS",
+        "axis": "grounding",
+        "points": -25,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "ラベルが、提示された材料から確認できない重要軸を主張している",
+        "rationale": "ラベルが確認できない重要軸を主張していないため。",
+        "evidence": []
+      },
+      {
+        "id": "MISSING_VISIBLE_AXIS",
+        "axis": "coverage",
+        "points": -20,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちている",
+        "rationale": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちていることはないため。",
+        "evidence": []
+      },
+      {
+        "id": "DUPLICATE_SIBLING",
+        "axis": "distinctiveness",
+        "points": -15,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "sibling と意味が大きく重なり、ユーザーがどちらを開くべきか判断しにくい",
+        "rationale": "siblingと意味が大きく重なっていないため。",
+        "evidence": []
+      },
+      {
+        "id": "GENERIC_BUCKET",
+        "axis": "specificity",
+        "points": -10,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "具体的な論点があるのに『AI活用』『社会課題』などの汎用bucketに逃げている",
+        "rationale": "具体的な論点があり、汎用bucketに逃げていないため。",
+        "evidence": []
+      }
+    ],
+    "unknown_criteria_results": []
+  },
+  "1_2": {
+    "rubric_version": "label-quality-v0",
+    "cluster_id": "1_2",
+    "label": "AI技術による国際交流と社会変革の推進",
+    "description": "AI技術の進化が国際的なコミュニケーションを円滑にし、雇用創出やデジタル経済の発展を促進することが期待されています。また、教育分野における革新や国民生活の質向上にも寄与し、未来社会の課題解決に向けた多面的な変化をもたらす可能性があります。特に、自然言語処理や自動翻訳技術の向上が国際交流を促進し、教育方法の変革が求められる中で、AIの応用が重要な役割を果たすと考えられています。",
+    "comment": "全体的に良好なラベルと説明ですが、他のクラスタとの明確な区別をさらに強化するために、具体的な事例やデータを追加すると良いでしょう。",
+    "score": 80,
+    "max_score": 80,
+    "score_rate": 1.0,
+    "score_5": 5,
+    "fatal_flags": [],
+    "criteria_results": [
+      {
+        "id": "COV_MAIN_TOPIC",
+        "axis": "coverage",
+        "points": 20,
+        "criteria_met": true,
+        "signed_score": 20,
+        "criterion": "ラベルが、提示された意見群で最も中心的な論点を含んでいる",
+        "rationale": "ラベルが国際交流と社会変革に関する中心的な論点を含んでいるため。",
+        "evidence": [
+          "AI技術の進化が国際的なコミュニケーションを円滑にし、雇用創出やデジタル経済の発展を促進することが期待されています。"
+        ]
+      },
+      {
+        "id": "COV_TOP_AXES",
+        "axis": "coverage",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "クラスタが複数軸を含む場合、上位2〜3軸がラベルまたは説明に出ている",
+        "rationale": "上位の軸である国際交流、雇用創出、教育分野の革新が説明に含まれているため。",
+        "evidence": [
+          "国際的なコミュニケーションを円滑にし、雇用創出やデジタル経済の発展を促進することが期待されています。",
+          "教育分野における革新や国民生活の質向上にも寄与し、未来社会の課題解決に向けた多面的な変化をもたらす可能性があります。"
+        ]
+      },
+      {
+        "id": "GROUND_LABEL",
+        "axis": "grounding",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "ラベルの主要語が、提示された意見または子クラスタのラベル・説明から根拠づけられる",
+        "rationale": "ラベルの主要語が提示された意見から根拠づけられているため。",
+        "evidence": [
+          "AIによる自動翻訳技術は、国際交流を円滑に進めるでしょう。",
+          "AI技術の進化は、国際競争力の向上に寄与する。"
+        ]
+      },
+      {
+        "id": "DESC_BOUNDARY",
+        "axis": "description",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "説明がクラスタの担当範囲を補い、ラベルだけでは落ちる論点を補っている",
+        "rationale": "説明がラベルだけでは落ちる論点を補っているため。",
+        "evidence": [
+          "AI技術の進化が国際的なコミュニケーションを円滑にし、雇用創出やデジタル経済の発展を促進することが期待されています。"
+        ]
+      },
+      {
+        "id": "DIST_SIBLING",
+        "axis": "distinctiveness",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "sibling label 一覧と比べて、このラベルの担当範囲が区別できる",
+        "rationale": "このラベルの担当範囲が他のsiblingラベルと区別できるため。",
+        "evidence": [
+          "AI技術による国際交流と社会変革の推進"
+        ]
+      },
+      {
+        "id": "SCAN_LENGTH",
+        "axis": "scanability",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "ラベルが一覧UIでscan可能な長さに収まり、汎用接頭辞だけで差分を隠していない",
+        "rationale": "ラベルが一覧UIでscan可能な長さに収まっているため。",
+        "evidence": [
+          "AI技術による国際交流と社会変革の推進"
+        ]
+      },
+      {
+        "id": "REGISTER_OK",
+        "axis": "register",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "public / policy 文脈で不自然な口語・過度なmarketing語になっていない",
+        "rationale": "公的・政策文脈で不自然な口語や過度なマーケティング語になっていないため。",
+        "evidence": [
+          "AI技術による国際交流と社会変革の推進"
+        ]
+      },
+      {
+        "id": "UNSUPPORTED_AXIS",
+        "axis": "grounding",
+        "points": -25,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "ラベルが、提示された材料から確認できない重要軸を主張している",
+        "rationale": "ラベルが確認できない重要軸を主張していないため。",
+        "evidence": []
+      },
+      {
+        "id": "MISSING_VISIBLE_AXIS",
+        "axis": "coverage",
+        "points": -20,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちている",
+        "rationale": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちていないため。",
+        "evidence": []
+      },
+      {
+        "id": "DUPLICATE_SIBLING",
+        "axis": "distinctiveness",
+        "points": -15,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "sibling と意味が大きく重なり、ユーザーがどちらを開くべきか判断しにくい",
+        "rationale": "siblingと意味が大きく重なっていないため。",
+        "evidence": []
+      },
+      {
+        "id": "GENERIC_BUCKET",
+        "axis": "specificity",
+        "points": -10,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "具体的な論点があるのに『AI活用』『社会課題』などの汎用bucketに逃げている",
+        "rationale": "具体的な論点があり、汎用bucketに逃げていないため。",
+        "evidence": []
+      }
+    ],
+    "unknown_criteria_results": []
+  },
+  "1_3": {
+    "rubric_version": "label-quality-v0",
+    "cluster_id": "1_3",
+    "label": "AI技術による業務効率化と競争力向上の推進",
+    "description": "AI技術の導入が企業や産業界において業務プロセスの効率化や生産性向上に寄与し、特に製造業や物流、農業における自動化の推進が期待されています。AIを活用することで、品質管理の強化や物流の最適化が実現され、業界全体の競争力が向上する可能性が高まります。これにより、企業はより効果的な意思決定を行い、持続可能な成長を目指すことができると考えられています。",
+    "comment": "全体的に良好なラベルと説明ですが、他のsiblingラベルとの明確な区別を強調するために、具体的な事例を追加するとさらに良くなるでしょう。",
+    "score": 80,
+    "max_score": 80,
+    "score_rate": 1.0,
+    "score_5": 5,
+    "fatal_flags": [],
+    "criteria_results": [
+      {
+        "id": "COV_MAIN_TOPIC",
+        "axis": "coverage",
+        "points": 20,
+        "criteria_met": true,
+        "signed_score": 20,
+        "criterion": "ラベルが、提示された意見群で最も中心的な論点を含んでいる",
+        "rationale": "提示された意見の中心論点をラベルが含んでいるため。",
+        "evidence": [
+          "AI技術の導入が企業や産業界において業務プロセスの効率化や生産性向上に寄与し"
+        ]
+      },
+      {
+        "id": "COV_TOP_AXES",
+        "axis": "coverage",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "クラスタが複数軸を含む場合、上位2〜3軸がラベルまたは説明に出ている",
+        "rationale": "ラベルが製造業、物流、農業という上位軸を含んでいるため。",
+        "evidence": [
+          "特に製造業や物流、農業における自動化の推進が期待されています。"
+        ]
+      },
+      {
+        "id": "GROUND_LABEL",
+        "axis": "grounding",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "ラベルの主要語が、提示された意見または子クラスタのラベル・説明から根拠づけられる",
+        "rationale": "ラベルの主要語が提示された意見から根拠づけられているため。",
+        "evidence": [
+          "AI技術の導入が企業や産業界において業務プロセスの効率化や生産性向上に寄与し"
+        ]
+      },
+      {
+        "id": "DESC_BOUNDARY",
+        "axis": "description",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "説明がクラスタの担当範囲を補い、ラベルだけでは落ちる論点を補っている",
+        "rationale": "説明がラベルだけでは落ちる論点を補っているため。",
+        "evidence": [
+          "品質管理の強化や物流の最適化が実現され"
+        ]
+      },
+      {
+        "id": "DIST_SIBLING",
+        "axis": "distinctiveness",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "sibling label 一覧と比べて、このラベルの担当範囲が区別できる",
+        "rationale": "このラベルの担当範囲が他のsiblingラベルと区別できるため。",
+        "evidence": [
+          "特に製造業や物流、農業における自動化の推進が期待されています。"
+        ]
+      },
+      {
+        "id": "SCAN_LENGTH",
+        "axis": "scanability",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "ラベルが一覧UIでscan可能な長さに収まり、汎用接頭辞だけで差分を隠していない",
+        "rationale": "ラベルが一覧UIでscan可能な長さに収まっているため。",
+        "evidence": [
+          "AI技術による業務効率化と競争力向上の推進"
+        ]
+      },
+      {
+        "id": "REGISTER_OK",
+        "axis": "register",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "public / policy 文脈で不自然な口語・過度なmarketing語になっていない",
+        "rationale": "不自然な口語や過度なmarketing語が含まれていないため。",
+        "evidence": [
+          "AI技術の導入が企業や産業界において業務プロセスの効率化や生産性向上に寄与し"
+        ]
+      },
+      {
+        "id": "UNSUPPORTED_AXIS",
+        "axis": "grounding",
+        "points": -25,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "ラベルが、提示された材料から確認できない重要軸を主張している",
+        "rationale": "ラベルが確認できない重要軸を主張していないため。",
+        "evidence": []
+      },
+      {
+        "id": "MISSING_VISIBLE_AXIS",
+        "axis": "coverage",
+        "points": -20,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちている",
+        "rationale": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちていないため。",
+        "evidence": []
+      },
+      {
+        "id": "DUPLICATE_SIBLING",
+        "axis": "distinctiveness",
+        "points": -15,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "sibling と意味が大きく重なり、ユーザーがどちらを開くべきか判断しにくい",
+        "rationale": "siblingと意味が大きく重なっていないため。",
+        "evidence": []
+      },
+      {
+        "id": "GENERIC_BUCKET",
+        "axis": "specificity",
+        "points": -10,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "具体的な論点があるのに『AI活用』『社会課題』などの汎用bucketに逃げている",
+        "rationale": "具体的な論点があり、汎用bucketに逃げていないため。",
+        "evidence": []
+      }
+    ],
+    "unknown_criteria_results": []
+  },
+  "1_4": {
+    "rubric_version": "label-quality-v0",
+    "cluster_id": "1_4",
+    "label": "AI技術によるエンターテイメントと研究開発の革新",
+    "description": "AIの導入により、エンターテイメント業界ではユーザーの好みに応じたパーソナライズされたコンテンツが提供され、より魅力的な体験が実現されます。また、研究開発の分野ではAIが新たな発見を促進し、科学研究や製品開発のプロセスを加速させることで、革新的な成果を生み出す可能性が高まります。これにより、エンターテイメントと研究開発の両方で新しい価値が創造されることが期待されています。",
+    "comment": "全体的に良好なラベルと説明ですが、他のクラスタとの明確な区別をさらに強化するために、具体的な事例を追加すると良いでしょう。",
+    "score": 80,
+    "max_score": 80,
+    "score_rate": 1.0,
+    "score_5": 5,
+    "fatal_flags": [],
+    "criteria_results": [
+      {
+        "id": "COV_MAIN_TOPIC",
+        "axis": "coverage",
+        "points": 20,
+        "criteria_met": true,
+        "signed_score": 20,
+        "criterion": "ラベルが、提示された意見群で最も中心的な論点を含んでいる",
+        "rationale": "提示された意見の中心論点をラベルが含んでいるため。",
+        "evidence": [
+          "AIはエンターテイメント分野において新たな体験を提供する。",
+          "AIは、研究開発分野での試行錯誤を大幅に効率化する。"
+        ]
+      },
+      {
+        "id": "COV_TOP_AXES",
+        "axis": "coverage",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "クラスタが複数軸を含む場合、上位2〜3軸がラベルまたは説明に出ている",
+        "rationale": "エンターテイメントと研究開発の2つの軸がラベルに含まれているため。",
+        "evidence": [
+          "AI技術によるエンターテイメントと研究開発の革新"
+        ]
+      },
+      {
+        "id": "GROUND_LABEL",
+        "axis": "grounding",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "ラベルの主要語が、提示された意見または子クラスタのラベル・説明から根拠づけられる",
+        "rationale": "ラベルの主要語が提示された意見から根拠づけられているため。",
+        "evidence": [
+          "AIはエンターテイメントの新たなコンテンツ生成に貢献する。",
+          "AIは、研究開発分野での新たな発見を促進する力を持っている。"
+        ]
+      },
+      {
+        "id": "DESC_BOUNDARY",
+        "axis": "description",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "説明がクラスタの担当範囲を補い、ラベルだけでは落ちる論点を補っている",
+        "rationale": "説明がラベルだけでは落ちる論点を補っているため。",
+        "evidence": [
+          "AIの導入により、エンターテイメント業界ではユーザーの好みに応じたパーソナライズされたコンテンツが提供され、より魅力的な体験が実現されます。"
+        ]
+      },
+      {
+        "id": "DIST_SIBLING",
+        "axis": "distinctiveness",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "sibling label 一覧と比べて、このラベルの担当範囲が区別できる",
+        "rationale": "このラベルの担当範囲が他のsiblingラベルと区別できるため。",
+        "evidence": [
+          "AI技術によるエンターテイメントと研究開発の革新"
+        ]
+      },
+      {
+        "id": "SCAN_LENGTH",
+        "axis": "scanability",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "ラベルが一覧UIでscan可能な長さに収まり、汎用接頭辞だけで差分を隠していない",
+        "rationale": "ラベルが一覧UIでscan可能な長さに収まっているため。",
+        "evidence": [
+          "AI技術によるエンターテイメントと研究開発の革新"
+        ]
+      },
+      {
+        "id": "REGISTER_OK",
+        "axis": "register",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "public / policy 文脈で不自然な口語・過度なmarketing語になっていない",
+        "rationale": "公的・政策文脈で不自然な口語・過度なマーケティング語になっていないため。",
+        "evidence": [
+          "AI技術によるエンターテイメントと研究開発の革新"
+        ]
+      },
+      {
+        "id": "UNSUPPORTED_AXIS",
+        "axis": "grounding",
+        "points": -25,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "ラベルが、提示された材料から確認できない重要軸を主張している",
+        "rationale": "ラベルが確認できない重要軸を主張していないため。",
+        "evidence": []
+      },
+      {
+        "id": "MISSING_VISIBLE_AXIS",
+        "axis": "coverage",
+        "points": -20,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちている",
+        "rationale": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちていないため。",
+        "evidence": []
+      },
+      {
+        "id": "DUPLICATE_SIBLING",
+        "axis": "distinctiveness",
+        "points": -15,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "sibling と意味が大きく重なり、ユーザーがどちらを開くべきか判断しにくい",
+        "rationale": "siblingと意味が大きく重なっていないため。",
+        "evidence": []
+      },
+      {
+        "id": "GENERIC_BUCKET",
+        "axis": "specificity",
+        "points": -10,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "具体的な論点があるのに『AI活用』『社会課題』などの汎用bucketに逃げている",
+        "rationale": "具体的な論点があり、汎用bucketに逃げていないため。",
+        "evidence": []
+      }
+    ],
+    "unknown_criteria_results": []
+  },
+  "1_5": {
+    "rubric_version": "label-quality-v0",
+    "cluster_id": "1_5",
+    "label": "AI技術による医療・教育・生活の質向上と効率化",
+    "description": "AI技術の導入が医療、教育、日常生活において革新をもたらし、診断や治療の質を向上させるとともに、個別最適化された学習や健康管理を実現します。また、リモートワークの効率化や介護支援の可能性を広げることで、全体的な生活の質を向上させることが期待されています。AIの進化により、医療従事者や教育者の負担軽減が図られ、より良いサービス提供が可能になると考えられています。",
+    "comment": "全体的に良好なラベルと説明ですが、他のクラスタとの明確な区別をさらに強化するために、具体的な事例を追加すると良いでしょう。",
+    "score": 80,
+    "max_score": 80,
+    "score_rate": 1.0,
+    "score_5": 5,
+    "fatal_flags": [],
+    "criteria_results": [
+      {
+        "id": "COV_MAIN_TOPIC",
+        "axis": "coverage",
+        "points": 20,
+        "criteria_met": true,
+        "signed_score": 20,
+        "criterion": "ラベルが、提示された意見群で最も中心的な論点を含んでいる",
+        "rationale": "提示された意見の中心論点をラベルが含んでいるため。",
+        "evidence": [
+          "AI技術の導入が医療、教育、日常生活において革新をもたらし、診断や治療の質を向上させる"
+        ]
+      },
+      {
+        "id": "COV_TOP_AXES",
+        "axis": "coverage",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "クラスタが複数軸を含む場合、上位2〜3軸がラベルまたは説明に出ている",
+        "rationale": "医療、教育、生活の質向上という複数の軸がラベルに含まれているため。",
+        "evidence": [
+          "医療、教育、日常生活において革新をもたらし"
+        ]
+      },
+      {
+        "id": "GROUND_LABEL",
+        "axis": "grounding",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "ラベルの主要語が、提示された意見または子クラスタのラベル・説明から根拠づけられる",
+        "rationale": "ラベルの主要語が提示された意見から根拠づけられているため。",
+        "evidence": [
+          "AI技術の導入が医療、教育、日常生活において革新をもたらし"
+        ]
+      },
+      {
+        "id": "DESC_BOUNDARY",
+        "axis": "description",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "説明がクラスタの担当範囲を補い、ラベルだけでは落ちる論点を補っている",
+        "rationale": "説明がラベルだけでは落ちる論点を補っているため。",
+        "evidence": [
+          "リモートワークの効率化や介護支援の可能性を広げることで、全体的な生活の質を向上させる"
+        ]
+      },
+      {
+        "id": "DIST_SIBLING",
+        "axis": "distinctiveness",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "sibling label 一覧と比べて、このラベルの担当範囲が区別できる",
+        "rationale": "このラベルの担当範囲が他のsiblingラベルと区別できるため。",
+        "evidence": [
+          "医療、教育、日常生活におけるAI技術の活用"
+        ]
+      },
+      {
+        "id": "SCAN_LENGTH",
+        "axis": "scanability",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "ラベルが一覧UIでscan可能な長さに収まり、汎用接頭辞だけで差分を隠していない",
+        "rationale": "ラベルが一覧UIでscan可能な長さに収まっているため。",
+        "evidence": [
+          "AI技術による医療・教育・生活の質向上と効率化"
+        ]
+      },
+      {
+        "id": "REGISTER_OK",
+        "axis": "register",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "public / policy 文脈で不自然な口語・過度なmarketing語になっていない",
+        "rationale": "公的・政策文脈で不自然な口語・過度なマーケティング語になっていないため。",
+        "evidence": [
+          "AI技術の導入が医療、教育、日常生活において革新をもたらし"
+        ]
+      },
+      {
+        "id": "UNSUPPORTED_AXIS",
+        "axis": "grounding",
+        "points": -25,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "ラベルが、提示された材料から確認できない重要軸を主張している",
+        "rationale": "ラベルが確認できない重要軸を主張していないため。",
+        "evidence": []
+      },
+      {
+        "id": "MISSING_VISIBLE_AXIS",
+        "axis": "coverage",
+        "points": -20,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちている",
+        "rationale": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちていないため。",
+        "evidence": []
+      },
+      {
+        "id": "DUPLICATE_SIBLING",
+        "axis": "distinctiveness",
+        "points": -15,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "sibling と意味が大きく重なり、ユーザーがどちらを開くべきか判断しにくい",
+        "rationale": "siblingと意味が大きく重なっていないため。",
+        "evidence": []
+      },
+      {
+        "id": "GENERIC_BUCKET",
+        "axis": "specificity",
+        "points": -10,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "具体的な論点があるのに『AI活用』『社会課題』などの汎用bucketに逃げている",
+        "rationale": "具体的な論点があり、汎用bucketに逃げていないため。",
+        "evidence": []
+      }
+    ],
+    "unknown_criteria_results": []
+  },
+  "1_6": {
+    "rubric_version": "label-quality-v0",
+    "cluster_id": "1_6",
+    "label": "AI技術を活用した持続可能な社会の構築と災害対応の強化",
+    "description": "AI技術が持続可能な社会の実現に向けて重要な役割を果たすことが期待されています。特に、都市計画における持続可能な開発の推進やエネルギー効率化、環境問題の解決に寄与する可能性が高く、AIを利用した監視技術や早期警戒システムの強化により、自然災害への迅速な対応が可能になると考えられています。これにより、持続可能性の向上と災害リスクの軽減が同時に実現されることが期待されています。",
+    "comment": "全体的に良好なラベルと説明ですが、特に他のsiblingラベルとの区別が明確である点が評価されます。改善点としては、他の重要軸が見落とされていないか再確認することをお勧めします。",
+    "score": 80,
+    "max_score": 80,
+    "score_rate": 1.0,
+    "score_5": 5,
+    "fatal_flags": [],
+    "criteria_results": [
+      {
+        "id": "COV_MAIN_TOPIC",
+        "axis": "coverage",
+        "points": 20,
+        "criteria_met": true,
+        "signed_score": 20,
+        "criterion": "ラベルが、提示された意見群で最も中心的な論点を含んでいる",
+        "rationale": "提示された意見の中心論点をラベルが含んでいるため。",
+        "evidence": [
+          "AI技術が持続可能な社会の実現に向けて重要な役割を果たすことが期待されています。"
+        ]
+      },
+      {
+        "id": "COV_TOP_AXES",
+        "axis": "coverage",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "クラスタが複数軸を含む場合、上位2〜3軸がラベルまたは説明に出ている",
+        "rationale": "持続可能な開発と災害対応という上位軸がラベルに含まれているため。",
+        "evidence": [
+          "持続可能な社会の実現",
+          "災害対応の強化"
+        ]
+      },
+      {
+        "id": "GROUND_LABEL",
+        "axis": "grounding",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "ラベルの主要語が、提示された意見または子クラスタのラベル・説明から根拠づけられる",
+        "rationale": "ラベルの主要語が提示された意見から根拠づけられているため。",
+        "evidence": [
+          "AI技術が持続可能な社会の実現に向けて重要な役割を果たすことが期待されています。"
+        ]
+      },
+      {
+        "id": "DESC_BOUNDARY",
+        "axis": "description",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "説明がクラスタの担当範囲を補い、ラベルだけでは落ちる論点を補っている",
+        "rationale": "説明がラベルだけでは落ちる論点を補っているため。",
+        "evidence": [
+          "AIを利用した監視技術や早期警戒システムの強化により、自然災害への迅速な対応が可能になると考えられています。"
+        ]
+      },
+      {
+        "id": "DIST_SIBLING",
+        "axis": "distinctiveness",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "sibling label 一覧と比べて、このラベルの担当範囲が区別できる",
+        "rationale": "このラベルの担当範囲が他のsiblingラベルと区別できるため。",
+        "evidence": [
+          "持続可能な社会の構築と災害対応の強化"
+        ]
+      },
+      {
+        "id": "SCAN_LENGTH",
+        "axis": "scanability",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "ラベルが一覧UIでscan可能な長さに収まり、汎用接頭辞だけで差分を隠していない",
+        "rationale": "ラベルが一覧UIでscan可能な長さに収まっているため。",
+        "evidence": [
+          "AI技術を活用した持続可能な社会の構築と災害対応の強化"
+        ]
+      },
+      {
+        "id": "REGISTER_OK",
+        "axis": "register",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "public / policy 文脈で不自然な口語・過度なmarketing語になっていない",
+        "rationale": "公的・政策文脈で不自然な口語・過度なマーケティング語になっていないため。",
+        "evidence": [
+          "AI技術を活用した持続可能な社会の構築と災害対応の強化"
+        ]
+      },
+      {
+        "id": "UNSUPPORTED_AXIS",
+        "axis": "grounding",
+        "points": -25,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "ラベルが、提示された材料から確認できない重要軸を主張している",
+        "rationale": "ラベルが確認できない重要軸を主張していないため。",
+        "evidence": []
+      },
+      {
+        "id": "MISSING_VISIBLE_AXIS",
+        "axis": "coverage",
+        "points": -20,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちている",
+        "rationale": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちていないため。",
+        "evidence": []
+      },
+      {
+        "id": "DUPLICATE_SIBLING",
+        "axis": "distinctiveness",
+        "points": -15,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "sibling と意味が大きく重なり、ユーザーがどちらを開くべきか判断しにくい",
+        "rationale": "siblingと意味が大きく重なっていないため。",
+        "evidence": []
+      },
+      {
+        "id": "GENERIC_BUCKET",
+        "axis": "specificity",
+        "points": -10,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "具体的な論点があるのに『AI活用』『社会課題』などの汎用bucketに逃げている",
+        "rationale": "具体的な論点があり、汎用bucketに逃げていないため。",
+        "evidence": []
+      }
+    ],
+    "unknown_criteria_results": []
+  },
+  "1_7": {
+    "rubric_version": "label-quality-v0",
+    "cluster_id": "1_7",
+    "label": "AI技術による公共安全と社会福祉の向上に向けた取り組み",
+    "description": "AI技術の導入が社会保障システムや公共安全の効率化に寄与する可能性が高まっており、特に情報の迅速な共有やプロセスの最適化が期待されています。また、AIを活用した自動監視システムが治安維持において重要な役割を果たすことが示唆されており、犯罪予防に向けた新たなアプローチが求められています。さらに、AIの透明性や情報信頼性の向上が社会福祉に貢献することが期待されており、法整備や国際協力の重要性も強調されています。これらの要素が組み合わさることで、より安全で効率的な社会システムの構築が可能になると考えられています。",
+    "comment": "全体的に良好なラベルと説明ですが、他のラベルとの区別をさらに明確にするために、具体的な事例を追加すると良いでしょう。",
+    "score": 80,
+    "max_score": 80,
+    "score_rate": 1.0,
+    "score_5": 5,
+    "fatal_flags": [],
+    "criteria_results": [
+      {
+        "id": "COV_MAIN_TOPIC",
+        "axis": "coverage",
+        "points": 20,
+        "criteria_met": true,
+        "signed_score": 20,
+        "criterion": "ラベルが、提示された意見群で最も中心的な論点を含んでいる",
+        "rationale": "提示された意見の中心論点をラベルが含んでいるため。",
+        "evidence": [
+          "AI技術の導入が社会保障システムや公共安全の効率化に寄与する可能性が高まっており"
+        ]
+      },
+      {
+        "id": "COV_TOP_AXES",
+        "axis": "coverage",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "クラスタが複数軸を含む場合、上位2〜3軸がラベルまたは説明に出ている",
+        "rationale": "上位2〜3軸がラベルと説明に含まれているため。",
+        "evidence": [
+          "公共安全",
+          "社会福祉",
+          "情報の迅速な共有"
+        ]
+      },
+      {
+        "id": "GROUND_LABEL",
+        "axis": "grounding",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "ラベルの主要語が、提示された意見または子クラスタのラベル・説明から根拠づけられる",
+        "rationale": "ラベルの主要語が提示された意見から根拠づけられているため。",
+        "evidence": [
+          "AI技術",
+          "公共安全",
+          "社会福祉"
+        ]
+      },
+      {
+        "id": "DESC_BOUNDARY",
+        "axis": "description",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "説明がクラスタの担当範囲を補い、ラベルだけでは落ちる論点を補っている",
+        "rationale": "説明がラベルだけでは落ちる論点を補っているため。",
+        "evidence": [
+          "AIの透明性や情報信頼性の向上が社会福祉に貢献することが期待されており"
+        ]
+      },
+      {
+        "id": "DIST_SIBLING",
+        "axis": "distinctiveness",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "sibling label 一覧と比べて、このラベルの担当範囲が区別できる",
+        "rationale": "このラベルの担当範囲が他のラベルと区別できるため。",
+        "evidence": [
+          "公共安全と社会福祉の向上に向けた取り組み"
+        ]
+      },
+      {
+        "id": "SCAN_LENGTH",
+        "axis": "scanability",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "ラベルが一覧UIでscan可能な長さに収まり、汎用接頭辞だけで差分を隠していない",
+        "rationale": "ラベルが一覧UIでscan可能な長さに収まっているため。",
+        "evidence": [
+          "AI技術による公共安全と社会福祉の向上に向けた取り組み"
+        ]
+      },
+      {
+        "id": "REGISTER_OK",
+        "axis": "register",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "public / policy 文脈で不自然な口語・過度なmarketing語になっていない",
+        "rationale": "不自然な口語や過度なmarketing語が含まれていないため。",
+        "evidence": [
+          "AI技術の導入が社会保障システムや公共安全の効率化に寄与する"
+        ]
+      },
+      {
+        "id": "UNSUPPORTED_AXIS",
+        "axis": "grounding",
+        "points": -25,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "ラベルが、提示された材料から確認できない重要軸を主張している",
+        "rationale": "重要軸が確認できない主張は見られないため。",
+        "evidence": []
+      },
+      {
+        "id": "MISSING_VISIBLE_AXIS",
+        "axis": "coverage",
+        "points": -20,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちている",
+        "rationale": "明確な重要軸がラベル・説明に含まれているため。",
+        "evidence": []
+      },
+      {
+        "id": "DUPLICATE_SIBLING",
+        "axis": "distinctiveness",
+        "points": -15,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "sibling と意味が大きく重なり、ユーザーがどちらを開くべきか判断しにくい",
+        "rationale": "他のラベルと意味が大きく重なっていないため。",
+        "evidence": []
+      },
+      {
+        "id": "GENERIC_BUCKET",
+        "axis": "specificity",
+        "points": -10,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "具体的な論点があるのに『AI活用』『社会課題』などの汎用bucketに逃げている",
+        "rationale": "具体的な論点が示されているため、汎用bucketには逃げていない。",
+        "evidence": []
+      }
+    ],
+    "unknown_criteria_results": []
+  },
+  "1_8": {
+    "rubric_version": "label-quality-v0",
+    "cluster_id": "1_8",
+    "label": "AI技術による公共サービスと都市インフラの効率化と安全性向上",
+    "description": "AI技術の導入が公共サービスのデジタル化を進め、業務の効率化を実現することが期待されています。また、都市の交通システムやインフラの最適化に寄与し、安全対策や防犯システムの向上にも役立つとされています。これにより、公共交通の運行管理やスマートホームの効率化が進み、生活の質の向上にもつながると考えられています。AIの透明性向上がユーザーの信頼を深め、社会全体のデジタル化を促進することも重要な要素です。",
+    "comment": "全体的に良好ですが、他のラベルとの重複を避けるために、より具体的な表現を検討することをお勧めします。",
+    "score": 80,
+    "max_score": 80,
+    "score_rate": 1.0,
+    "score_5": 5,
+    "fatal_flags": [],
+    "criteria_results": [
+      {
+        "id": "COV_MAIN_TOPIC",
+        "axis": "coverage",
+        "points": 20,
+        "criteria_met": true,
+        "signed_score": 20,
+        "criterion": "ラベルが、提示された意見群で最も中心的な論点を含んでいる",
+        "rationale": "提示された意見の中心論点をラベルが含んでいるため。",
+        "evidence": [
+          "AI技術の導入が公共サービスのデジタル化を進め、業務の効率化を実現することが期待されています。"
+        ]
+      },
+      {
+        "id": "COV_TOP_AXES",
+        "axis": "coverage",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "クラスタが複数軸を含む場合、上位2〜3軸がラベルまたは説明に出ている",
+        "rationale": "上位2〜3軸がラベルに含まれているため。",
+        "evidence": [
+          "公共サービスのデジタル化",
+          "都市の交通システムやインフラの最適化",
+          "安全対策や防犯システムの向上"
+        ]
+      },
+      {
+        "id": "GROUND_LABEL",
+        "axis": "grounding",
+        "points": 15,
+        "criteria_met": true,
+        "signed_score": 15,
+        "criterion": "ラベルの主要語が、提示された意見または子クラスタのラベル・説明から根拠づけられる",
+        "rationale": "ラベルの主要語が提示された意見から根拠づけられるため。",
+        "evidence": [
+          "AI技術の導入が公共サービスのデジタル化を進める",
+          "都市の交通システムやインフラの最適化に寄与"
+        ]
+      },
+      {
+        "id": "DESC_BOUNDARY",
+        "axis": "description",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "説明がクラスタの担当範囲を補い、ラベルだけでは落ちる論点を補っている",
+        "rationale": "説明がラベルだけでは落ちる論点を補っているため。",
+        "evidence": [
+          "AIの透明性向上がユーザーの信頼を深め、社会全体のデジタル化を促進することも重要な要素です。"
+        ]
+      },
+      {
+        "id": "DIST_SIBLING",
+        "axis": "distinctiveness",
+        "points": 10,
+        "criteria_met": true,
+        "signed_score": 10,
+        "criterion": "sibling label 一覧と比べて、このラベルの担当範囲が区別できる",
+        "rationale": "このラベルの担当範囲が他のラベルと区別できるため。",
+        "evidence": [
+          "公共サービスと都市インフラの効率化と安全性向上に特化している。"
+        ]
+      },
+      {
+        "id": "SCAN_LENGTH",
+        "axis": "scanability",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "ラベルが一覧UIでscan可能な長さに収まり、汎用接頭辞だけで差分を隠していない",
+        "rationale": "ラベルが一覧UIでscan可能な長さに収まっているため。",
+        "evidence": [
+          "AI技術による公共サービスと都市インフラの効率化と安全性向上"
+        ]
+      },
+      {
+        "id": "REGISTER_OK",
+        "axis": "register",
+        "points": 5,
+        "criteria_met": true,
+        "signed_score": 5,
+        "criterion": "public / policy 文脈で不自然な口語・過度なmarketing語になっていない",
+        "rationale": "不自然な口語・過度なmarketing語になっていないため。",
+        "evidence": [
+          "AI技術の導入が公共サービスのデジタル化を進める"
+        ]
+      },
+      {
+        "id": "UNSUPPORTED_AXIS",
+        "axis": "grounding",
+        "points": -25,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "ラベルが、提示された材料から確認できない重要軸を主張している",
+        "rationale": "重要軸を主張しているが、材料から確認できないため。",
+        "evidence": []
+      },
+      {
+        "id": "MISSING_VISIBLE_AXIS",
+        "axis": "coverage",
+        "points": -20,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちている",
+        "rationale": "提示された材料に明確な重要軸があるのに、ラベル・説明の両方から落ちているため。",
+        "evidence": []
+      },
+      {
+        "id": "DUPLICATE_SIBLING",
+        "axis": "distinctiveness",
+        "points": -15,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "sibling と意味が大きく重なり、ユーザーがどちらを開くべきか判断しにくい",
+        "rationale": "他のラベルと意味が大きく重なっているため。",
+        "evidence": []
+      },
+      {
+        "id": "GENERIC_BUCKET",
+        "axis": "specificity",
+        "points": -10,
+        "criteria_met": false,
+        "signed_score": 0,
+        "criterion": "具体的な論点があるのに『AI活用』『社会課題』などの汎用bucketに逃げている",
+        "rationale": "具体的な論点があるのに汎用bucketに逃げていないため。",
+        "evidence": []
+      }
+    ],
+    "unknown_criteria_results": []
+  }
+}

@@ -7,6 +7,9 @@
 - **LLMを活用した4指標の自動評価**  
   明確さ（Clarity）、一貫性（Coherence）、整合性（Consistency）、差異性（Distinctiveness）
 
+- **ルーブリック方式のラベル品質評価**
+  coverage / grounding / sibling distinction / scanability / register を true / false の criteria に分解し、重要軸の欠落や根拠のないラベルを fatal flag として検出
+
 - **まとまり具合（シルエットスコア）に基づく分離評価**  
   シルエットスコア（「クラスタ内の平均距離」と「最も近い別クラスタとの距離」）および1〜5段階スコアで定量的に評価
 
@@ -50,6 +53,32 @@ python src/run_evaluation.py 5c783025-ab42-4676-b68b-7e1fe9858c05
 | `--max-samples` | LLMプロンプトに含める最大意見数            | `--max-samples 500` |
 | `--mode`        | `api` または `print`（プロンプト出力のみ） | `--mode print`      |
 | `--model`       | 使用するOpenAIモデル名               | `--model gpt-4o-mini`    |
+| `--judge`       | `legacy`（従来の1〜5点評価）、`rubric`（新ルーブリック評価）、`both` | `--judge rubric` |
+| `--provider`    | rubric judge で使う provider（openai / gemini / local など） | `--provider gemini` |
+| `--local-llm-address` | provider=local の OpenAI 互換APIアドレス | `--local-llm-address localhost:11434` |
+
+ルーブリック judge だけを試す例：
+
+```bash
+python src/run_evaluation.py 5c783025-ab42-4676-b68b-7e1fe9858c05 --level 1 --judge rubric --model gpt-4o-mini
+```
+
+API を使わずにプロンプトだけ確認する例：
+
+```bash
+python src/run_evaluation.py 5c783025-ab42-4676-b68b-7e1fe9858c05 --level 1 --judge rubric --mode print
+```
+
+過去の分析出力ディレクトリを直接再評価する例：
+
+```bash
+python src/evaluation_label_rubric_llm.py \
+  --dataset-path /path/to/past-output \
+  --level 1 \
+  --mode print
+```
+
+API で実行する場合も同じく `--dataset-path` を指定できます。対象ディレクトリには `hierarchical_merge_labels.csv` と `hierarchical_clusters.csv` が必要です。
 
 
 ## クラスタリング評価結果の出力ファイルについて
@@ -69,6 +98,11 @@ python src/run_evaluation.py 5c783025-ab42-4676-b68b-7e1fe9858c05
 | `consistency` | 意見の整合性：意見とその説明の論理的一貫性 |
 | `distinctiveness` | 他クラスタとの差異：意見内容が他クラスタとどれだけ異なるか |
 | `llm_comment` | 評価の根拠や特徴をまとめたコメント（LLMによる出力） |
+| `rubric_score` | ルーブリックの加点・減点合計 |
+| `rubric_score_rate` | `rubric_score` を正の満点で割った比率 |
+| `rubric_score_5` | `rubric_score_rate` を 1〜5 へ丸めた表示用スコア |
+| `rubric_fatal_flags` | 根拠のない軸、重要軸の欠落、重複などの要確認フラグ |
+| `rubric_comment` | ルーブリック judge の根拠と改善コメント |
 | `silhouette` | クラスタのまとまり具合を示す シルエットスコア（–1〜+1） |
 | `silhouette_score` | 上記スコアを5段階に正規化したもの（1〜5） |
 | `centroid_dist` | 同一クラスタ内の意見間の平均距離（中心との近さ） |

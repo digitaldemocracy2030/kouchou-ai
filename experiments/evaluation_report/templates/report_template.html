@@ -190,6 +190,7 @@
                 <th>一貫性</th>
                 <th>整合性</th>
                 <th>差異性</th>
+                <th>ラベルルーブリック</th>
                 <th>まとまり具合</th>
                 <th>内訳: 中心との近さ</th>
                 <th>内訳: 他との距離</th>
@@ -199,6 +200,9 @@
                 <td class="score-{{ result.llm_avg_scaled.coherence }}">{{ result.llm_avg.coherence }}</td>
                 <td class="score-{{ result.llm_avg_scaled.consistency }}">{{ result.llm_avg.consistency }}</td>
                 <td class="score-{{ result.llm_avg_scaled.distinctiveness }}">{{ result.llm_avg.distinctiveness }}</td>
+                <td class="score-{{ result.rubric_avg_scaled.score_5 | default(0, true) }}">
+                    {{ result.rubric_avg.score_5 | default("N/A", true) }}（{{ result.rubric_avg.score_rate | default("N/A", true) }}）
+                </td>
                 <td class="score-{{ result.silhouette_umap_avg_scaled.silhouette_score }}">
                     {{ result.silhouette_umap_avg.silhouette_score }}（{{ result.silhouette_umap_avg.silhouette }}）
                 </td>
@@ -227,6 +231,7 @@
                     <li><b>一貫性 Coherence</b> … 文や段落の流れが自然につながっているか</li>
                     <li><b>整合性 Consistency</b> … 意見とその説明・根拠の内容に矛盾がないか。同じクラスタ内の他の意見と比べても自然な説明になっているか</li>
                     <li><b>差異性 Distinctiveness</b> … 他のクラスタと被らない独自性があるか</li>
+                    <li><b>ラベルルーブリック</b> … coverage / grounding / sibling distinction / scanability / register を true / false の基準で確認し、材料にない軸や重要軸の欠落は減点します</li>
                 </ul>
                 <p>AI（LLM）が 1〜5 の整数で採点します。<br>
                     <span style="opacity:0.7;">※ あくまで目安ですが、<b>2 以下</b>は注意信号 と考えてください。</span>
@@ -310,6 +315,7 @@
                             <th>一貫性</th>
                             <th>整合性</th>
                             <th>差異性</th>
+                            <th>ラベルルーブリック</th>
                             <th>まとまり具合</th>
                             <th>内訳: 中心との近さ</th>
                             <th>内訳: 他との距離</th>
@@ -323,6 +329,10 @@
                                 group.scores.consistency.scaled }}</td>
                             <td class="score-{{ group.scores.distinctiveness.scaled | int }}">{{
                                 group.scores.distinctiveness.scaled }}</td>
+                            <td class="score-{{ group.scores.rubric.scaled | default(0, true) | int }}">
+                                {{ group.scores.rubric.scaled | default("N/A", true) }}
+                                {% if group.scores.rubric.raw is number %}（{{ "%.2f"|format(group.scores.rubric.raw) }}）{% endif %}
+                            </td>
                             <td class="score-{{ group.scores.umap.scaled | int }}">{{ group.scores.umap.scaled }}（{{
                                 "%.3f"|format(group.scores.umap.raw) if group.scores.umap.raw is number else "N/A" }}）
                             </td>
@@ -340,6 +350,15 @@
                     <div class="evaluation" style="margin: 10px 0 10px 10px;">
                         <strong>評価コメント:</strong> {{ group.llm.comment or "（なし）" }}
                     </div>
+                    {% if group.rubric %}
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>ルーブリック:</strong>
+                        {{ group.rubric.comment or "（なし）" }}
+                        {% if group.rubric.fatal_flags %}
+                        <br><strong>要確認:</strong> {{ group.rubric.fatal_flags | join(", ") }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 

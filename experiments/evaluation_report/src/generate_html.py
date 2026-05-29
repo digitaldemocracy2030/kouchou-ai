@@ -28,8 +28,12 @@ def mean(values):
 def safe_int(v):
     try:
         return int(v)
-    except:
+    except (TypeError, ValueError):
         return None
+
+
+def safe_round(v):
+    return round(v) if isinstance(v, (int, float)) else None
 
 
 def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Path):
@@ -44,6 +48,9 @@ def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Pa
     llm_scores = {**llm_scores_l1, **llm_scores_l2}
     distinctiveness_comment1 = llm_scores_l1.pop("distinctiveness_comment", None)
     distinctiveness_comment2 = llm_scores_l2.pop("distinctiveness_comment", None)
+    rubric_scores_l1 = load_json(base_input / "evaluation_label_rubric_level1.json")
+    rubric_scores_l2 = load_json(base_input / "evaluation_label_rubric_level2.json")
+    rubric_scores = {**rubric_scores_l1, **rubric_scores_l2}
 
     silhouette_umap = load_json(base_input / "silhouette_umap_level1_clusters.json").get("clusters", {})
     silhouette_umap_lv2 = load_json(base_input / "silhouette_umap_level2_clusters.json").get("clusters", {})
@@ -65,7 +72,6 @@ def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Pa
                 "nearest_score": ump.get("nearest_score")
             }
         }
-    cluster_by_id = {c["id"]: c for c in result_data["clusters"]}
     cluster_children = {}
     for c in result_data["clusters"]:
         parent = c.get("parent")
@@ -85,6 +91,8 @@ def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Pa
             llm = {}
         llm.pop("label", None)
         cluster["llm"] = llm
+        rubric = rubric_scores.get(cid, {})
+        cluster["rubric"] = rubric if isinstance(rubric, dict) else {}
 
         umap = silhouette_umap.get(cid) if level == 1 else silhouette_umap_lv2.get(cid)
 
@@ -93,6 +101,10 @@ def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Pa
             "coherence": {"raw": llm.get("coherence"), "scaled": safe_int(llm.get("coherence"))},
             "consistency": {"raw": llm.get("consistency"), "scaled": safe_int(llm.get("consistency"))},
             "distinctiveness": {"raw": llm.get("distinctiveness"), "scaled": safe_int(llm.get("distinctiveness"))},
+            "rubric": {
+                "raw": cluster["rubric"].get("score_rate"),
+                "scaled": safe_int(cluster["rubric"].get("score_5")),
+            },
             "umap": {
                 "raw": umap.get("silhouette") if umap else None,
                 "scaled": umap.get("silhouette_score") if umap else None,
@@ -118,10 +130,27 @@ def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Pa
     }
 
     result_data["llm_avg_scaled"] = {
-        "clarity": round(result_data["llm_avg"]["clarity"]),
-        "coherence": round(result_data["llm_avg"]["coherence"]),
-        "consistency": round(result_data["llm_avg"]["consistency"]),
-        "distinctiveness": round(result_data["llm_avg"]["distinctiveness"]),
+        "clarity": safe_round(result_data["llm_avg"]["clarity"]),
+        "coherence": safe_round(result_data["llm_avg"]["coherence"]),
+        "consistency": safe_round(result_data["llm_avg"]["consistency"]),
+        "distinctiveness": safe_round(result_data["llm_avg"]["distinctiveness"]),
+    }
+
+    result_data["rubric_avg"] = {
+        "score_rate": mean([
+            c["rubric"].get("score_rate")
+            for c in cluster_tree
+            if isinstance(c.get("rubric"), dict)
+        ]),
+        "score_5": mean([
+            c["rubric"].get("score_5")
+            for c in cluster_tree
+            if isinstance(c.get("rubric"), dict)
+        ]),
+    }
+
+    result_data["rubric_avg_scaled"] = {
+        "score_5": safe_round(result_data["rubric_avg"]["score_5"]),
     }
 
     result_data["silhouette_umap_avg"] = {
@@ -134,9 +163,9 @@ def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Pa
     }
 
     result_data["silhouette_umap_avg_scaled"] = {
-        "silhouette_score": round(result_data["silhouette_umap_avg"].get("silhouette_score")),
-        "centroid_score": round(result_data["silhouette_umap_avg"].get("centroid_score")),
-        "nearest_score": round(result_data["silhouette_umap_avg"].get("nearest_score")),
+        "silhouette_score": safe_round(result_data["silhouette_umap_avg"].get("silhouette_score")),
+        "centroid_score": safe_round(result_data["silhouette_umap_avg"].get("centroid_score")),
+        "nearest_score": safe_round(result_data["silhouette_umap_avg"].get("nearest_score")),
     }
 
     color_map = {}

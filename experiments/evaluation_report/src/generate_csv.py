@@ -1,5 +1,4 @@
 import json
-import math
 import sys
 from pathlib import Path
 
@@ -35,6 +34,8 @@ LABEL_CSV = data_dir / "hierarchical_merge_labels.csv"
 RESULT_JSON = data_dir / "hierarchical_result.json"
 EVAL_LLM_JSON_L1 = data_dir / "evaluation_consistency_llm_level1.json"
 EVAL_LLM_JSON_L2 = data_dir / "evaluation_consistency_llm_level2.json"
+EVAL_RUBRIC_JSON_L1 = data_dir / "evaluation_label_rubric_level1.json"
+EVAL_RUBRIC_JSON_L2 = data_dir / "evaluation_label_rubric_level2.json"
 SIL_UMAP_CLUSTER_JSON_L1 = data_dir / "silhouette_umap_level1_clusters.json"
 SIL_UMAP_CLUSTER_JSON_L2 = data_dir / "silhouette_umap_level2_clusters.json"
 SIL_POINTS_JSON = data_dir / "silhouette_umap_level1_points.json"
@@ -57,14 +58,23 @@ def generate_cluster_csv():
 
     llm_scores_l1 = load_json_with_fallback(EVAL_LLM_JSON_L1)
     llm_scores_l2 = load_json_with_fallback(EVAL_LLM_JSON_L2)
+    rubric_scores_l1 = load_json_with_fallback(EVAL_RUBRIC_JSON_L1)
+    rubric_scores_l2 = load_json_with_fallback(EVAL_RUBRIC_JSON_L2)
     umap_scores_l1 = load_json_with_fallback(SIL_UMAP_CLUSTER_JSON_L1).get("clusters", {})
     umap_scores_l2 = load_json_with_fallback(SIL_UMAP_CLUSTER_JSON_L2).get("clusters", {})
 
     llm_scores = {**llm_scores_l1, **llm_scores_l2}
+    rubric_scores = {**rubric_scores_l1, **rubric_scores_l2}
     umap_scores = {**umap_scores_l1, **umap_scores_l2}
 
     def get_llm_value(cid, key):
         return llm_scores.get(cid, {}).get(key)
+
+    def get_rubric_value(cid, key):
+        entry = rubric_scores.get(cid, {})
+        if key == "fatal_flags":
+            return ",".join(entry.get("fatal_flags", []))
+        return entry.get(key)
 
     def get_umap_metric(cid, key):
         return umap_scores.get(cid, {}).get(key)
@@ -74,6 +84,11 @@ def generate_cluster_csv():
     df["consistency"] = df["cluster_id"].map(lambda x: get_llm_value(x, "consistency"))
     df["distinctiveness"] = df["cluster_id"].map(lambda x: get_llm_value(x, "distinctiveness"))
     df["llm_comment"] = df["cluster_id"].map(lambda x: get_llm_value(x, "comment"))
+    df["rubric_score"] = df["cluster_id"].map(lambda x: get_rubric_value(x, "score"))
+    df["rubric_score_rate"] = df["cluster_id"].map(lambda x: get_rubric_value(x, "score_rate"))
+    df["rubric_score_5"] = df["cluster_id"].map(lambda x: get_rubric_value(x, "score_5"))
+    df["rubric_fatal_flags"] = df["cluster_id"].map(lambda x: get_rubric_value(x, "fatal_flags"))
+    df["rubric_comment"] = df["cluster_id"].map(lambda x: get_rubric_value(x, "comment"))
 
     df["silhouette"] = df["cluster_id"].map(lambda x: get_umap_metric(x, "silhouette"))
     df["silhouette_score"] = df["cluster_id"].map(lambda x: get_umap_metric(x, "silhouette_score"))
@@ -86,6 +101,7 @@ def generate_cluster_csv():
         "level", "cluster_id", "label", "description", "value", "parent", "density",
         "density_rank", "density_rank_percentile",
         "clarity", "coherence", "consistency", "distinctiveness", "llm_comment",
+        "rubric_score", "rubric_score_rate", "rubric_score_5", "rubric_fatal_flags", "rubric_comment",
         "silhouette", "silhouette_score", "centroid", "centroid_score", "nearest", "nearest_score"
     ]
     df_out = df[[col for col in desired_order if col in df.columns]]
