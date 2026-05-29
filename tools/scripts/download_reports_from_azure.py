@@ -11,6 +11,7 @@ Usage:
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -23,6 +24,8 @@ sys.path.insert(0, str(SERVER_DIR))
 
 from src.config import settings  # noqa: E402
 from src.services.report_sync import ReportSyncService  # noqa: E402
+
+SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def download_single_report(report_sync_service: ReportSyncService, slug: str) -> bool:
@@ -61,6 +64,10 @@ def main() -> int:
         help="Download only one report slug instead of the full storage snapshot",
     )
     args = parser.parse_args()
+    if args.slug and not SLUG_PATTERN.fullmatch(args.slug):
+        parser.error(
+            "--slug must contain only letters, numbers, hyphen, and underscore"
+        )
 
     report_sync_service = ReportSyncService()
 

@@ -144,6 +144,17 @@ class TestReportSyncService:
         assert result is False
         mock_storage_service.download_file.assert_called_once()
 
+    def test_download_status_file_from_storage_returns_false_on_storage_failure(
+        self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock, mock_status_file_empty: Path
+    ):
+        """storage service が False を返した場合はそのまま失敗扱いにする"""
+        mock_storage_service.download_file.return_value = False
+
+        result = report_sync_service.download_status_file_from_storage()
+
+        assert result is False
+        mock_storage_service.download_file.assert_called_once()
+
     def test_download_status_file_from_storage_exception(
         self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock, mock_status_file_empty: Path
     ):
@@ -187,6 +198,17 @@ class TestReportSyncService:
         result = report_sync_service.download_all_report_results_from_storage()
 
         # 検証
+        assert result is False
+        mock_storage_service.download_directory.assert_called_once()
+
+    def test_download_all_report_results_from_storage_returns_false_on_storage_failure(
+        self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock
+    ):
+        """storage service が False を返した場合はそのまま失敗扱いにする"""
+        mock_storage_service.download_directory.return_value = False
+
+        result = report_sync_service.download_all_report_results_from_storage()
+
         assert result is False
         mock_storage_service.download_directory.assert_called_once()
 

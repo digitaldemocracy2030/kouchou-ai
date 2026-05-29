@@ -68,7 +68,7 @@ class LocalStorageService(StorageService):
     ストレージタイプがlocalの場合にインターフェースを揃えるためのもので、実際には処理を行わない。
     """
 
-    def upload_file(self, local_path: str | Path, remote_path: str) -> None:
+    def upload_file(self, local_path: str | Path, remote_path: str) -> bool:
         """ローカルストレージの場合はアップロード操作は不要
 
         Args:
@@ -76,8 +76,9 @@ class LocalStorageService(StorageService):
             remote_path: アップロード先のパス（文字列）
         """
         logger.debug(f"LocalStorageService: upload_file は何もしません - {local_path} -> {remote_path}")
+        return True
 
-    def download_file(self, remote_path: str, local_path: str | Path) -> None:
+    def download_file(self, remote_path: str, local_path: str | Path) -> bool:
         """ローカルストレージの場合はダウンロード操作は不要
 
         Args:
@@ -85,10 +86,11 @@ class LocalStorageService(StorageService):
             local_path: ダウンロード先のローカルファイルパス（文字列またはPathオブジェクト）
         """
         logger.debug(f"LocalStorageService: download_file は何もしません - {remote_path} -> {local_path}")
+        return True
 
     def download_directory(
         self, remote_dir_prefix: str, local_dir_path: str, target_suffixes: tuple[str, ...] = ()
-    ) -> None:
+    ) -> bool:
         """ローカルストレージの場合はファイル一覧取得は不要
 
         Args:
@@ -99,13 +101,14 @@ class LocalStorageService(StorageService):
         logger.debug(
             f"LocalStorageService: download_directory は何もしません - {remote_dir_prefix} -> {local_dir_path}"
         )
+        return True
 
     def upload_directory(
         self,
         local_dir_path: str,
         remote_dir_prefix: str,
         target_suffixes: tuple[str, ...] = (),  # noqa: B006
-    ) -> None:
+    ) -> bool:
         """ディレクトリをストレージにアップロードする
 
         ローカルストレージの場合、ディレクトリのアップロード操作は実質的に不要なため何も行いません。
@@ -116,6 +119,7 @@ class LocalStorageService(StorageService):
             target_suffixes: アップロード対象とするファイルの拡張子リスト（省略可能）
         """
         logger.debug(f"LocalStorageService: upload_directory は何もしません - {local_dir_path} -> {remote_dir_prefix}")
+        return True
 
 
 # NOTE: 現在は外部ストレージ連携がAzure Blob Storageのみのため、一つのファイルに全てのクラスを記載している
@@ -319,6 +323,7 @@ class AzureBlobStorageService(StorageService):
 
             blobs_list = self.container_client.list_blobs(name_starts_with=prefix)
             found = False
+            download_results: list[bool] = []
 
             for blob in blobs_list:
                 blob_name = blob.name
@@ -334,11 +339,17 @@ class AzureBlobStorageService(StorageService):
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
                 # blob をローカルファイルにダウンロード
-                self.download_file(blob_name, local_path)
+                download_results.append(self.download_file(blob_name, local_path))
 
             if not found:
                 error_msg = f"プレフィックス: '{remote_dir_prefix}' サフィックス: '{target_suffixes}' のファイルが見つかりませんでした。コンテナ: '{self.container_client.container_name}'."
                 logger.error(error_msg)
+                return False
+
+            if not all(download_results):
+                logger.error(
+                    f"ディレクトリのダウンロードに失敗しました。プレフィックス: '{remote_dir_prefix}' ローカルパス: '{local_dir_path}'"
+                )
                 return False
 
             return True

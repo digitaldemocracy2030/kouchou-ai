@@ -67,6 +67,7 @@ Azure Storage内のファイル確認方法:
 import os
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 # serverフォルダから実行する場合のパス設定
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -98,14 +99,16 @@ print(f"AZURE_BLOB_STORAGE_ACCOUNT_NAME: {settings.AZURE_BLOB_STORAGE_ACCOUNT_NA
 print(f"AZURE_BLOB_STORAGE_CONTAINER_NAME: {settings.AZURE_BLOB_STORAGE_CONTAINER_NAME}")
 print(f"Azure Blob Storage Account URL: {settings.azure_blob_storage_account_url}")
 
+probe_id = uuid4().hex
+test_file_path = f"test_upload_{probe_id}.txt"
+downloaded_file_path = f"test_download_{probe_id}.txt"
+remote_path = f"test/test_upload_{probe_id}.txt"
+
 try:
     storage_service = get_storage_service()
     print(f"Storage service initialized: {storage_service.__class__.__name__}")
 
-    test_file_path = "test_upload.txt"
-    downloaded_file_path = "test_download.txt"
     test_content = "Test upload to Azure Blob Storage"
-    remote_path = "test/test_upload.txt"
 
     Path(test_file_path).write_text(test_content, encoding="utf-8")
 
@@ -137,7 +140,9 @@ try:
 
 except Exception as e:
     print(f"❌ Error: {e}")
-    cleanup_local_files("test_upload.txt", "test_download.txt")
+    cleanup_local_files(test_file_path, downloaded_file_path)
+    if "storage_service" in locals():
+        cleanup_remote_file(storage_service, remote_path)
     import traceback
 
     traceback.print_exc()
