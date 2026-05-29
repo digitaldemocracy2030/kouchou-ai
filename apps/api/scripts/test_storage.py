@@ -92,6 +92,7 @@ def cleanup_remote_file(storage_service, remote_path: str) -> None:
     except Exception as e:
         print(f"⚠️ Failed to delete remote test blob: {remote_path} ({e})")
 
+
 print(f"STORAGE_TYPE: {settings.STORAGE_TYPE}")
 print(f"AZURE_BLOB_STORAGE_ACCOUNT_NAME: {settings.AZURE_BLOB_STORAGE_ACCOUNT_NAME}")
 print(f"AZURE_BLOB_STORAGE_CONTAINER_NAME: {settings.AZURE_BLOB_STORAGE_CONTAINER_NAME}")
