@@ -1,6 +1,9 @@
 # クイックスタート
 
-このガイドでは、広聴AIを最短で使い始めるための手順を説明します。
+このガイドでは、広聴AIを最短で使い始めるための手順を説明します（Docker Compose で全体を起動するモード）。
+
+!!! info "コードを触る開発者の方へ"
+    フロントエンドだけ触りたい / `apps/api` を native で起動したい / `packages/analysis-core` を CLI で使いたい場合は、[開発者向けスタートガイド](../development/developer-quickstart.md) に利用モード別の入口がまとまっています。
 
 ## 前提条件
 
@@ -14,7 +17,7 @@
     - [Mac セットアップ](mac-setup.md)
     - [Linux セットアップ](linux-setup.md)
 
-## 開発者向けクイックスタート
+## クイックスタート（Docker Compose）
 
 ### 1. リポジトリをクローン
 
@@ -49,48 +52,9 @@
 | 管理画面 | http://localhost:4000 | レポートの作成・管理 |
 | API | http://localhost:8000 | バックエンド API |
 
-## ローカル開発（Dockerを使わずに起動）
+## Docker を使わずに起動したい場合
 
-Dockerを使わずに `apps/api` と `apps/admin` を個別に起動する場合は、以下を実行します。
-
-### 1. API 側の環境変数
-
-    cp apps/api/.env.example apps/api/.env
-
-`apps/api/.env` に最低限以下を設定します：
-
-    ADMIN_API_KEY=admin
-    PUBLIC_API_KEY=public
-    OPENAI_API_KEY=sk-your-api-key-here
-    LOG_FILE=apps/api/error.log
-
-### 2. API 依存のセットアップと起動
-
-    cd apps/api
-    rye sync
-    rye run python -m ensurepip --upgrade
-    rye run python -m pip install -e ../../packages/analysis-core
-    make run
-
-!!! note "analysis-core について"
-    analysis-core が未インストールだと `No module named analysis_core` で失敗します。上記の editable install を必ず実行してください。
-
-### 3. 管理画面（admin）の環境変数
-
-    cp apps/admin/.env.example apps/admin/.env
-
-`apps/admin/.env` を以下のように設定します：
-
-    NEXT_PUBLIC_API_BASEPATH=http://localhost:8000
-    NEXT_PUBLIC_ADMIN_API_KEY=admin
-
-### 4. 管理画面の起動
-
-    cd apps/admin
-    pnpm dev
-
-!!! tip "APIのエラー確認"
-    `LOG_FILE` を設定している場合は `apps/api/error.log` にエラーが出力されます。
+`apps/api` / `apps/admin` を native で起動するモード、フロントエンドだけ dummy-server 経由で触るモード、CLI から `kouchou-analyze` を回すモードは、[開発者向けスタートガイド](../development/developer-quickstart.md) にまとまっています。
 
 ## 基本的な使い方
 
@@ -138,15 +102,6 @@ Docker Desktop が起動しているか確認してください。
 ### API キーのエラー
 
 `.env` ファイルの `OPENAI_API_KEY` が正しく設定されているか確認してください。
-
-### 管理画面のレポートリンクが `undefined` になる
-
-管理画面のレポートリンクが `http://localhost:4000/undefined/...` になる場合は、
-`apps/admin/.env` に `NEXT_PUBLIC_CLIENT_BASEPATH` が未設定です。
-
-    NEXT_PUBLIC_CLIENT_BASEPATH=http://localhost:3000
-
-設定後に `pnpm dev` を再起動してください。
 
 ### ポートが使用中
 

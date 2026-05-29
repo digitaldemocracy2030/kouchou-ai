@@ -78,6 +78,7 @@ nav:
       - インポート方法: user-guide/import-quickstart.md
       - FAQ: user-guide/faq.md
   - 開発者向け:
+      - 開発者向けスタートガイド: development/developer-quickstart.md
       - コントリビューション: development/contributing.md
       - Claude Code/Codex スキル: development/ai-assistants.md
       - npmではなくpnpmを使う理由: development/why-pnpm.md

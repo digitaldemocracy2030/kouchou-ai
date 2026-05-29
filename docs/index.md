@@ -41,22 +41,20 @@
 
 ### 開発者向け
 
+ローカルでコードを触る場合は **[開発者向けスタートガイド](development/developer-quickstart.md)** が canonical な入口です。利用モード（Docker Compose / フロントだけ / native 起動 / CLI）ごとに必要な環境変数・起動コマンド・確認 URL・落とし穴を 1 ページに集約しています。
+
+最短：Docker Compose で全体を起動
+
 ```bash
-# リポジトリをクローン
 git clone https://github.com/digitaldemocracy2030/kouchou-ai.git
 cd kouchou-ai
-
-# 環境設定
-cp .env.example .env
-# .env ファイルを編集して API キーなどを設定
-
-# 起動
+cp .env.example .env       # OPENAI_API_KEY 等を設定
 docker compose up
 ```
 
-- レポート一覧: http://localhost:3000
-- 管理画面: http://localhost:4000
-- API: http://localhost:8000
+- レポート一覧: <http://localhost:3000>
+- 管理画面: <http://localhost:4000>
+- API: <http://localhost:8000/docs>
 
 ## アーキテクチャ
 
@@ -86,9 +84,11 @@ docker compose up
 
 ## ドキュメント構成
 
-- **[はじめに](getting-started/quickstart.md)**: セットアップと基本的な使い方
+- **[はじめに](getting-started/quickstart.md)**: 一般ユーザー向け Docker クイックスタートと OS 別セットアップ
+- **[開発者向けスタートガイド](development/developer-quickstart.md)**: コードを触る開発者のための利用モード別 canonical 入口
 - **[ユーザーガイド](user-guide/how-to-use.md)**: 詳細な操作方法
-- **[開発者向け](development/contributing.md)**: コントリビューション方法、プラグイン開発
+- **[CLI クイックスタート](user-guide/cli-quickstart.md)**: `kouchou-analyze` / `packages/analysis-core` での実行手順
+- **[コントリビューション](development/contributing.md)**: 開発参加方法、プラグイン開発
 - **[デプロイ](deployment/azure.md)**: Azure、GitHub Pages、静的ホスティング時の CSP 設定
 - **[静的ホスティング向け CSP 設定](deployment/static-hosting-csp.md)**: Azure Static Web Apps / Cloudflare Pages / Nginx での CSP 例
 - **[技術解説資料](https://www.docswell.com/s/tokoroten/ZL1M88-2025-06-14-014546)**: プロジェクトの技術的背景と設計思想（外部リンク）
