@@ -1,6 +1,6 @@
 # Azure Blob Storage 移行ガイド
 
-このガイドでは、広聴AIアプリケーションでAzure Blob Storageを使用してレポートデータを永続化する方法について説明します。
+このガイドでは、広聴AIアプリケーションでAzure Blob Storageを使用してレポートデータを永続化する方法について説明します。restore / upload / health check 用の補助スクリプトの使い分けは [Storage Snapshot Operations](./storage-snapshot-operations.md) を参照してください。
 
 ## 目次
 
