@@ -22,6 +22,10 @@ Feasibility was validated end to end — see
   `/viewer`. Reports are fetched at runtime (`/report?slug=...`), so reports created
   locally appear without rebuilding. Verified end to end (list → click → report with
   Plotly charts) against the embeddable API.
+- ✅ **admin bundled** as a standalone static SPA, served under `/admin-ui`. The
+  hosted admin (Server Actions + SSR) is untouched — a build-time switch
+  (`scripts/standalone-prep.mjs`) swaps the server-only pieces only for the
+  standalone export. Report list + create form render and reach the embeddable API.
 
 ## Requirements to run a full report
 
@@ -46,7 +50,8 @@ dist\start.bat
 
 `start.bat` launches `runtime\python.exe -X utf8 run-server.py`, which boots
 uvicorn on http://127.0.0.1:8000/ and opens the browser at the viewer
-(http://127.0.0.1:8000/viewer/ — the API owns `/`).
+(http://127.0.0.1:8000/viewer/ — the API owns `/`). The admin UI (create/manage
+reports) is at http://127.0.0.1:8000/admin-ui/.
 
 ### `-X utf8` is mandatory
 
@@ -70,12 +75,30 @@ add `encoding="utf-8"` to those file reads in `apps/api`.)
 - The dev file `apps/public-viewer/.env.local` (if present) points the viewer at a
   dev API port; standalone code ignores it and fetches same-origin.
 
+## How the admin is bundled (build-time switch, hosted untouched)
+
+`apps/admin` uses Server Actions + an SSR root page + route handlers + middleware,
+which all block `output: export`. Rather than rewrite the hosted admin, the standalone
+build runs `scripts/standalone-prep.mjs prep` before `next build` and `restore` after:
+
+- strips the `"use server"` directive from the 11 action modules (they are thin API
+  fetch wrappers — verified to use no server-only APIs), so they become client calls;
+- points server-only `ADMIN_API_KEY` at `NEXT_PUBLIC_ADMIN_API_KEY`;
+- swaps the SSR root page and async `Footer` for client variants (`*.standalone.tsx`);
+- moves aside `app/api` (route handlers), `middleware.ts`, and `app/reuse/[slug]`.
+
+`next.config.ts` switches `output` / `basePath` / `headers()` on `NEXT_PUBLIC_OUTPUT_MODE`.
+All originals are backed up and restored, so the hosted build is byte-for-byte unchanged.
+Served under `/admin-ui` (kept off `/admin` to avoid the API's `/admin/*` routes).
+
 ## Known limitations / TODO
 
-- **admin is NOT bundled.** It uses Next.js **Server Actions** (`output: "standalone"`)
-  and needs a Node runtime as-is. Planned: migrate its Server Actions to FastAPI calls
-  so it can ship as a static SPA too (the same treatment public-viewer just got).
-  Until then the bundle supports viewing reports but not creating them via UI.
+- **admin: advanced bits deferred.** The "publish as static site" build button
+  (`/api/download`) and the `/reuse/[slug]` duplicate flow are excluded from the
+  standalone admin. Creating a report end to end requires LM Studio (or a cloud key)
+  running; the static admin renders + reaches the API, full create was not run here.
+- After in-place mutations (delete/visibility), the standalone list does not auto-refresh
+  (no server `router.refresh()`); reload to see changes.
 - **Installer not built yet.** Wrap `dist\` with Inno Setup / NSIS for a double-click
   installer + Start Menu shortcut and a windowless launcher (current `start.bat` shows
   a console window).

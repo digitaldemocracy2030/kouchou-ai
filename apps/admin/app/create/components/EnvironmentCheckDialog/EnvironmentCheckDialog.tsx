@@ -1,5 +1,6 @@
 "use client";
 
+import { getStaticAssetPath } from "@/app/utils/image-src";
 import { createUUID } from "@/app/utils/uuid";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,7 +53,7 @@ function Dialog({ provider, userApiKey }: EnvironmentCheckDialogProps) {
             textAlign="center"
           >
             <Text textStyle="body/md">APIキー設定とデポジット残高を確認します。</Text>
-            <Image src="/images/check-api-img.svg" alt="" mt="6" />
+            <Image src={getStaticAssetPath("/images/check-api-img.svg")} alt="" mt="6" />
             <Text textStyle="body/sm" textAlign="left" mt="6">
               接続チェックにはAPIを使用します。有料のAIプロバイダーの場合は1回あたり約0.005円のAPI利用料がかかります。
             </Text>

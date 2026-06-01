@@ -28,11 +28,13 @@ PORT = int(os.environ.get("KOUCHOU_PORT", "8000"))
 BUNDLE_DIR = Path(__file__).resolve().parent
 APP_DIR = BUNDLE_DIR / "app"
 VIEWER_DIR = BUNDLE_DIR / "viewer"
+ADMIN_DIR = BUNDLE_DIR / "admin-ui"
 # The bundle's editable config lives next to start.bat (NOT inside app/, which we chdir into).
 BUNDLE_ENV = BUNDLE_DIR / ".env"
-# The API owns "/" (healthcheck), so the viewer is served under /viewer
-# (built with NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH=/viewer).
+# The API owns "/" (healthcheck) and /admin/* routes, so the static UIs are served
+# under their own sub-paths (built with NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH).
 VIEWER_PATH = "/viewer/"
+ADMIN_PATH = "/admin-ui/"
 
 
 def _warn_if_not_utf8() -> None:
@@ -105,14 +107,19 @@ def main() -> None:
     import uvicorn
     from src.main import app
 
-    # Serve the bundled public-viewer static SPA under /viewer (the API owns "/").
-    if VIEWER_DIR.exists():
-        from fastapi.staticfiles import StaticFiles
+    # Serve the bundled static SPAs (the API owns "/" and /admin/* routes).
+    from fastapi.staticfiles import StaticFiles
 
+    if ADMIN_DIR.exists():
+        app.mount("/admin-ui", StaticFiles(directory=str(ADMIN_DIR), html=True), name="admin-ui")
+
+    if VIEWER_DIR.exists():
         app.mount("/viewer", StaticFiles(directory=str(VIEWER_DIR), html=True), name="viewer")
         landing = VIEWER_PATH
+    elif ADMIN_DIR.exists():
+        landing = ADMIN_PATH
     else:
-        print("NOTE: viewer/ not bundled — UI will not be served. Run build.ps1 without -SkipFrontend.")
+        print("NOTE: no UI bundled — only the API is served. Run build.ps1 without -SkipFrontend.")
         landing = "/"
 
     threading.Thread(target=_open_browser_when_ready, daemon=True).start()

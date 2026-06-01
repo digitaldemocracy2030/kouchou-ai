@@ -151,8 +151,7 @@ if (-not (Test-Path (Join-Path $DistDir ".env"))) {
 # 7. Build + bundle the public-viewer as a standalone static SPA
 #    Served by FastAPI under /viewer (the API owns "/"). Reports are fetched at
 #    runtime via /report?slug=..., so newly created reports show up without a rebuild.
-#    NOTE: admin is NOT bundled yet — its Server Actions still need migration to
-#    FastAPI calls before it can ship as static files.
+#    The admin UI is bundled too (step 8) under /admin-ui.
 # ----------------------------------------------------------------------------
 if ($SkipFrontend) {
   Log "Skipping frontend build (-SkipFrontend)."
@@ -198,6 +197,44 @@ if ($SkipFrontend) {
     Log "public-viewer bundled at $viewerOut"
   } finally {
     $ErrorActionPreference = $prevEAP
+    Pop-Location
+  }
+
+  # --------------------------------------------------------------------------
+  # 8. Build + bundle the admin UI as a standalone static SPA, served under
+  #    /admin-ui (kept off /admin to avoid overlap with the API's /admin/* routes).
+  #    standalone-prep.mjs swaps Server Actions / SSR root page / route handlers /
+  #    middleware at build time; the hosted admin build is unaffected. Always restore.
+  # --------------------------------------------------------------------------
+  $adminSrc = Join-Path $RepoRoot "apps\admin"
+  Log "Building admin (standalone static export)"
+  Push-Location $adminSrc
+  $prevEAP2 = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $env:NEXT_PUBLIC_OUTPUT_MODE = "export"
+    $env:NEXT_PUBLIC_STANDALONE = "1"
+    $env:NEXT_PUBLIC_API_BASEPATH = ""
+    # Must match the bundle .env ADMIN_API_KEY (baked into the static admin at build time).
+    $env:NEXT_PUBLIC_ADMIN_API_KEY = "local-admin"
+    $env:NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH = "/admin-ui"
+
+    if (Test-Path "out") { Remove-Item -Recurse -Force "out" }
+    & node "scripts\standalone-prep.mjs" prep
+    try {
+      & npx next build
+      if ($LASTEXITCODE -ne 0) { throw "admin next build failed (exit $LASTEXITCODE)" }
+    } finally {
+      & node "scripts\standalone-prep.mjs" restore
+    }
+
+    $adminOut = Join-Path $DistDir "admin-ui"
+    & robocopy "out" $adminOut /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "robocopy failed copying admin (exit $LASTEXITCODE)" }
+    $global:LASTEXITCODE = 0
+    Log "admin bundled at $adminOut"
+  } finally {
+    $ErrorActionPreference = $prevEAP2
     Pop-Location
   }
 }
