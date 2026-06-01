@@ -1,6 +1,8 @@
+import { getStaticAssetPath } from "@/app/utils/image-src";
 import { Button } from "@/components/ui/button";
-import { Box, Image, Link, Text, VStack } from "@chakra-ui/react";
+import { Box, Image, Text, VStack } from "@chakra-ui/react";
 import { Plus } from "lucide-react";
+import Link from "next/link";
 
 export function Empty() {
   return (
@@ -17,7 +19,7 @@ export function Empty() {
           新規作成
         </Link>
       </Button>
-      <Image src="images/report-empty.png" mt="4" />
+      <Image src={getStaticAssetPath("/images/report-empty.png")} mt="4" />
     </VStack>
   );
 }

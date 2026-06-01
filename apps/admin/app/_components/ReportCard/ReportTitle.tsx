@@ -22,7 +22,11 @@ export function ReportTitle({ report }: Props) {
       {report.status === "ready" ? (
         <Link
           w="full"
-          href={`${process.env.NEXT_PUBLIC_CLIENT_BASEPATH}/${report.slug}`}
+          href={
+            process.env.NEXT_PUBLIC_STANDALONE === "1"
+              ? `/viewer/report?slug=${report.slug}`
+              : `${process.env.NEXT_PUBLIC_CLIENT_BASEPATH}/${report.slug}`
+          }
           target="_blank"
           rel="noopener noreferrer"
           _hover={{ color: "font.link" }}
