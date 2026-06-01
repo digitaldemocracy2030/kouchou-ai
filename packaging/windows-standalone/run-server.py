@@ -37,63 +37,13 @@ VIEWER_PATH = "/viewer/"
 ADMIN_PATH = "/admin-ui/"
 
 
-def _landing_html() -> str:
-    """A tiny hub page served at / linking to the bundled admin and viewer UIs."""
-    cards = []
+def _primary_ui_path() -> str | None:
+    """The UI that / should land on: admin (it can reach the viewer), else viewer."""
     if ADMIN_DIR.exists():
-        cards.append(
-            (
-                ADMIN_PATH,
-                "管理画面",
-                "レポートを作成・管理する（CSVアップロード、分析の実行）",
-            )
-        )
+        return ADMIN_PATH
     if VIEWER_DIR.exists():
-        cards.append(
-            (
-                VIEWER_PATH,
-                "レポート閲覧",
-                "作成済みのレポートを一覧から開いて閲覧する",
-            )
-        )
-    if not cards:
-        cards.append(("/docs", "API", "UIは未バンドルです。APIのみ利用できます。"))
-
-    items = "\n".join(
-        f"""<a class="card" href="{href}">
-          <div class="card-title">{title}</div>
-          <div class="card-desc">{desc}</div>
-        </a>"""
-        for href, title, desc in cards
-    )
-    return f"""<!doctype html>
-<html lang="ja"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>広聴AI</title>
-<style>
-  :root {{ color-scheme: light; }}
-  body {{ margin:0; font-family: "BIZ UDPGothic", system-ui, sans-serif; background:#eef4fb; color:#1a2330; }}
-  .wrap {{ max-width: 880px; margin: 0 auto; padding: 64px 24px; }}
-  h1 {{ font-size: 28px; margin: 0 0 4px; }}
-  .sub {{ color:#5b6b7d; margin: 0 0 40px; }}
-  .grid {{ display:grid; grid-template-columns: 1fr 1fr; gap:20px; }}
-  @media (max-width:640px) {{ .grid {{ grid-template-columns: 1fr; }} }}
-  .card {{ display:block; text-decoration:none; color:inherit; background:#fff; border-radius:14px;
-           padding:28px; border-left:10px solid #2577b1; box-shadow:0 2px 10px rgba(0,0,0,.06);
-           transition: transform .08s ease, box-shadow .08s ease; }}
-  .card:hover {{ transform: translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.12); }}
-  .card-title {{ font-size:20px; font-weight:700; color:#2577b1; margin-bottom:8px; }}
-  .card-desc {{ font-size:14px; color:#5b6b7d; line-height:1.7; }}
-  .foot {{ margin-top:40px; color:#8a98a8; font-size:12px; }}
-</style></head>
-<body><div class="wrap">
-  <h1>広聴AI <span style="font-size:14px;color:#8a98a8;">from デジタル民主主義2030</span></h1>
-  <p class="sub">ローカル版へようこそ。下から操作を選んでください。</p>
-  <div class="grid">
-    {items}
-  </div>
-  <p class="foot">ローカルLLM（LM Studio）またはクラウドのAPIキー設定で分析を実行できます。</p>
-</div></body></html>"""
+        return VIEWER_PATH
+    return None
 
 
 def _warn_if_not_utf8() -> None:
@@ -167,23 +117,26 @@ def main() -> None:
     from src.main import app
 
     # Serve the bundled static SPAs (the API owns "/" and /admin/* routes).
-    from fastapi.responses import HTMLResponse
     from fastapi.staticfiles import StaticFiles
+    from starlette.responses import RedirectResponse
     from starlette.routing import Route
 
     if ADMIN_DIR.exists():
         app.mount("/admin-ui", StaticFiles(directory=str(ADMIN_DIR), html=True), name="admin-ui")
     if VIEWER_DIR.exists():
         app.mount("/viewer", StaticFiles(directory=str(VIEWER_DIR), html=True), name="viewer")
-    if not VIEWER_DIR.exists() and not ADMIN_DIR.exists():
+
+    # Land / on the admin UI (which can reach the viewer). The API also has a "/"
+    # healthcheck; insert ours first so browsers get the redirect (no external health
+    # probe in the standalone bundle). API routes and /admin/* are unaffected.
+    primary = _primary_ui_path()
+    if primary:
+        async def _root(_request):
+            return RedirectResponse(primary)
+
+        app.router.routes.insert(0, Route("/", _root, methods=["GET"]))
+    else:
         print("NOTE: no UI bundled — only the API is served. Run build.ps1 without -SkipFrontend.")
-
-    # Hub page at /. The API has a healthcheck on "/" too; insert ours first so it wins
-    # for browsers (the standalone bundle has no external health probe).
-    async def _hub(_request):
-        return HTMLResponse(_landing_html())
-
-    app.router.routes.insert(0, Route("/", _hub, methods=["GET"]))
 
     threading.Thread(target=_open_browser_when_ready, daemon=True).start()
 
