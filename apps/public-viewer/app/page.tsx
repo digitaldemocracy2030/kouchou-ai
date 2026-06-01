@@ -7,10 +7,16 @@ import { Box, Card, HStack, Heading, Image, Text, VStack } from "@chakra-ui/reac
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getApiBaseUrl } from "./utils/api";
+import { isStandaloneBuild } from "./utils/static-build";
+import { StandaloneListPage } from "./StandaloneListPage";
 
 export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
+  // Standalone: no API at build time — return a static default without fetching.
+  if (isStandaloneBuild()) {
+    return { title: "広聴AI" };
+  }
   try {
     const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`);
     const meta: Meta = await metaResponse.json();
@@ -42,6 +48,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page() {
+  // Standalone: render the list client-side at runtime (reports are created locally).
+  if (isStandaloneBuild()) {
+    return <StandaloneListPage />;
+  }
   try {
     const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`);
     const reportsResponse = await fetch(`${getApiBaseUrl()}/reports`, {

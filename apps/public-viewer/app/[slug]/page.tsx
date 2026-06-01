@@ -12,7 +12,13 @@ import { Box, Separator } from "@chakra-ui/react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getApiBaseUrl } from "../utils/api";
-import { createStaticBuildFetchError, getStaticBuildReportSlugs, isStaticExportBuild } from "../utils/static-build";
+import {
+  createStaticBuildFetchError,
+  getStaticBuildReportSlugs,
+  isStandaloneBuild,
+  isStaticExportBuild,
+} from "../utils/static-build";
+import { StandaloneSlugView } from "./StandaloneSlugView";
 
 type PageProps = {
   params: Promise<{
@@ -24,6 +30,13 @@ type PageProps = {
 export const revalidate = 300;
 
 export async function generateStaticParams() {
+  // Standalone: runtime reports are shown via /report?slug=... . output:export
+  // requires a dynamic route to emit at least one page, so we generate a single
+  // unused sentinel (never linked) instead of baking real slugs.
+  if (isStandaloneBuild()) {
+    return [{ slug: "_standalone" }];
+  }
+
   let reports: Report[];
 
   try {
@@ -49,6 +62,10 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  // Standalone: no API at build time; metadata is irrelevant for the sentinel page.
+  if (isStandaloneBuild()) {
+    return {};
+  }
   try {
     const slug = (await params).slug;
     const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`, {
@@ -102,6 +119,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function Page({ params }: PageProps) {
+  // Standalone: render client-side (no build-time fetch); see StandaloneSlugView.
+  if (isStandaloneBuild()) {
+    return <StandaloneSlugView />;
+  }
+
   const slug = (await params).slug;
   const apiUrl = getApiBaseUrl();
 

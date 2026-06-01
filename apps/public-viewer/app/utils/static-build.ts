@@ -8,6 +8,16 @@ const formatBuildSlugList = (slugs: string[]) => slugs.map((slug) => `"${slug}"`
 
 export const isStaticExportBuild = () => process.env.NEXT_PUBLIC_OUTPUT_MODE === "export";
 
+/**
+ * スタンドアロン(Windows embeddable)ビルドかどうか。
+ *
+ * static-site-builder の「レポートを焼き込む静的エクスポート」(isStaticExportBuild)とは別物。
+ * スタンドアロンでは利用者が実行時にレポートを作成するため、ビルド時に slug を焼き込まず、
+ * `/report?slug=...` のクライアントページが実行時に API から取得して描画する。
+ * （standalone は出力自体は static export なので isStaticExportBuild も同時に true になる点に注意）
+ */
+export const isStandaloneBuild = () => process.env.NEXT_PUBLIC_STANDALONE === "1";
+
 export const parseBuildSlugs = (buildSlugs = process.env.BUILD_SLUGS): string[] =>
   buildSlugs
     ?.split(",")

@@ -1,0 +1,12 @@
+import { chromium } from "playwright";
+const b = await chromium.launch();
+const p = await b.newPage();
+const logs = [];
+p.on("console", m => logs.push(`[${m.type()}] ${m.text()}`));
+p.on("pageerror", e => logs.push(`[pageerror] ${e.message}`));
+const resp = await p.goto("http://127.0.0.1:8140/viewer/report?slug=66517e7a-72ab-45f2-8481-aec4669ff846", { waitUntil: "domcontentloaded" });
+await p.waitForTimeout(3000);
+console.log("HTTP:", resp.status());
+console.log("--- console/page errors ---");
+console.log(logs.slice(0, 15).join("\n"));
+await b.close();

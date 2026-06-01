@@ -1,0 +1,6 @@
+# Heavy / downloadable PoC artifacts — keep docs, scripts, and screenshots only.
+runtime/
+webroot/
+py-embed.zip
+get-pip.py
+*.output

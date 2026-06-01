@@ -1,0 +1,22 @@
+import { chromium } from "playwright";
+const OUT = "C:/Users/shinta/Documents/GitHub/kouchou-ai/tmp-embeddable-poc";
+const b = await chromium.launch();
+const p = await b.newPage();
+await p.goto("http://127.0.0.1:8140/viewer/", { waitUntil: "networkidle" });
+await p.waitForTimeout(3500);
+const link = await p.locator('a[href*="report"]').first();
+const href = await link.getAttribute("href");
+console.log("card link href:", href);
+await p.screenshot({ path: `${OUT}/FINAL-list.png`, fullPage: true });
+await link.click();
+await p.waitForTimeout(4000);
+const url = p.url();
+const rt = await p.locator("body").innerText();
+await p.screenshot({ path: `${OUT}/FINAL-report.png` });
+console.log("after click url:", url);
+console.log("report rendered (has cluster/overview content):", rt.includes("424件") || rt.includes("クラスタ") || rt.length > 1500);
+console.log("report textLen:", rt.length);
+// check a chart canvas/svg present
+const charts = await p.locator("canvas, svg").count();
+console.log("chart elements (canvas/svg):", charts);
+await b.close();
