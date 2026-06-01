@@ -28,6 +28,8 @@ PORT = int(os.environ.get("KOUCHOU_PORT", "8000"))
 BUNDLE_DIR = Path(__file__).resolve().parent
 APP_DIR = BUNDLE_DIR / "app"
 VIEWER_DIR = BUNDLE_DIR / "viewer"
+# The bundle's editable config lives next to start.bat (NOT inside app/, which we chdir into).
+BUNDLE_ENV = BUNDLE_DIR / ".env"
 # The API owns "/" (healthcheck), so the viewer is served under /viewer
 # (built with NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH=/viewer).
 VIEWER_PATH = "/viewer/"
@@ -44,11 +46,22 @@ def _warn_if_not_utf8() -> None:
 
 
 def _apply_default_env() -> None:
-    """Defaults that make the local single-user bundle work out of the box.
+    """Load the bundle's .env, then fill only the still-missing keys with defaults.
 
-    A bundled .env (loaded by src.config) overrides these. For a fully local
-    LM Studio setup the OpenAI key is unused, so a placeholder is fine.
+    Order matters. The user edits ``dist\\.env`` (next to start.bat) to set real keys
+    or switch provider/storage. We must load it FIRST and with ``override=True`` so
+    those values land in os.environ before any placeholder defaults; otherwise the
+    setdefault placeholders would shadow the user's config (src.config loads dotenv
+    with override=False, so an env var already present always wins). We also point
+    ``ENV_FILE`` at the .env's absolute path so src.config still finds it after we
+    chdir into ``app/`` (the default ``.env`` lookup is cwd-relative).
     """
+    from dotenv import load_dotenv
+
+    if BUNDLE_ENV.exists():
+        load_dotenv(BUNDLE_ENV, override=True)
+        os.environ.setdefault("ENV_FILE", str(BUNDLE_ENV))
+
     defaults = {
         "ENVIRONMENT": "production",
         "STORAGE_TYPE": "local",
