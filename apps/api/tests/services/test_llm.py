@@ -182,6 +182,38 @@ class TestLLMService:
         args, kwargs = mock_client.beta.chat.completions.parse.call_args
         assert kwargs["response_format"] == TestModel
 
+    def test_request_to_openai_uses_flex_for_supported_gpt_models(self, mock_openai_response):
+        """GPT-5/6系ではFlex Processingを利用する"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_openai_response.configure_mock(
+            **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
+        )
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_openai_response
+
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
+            request_to_openai(messages, model="gpt-5.6-terra")
+
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert kwargs["service_tier"] == "flex"
+
+    def test_request_to_openai_skips_flex_for_legacy_models(self, mock_openai_response):
+        """GPT-4系はFlex Processingを使わない"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_openai_response.configure_mock(
+            **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
+        )
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_openai_response
+
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
+            request_to_openai(messages, model="gpt-4o-mini")
+
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert "service_tier" not in kwargs
+
     def test_request_to_openai_rate_limit_error_retry(self):
         """request_to_openai: レート制限エラーが発生した場合は3回までリトライする"""
         messages = [

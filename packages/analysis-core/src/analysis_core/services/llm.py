@@ -25,6 +25,23 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover - library might b
 load_dotenv()
 
 
+def _should_use_openai_flex(model: str | None) -> bool:
+    """OpenAIのFlex Processingは、現在の主要な GPT-5/6 系モデルでのみ利用可能。"""
+    if model is None:
+        return False
+
+    override = os.getenv("OPENAI_USE_FLEX")
+    if override is not None:
+        normalized = override.strip().lower()
+        if normalized in {"0", "false", "off", "disabled"}:
+            return False
+        if normalized in {"1", "true", "on", "enabled"}:
+            return True
+
+    normalized = model.strip().lower()
+    return "gpt-5" in normalized or "gpt-6" in normalized
+
+
 @retry(
     retry=retry_if_exception_type(openai.RateLimitError),
     wait=wait_exponential(multiplier=3, min=3, max=20),
@@ -49,15 +66,18 @@ def request_to_openai(
     try:
         if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
             # Use beta.chat.completions.create for Pydantic BaseModel
-            response = client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=json_schema,
-                timeout=timeout_seconds,
-            )
+            request_kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0,
+                "n": 1,
+                "seed": 0,
+                "response_format": json_schema,
+                "timeout": timeout_seconds,
+            }
+            if _should_use_openai_flex(model):
+                request_kwargs["service_tier"] = "flex"
+            response = client.beta.chat.completions.parse(**request_kwargs)
             if hasattr(response, "usage") and response.usage:
                 token_usage_input = response.usage.prompt_tokens or 0
                 token_usage_output = response.usage.completion_tokens or 0
@@ -81,6 +101,8 @@ def request_to_openai(
             }
             if response_format:
                 payload["response_format"] = response_format
+            if _should_use_openai_flex(model):
+                payload["service_tier"] = "flex"
 
             response = client.chat.completions.create(**payload)
 
