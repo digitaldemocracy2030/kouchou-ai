@@ -1,6 +1,6 @@
 import { system } from "@/components/theme/system";
 import { ChakraProvider } from "@chakra-ui/react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useAISettings } from "../hooks/useAISettings";
 import { AISettingsSection } from "./AISettingsSection";
@@ -48,15 +48,28 @@ function Settings() {
   );
 }
 
-beforeEach(() => window.localStorage.clear());
+const serverCatalog = require("../../../../api/src/services/model_catalog.json");
+beforeEach(() => {
+  window.localStorage.clear();
+  global.fetch = jest.fn(async (url) => {
+    const provider = new URL(String(url), "http://localhost").searchParams.get("provider");
+    return {
+      ok: true,
+      json: async () =>
+        provider === "azure"
+          ? [{ value: "azure-server", label: "サーバー設定を使用" }]
+          : serverCatalog.filter((row: { provider: string }) => row.provider === provider),
+    } as Response;
+  });
+});
 
-it("Azureの保存済みモデルを選択中のモデルとして表示しない", () => {
+it("Azureの保存済みモデルを選択中のモデルとして表示しない", async () => {
   window.localStorage.setItem("kouchou_ai_provider", JSON.stringify("azure"));
   window.localStorage.setItem("kouchou_ai_model", JSON.stringify("gpt-4o"));
   render(<Settings />);
 
   const model = screen.getByRole("combobox", { name: "AIモデル" });
-  expect(model).toBeDisabled();
+  await waitFor(() => expect(model).toBeDisabled());
   expect(model).toHaveDisplayValue("サーバー設定を使用");
   expect(screen.queryByRole("option", { name: "GPT-4o" })).not.toBeInTheDocument();
   expect(screen.getByText(/Azure OpenAIでは、サーバーに設定されたモデルを使用します/)).toBeInTheDocument();
@@ -68,13 +81,15 @@ it("OpenAIからAzureへ切り替えると固定表示になり、戻すとモ�
   render(<Settings />);
   const provider = screen.getByRole("combobox", { name: "AIプロバイダー" });
   const model = screen.getByRole("combobox", { name: "AIモデル" });
+  await screen.findByRole("option", { name: /GPT-4o（/ });
   await user.selectOptions(model, "gpt-4o");
   expect(model).toHaveValue("gpt-4o");
   await user.selectOptions(provider, "azure");
-  expect(model).toBeDisabled();
+  await waitFor(() => expect(model).toBeDisabled());
   expect(model).toHaveDisplayValue("サーバー設定を使用");
   await user.selectOptions(provider, "openai");
   expect(model).toBeEnabled();
+  await screen.findByRole("option", { name: /o3-mini/ });
   await user.selectOptions(model, "o3-mini");
   expect(model).toHaveValue("o3-mini");
   expect(screen.queryByText(/Azure OpenAIでは/)).not.toBeInTheDocument();
@@ -86,6 +101,7 @@ it("Geminiは従来どおりモデルを選択できる", async () => {
   await user.selectOptions(screen.getByRole("combobox", { name: "AIプロバイダー" }), "gemini");
   const model = screen.getByRole("combobox", { name: "AIモデル" });
   expect(model).toBeEnabled();
-  await user.selectOptions(model, "gemini-1.5-pro");
-  expect(model).toHaveValue("gemini-1.5-pro");
+  await screen.findByRole("option", { name: "Gemini 3.8 Flash（動作未確認）" });
+  await user.selectOptions(model, "gemini-3.8-flash");
+  expect(model).toHaveValue("gemini-3.8-flash");
 });

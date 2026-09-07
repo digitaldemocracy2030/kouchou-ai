@@ -559,9 +559,7 @@ class TestValidateInputFile:
 
         input_path = tmp_path / "demo.csv"
         input_path.write_text(
-            "comment-id,comment-body,attribute_group\n"
-            "1,first,1\n"
-            "2,second,label-a\n",
+            "comment-id,comment-body,attribute_group\n1,first,1\n2,second,label-a\n",
             encoding="utf-8",
         )
 
@@ -1107,3 +1105,24 @@ class TestPipelineOrchestrator:
         assert status_data["total_token_usage"] == 9
         assert status_data["token_usage_input"] == 4
         assert status_data["token_usage_output"] == 5
+
+
+def test_run_step_preserves_unknown_cost(monkeypatch):
+    from analysis_core.core import orchestration
+
+    updates = []
+    monkeypatch.setattr(
+        orchestration,
+        "update_status",
+        lambda config, status, output_dir: (updates.append(status), config.update(status)),
+    )
+    config = {
+        "provider": "unknown",
+        "model": "new",
+        "token_usage_input": 10,
+        "token_usage_output": 10,
+        "plan": [{"step": "test", "run": True}],
+        "test": {},
+    }
+    orchestration.run_step("test", lambda config: None, config, pricing_calculator=lambda *args: None)
+    assert updates[-1]["estimated_cost"] is None

@@ -4,11 +4,13 @@ on:
   push:
     branches: [main]
     paths:
+      - 'apps/api/src/services/model_catalog.json'
       - 'apps/admin/**'
       - '!apps/admin/**/*.md'
   pull_request:
     branches: [main]
     paths:
+      - 'apps/api/src/services/model_catalog.json'
       - 'apps/admin/**'
       - '!apps/admin/**/*.md'
   workflow_dispatch:

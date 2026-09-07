@@ -82,6 +82,7 @@ export default function Page() {
       selectedAttributeColumns: inputData.selectedAttributeColumns,
       provider: aiSettings.provider,
       modelOptions: aiSettings.getCurrentModels(),
+      modelError: aiSettings.modelError,
       pluginImported,
       pluginSelectedCommentColumn: pluginData.pluginSelectedCommentColumn,
     });
@@ -390,6 +391,10 @@ export default function Page() {
 
           {/* AI詳細設定セクション */}
           <Presence present={open} w={"full"}>
+            {aiSettings.catalogWarning && <Text>{aiSettings.catalogWarning}</Text>}
+            <Button onClick={aiSettings.reloadModels} variant="outline">
+              モデル一覧を再取得
+            </Button>
             <AISettingsSection
               provider={aiSettings.provider}
               model={aiSettings.model}

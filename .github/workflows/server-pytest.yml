@@ -4,6 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
+      - 'apps/api/src/services/model_catalog.json'
       - 'apps/api/**/*.py'
       - 'apps/api/Dockerfile'
       - 'apps/api/pyproject.toml'
@@ -17,6 +18,7 @@ on:
   pull_request:
     branches: [ main ]
     paths:
+      - 'apps/api/src/services/model_catalog.json'
       - 'apps/api/**/*.py'
       - 'apps/api/Dockerfile'
       - 'apps/api/pyproject.toml'

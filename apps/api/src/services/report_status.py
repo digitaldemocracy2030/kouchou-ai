@@ -91,7 +91,7 @@ def add_new_report_to_status(report_input: ReportInput) -> None:
             "token_usage": 0,  # トークン使用量を初期化
             "token_usage_input": 0,  # 入力トークン使用量を初期化
             "token_usage_output": 0,  # 出力トークン使用量を初期化
-            "estimated_cost": 0.0,  # 推定コストを初期化
+            "estimated_cost": None,  # 推定コストを初期化
             "provider": None,  # LLMプロバイダーを初期化
             "model": None,  # LLMモデルを初期化
         }
@@ -112,7 +112,7 @@ def add_new_report_to_status_from_config(slug: str, config: dict, source_slug: s
             "token_usage": 0,
             "token_usage_input": 0,
             "token_usage_output": 0,
-            "estimated_cost": 0.0,
+            "estimated_cost": None,
             "provider": config.get("provider"),
             "model": config.get("model"),
         }
@@ -232,7 +232,7 @@ def update_token_usage(
         ):
             estimated_cost = LLMPricing.calculate_cost(provider, model, token_usage_input, token_usage_output)
             _report_status[slug]["estimated_cost"] = estimated_cost
-            logger.info(f"Updated estimated cost for {slug}: ${estimated_cost:.4f}")
+            logger.info(f"Updated estimated cost for {slug}: {LLMPricing.format_cost(estimated_cost)}")
 
         logger.info(
             f"Updated token usage for {slug} in report status: total={token_usage}, input={token_usage_input}, output={token_usage_output}"

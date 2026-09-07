@@ -208,7 +208,7 @@ async def get_current_step(slug: str) -> dict:
             "token_usage": status.get("total_token_usage", 0),
             "token_usage_input": status.get("token_usage_input", 0),
             "token_usage_output": status.get("token_usage_output", 0),
-            "estimated_cost": status.get("estimated_cost", 0.0),
+            "estimated_cost": status.get("estimated_cost"),
             "provider": status.get("provider"),
             "model": status.get("model"),
             "error_message": status.get("error"),
@@ -243,7 +243,7 @@ async def get_current_step(slug: str) -> dict:
             "token_usage": 0,
             "token_usage_input": 0,
             "token_usage_output": 0,
-            "estimated_cost": 0.0,
+            "estimated_cost": None,
             "provider": None,
             "model": None,
             "error_message": None,
@@ -469,7 +469,7 @@ async def get_models(
     provider: str = Query(..., description="LLMプロバイダー名 (openai, azure, openrouter, gemini, local)"),
     address: str | None = Query(None, description="LocalLLM用アドレス（例: 127.0.0.1:1234）"),
     api_key: str = Depends(verify_admin_api_key),
-) -> list[dict[str, str]]:
+) -> list[dict]:
     """指定されたプロバイダーのモデルリストを取得するエンドポイント
 
     Args:
@@ -577,7 +577,7 @@ async def get_llm_pricing(api_key: str = Depends(verify_admin_api_key)) -> dict:
         dict: プロバイダーとモデルごとの価格情報
     """
     try:
-        return LLMPricing.PRICING
+        return LLMPricing.pricing_table()
     except Exception as e:
         slogger.error(f"Exception in get_llm_pricing: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e

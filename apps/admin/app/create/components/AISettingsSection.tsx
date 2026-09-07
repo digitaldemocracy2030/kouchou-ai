@@ -1,5 +1,6 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button, Field, HStack, Input, NativeSelect, Textarea, VStack } from "@chakra-ui/react";
+import { type ModelOption, modelLabel } from "../hooks/useModelCatalog";
 
 /**
  * AI設定セクションコンポーネント
@@ -45,7 +46,7 @@ export function AISettingsSection({
   onEnableSourceLinkChange: (checked: boolean | "indeterminate") => void;
   getModelDescription: () => string;
   getProviderDescription: () => string;
-  getCurrentModels: () => { value: string; label: string }[];
+  getCurrentModels: () => ModelOption[];
   requiresConnectionSettings: () => boolean;
   isEmbeddedAtLocalDisabled?: () => boolean;
   localLLMAddress?: string;
@@ -161,14 +162,14 @@ export function AISettingsSection({
 
       <Field.Root disabled={isAzure}>
         <Field.Label>AIモデル</Field.Label>
-        <NativeSelect.Root w={"40%"}>
+        <NativeSelect.Root w="full" maxW="600px">
           <NativeSelect.Field value={isAzure ? "" : model} onChange={onModelChange}>
             {isAzure ? (
               <option value="">サーバー設定を使用</option>
             ) : (
               modelOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+                <option key={option.value} value={option.value} disabled={option.available === false}>
+                  {modelLabel(option)}
                 </option>
               ))
             )}

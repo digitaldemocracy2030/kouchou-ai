@@ -7,51 +7,25 @@ import os
 import httpx
 from openai import OpenAI
 
+from src.services.model_catalog import enrich_models, models_for_provider
 from src.utils.logger import setup_logger
 
 slogger = setup_logger()
 
 
-class ModelOption:
-    """モデルオプション"""
-
-    def __init__(self, value: str, label: str):
-        self.value = value
-        self.label = label
-
-    def to_dict(self) -> dict[str, str]:
-        return {"value": self.value, "label": self.label}
+async def get_openai_models() -> list[dict]:
+    return models_for_provider("openai")
 
 
-OPENAI_MODELS = [
-    ModelOption("gpt-4o-mini", "GPT-4o mini"),
-    ModelOption("gpt-4o", "GPT-4o"),
-    ModelOption("o3-mini", "o3-mini"),
-]
+async def get_azure_models() -> list[dict]:
+    return models_for_provider("azure")
 
 
-GEMINI_MODELS = [
-    ModelOption("gemini-2.5-flash", "Gemini 2.5 Flash"),
-    ModelOption("gemini-1.5-flash", "Gemini 1.5 Flash"),
-    ModelOption("gemini-1.5-pro", "Gemini 1.5 Pro"),
-]
-
-
-async def get_openai_models() -> list[dict[str, str]]:
-    """OpenAIのモデルリストを取得"""
-    return [model.to_dict() for model in OPENAI_MODELS]
-
-
-async def get_azure_models() -> list[dict[str, str]]:
-    """Azureのモデルリストを取得（OpenAIと同じ）"""
-    return [model.to_dict() for model in OPENAI_MODELS]
-
-
-async def get_gemini_models() -> list[dict[str, str]]:
+async def get_gemini_models() -> list[dict]:
     """Google Geminiのモデルリストを取得"""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return [model.to_dict() for model in GEMINI_MODELS]
+        return models_for_provider("gemini")
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -83,7 +57,7 @@ async def get_gemini_models() -> list[dict[str, str]]:
         raise ValueError(f"Failed to fetch models from Gemini API: {e}") from e
 
 
-async def get_openrouter_models() -> list[dict[str, str]]:
+async def get_openrouter_models() -> list[dict]:
     """OpenRouterのモデルリストをAPIから取得"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -111,7 +85,7 @@ async def get_openrouter_models() -> list[dict[str, str]]:
         raise ValueError(f"Failed to fetch models from OpenRouter API: {e}") from e
 
 
-async def get_local_llm_models(address: str | None = None) -> list[dict[str, str]]:
+async def get_local_llm_models(address: str | None = None) -> list[dict]:
     """LocalLLMのモデルリストをOpenAI互換APIから取得"""
     if not address:
         address = "localhost:11434"  # Ollamaのデフォルトポート
@@ -139,7 +113,7 @@ async def get_local_llm_models(address: str | None = None) -> list[dict[str, str
         raise ValueError(f"Failed to fetch models from LocalLLM API: {e}") from e
 
 
-async def get_models_by_provider(provider: str, address: str | None = None) -> list[dict[str, str]]:
+async def _discover_models_by_provider(provider: str, address: str | None = None) -> list[dict]:
     """プロバイダーに応じたモデルリストを取得"""
     if provider == "openai":
         return await get_openai_models()
@@ -153,3 +127,18 @@ async def get_models_by_provider(provider: str, address: str | None = None) -> l
         return await get_local_llm_models(address)
     else:
         raise ValueError(f"Unknown provider: {provider}")
+
+
+async def get_models_by_provider(provider: str, address: str | None = None) -> list[dict]:
+    try:
+        discovered = await _discover_models_by_provider(provider, address)
+    except ValueError:
+        if provider not in ("gemini", "openrouter"):
+            raise
+        # The same server catalog provides an explicit fallback, never a second
+        # frontend copy. Keep the failure visible to callers.
+        models = models_for_provider(provider)
+        for model in models:
+            model["discovery_warning"] = "最新のモデル一覧を取得できませんでした。登録済みの一覧を表示しています。"
+        return models
+    return enrich_models(provider, discovered)

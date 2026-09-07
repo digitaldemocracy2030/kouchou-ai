@@ -28,7 +28,7 @@ type ReportBase = {
   tokenUsage?: number; // トークン使用量（合計）
   tokenUsageInput?: number; // 入力トークン使用量
   tokenUsageOutput?: number; // 出力トークン使用量
-  estimatedCost?: number; // 推定コスト（USD）
+  estimatedCost?: number | null; // 推定コスト（USD）
   provider?: string; // LLMプロバイダー
   model?: string; // LLMモデル
 };

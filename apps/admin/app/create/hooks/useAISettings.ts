@@ -1,18 +1,8 @@
-import { toaster } from "@/components/ui/toaster";
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { type ModelOption, modelDescription, useModelCatalog } from "./useModelCatalog";
+export type { ModelOption } from "./useModelCatalog";
+import { type ChangeEvent, useEffect, useState } from "react";
 
 export type Provider = "openai" | "azure" | "openrouter" | "gemini" | "local";
-
-export interface ModelOption {
-  value: string;
-  label: string;
-}
-
-export interface ProviderConfig {
-  models: ModelOption[];
-  description: string;
-  requiresConnection?: boolean;
-}
 
 const STORAGE_KEY_PREFIX = "kouchou_ai_";
 const STORAGE_KEYS = {
@@ -29,54 +19,6 @@ const DEFAULT_LOCAL_LLM_ADDRESS = process.env.NEXT_PUBLIC_LOCAL_LLM_ADDRESS || "
 
 // USE_AZUREがtrueの場合はAzure OpenAIをデフォルトにする
 const DEFAULT_PROVIDER: Provider = process.env.NEXT_PUBLIC_USE_AZURE === "true" ? "azure" : "openai";
-
-const OPENAI_MODELS: ModelOption[] = [
-  { value: "gpt-4o-mini", label: "GPT-4o mini" },
-  { value: "gpt-4o", label: "GPT-4o" },
-  { value: "o3-mini", label: "o3-mini" },
-];
-
-// OpenRouterで利用可能なモデル
-const OPENROUTER_MODELS: ModelOption[] = [
-  { value: "openai/gpt-4o-2024-08-06", label: "GPT-4o (OpenRouter)" },
-  { value: "openai/gpt-4o-mini-2024-07-18", label: "GPT-4o mini (OpenRouter)" },
-  { value: "google/gemini-2.5-pro-preview", label: "Gemini 2.5 Pro" },
-];
-
-const GEMINI_MODELS: ModelOption[] = [
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-];
-
-const LOCAL_LLM_AUTO_FETCH_DELAY_MS = 500;
-
-/**
- * サーバーからモデルリストを取得する関数
- * @param provider プロバイダー名
- * @param address LocalLLM用アドレス（localプロバイダーの場合のみ）
- */
-async function fetchModelsFromServer(provider: Provider, address?: string): Promise<ModelOption[]> {
-  const params = new URLSearchParams({ provider });
-  if (provider === "local" && address) {
-    params.append("address", address);
-  }
-
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASEPATH}/admin/models?${params.toString()}`, {
-    method: "GET",
-    headers: {
-      "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-
-  const models = await response.json();
-  return models;
-}
 
 /**
  * LocalStorageから値を取得する関数
@@ -121,7 +63,7 @@ export function useAISettings() {
   const [provider, setProvider] = useState<Provider>(() =>
     getFromStorage<Provider>(STORAGE_KEYS.PROVIDER, DEFAULT_PROVIDER),
   );
-  const [model, setModel] = useState<string>(() => getFromStorage<string>(STORAGE_KEYS.MODEL, "gpt-4o-mini"));
+  const [model, setModel] = useState<string>(() => getFromStorage<string>(STORAGE_KEYS.MODEL, ""));
   const [workers, setWorkers] = useState<number>(() => getFromStorage<number>(STORAGE_KEYS.WORKERS, 30));
   const [isPubcomMode, setIsPubcomMode] = useState<boolean>(true);
   const [isEmbeddedAtLocal, setIsEmbeddedAtLocal] = useState<boolean>(() =>
@@ -137,9 +79,16 @@ export function useAISettings() {
 
   const [userApiKey, setUserApiKey] = useState<string>("");
 
-  const [openRouterModels, setOpenRouterModels] = useState<ModelOption[]>([]);
-  const [localLLMModels, setLocalLLMModels] = useState<ModelOption[]>([]);
-  const lastAutoFetchedLocalLLMAddressRef = useRef<string | null>(null);
+  const catalog = useModelCatalog(provider, provider === "local" ? localLLMAddress : undefined);
+  useEffect(() => {
+    if (provider === "local") setIsEmbeddedAtLocal(true);
+  }, [provider]);
+  useEffect(() => {
+    // Empty means a new selection. Never overwrite restored/deprecated settings.
+    if (!model && catalog.models.length) {
+      setModel(catalog.models.find((candidate) => candidate.available !== false)?.value || "");
+    }
+  }, [catalog.models, model]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.PROVIDER, provider);
@@ -165,148 +114,9 @@ export function useAISettings() {
     saveToStorage(STORAGE_KEYS.ENABLE_SOURCE_LINK, enableSourceLink);
   }, [enableSourceLink]);
 
-  useEffect(() => {
-    if (provider === "openrouter") {
-      setOpenRouterModels(OPENROUTER_MODELS);
-      if (OPENROUTER_MODELS.length > 0) {
-        setModel(OPENROUTER_MODELS[0].value);
-      }
-    }
-
-    if (provider === "local") {
-      setIsEmbeddedAtLocal(true);
-    }
-  }, [provider]);
-
-  const applyLocalLLMModels = (models: ModelOption[]) => {
-    setLocalLLMModels(models);
-    if (models.length === 0) return;
-    setModel((currentModel) =>
-      models.some((candidate) => candidate.value === currentModel) ? currentModel : models[0].value,
-    );
-  };
-
-  const loadLocalLLMModels = async ({
-    address,
-    showSuccessToast,
-    showEmptyToast,
-    showErrorToast,
-  }: {
-    address: string;
-    showSuccessToast: boolean;
-    showEmptyToast: boolean;
-    showErrorToast: boolean;
-  }) => {
-    try {
-      const models = await fetchModelsFromServer("local", address);
-      applyLocalLLMModels(models);
-      if (models.length > 0 && showSuccessToast) {
-        toaster.create({
-          type: "success",
-          title: "モデルリスト取得成功",
-          description: `${models.length}個のモデルを取得しました`,
-        });
-      }
-      if (models.length === 0 && showEmptyToast) {
-        toaster.create({
-          type: "warning",
-          title: "モデルリスト取得警告",
-          description: "モデルリストが空です。LocalLLMサーバーの設定を確認してください。",
-        });
-      }
-      return true;
-    } catch (error) {
-      console.error("LocalLLMモデルの取得に失敗しました:", error);
-      if (showErrorToast) {
-        toaster.create({
-          type: "error",
-          title: "モデルリスト取得失敗",
-          description: "LocalLLMからモデルリストの取得に失敗しました。接続設定とサーバーの状態を確認してください。",
-        });
-      }
-      return false;
-    }
-  };
-
-  useEffect(() => {
-    if (provider !== "local") {
-      lastAutoFetchedLocalLLMAddressRef.current = null;
-      return;
-    }
-
-    const trimmedAddress = localLLMAddress.trim();
-    if (!trimmedAddress || lastAutoFetchedLocalLLMAddressRef.current === trimmedAddress) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      lastAutoFetchedLocalLLMAddressRef.current = trimmedAddress;
-      void fetchModelsFromServer("local", trimmedAddress)
-        .then((models) => {
-          setLocalLLMModels(models);
-          if (models.length === 0) return;
-          setModel((currentModel) =>
-            models.some((candidate) => candidate.value === currentModel) ? currentModel : models[0].value,
-          );
-        })
-        .catch((error) => {
-          console.error("LocalLLMモデルの自動取得に失敗しました:", error);
-        });
-    }, LOCAL_LLM_AUTO_FETCH_DELAY_MS);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [provider, localLLMAddress]);
-
-  /**
-   * LocalLLMのモデルリストを手動で取得
-   */
-  const fetchLocalLLMModels = async () => {
-    if (provider === "local" && localLLMAddress) {
-      lastAutoFetchedLocalLLMAddressRef.current = localLLMAddress.trim();
-      return loadLocalLLMModels({
-        address: localLLMAddress.trim(),
-        showSuccessToast: true,
-        showEmptyToast: true,
-        showErrorToast: true,
-      });
-    }
-    return false;
-  };
-
-  const providerConfigs: Record<Provider, ProviderConfig> = {
-    openai: {
-      models: OPENAI_MODELS,
-      description: "OpenAI APIを使用します。OpenAIのAPIキーが必要です。",
-    },
-    azure: {
-      models: OPENAI_MODELS, // 保存設定との互換性用。AzureのUIでは選択肢を表示しない
-      description: "Azure OpenAI Serviceを使用します。Azureの設定が必要です。",
-    },
-    openrouter: {
-      models: OPENROUTER_MODELS,
-      description: "OpenRouterを使用して複数のモデルにアクセスします。",
-    },
-    gemini: {
-      models: GEMINI_MODELS,
-      description: "Google Gemini APIを使用します。GoogleのAPIキーが必要です。",
-    },
-    local: {
-      models: localLLMModels,
-      description: "ローカルで実行されているLLMサーバーに接続します。",
-      requiresConnection: true,
-    },
-  };
-
-  /**
-   * プロバイダー変更時のハンドラー
-   */
   const handleProviderChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const newProvider = e.target.value as Provider;
-    setProvider(newProvider);
-
-    if (providerConfigs[newProvider].models.length > 0) {
-      setModel(providerConfigs[newProvider].models[0].value);
-    }
+    setProvider(e.target.value as Provider);
+    setModel("");
   };
 
   /**
@@ -363,47 +173,35 @@ export function useAISettings() {
   /**
    * モデル説明文を取得
    */
+  const selectedModel = catalog.models.find((option) => option.value === model);
+  const modelError = catalog.loading
+    ? "モデル一覧を取得中です。"
+    : catalog.error ||
+      (provider !== "azure" && (!selectedModel || selectedModel.available === false)
+        ? "このモデルは利用できません。モデルを再選択してください。"
+        : "");
   const getModelDescription = () => {
-    if (provider === "azure") {
-      return "Azure OpenAIでは、サーバーに設定されたモデルを使用します。この画面では変更できません。変更が必要な場合は、サーバーの管理者に確認してください。";
-    }
-    if (provider === "openai") {
-      if (model === "gpt-4o-mini") {
-        return "GPT-4o mini：最も安価に利用できるモデルです。価格の詳細はOpenAIが公開しているAPI料金のページをご参照ください。";
-      }
-      if (model === "gpt-4o") {
-        return "GPT-4o：gpt-4o-miniと比較して高性能なモデルです。性能は高くなりますが、gpt-4o-miniと比較してOpenAI APIの料金は高くなります。";
-      }
-      if (model === "o3-mini") {
-        return "o3-mini：gpt-4oよりも高度な推論能力を備えたモデルです。性能はより高くなりますが、gpt-4oと比較してOpenAI APIの料金は高くなります。";
-      }
-    }
-    if (provider === "gemini") {
-      if (model === "gemini-2.5-flash") {
-        return "Gemini 1.5 Flash：高速かつコスト効率の高いモデルです。価格の詳細はGoogleが公開しているAPI料金のページをご参照ください。";
-      }
-      if (model === "gemini-1.5-flash") {
-        return "Gemini 1.5 Flash：旧モデルです。価格の詳細はGoogleが公開しているAPI料金のページをご参照ください。";
-      }
-      if (model === "gemini-1.5-pro") {
-        return "Gemini 1.5 Pro：Gemini 1.5 Flashよりも高度な推論能力を備えたモデルです。性能はより高くなりますが、Gemini 1.5 Flashと比較してAPIの料金は高くなります。";
-      }
-    }
-    return "";
+    if (provider === "azure")
+      return `Azure OpenAIでは、サーバーに設定されたモデルを使用します。この画面では変更できません。${modelDescription(catalog.models[0])}`;
+    return modelError || modelDescription(selectedModel);
   };
-
-  /**
-   * プロバイダー説明文を取得
-   */
-  const getProviderDescription = () => {
-    return providerConfigs[provider].description;
+  const descriptions: Record<Provider, string> = {
+    openai: "OpenAI APIを使用します。OpenAIのAPIキーが必要です。",
+    azure: "Azure OpenAI Serviceを使用します。",
+    openrouter: "OpenRouterを使用して複数のモデルにアクセスします。",
+    gemini: "Google Gemini APIを使用します。GoogleのAPIキーが必要です。",
+    local: "ローカルで実行されているLLMサーバーに接続します。",
   };
-
-  /**
-   * 現在のプロバイダーのモデルリストを取得
-   */
-  const getCurrentModels = () => {
-    return providerConfigs[provider].models;
+  const getProviderDescription = () => descriptions[provider];
+  const getCurrentModels = (): ModelOption[] => {
+    if (model && !catalog.models.some((option) => option.value === model)) {
+      return [{ value: model, label: model, available: false }, ...catalog.models];
+    }
+    return catalog.models;
+  };
+  const fetchLocalLLMModels = async () => {
+    catalog.reload();
+    return true;
   };
 
   /**
@@ -426,18 +224,17 @@ export function useAISettings() {
    */
   const resetAISettings = () => {
     setProvider(DEFAULT_PROVIDER);
-    setModel("gpt-4o-mini");
+    setModel("");
     setWorkers(30);
     setIsPubcomMode(true);
     setIsEmbeddedAtLocal(false);
     setEnableSourceLink(false);
     setLocalLLMAddress(DEFAULT_LOCAL_LLM_ADDRESS);
     setUserApiKey("");
-    setOpenRouterModels([]);
-    setLocalLLMModels([]);
+    catalog.reload();
 
     saveToStorage(STORAGE_KEYS.PROVIDER, DEFAULT_PROVIDER);
-    saveToStorage(STORAGE_KEYS.MODEL, "gpt-4o-mini");
+    saveToStorage(STORAGE_KEYS.MODEL, "");
     saveToStorage(STORAGE_KEYS.WORKERS, 30);
     saveToStorage(STORAGE_KEYS.LOCAL_LLM_ADDRESS, DEFAULT_LOCAL_LLM_ADDRESS);
     saveToStorage(STORAGE_KEYS.IS_EMBEDDED_AT_LOCAL, false);
@@ -447,6 +244,9 @@ export function useAISettings() {
   return {
     provider,
     model,
+    modelError,
+    reloadModels: catalog.reload,
+    catalogWarning: catalog.models.find((option) => option.discovery_warning)?.discovery_warning,
     workers,
     isPubcomMode,
     isEmbeddedAtLocal,
