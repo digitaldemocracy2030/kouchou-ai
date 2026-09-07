@@ -1,0 +1,232 @@
+[
+  {
+    "provider": "openai",
+    "value": "gpt-4o-mini",
+    "label": "GPT-4o mini",
+    "description": "GPT-4o mini",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 0.15,
+      "output": 0.6,
+      "source": null,
+      "checked_at": null,
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
+    }
+  },
+  {
+    "provider": "openai",
+    "value": "gpt-4o",
+    "label": "GPT-4o",
+    "description": "GPT-4o",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 2.5,
+      "output": 10,
+      "source": null,
+      "checked_at": null,
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
+    }
+  },
+  {
+    "provider": "openai",
+    "value": "o3-mini",
+    "label": "o3-mini",
+    "description": "o3-mini",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 1.1,
+      "output": 4.4,
+      "source": null,
+      "checked_at": null,
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
+    }
+  },
+  {
+    "provider": "openai",
+    "value": "gpt-5.6-terra",
+    "label": "GPT-5.6 Terra",
+    "description": "GPT-5.6 Terra",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 2,
+      "output": 12,
+      "source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra",
+      "checked_at": "2026-09-08",
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。 累積入力が272,000tokenを超える場合は長文料金の判定に必要な情報が不足するため推定額は不明。",
+      "max_input_tokens_per_request": 272000
+    },
+    "verification_issue": "https://github.com/digitaldemocracy2030/kouchou-ai/issues/912",
+    "unverified_label": "動作未確認",
+    "structured_outputs": true
+  },
+  {
+    "provider": "openai",
+    "value": "gpt-5.6-luna",
+    "label": "GPT-5.6 Luna",
+    "description": "GPT-5.6 Luna",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 0.2,
+      "output": 1.2,
+      "source": "https://developers.openai.com/api/docs/models/gpt-5.6-luna",
+      "checked_at": "2026-09-08",
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。 累積入力が272,000tokenを超える場合は長文料金の判定に必要な情報が不足するため推定額は不明。",
+      "max_input_tokens_per_request": 272000
+    },
+    "verification_issue": "https://github.com/digitaldemocracy2030/kouchou-ai/issues/912",
+    "unverified_label": "動作未確認",
+    "structured_outputs": true
+  },
+  {
+    "provider": "gemini",
+    "value": "gemini-2.5-flash",
+    "label": "Gemini 2.5 Flash",
+    "description": "Gemini 2.5 Flash",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 0.35,
+      "output": 1.05,
+      "source": null,
+      "checked_at": null,
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
+    }
+  },
+  {
+    "provider": "gemini",
+    "value": "gemini-1.5-flash",
+    "label": "Gemini 1.5 Flash",
+    "description": "Gemini 1.5 Flash",
+    "verified": false,
+    "verification_source": null,
+    "available": false,
+    "deprecated": true,
+    "price": {
+      "input": 0.35,
+      "output": 1.05,
+      "source": null,
+      "checked_at": null,
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
+    }
+  },
+  {
+    "provider": "gemini",
+    "value": "gemini-1.5-pro",
+    "label": "Gemini 1.5 Pro",
+    "description": "Gemini 1.5 Pro",
+    "verified": false,
+    "verification_source": null,
+    "available": false,
+    "deprecated": true,
+    "price": {
+      "input": 3.5,
+      "output": 10.5,
+      "source": null,
+      "checked_at": null,
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
+    }
+  },
+  {
+    "provider": "gemini",
+    "value": "gemini-3.8-flash",
+    "label": "Gemini 3.8 Flash",
+    "description": "Gemini 3.8 Flash",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 0.75,
+      "output": 3.75,
+      "source": "https://ai.google.dev/gemini-api/docs/pricing",
+      "checked_at": "2026-09-08",
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。",
+      "valid_until": "2026-12-31"
+    },
+    "verification_issue": "https://github.com/digitaldemocracy2030/kouchou-ai/issues/913",
+    "unverified_label": "動作未確認",
+    "structured_outputs": true
+  },
+  {
+    "provider": "gemini",
+    "value": "gemini-3.5-flash-lite",
+    "label": "Gemini 3.5 Flash-Lite",
+    "description": "Gemini 3.5 Flash-Lite",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 0.3,
+      "output": 2.5,
+      "source": "https://ai.google.dev/gemini-api/docs/pricing",
+      "checked_at": "2026-09-08",
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
+    },
+    "verification_issue": "https://github.com/digitaldemocracy2030/kouchou-ai/issues/913",
+    "unverified_label": "動作未確認",
+    "structured_outputs": true
+  },
+  {
+    "provider": "openrouter",
+    "value": "openai/gpt-4o-2024-08-06",
+    "label": "GPT-4o (OpenRouter)",
+    "description": "GPT-4o (OpenRouter)",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 2.5,
+      "output": 10,
+      "source": null,
+      "checked_at": null,
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
+    }
+  },
+  {
+    "provider": "openrouter",
+    "value": "openai/gpt-4o-mini-2024-07-18",
+    "label": "GPT-4o mini (OpenRouter)",
+    "description": "GPT-4o mini (OpenRouter)",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": {
+      "input": 0.15,
+      "output": 0.6,
+      "source": null,
+      "checked_at": null,
+      "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
+    }
+  },
+  {
+    "provider": "openrouter",
+    "value": "google/gemini-2.5-pro-preview",
+    "label": "Gemini 2.5 Pro",
+    "description": "Gemini 2.5 Pro",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": null
+  }
+]

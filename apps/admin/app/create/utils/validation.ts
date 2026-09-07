@@ -58,6 +58,7 @@ export function validateFormValues({
   selectedAttributeColumns,
   provider,
   modelOptions,
+  modelError,
   pluginImported,
   pluginSelectedCommentColumn,
 }: {
@@ -76,9 +77,11 @@ export function validateFormValues({
   selectedAttributeColumns?: string[];
   provider?: string;
   modelOptions?: { value: string; label: string }[];
+  modelError?: string;
   pluginImported?: boolean;
   pluginSelectedCommentColumn?: string;
 }): { isValid: boolean; errorMessage?: string } {
+  if (modelError) return { isValid: false, errorMessage: modelError };
   // 共通チェック（question と intro は省略可能）
   if (!isValidId(input)) {
     return { isValid: false, errorMessage: "IDが無効です" };

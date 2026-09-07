@@ -1,5 +1,7 @@
 "use client";
 
+import { ClusterSettingsSection } from "@/app/create/components/ClusterSettingsSection";
+import { modelDescription as describeModel, modelLabel, useModelCatalog } from "@/app/create/hooks/useModelCatalog";
 import {
   DialogBackdrop,
   DialogBody,
@@ -12,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { toaster } from "@/components/ui/toaster";
 import type { Report } from "@/type";
-import { ClusterSettingsSection } from "@/app/create/components/ClusterSettingsSection";
 import { Box, Button, Checkbox, HStack, Input, NativeSelect, Portal, Text, Textarea, VStack } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { type Dispatch, type FormEvent, type SetStateAction, useEffect, useMemo, useState } from "react";
@@ -93,58 +94,26 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
     return "overview";
   }, [reuseEnabled]);
 
-  const getModelOptions = (nextProvider: string, currentModel: string) => {
-    if (nextProvider === "openrouter") {
-      return [
-        { value: "openai/gpt-4o-2024-08-06", label: "GPT-4o (OpenRouter)" },
-        { value: "openai/gpt-4o-mini-2024-07-18", label: "GPT-4o mini (OpenRouter)" },
-        { value: "google/gemini-2.5-pro-preview", label: "Gemini 2.5 Pro" },
-      ];
-    }
-    if (nextProvider === "gemini") {
-      return [
-        { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-        { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-        { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-      ];
-    }
-    if (nextProvider === "local") {
-      return currentModel ? [{ value: currentModel, label: currentModel }] : [];
-    }
-    return [
-      { value: "gpt-4o-mini", label: "GPT-4o mini" },
-      { value: "gpt-4o", label: "GPT-4o" },
-      { value: "o3-mini", label: "o3-mini" },
-    ];
-  };
-
-  const modelOptions = useMemo(() => getModelOptions(provider, model), [provider, model]);
-
-  const modelDescription = useMemo(() => {
-    if (provider === "openai" || provider === "azure") {
-      if (model === "gpt-4o-mini") {
-        return "GPT-4o mini：最も安価に利用できるモデルです。価格の詳細はOpenAIが公開しているAPI料金のページをご参照ください。";
-      }
-      if (model === "gpt-4o") {
-        return "GPT-4o：gpt-4o-miniと比較して高性能なモデルです。性能は高くなりますが、gpt-4o-miniと比較してOpenAI APIの料金は高くなります。";
-      }
-      if (model === "o3-mini") {
-        return "o3-mini：gpt-4oよりも高度な推論能力を備えたモデルです。性能はより高くなりますが、gpt-4oと比較してOpenAI APIの料金は高くなります。";
-      }
-    }
-    if (provider === "gemini") {
-      if (model === "gemini-2.5-flash") {
-        return "Gemini 2.5 Flash：高速かつコスト効率の高いモデルです。価格の詳細はGoogleが公開しているAPI料金のページをご参照ください。";
-      }
-      if (model === "gemini-1.5-flash") {
-        return "Gemini 1.5 Flash：旧モデルです。価格の詳細はGoogleが公開しているAPI料金のページをご参照ください。";
-      }
-      if (model === "gemini-1.5-pro") {
-        return "Gemini 1.5 Pro：Gemini 1.5 Flashよりも高度な推論能力を備えたモデルです。性能はより高くなりますが、Gemini 1.5 Flashと比較してAPIの料金は高くなります。";
-      }
-    }
-    return "";
-  }, [provider, model]);
+  const catalog = useModelCatalog(provider, undefined, isOpen && provider !== "local");
+  const selectedModel = catalog.models.find((option) => option.value === model);
+  const modelOptions =
+    model && !selectedModel ? [{ value: model, label: model, available: false }, ...catalog.models] : catalog.models;
+  const modelError =
+    provider === "local"
+      ? !model
+        ? "モデルを入力してください。"
+        : ""
+      : catalog.loading
+        ? "モデル一覧を取得中です。"
+        : catalog.error ||
+          (provider !== "azure" && (!selectedModel || selectedModel.available === false)
+            ? "このモデルは利用できません。モデルを再選択してください。"
+            : "");
+  const modelDescription = modelError || describeModel(provider === "azure" ? catalog.models[0] : selectedModel);
+  useEffect(() => {
+    if (!model && catalog.models.length)
+      setModel(catalog.models.find((option) => option.available !== false)?.value || "");
+  }, [catalog.models, model]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -201,7 +170,6 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
     return () => controller.abort();
   }, [isOpen, report.slug]);
 
-
   const isSame = (value: string, original?: string | null) => value === (original ?? "");
   const isSameCluster = (lv1: number, lv2: number, original?: number[]) =>
     Array.isArray(original) && original[0] === lv1 && original[1] === lv2;
@@ -254,6 +222,10 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
       return;
     }
 
+    if (modelError) {
+      toaster.create({ type: "error", title: modelError });
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -371,18 +343,13 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                     {renderLabel("AIプロバイダー", config ? isSame(provider, config.provider || "openai") : false)}
                   </Box>
                   <NativeSelect.Root w={"60%"}>
-                  <NativeSelect.Field
-                    value={provider}
-                    onChange={(e) => {
-                      const nextProvider = e.target.value;
-                      setProvider(nextProvider);
-                      if (nextProvider !== "local") {
-                        const options = getModelOptions(nextProvider, model);
-                        if (options.length > 0) {
-                          setModel(options[0].value);
-                        }
-                      }
-                    }}
+                    <NativeSelect.Field
+                      value={provider}
+                      onChange={(e) => {
+                        const nextProvider = e.target.value;
+                        setProvider(nextProvider);
+                        setModel("");
+                      }}
                     >
                       <option value={"openai"}>OpenAI</option>
                       <option value={"azure"}>Azure</option>
@@ -400,16 +367,25 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   {provider === "local" ? (
                     <Input value={model} onChange={(event) => setModel(event.target.value)} />
                   ) : (
-                    <NativeSelect.Root w={"60%"}>
-                      <NativeSelect.Field value={model} onChange={(e) => setModel(e.target.value)}>
+                    <NativeSelect.Root w="full" disabled={provider === "azure"}>
+                      <NativeSelect.Field
+                        value={provider === "azure" ? "azure-server" : model}
+                        onChange={(e) => setModel(e.target.value)}
+                      >
                         {modelOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
+                          <option key={option.value} value={option.value} disabled={option.available === false}>
+                            {provider === "azure" ? option.label : modelLabel(option)}
                           </option>
                         ))}
                       </NativeSelect.Field>
                       <NativeSelect.Indicator />
                     </NativeSelect.Root>
+                  )}
+                  {catalog.models[0]?.discovery_warning && <Text>{catalog.models[0].discovery_warning}</Text>}
+                  {provider !== "local" && (
+                    <Button onClick={catalog.reload} variant="outline">
+                      モデル一覧を再取得
+                    </Button>
                   )}
                   {modelDescription && (
                     <Text color="gray.500" fontSize="sm" mt={1}>
@@ -421,7 +397,9 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   <Box mb={2} fontWeight="bold">
                     {renderLabel(
                       "意見グループ数設定",
-                      config ? isSameCluster(clusterLv1, clusterLv2, config.hierarchical_clustering?.cluster_nums) : false,
+                      config
+                        ? isSameCluster(clusterLv1, clusterLv2, config.hierarchical_clustering?.cluster_nums)
+                        : false,
                     )}
                   </Box>
                   <ClusterSettingsSection
@@ -490,10 +468,7 @@ export function DuplicateReportDialog({ report, isOpen, setIsOpen }: Props) {
                   />
                 </Box>
                 <Box>
-                  <Checkbox.Root
-                    checked={reuseEnabled}
-                    onCheckedChange={(e) => setReuseEnabled(!!e.checked)}
-                  >
+                  <Checkbox.Root checked={reuseEnabled} onCheckedChange={(e) => setReuseEnabled(!!e.checked)}>
                     <Checkbox.HiddenInput />
                     <Checkbox.Control />
                     <Checkbox.Label>中間成果物を再利用する</Checkbox.Label>

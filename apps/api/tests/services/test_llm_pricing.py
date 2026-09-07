@@ -42,17 +42,8 @@ class TestLLMPricing:
         cost = LLMPricing.calculate_cost(provider, model, token_usage_input, token_usage_output)
         assert cost == pytest.approx(expected_cost)
 
-    def test_calculate_cost_azure_gpt4o_mini(self):
-        """AzureのGPT-4o-miniモデルの料金計算が正しく行われる"""
-        provider = "azure"
-        model = "gpt-4o-mini"
-        token_usage_input = 1_000_000  # 1M tokens
-        token_usage_output = 500_000  # 0.5M tokens
-
-        expected_cost = 0.45
-
-        cost = LLMPricing.calculate_cost(provider, model, token_usage_input, token_usage_output)
-        assert cost == pytest.approx(expected_cost)
+    def test_azure_price_is_unknown_without_explicit_mapping(self):
+        assert LLMPricing.calculate_cost("azure", "gpt-4o-mini", 1_000_000, 500_000) is None
 
     def test_calculate_cost_openrouter_gpt4o(self):
         """OpenRouterのGPT-4oモデルの料金計算が正しく行われる"""
@@ -79,28 +70,28 @@ class TestLLMPricing:
         assert cost == pytest.approx(expected_cost)
 
     def test_calculate_cost_unknown_provider(self):
-        """不明なプロバイダーの場合は0"""
+        """不明なプロバイダーの場合は料金不明"""
         provider = "unknown_provider"
         model = "gpt-4o-mini"
         token_usage_input = 1_000_000  # 1M tokens
         token_usage_output = 500_000  # 0.5M tokens
 
-        expected_cost = 0
+        expected_cost = None
 
         cost = LLMPricing.calculate_cost(provider, model, token_usage_input, token_usage_output)
-        assert cost == pytest.approx(expected_cost)
+        assert cost is expected_cost
 
     def test_calculate_cost_unknown_model(self):
-        """不明なモデルの場合は0"""
+        """不明なモデルの場合は料金不明"""
         provider = "openai"
         model = "unknown_model"
         token_usage_input = 1_000_000  # 1M tokens
         token_usage_output = 500_000  # 0.5M tokens
 
-        expected_cost = 0
+        expected_cost = None
 
         cost = LLMPricing.calculate_cost(provider, model, token_usage_input, token_usage_output)
-        assert cost == pytest.approx(expected_cost)
+        assert cost is expected_cost
 
     def test_calculate_cost_small_tokens(self):
         """少量のトークンでも正しく計算される"""

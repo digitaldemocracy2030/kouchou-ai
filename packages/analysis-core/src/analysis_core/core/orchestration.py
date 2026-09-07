@@ -467,7 +467,7 @@ def run_step(
     func: Callable[[dict[str, Any]], None],
     config: dict[str, Any],
     output_base_dir: Path | None = None,
-    pricing_calculator: Callable[[str, str, int, int], float] | None = None,
+    pricing_calculator: Callable[[str, str, int, int], float | None] | None = None,
 ) -> None:
     """
     Execute a pipeline step with status tracking.
@@ -503,7 +503,7 @@ def run_step(
     token_usage_step = token_usage_after - token_usage_before
 
     # Calculate estimated cost
-    estimated_cost = 0.0
+    estimated_cost = None
     provider = config.get("provider")
     model = config.get("model")
     token_usage_input = config.get("token_usage_input", 0)
@@ -512,7 +512,7 @@ def run_step(
     if provider and model and token_usage_input > 0 and token_usage_output > 0:
         if pricing_calculator:
             estimated_cost = pricing_calculator(provider, model, token_usage_input, token_usage_output)
-            print(f"Estimated cost: ${estimated_cost:.4f} ({provider} {model})")
+            print(f"Estimated cost: {estimated_cost if estimated_cost is not None else 'unknown'} ({provider} {model})")
 
     # Update status after running
     update_status(
