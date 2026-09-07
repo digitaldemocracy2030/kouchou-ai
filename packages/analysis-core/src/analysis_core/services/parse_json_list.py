@@ -75,31 +75,17 @@ def parse_response(response):
 
 
 def parse_extraction_response(response: str | dict) -> list[str]:
-    """
-    structured outputで出力したextraction responseをパースする。
-    responseは以下のような形式の文字列。
-    {"arguments": ["arg1", "arg2", "arg3"]}
-    """
-
+    """Parse a valid extraction response; malformed output is not an empty result."""
     try:
-        if isinstance(response, dict):
-            return response["extractedOpinionList"]
-
-        response_dict = json.loads(response)
-        extracted_opinions = response_dict["extractedOpinionList"]
-        # argumentsがリストでない場合は空のリストを返す
-        if not isinstance(extracted_opinions, list):
-            return []
-        return extracted_opinions
+        data = json.loads(response) if isinstance(response, str) else response
     except json.JSONDecodeError:
-        print("Failed to parse extraction response, json.JSONDecodeError", response)
-        return []
-    except KeyError:
-        print("Failed to parse extraction response, no 'arguments' key", response)
-        return []
-    except Exception as e:
-        print("Failed to parse extraction response, unknown error", response, e)
-        return []
+        raise ValueError("Invalid extraction response: malformed JSON") from None
+    if not isinstance(data, dict):
+        raise ValueError("Invalid extraction response: expected an object")
+    items = data.get("extractedOpinionList")
+    if not isinstance(items, list) or not all(isinstance(item, str) for item in items):
+        raise ValueError("Invalid extraction response: expected extractedOpinionList to be a list of strings")
+    return items
 
 
 if __name__ == "__main__":

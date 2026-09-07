@@ -1,5 +1,4 @@
 import concurrent.futures
-import json
 import logging
 import os
 import re
@@ -19,6 +18,18 @@ EXTRACTION_WAIT_TIMEOUT_SECONDS = 300
 
 class ExtractionResponse(BaseModel):
     extractedOpinionList: list[str] = Field(..., description="抽出した意見のリスト")
+
+
+class ExtractionBatchError(RuntimeError):
+    """A batch contains failed responses and must not reach downstream analysis."""
+
+    def __init__(self, failures, comment_ids=None):
+        self.failures = failures
+        identifiers = {comment_ids[i] if comment_ids is not None else i: reason for i, reason in failures.items()}
+        super().__init__(
+            f"意見抽出に失敗した回答が{len(failures)}件あります。分析を中断しました。"
+            f" ({'回答ID' if comment_ids is not None else 'batch index'} / error: {identifiers})"
+        )
 
 
 def _validate_property_columns(property_columns: list[str], comments: pl.DataFrame) -> None:
@@ -98,6 +109,7 @@ def extraction(config):
             config,
             timeout_seconds,
             user_api_key,
+            comment_ids=batch,
         )
 
         for comment_id, extracted_args in zip(batch, batch_results, strict=False):
@@ -144,6 +156,7 @@ def extract_batch(
     config=None,
     timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
     user_api_key=None,
+    comment_ids=None,
 ):
     """Run argument extraction concurrently for a batch of comment texts."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
@@ -166,6 +179,7 @@ def extract_batch(
 
         done, not_done = concurrent.futures.wait([f for _, f in futures_with_index], timeout=timeout_seconds)
         results = [[] for _ in range(len(batch))]
+        failures = {}
         total_token_input = 0
         total_token_output = 0
         total_token_usage = 0
@@ -187,8 +201,9 @@ def extract_batch(
                     else:
                         results[i] = result
                 except Exception as e:
-                    logging.error(f"Task {future} failed with error: {e}")
-                    results[i] = []
+                    failures[i] = type(e).__name__
+            else:
+                failures[i] = "TimeoutError"
 
         if config is not None:
             config["total_token_usage"] = config.get("total_token_usage", 0) + total_token_usage
@@ -198,6 +213,8 @@ def extract_batch(
                 f"Extraction batch: input={total_token_input}, output={total_token_output}, total={total_token_usage} tokens"
             )
 
+        if failures:
+            raise ExtractionBatchError(failures, comment_ids)
         return results
 
 
@@ -215,23 +232,16 @@ def extract_arguments(
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
     ]
-    try:
-        response, token_input, token_output, token_total = request_to_chat_ai(
-            messages=messages,
-            model=model,
-            is_json=False,
-            json_schema=ExtractionResponse,
-            provider=provider,
-            local_llm_address=local_llm_address,
-            user_api_key=user_api_key or os.getenv("USER_API_KEY"),
-            timeout_seconds=timeout_seconds,
-        )
-        items = parse_extraction_response(response)
-        items = list(filter(None, items))  # omit empty strings
-        return items, token_input, token_output, token_total
-    except json.decoder.JSONDecodeError as e:
-        print("JSON error:", e)
-        print("Input was:", input)
-        print("Response was:", response)
-        print("Silently giving up on trying to generate valid list.")
-        return []
+    response, token_input, token_output, token_total = request_to_chat_ai(
+        messages=messages,
+        model=model,
+        is_json=False,
+        json_schema=ExtractionResponse,
+        provider=provider,
+        local_llm_address=local_llm_address,
+        user_api_key=user_api_key or os.getenv("USER_API_KEY"),
+        timeout_seconds=timeout_seconds,
+    )
+    items = parse_extraction_response(response)
+    items = list(filter(None, items))  # omit empty strings
+    return items, token_input, token_output, token_total
