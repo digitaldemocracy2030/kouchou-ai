@@ -66,6 +66,7 @@ export function AISettingsSection({
   userApiKey: string;
   onUserApiKeyChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
+  const isAzure = provider === "azure";
   const modelOptions = getCurrentModels();
 
   return (
@@ -158,15 +159,19 @@ export function AISettingsSection({
         </Field.HelperText>
       </Field.Root>
 
-      <Field.Root>
+      <Field.Root disabled={isAzure}>
         <Field.Label>AIモデル</Field.Label>
         <NativeSelect.Root w={"40%"}>
-          <NativeSelect.Field value={model} onChange={onModelChange}>
-            {modelOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
+          <NativeSelect.Field value={isAzure ? "" : model} onChange={onModelChange}>
+            {isAzure ? (
+              <option value="">サーバー設定を使用</option>
+            ) : (
+              modelOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))
+            )}
           </NativeSelect.Field>
           <NativeSelect.Indicator />
         </NativeSelect.Root>

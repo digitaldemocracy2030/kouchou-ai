@@ -279,7 +279,7 @@ export function useAISettings() {
       description: "OpenAI APIを使用します。OpenAIのAPIキーが必要です。",
     },
     azure: {
-      models: OPENAI_MODELS, // Azureは同じモデルリストを使用
+      models: OPENAI_MODELS, // 保存設定との互換性用。AzureのUIでは選択肢を表示しない
       description: "Azure OpenAI Serviceを使用します。Azureの設定が必要です。",
     },
     openrouter: {
@@ -364,7 +364,10 @@ export function useAISettings() {
    * モデル説明文を取得
    */
   const getModelDescription = () => {
-    if (provider === "openai" || provider === "azure") {
+    if (provider === "azure") {
+      return "Azure OpenAIでは、サーバーに設定されたモデルを使用します。この画面では変更できません。変更が必要な場合は、サーバーの管理者に確認してください。";
+    }
+    if (provider === "openai") {
       if (model === "gpt-4o-mini") {
         return "GPT-4o mini：最も安価に利用できるモデルです。価格の詳細はOpenAIが公開しているAPI料金のページをご参照ください。";
       }
