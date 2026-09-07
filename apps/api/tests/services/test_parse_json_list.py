@@ -1,40 +1,35 @@
+import json
+
+import pytest
 from analysis_core.services.parse_json_list import parse_extraction_response
 
 
-class TestParseJsonList:
-    """JSONリストのパース機能のテスト"""
+@pytest.mark.parametrize("items", [[], ["テスト1", "テスト2"]])
+@pytest.mark.parametrize("serialized", [False, True])
+def test_valid_extraction_response(items, serialized):
+    response = {"extractedOpinionList": items}
+    assert parse_extraction_response(json.dumps(response) if serialized else response) == items
 
-    def test_parse_extraction_response_valid(self):
-        """parse_extraction_response: 有効なJSONレスポンスを正しくパースできる"""
-        # 有効なJSONレスポンス
-        response = '{"extractedOpinionList": ["テスト1", "テスト2", "テスト3"]}'
-        result = parse_extraction_response(response)
-        assert result == ["テスト1", "テスト2", "テスト3"]
 
-    def test_parse_extraction_response_empty_list(self):
-        """parse_extraction_response: 空のリストを正しくパースできる"""
-        # 空のリスト
-        response = '{"extractedOpinionList": []}'
-        result = parse_extraction_response(response)
-        assert result == []
+@pytest.mark.parametrize(
+    "response",
+    [
+        {},
+        {"extractedOpinionList": None},
+        {"extractedOpinionList": "opinion"},
+        {"extractedOpinionList": [1]},
+        {"extractedOpinionList": [{}]},
+        [],
+        None,
+    ],
+)
+@pytest.mark.parametrize("serialized", [False, True])
+def test_invalid_extraction_response_raises(response, serialized):
+    with pytest.raises(ValueError, match="Invalid extraction response"):
+        parse_extraction_response(json.dumps(response) if serialized else response)
 
-    def test_parse_extraction_response_invalid_json(self):
-        """parse_extraction_response: 無効なJSONの場合は空のリストを返す"""
-        # 無効なJSON
-        response = '{"extractedOpinionList": ["テスト1", "テスト2"'
-        result = parse_extraction_response(response)
-        assert result == []
 
-    def test_parse_extraction_response_no_key(self):
-        """parse_extraction_response: extractedOpinionListキーがない場合は空のリストを返す"""
-        # extractedOpinionListキーがない
-        response = '{"results": ["テスト1", "テスト2"]}'
-        result = parse_extraction_response(response)
-        assert result == []
-
-    def test_parse_extraction_response_unexpected_error(self):
-        """parse_extraction_response: 予期しないエラーが発生した場合は空のリストを返す"""
-        # 予期しないエラーを発生させる
-        response = '{"extractedOpinionList": null}'
-        result = parse_extraction_response(response)
-        assert result == []  # 実際の実装ではNoneが返されるかもしれないが、空リストを期待
+def test_invalid_json_does_not_return_empty_or_expose_response():
+    with pytest.raises(ValueError, match="malformed JSON") as error:
+        parse_extraction_response("private response {")
+    assert "private response" not in str(error.value)
