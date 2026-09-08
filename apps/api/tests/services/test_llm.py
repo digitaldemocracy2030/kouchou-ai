@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import openai
 import pytest
 from analysis_core.services.llm import (
+    _should_use_openai_flex,
     _validate_model,
     extract_embedding_values,
     request_to_azure_chatcompletion,
@@ -182,37 +183,168 @@ class TestLLMService:
         args, kwargs = mock_client.beta.chat.completions.parse.call_args
         assert kwargs["response_format"] == TestModel
 
-    def test_request_to_openai_uses_flex_for_supported_gpt_models(self, mock_openai_response):
-        """GPT-5/6系ではFlex Processingを利用する"""
-        messages = [{"role": "user", "content": "Hello, world!"}]
+    @staticmethod
+    def _make_mock_openai_client(mock_openai_response):
         mock_openai_response.configure_mock(
             **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
         )
-
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_openai_response
+        mock_client.beta.chat.completions.parse.return_value = mock_openai_response
+        return mock_client
+
+    @pytest.fixture
+    def flex_env(self):
+        """Flex関連の環境変数を開発環境の設定から切り離す"""
+        env = {k: v for k, v in os.environ.items() if k not in {"OPENAI_USE_FLEX", "OPENAI_FLEX_TIMEOUT_SECONDS"}}
+        with patch.dict(os.environ, env, clear=True):
+            yield
+
+    @pytest.mark.parametrize(
+        ("model", "expected"),
+        [
+            ("gpt-5.6-terra", True),
+            ("gpt-5.6-luna", True),
+            ("gpt-5-mini", True),
+            ("GPT-6-Astra", True),
+            ("o3", True),
+            ("o4-mini", True),
+            ("gpt-5-pro", False),
+            ("gpt-5.5-pro", False),
+            ("gpt-5-chat-latest", False),
+            ("gpt-5-codex", False),
+            ("gpt-4o-mini", False),
+            ("o3-mini", False),
+            ("", False),
+            (None, False),
+        ],
+    )
+    def test_should_use_openai_flex_by_model(self, flex_env, model, expected):
+        """Flex対応モデルのみでFlex Processingを有効にする"""
+        assert _should_use_openai_flex(model) is expected
+
+    @pytest.mark.parametrize(
+        ("override", "model", "expected"),
+        [
+            ("false", "gpt-5.6-terra", False),
+            ("0", "gpt-5.6-terra", False),
+            ("true", "gpt-4o-mini", True),
+            ("ON", "gpt-4o-mini", True),
+            ("unexpected", "gpt-5.6-terra", True),
+            ("unexpected", "gpt-4o-mini", False),
+        ],
+    )
+    def test_should_use_openai_flex_env_override(self, flex_env, override, model, expected):
+        """OPENAI_USE_FLEXでFlex Processingの利用を明示的に上書きできる"""
+        with patch.dict(os.environ, {"OPENAI_USE_FLEX": override}):
+            assert _should_use_openai_flex(model) is expected
+
+    def test_request_to_openai_uses_flex_for_supported_gpt_models(self, flex_env, mock_openai_response):
+        """GPT-5/6系ではFlex Processingを利用し、タイムアウトをFlex向けに延ばす"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_mock_openai_client(mock_openai_response)
 
         with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
-            request_to_openai(messages, model="gpt-5.6-terra")
+            request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=300)
 
         _, kwargs = mock_client.chat.completions.create.call_args
         assert kwargs["service_tier"] == "flex"
+        assert kwargs["timeout"] == 900
 
-    def test_request_to_openai_skips_flex_for_legacy_models(self, mock_openai_response):
-        """GPT-4系はFlex Processingを使わない"""
+    def test_request_to_openai_flex_timeout_respects_larger_request_timeout(self, flex_env, mock_openai_response):
+        """通常のタイムアウトがFlex用より長い場合はそちらを使う"""
         messages = [{"role": "user", "content": "Hello, world!"}]
-        mock_openai_response.configure_mock(
-            **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
-        )
+        mock_client = self._make_mock_openai_client(mock_openai_response)
 
-        mock_client = MagicMock()
-        mock_client.chat.completions.create.return_value = mock_openai_response
+        with (
+            patch("analysis_core.services.llm.OpenAI", return_value=mock_client),
+            patch.dict(os.environ, {"OPENAI_FLEX_TIMEOUT_SECONDS": "600"}),
+        ):
+            request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=1200)
+
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert kwargs["timeout"] == 1200
+
+    def test_request_to_openai_uses_flex_for_pydantic_schema(self, flex_env, mock_openai_response):
+        """Pydanticスキーマ経由(beta.parse)でもFlex Processingを利用する"""
+
+        class TestModel(BaseModel):
+            name: str
+
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_mock_openai_client(mock_openai_response)
 
         with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
-            request_to_openai(messages, model="gpt-4o-mini")
+            request_to_openai(messages, model="gpt-5.6-terra", json_schema=TestModel)
+
+        _, kwargs = mock_client.beta.chat.completions.parse.call_args
+        assert kwargs["service_tier"] == "flex"
+        assert kwargs["response_format"] == TestModel
+        assert "temperature" not in kwargs
+        mock_client.chat.completions.create.assert_not_called()
+
+    def test_request_to_openai_skips_flex_for_legacy_models(self, flex_env, mock_openai_response):
+        """GPT-4系はFlex Processingを使わず、タイムアウトも通常のまま"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_mock_openai_client(mock_openai_response)
+
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
+            request_to_openai(messages, model="gpt-4o-mini", timeout_seconds=300)
 
         _, kwargs = mock_client.chat.completions.create.call_args
         assert "service_tier" not in kwargs
+        assert kwargs["timeout"] == 300
+        assert kwargs["temperature"] == 0
+
+    def test_request_to_openai_env_override_disables_flex(self, flex_env, mock_openai_response):
+        """OPENAI_USE_FLEX=falseならGPT-5系でも標準処理を使う"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_mock_openai_client(mock_openai_response)
+
+        with (
+            patch("analysis_core.services.llm.OpenAI", return_value=mock_client),
+            patch.dict(os.environ, {"OPENAI_USE_FLEX": "false"}),
+        ):
+            request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=300)
+
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert "service_tier" not in kwargs
+        assert kwargs["timeout"] == 300
+
+    @pytest.mark.parametrize("model", ["gpt-5.6-terra", "gpt-5-mini", "o3-mini", "o4-mini"])
+    def test_request_to_openai_omits_temperature_for_reasoning_models(self, flex_env, mock_openai_response, model):
+        """GPT-5/6系とo系はtemperature=0を拒否するので送らない"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_mock_openai_client(mock_openai_response)
+
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
+            request_to_openai(messages, model=model)
+
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert "temperature" not in kwargs
+        assert kwargs["seed"] == 0
+
+    def test_request_to_openai_flex_falls_back_to_standard_on_rate_limit(self, flex_env, mock_openai_response):
+        """Flexがresource_unavailable(429)を返したら標準処理(auto)で再送する"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_mock_openai_client(mock_openai_response)
+        rate_limit_error = openai.RateLimitError(message="Resource unavailable", response=MagicMock(), body=MagicMock())
+        mock_client.chat.completions.create.side_effect = [rate_limit_error, mock_openai_response]
+
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
+            response, token_input, token_output, token_total = request_to_openai(
+                messages, model="gpt-5.6-terra", timeout_seconds=300
+            )
+
+        assert response == "This is a test response"
+        assert (token_input, token_output, token_total) == (10, 5, 15)
+        assert mock_client.chat.completions.create.call_count == 2
+        first_kwargs = mock_client.chat.completions.create.call_args_list[0].kwargs
+        second_kwargs = mock_client.chat.completions.create.call_args_list[1].kwargs
+        assert first_kwargs["service_tier"] == "flex"
+        assert first_kwargs["timeout"] == 900
+        assert second_kwargs["service_tier"] == "auto"
+        assert second_kwargs["timeout"] == 300
 
     def test_request_to_openai_rate_limit_error_retry(self):
         """request_to_openai: レート制限エラーが発生した場合は3回までリトライする"""
