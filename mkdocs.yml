@@ -79,6 +79,7 @@ nav:
       - FAQ: user-guide/faq.md
   - 開発者向け:
       - コントリビューション: development/contributing.md
+      - レポート整合性検査: development/output-validation.md
       - AIエージェントの作業導線: development/ai-assistants.md
       - LLMタイムアウト設定: development/llm-timeout.md
       - 抽出失敗の診断: development/extraction-diagnostics.md
