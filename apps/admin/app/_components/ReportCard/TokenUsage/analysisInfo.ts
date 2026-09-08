@@ -1,6 +1,15 @@
 import type { Report } from "@/type";
 
 export function analysisInfo(report: Report) {
+  if (report.status === "error") {
+    return {
+      hasInput: false,
+      hasTotal: false,
+      estimatedCost: "不明（処理失敗・集計不完全）",
+      model: report.provider && report.model ? `${report.provider} ${report.model}` : null,
+      tokenUsageTotal: "不明（処理失敗・集計不完全）",
+    };
+  }
   const tokenUsageInput = report.tokenUsageInput?.toLocaleString();
   const tokenUsageOutput = report.tokenUsageOutput?.toLocaleString();
   const tokenUsageTotal = report.tokenUsage?.toLocaleString();

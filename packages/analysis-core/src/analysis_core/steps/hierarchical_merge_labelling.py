@@ -1,6 +1,4 @@
-import json
 import os
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
 
@@ -10,6 +8,7 @@ from pydantic import BaseModel, Field
 from tqdm import tqdm
 
 from analysis_core.services.llm import request_to_chat_ai
+from analysis_core.steps._labelling import parse_label, record_usage, run_labelling_batch
 
 
 @dataclass
@@ -192,13 +191,12 @@ def merge_labelling(clusters_df: pl.DataFrame, cluster_id_columns: list[str], co
         )
 
         current_cluster_ids = sorted(clusters_df[current_columns.id].unique().to_list())
-        with ThreadPoolExecutor(max_workers=config["hierarchical_merge_labelling"]["workers"]) as executor:
-            responses = list(
-                tqdm(
-                    executor.map(process_fn, current_cluster_ids),
-                    total=len(current_cluster_ids),
-                )
-            )
+        responses = run_labelling_batch(
+            process_fn,
+            current_cluster_ids,
+            config["hierarchical_merge_labelling"]["workers"],
+            f"hierarchical_merge_labelling ({current_columns.id})",
+        )
 
         current_result_df = pl.DataFrame(responses)
         clusters_df = clusters_df.join(current_result_df, on=[current_columns.id], how="left")
@@ -273,34 +271,23 @@ def process_merge_labelling(
             "content": "クラスタラベル\n" + cluster_text + "\n" + "クラスタの意見\n" + sampled_argument_text,
         },
     ]
-    try:
-        response_text, token_input, token_output, token_total = request_to_chat_ai(
-            messages=messages,
-            model=config["hierarchical_merge_labelling"]["model"],
-            json_schema=LabellingFromat,
-            provider=config["provider"],
-            local_llm_address=config.get("local_llm_address"),
-            user_api_key=config.get("user_api_key") or os.getenv("USER_API_KEY"),
-        )
+    response_text, token_input, token_output, token_total = request_to_chat_ai(
+        messages=messages,
+        model=config["hierarchical_merge_labelling"]["model"],
+        json_schema=LabellingFromat,
+        provider=config["provider"],
+        local_llm_address=config.get("local_llm_address"),
+        user_api_key=config.get("user_api_key") or os.getenv("USER_API_KEY"),
+    )
 
-        config["total_token_usage"] = config.get("total_token_usage", 0) + token_total
-        config["token_usage_input"] = config.get("token_usage_input", 0) + token_input
-        config["token_usage_output"] = config.get("token_usage_output", 0) + token_output
-        print(f"Merge labelling: input={token_input}, output={token_output}, total={token_total} tokens")
+    record_usage(config, token_input, token_output, token_total)
 
-        response_json = json.loads(response_text) if isinstance(response_text, str) else response_text
-        return {
-            current_columns.id: target_cluster_id,
-            current_columns.label: response_json.get("label", "エラーでラベル名が取得できませんでした"),
-            current_columns.description: response_json.get("description", "エラーで解説が取得できませんでした"),
-        }
-    except Exception as e:
-        print(f"エラーが発生しました: {e}")
-        return {
-            current_columns.id: target_cluster_id,
-            current_columns.label: "エラーでラベル名が取得できませんでした",
-            current_columns.description: "エラーで解説が取得できませんでした",
-        }
+    response_json = parse_label(response_text)
+    return {
+        current_columns.id: target_cluster_id,
+        current_columns.label: response_json["label"],
+        current_columns.description: response_json["description"],
+    }
 
 
 def calculate_cluster_density(melted_df: pl.DataFrame, config: dict):

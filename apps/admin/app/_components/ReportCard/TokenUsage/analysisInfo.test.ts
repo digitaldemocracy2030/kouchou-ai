@@ -179,3 +179,21 @@ describe("analysisInfo", () => {
     });
   });
 });
+
+it("失敗時は残存するトークン数・費用を完全な合計として表示しない", () => {
+  const result = analysisInfo({
+    slug: "failed",
+    status: "error",
+    title: "title",
+    description: "description",
+    isPubcom: false,
+    visibility: ReportVisibility.PRIVATE,
+    tokenUsage: 1500,
+    tokenUsageInput: 1000,
+    tokenUsageOutput: 500,
+    estimatedCost: 0.1,
+  });
+  expect(result.hasInput).toBe(false);
+  expect(result.tokenUsageTotal).toBe("不明（処理失敗・集計不完全）");
+  expect(result.estimatedCost).toBe("不明（処理失敗・集計不完全）");
+});
