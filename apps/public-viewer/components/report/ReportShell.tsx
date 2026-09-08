@@ -2,18 +2,13 @@
 
 import { getBasePath } from "@/app/utils/image-src";
 import { fetchShellJson, getShellMetaUrl, getShellReportUrl, resolveShellSlug } from "@/app/utils/shell-data";
-import { ApiConnectionError } from "@/components/ApiConnectionError";
-import { Footer } from "@/components/Footer";
-import { Header } from "@/components/Header";
-import { Analysis } from "@/components/report/Analysis";
-import { BackButton } from "@/components/report/BackButton";
-import { ClientContainer } from "@/components/report/ClientContainer";
-import { Overview } from "@/components/report/Overview";
-import { ReadingGuide } from "@/components/report/ReadingGuide";
+import { ReportView } from "@/components/report/ReportView";
+import { ShellDataError } from "@/components/report/ShellDataError";
 import { ShellReporter } from "@/components/reporter/ShellReporter";
 import type { Meta, Result } from "@/type";
-import { Box, Separator, Spinner, Text } from "@chakra-ui/react";
+import { Box, Spinner, Text } from "@chakra-ui/react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type ShellState =
@@ -31,16 +26,19 @@ type ShellState =
  * コピーして配布するため）。
  */
 export function ReportShell() {
+  const pathname = usePathname();
   const [state, setState] = useState<ShellState>({ status: "loading" });
 
   useEffect(() => {
     let active = true;
-    const slug = resolveShellSlug(window.location.pathname, getBasePath());
+    const slug = resolveShellSlug(pathname, getBasePath());
 
     if (!slug) {
       setState({ status: "notFound" });
       return;
     }
+
+    setState({ status: "loading" });
 
     const metaUrl = getShellMetaUrl();
     const reportUrl = getShellReportUrl(slug);
@@ -54,7 +52,17 @@ export function ReportShell() {
 
         if (!active) return;
 
-        if (!meta || !result) {
+        // メタデータの欠落は配布物の組み立て漏れ。レポートの欠落と混同しない。
+        if (!meta) {
+          setState({
+            status: "error",
+            url: metaUrl,
+            message: "同梱データが見つかりませんでした (404)",
+          });
+          return;
+        }
+
+        if (!result) {
           setState({ status: "notFound" });
           return;
         }
@@ -73,7 +81,7 @@ export function ReportShell() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [pathname]);
 
   if (state.status === "loading") {
     return (
@@ -84,7 +92,7 @@ export function ReportShell() {
   }
 
   if (state.status === "error") {
-    return <ApiConnectionError apiUrl={state.url} errorMessage={state.message} isServerSide={false} />;
+    return <ShellDataError url={state.url} message={state.message} />;
   }
 
   if (state.status === "notFound") {
@@ -96,23 +104,7 @@ export function ReportShell() {
     );
   }
 
-  const { meta, result } = state;
-
   return (
-    <>
-      <Header />
-      <Box className="container" mt="8">
-        <Overview result={result} />
-        <ReadingGuide />
-        <ClientContainer result={result} />
-        <Analysis result={result} />
-        <BackButton />
-        <Separator my={12} maxW={"750px"} mx={"auto"} />
-        <Box maxW={"750px"} mx={"auto"} mb={24}>
-          <ShellReporter meta={meta} />
-        </Box>
-      </Box>
-      <Footer meta={meta} />
-    </>
+    <ReportView result={state.result} meta={state.meta} reporter={<ShellReporter meta={state.meta} />} />
   );
 }

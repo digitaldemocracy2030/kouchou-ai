@@ -1,13 +1,11 @@
 "use client";
 
 import { fetchShellJson, getShellMetaUrl, getShellReportListUrl } from "@/app/utils/shell-data";
-import { ApiConnectionError } from "@/components/ApiConnectionError";
-import { Footer } from "@/components/Footer";
-import { Header } from "@/components/Header";
-import { ReportListContent } from "@/components/report/ReportListContent";
+import { ReportListView } from "@/components/report/ReportListView";
+import { ShellDataError } from "@/components/report/ShellDataError";
 import { ShellReporter } from "@/components/reporter/ShellReporter";
 import type { Meta, Report } from "@/type";
-import { Box, Heading, Spinner } from "@chakra-ui/react";
+import { Box, Spinner } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 
 type ShellListState =
@@ -37,8 +35,12 @@ export function ReportListShell() {
 
         if (!active) return;
 
-        if (!meta || !reports) {
-          throw new Error("同梱データ (data/metadata.json, data/reports.json) が見つかりませんでした");
+        if (!meta) {
+          throw new Error(`同梱データが見つかりませんでした (404): ${metaUrl}`);
+        }
+
+        if (!reports) {
+          throw new Error(`同梱データが見つかりませんでした (404): ${listUrl}`);
         }
 
         setState({ status: "ready", meta, reports });
@@ -66,26 +68,10 @@ export function ReportListShell() {
   }
 
   if (state.status === "error") {
-    return <ApiConnectionError apiUrl={state.url} errorMessage={state.message} isServerSide={false} />;
+    return <ShellDataError url={state.url} message={state.message} />;
   }
 
-  const { meta, reports } = state;
-
   return (
-    <>
-      <Header />
-      <Box className="container">
-        <Box mx={"auto"} maxW={"1024px"} mb={10} mt="8">
-          <Box mb="12">
-            <ShellReporter meta={meta} />
-          </Box>
-          <Heading textAlign={"left"} fontSize={"xl"} mb={8}>
-            レポート一覧
-          </Heading>
-          <ReportListContent reports={reports} meta={meta} />
-        </Box>
-      </Box>
-      <Footer meta={meta} />
-    </>
+    <ReportListView reports={state.reports} meta={state.meta} reporter={<ShellReporter meta={state.meta} />} />
   );
 }

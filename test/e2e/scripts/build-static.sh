@@ -108,7 +108,12 @@ elif [ "$BUILD_TYPE" = "shell" ]; then
 
   # shell ビルドはビルド時に API を読まない。
   # ここで API 系の環境変数を渡さないこと自体が「データ非依存」の検査になる。
-  echo ">>> shell ホスティング用のビルドを実行中（API を参照しない）..."
+  # API に到達できる状態でビルドする。到達できてもレポートを焼き込まないことが
+  # shell ビルドの主張なので、環境を絞って通すのでは検査にならない。
+  echo ">>> shell ホスティング用のビルドを実行中（API 到達可・焼き込まないことを見る）..."
+  NEXT_PUBLIC_API_BASEPATH=http://localhost:8002 \
+  API_BASEPATH=http://localhost:8002 \
+  NEXT_PUBLIC_PUBLIC_API_KEY=public \
   STATIC_EXPORT_DIST_DIR=$DIST_DIR \
   NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="" \
   pnpm run build:shell

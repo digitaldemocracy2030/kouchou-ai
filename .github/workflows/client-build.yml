@@ -120,6 +120,13 @@ jobs:
             echo "shell ビルドがレポート由来のルートを出力しました: example" >&2
             exit 1
           fi
+          # ルートも shell も、fixture のレポートを HTML に焼き込んでいないこと
+          for page in "$out/index.html" "$out/__shell__/index.html"; do
+            if grep -q "人類が人工知能を開発・展開する上で" "$page"; then
+              echo "shell ビルドがレポートの内容を焼き込みました: $page" >&2
+              exit 1
+            fi
+          done
           rm -rf "$out"
         shell: bash
 

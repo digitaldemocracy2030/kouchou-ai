@@ -46,6 +46,12 @@ await writeFile(join(outDir, "data", "metadata.json"), JSON.stringify(metadata))
 await writeFile(join(outDir, "data", "reports.json"), JSON.stringify(readyReports));
 
 for (const report of readyReports) {
+  // shell ルートと同名の slug は API の slug 規則 (^[A-Za-z0-9_-]+$) 上ありうる。
+  // 配布物では shell の置き場と衝突するので、黙って上書きせず止める。
+  if (report.slug === SHELL_SLUG) {
+    throw new Error(`レポートの slug が shell ルートと衝突しています: ${SHELL_SLUG}`);
+  }
+
   // shell HTML を slug ごとに配置する（中身は同一）
   await cp(shellDir, join(outDir, report.slug), { recursive: true });
 
