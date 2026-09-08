@@ -10,7 +10,10 @@ Detailed project knowledge is split into reusable skills under `skills/`.
 - Open the relevant skill file under `skills/` for deeper context.
 - Open `test/e2e/CLAUDE.md` when working on Playwright E2E tests.
 
-Codex usage guidance lives in `docs/development/ai-assistants.md`.
+For the contribution workflow (both Claude Code and Codex), read
+[docs/development/ai-assistants.md](docs/development/ai-assistants.md) after
+[CONTRIBUTING.md](CONTRIBUTING.md). This file remains the short skill index;
+the workflow page owns the reading order and task-specific navigation.
 
 ## Skills index
 - `skills/kouchou-ai-architecture/SKILL.md`: system overview, services/ports, key directories, pipeline, stack.

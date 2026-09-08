@@ -31,6 +31,7 @@ FILE_MAPPINGS = {
 # Pattern: (file, search_pattern, replacement)
 LINK_TRANSFORMS = {
     "development/contributing.md": [
+        (r"\(\./docs/development/ai-assistants\.md\)", "(ai-assistants.md)"),
         (r"\[こちら\]\(\./PROJECTS\.md\)", "[こちら](../misc/projects.md)"),
         (r"\[こちら\]\(\./CODE_REVIEW_GUIDELINES\.md\)", "[こちら](code-review-guidelines.md)"),
         (r"\[lefthook-local\.sample\.yml\]\(\./lefthook-local\.sample\.yml\)", "`lefthook-local.sample.yml`"),
