@@ -2,6 +2,7 @@ import { FileUploadDropzone, FileUploadList, FileUploadRoot } from "@/components
 import { Box, Tabs, VStack } from "@chakra-ui/react";
 import { DownloadIcon } from "lucide-react";
 import Link from "next/link";
+import { useRef, useState } from "react";
 import type { useClusterSettings } from "../hooks/useClusterSettings";
 import { parseCsv } from "../parseCsv";
 import { getBestCommentColumn } from "../utils/columnScorer";
@@ -31,6 +32,8 @@ export function CsvFileTab({
   setSelectedAttributeColumns: (columns: string[]) => void;
   clusterSettings: ReturnType<typeof useClusterSettings>;
 }) {
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const loadVersion = useRef(0);
   return (
     <Tabs.Content value="file">
       <VStack alignItems="stretch" w="full">
@@ -56,21 +59,27 @@ export function CsvFileTab({
           inputProps={{ multiple: false }}
           onFileChange={async (e) => {
             const file = e.acceptedFiles[0];
-            setCsv(file);
-            if (file) {
+            const version = ++loadVersion.current;
+            setCsv(null);
+            setCsvError(null);
+            setCsvColumns([]);
+            setSelectedCommentColumn("");
+            setSelectedAttributeColumns([]);
+            clusterSettings.resetClusterSettings();
+            if (!file) return;
+            try {
               const parsed = await parseCsv(file);
-              if (parsed.length > 0) {
-                // CSVの最初の行をカラム名として使用、IDのカラムは除外
-                const columns = Object.keys(parsed[0]).filter((key) => key !== "id");
-                setCsvColumns(columns);
-
-                // 最適なカラムを自動選択
-                const bestColumn = getBestCommentColumn(parsed as unknown as Record<string, unknown>[]);
-                if (bestColumn) {
-                  setSelectedCommentColumn(bestColumn);
-                }
-                clusterSettings.setRecommended(parsed.length);
-              }
+              if (version !== loadVersion.current) return;
+              const columns = Object.keys(parsed[0]).filter((key) => key !== "id");
+              setCsv(file);
+              setCsvColumns(columns);
+              setSelectedCommentColumn(getBestCommentColumn(parsed as unknown as Record<string, unknown>[]) || "");
+              clusterSettings.setRecommended(parsed.length);
+            } catch (error) {
+              if (version !== loadVersion.current) return;
+              setCsvError(
+                error instanceof Error ? error.message : "CSVを読み取れませんでした。ファイルを選択し直してください。",
+              );
             }
           }}
         >
@@ -80,6 +89,9 @@ export function CsvFileTab({
           <FileUploadList
             clearable={true}
             onRemove={() => {
+              ++loadVersion.current;
+              setCsvError(null);
+              setSelectedAttributeColumns([]);
               setCsv(null);
               setCsvColumns([]);
               setSelectedCommentColumn("");
@@ -87,6 +99,12 @@ export function CsvFileTab({
             }}
           />
         </FileUploadRoot>
+
+        {csvError && (
+          <Box role="alert" color="red.600">
+            {csvError}
+          </Box>
+        )}
 
         <CommentColumnSelector
           columns={csvColumns}

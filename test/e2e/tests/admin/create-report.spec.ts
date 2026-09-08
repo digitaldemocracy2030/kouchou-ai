@@ -1,3 +1,4 @@
+import path from "node:path";
 import { test, expect } from "@playwright/test";
 
 /**
@@ -46,11 +47,37 @@ test.describe("管理画面 - レポート作成フロー", () => {
     await expect(page.getByRole("button", { name: "レポート生成設定" })).toBeVisible();
 
     // 作成開始ボタンの確認
-    await expect(page.getByRole("button", { name: "レポート作成を開始" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "作成前の確認へ" })).toBeVisible();
 
     // 料金に関する注意書きの確認
     await expect(page.getByText("有料のAIプロバイダーの場合は作成する度にAPI利用料がかかります")).toBeVisible();
   });
+
+  for (const width of [1280, 375]) {
+    test(`CSVを確認して戻れる（${width}px）。API確認は明示操作で実行する`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 720 });
+      await page.getByLabel("タイトル（省略可）", { exact: true }).fill("確認テスト");
+      await page.locator('input[type="file"]').setInputFiles(path.resolve(__dirname, "../../fixtures/sample.csv"));
+      await expect(page.getByRole("combobox", { name: "コメントカラム選択" })).toHaveValue("comment");
+      await page.getByRole("button", { name: "作成前の確認へ" }).click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "設定に戻る" })).toBeInViewport();
+      await expect(dialog.getByText("コメント件数：3件（非空：3件）")).toBeVisible();
+      await expect(dialog.getByText("未確認", { exact: true })).toBeVisible();
+      await expect(dialog.getByText("費用：目安なし")).toBeVisible();
+      await test
+        .info()
+        .attach("作成前確認", { body: await page.screenshot({ animations: "disabled" }), contentType: "image/png" });
+      await dialog.getByRole("button", { name: "API接続を確認する" }).click();
+      await expect(dialog.getByText("OK（表示中の設定でチャット接続確認済み）")).toBeVisible();
+      await dialog.getByRole("button", { name: "設定に戻る" }).click();
+      await expect(dialog).not.toBeVisible();
+      await expect(page.getByLabel("タイトル（省略可）", { exact: true })).toHaveValue("確認テスト");
+      await page.getByRole("button", { name: "作成前の確認へ" }).click();
+      await expect(dialog.getByText("未確認", { exact: true })).toBeVisible();
+    });
+  }
 
   test("入力データタブが表示される", async ({ page }) => {
     // タブの確認
@@ -84,7 +111,7 @@ test.describe("管理画面 - レポート作成フロー", () => {
 
   test("必須項目が未入力の場合は作成ボタンをクリックするとエラーが表示される", async ({ page }) => {
     // 何も入力せずに作成ボタンをクリック
-    await page.getByRole("button", { name: "レポート作成を開始" }).click();
+    await page.getByRole("button", { name: "作成前の確認へ" }).click();
 
     // エラーメッセージの確認（toaster による表示）
     // ※Chakra UIのtoasterはalert roleで表示される

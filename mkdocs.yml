@@ -80,6 +80,7 @@ nav:
   - 開発者向け:
       - コントリビューション: development/contributing.md
       - AIエージェントの作業導線: development/ai-assistants.md
+      - LLMタイムアウト設定: development/llm-timeout.md
       - npmではなくpnpmを使う理由: development/why-pnpm.md
       - プラグインガイド: development/plugin-guide.md
       - プラグイン出力データ構造: development/plugin-output-data-structures.md

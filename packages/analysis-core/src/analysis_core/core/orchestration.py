@@ -434,6 +434,13 @@ def update_status(
         else:
             config[key] = value
 
+    if updates.get("status") == "error":
+        # Failed requests may have consumed tokens without returning usage.
+        config["token_usage_complete"] = False
+        config["estimated_cost"] = None
+    elif updates.get("status") == "running":
+        config.pop("token_usage_complete", None)
+
     config["lock_until"] = (datetime.now() + timedelta(minutes=5)).isoformat()
 
     status_file = output_base_dir / output_dir / "hierarchical_status.json"

@@ -5,13 +5,13 @@ import { toaster } from "@/components/ui/toaster";
 import { Box, Button, Field, HStack, Heading, Presence, Tabs, Text, VStack, useDisclosure } from "@chakra-ui/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createReport } from "./api/createReport";
 import { AISettingsSection } from "./components/AISettingsSection";
 import { BasicInfoSection } from "./components/BasicInfoSection";
 import { ClusterSettingsSection } from "./components/ClusterSettingsSection";
+import { CreateReportConfirmation, type PreparedReport } from "./components/CreateReportConfirmation";
 import { CsvFileTab } from "./components/CsvFileTab";
-import { EnvironmentCheckDialog } from "./components/EnvironmentCheckDialog/EnvironmentCheckDialog";
 import { PluginTab } from "./components/PluginTab";
 import { SpreadsheetTab } from "./components/SpreadsheetTab";
 import { WarningSection } from "./components/WarningSection";
@@ -32,6 +32,8 @@ export default function Page() {
   const router = useRouter();
   const { open, onToggle } = useDisclosure();
   const [loading, setLoading] = useState<boolean>(false);
+  const [prepared, setPrepared] = useState<PreparedReport | null>(null);
+  const submitting = useRef(false);
 
   // カスタムフックの使用
   const basicInfo = useBasicInfo();
@@ -123,18 +125,6 @@ export default function Page() {
 
           return comment;
         });
-
-        if (comments.length < clusterSettings.clusterLv2) {
-          const confirmProceed = window.confirm(
-            `csvファイルの行数 (${comments.length}) が設定された意見グループ数 (${clusterSettings.clusterLv2}) を下回っています。このまま続けますか？
-    \n※コメントから抽出される意見が設定された意見グループ数に満たない場合、処理中にエラーになる可能性があります（一つのコメントから複数の意見が抽出されることもあるため、問題ない場合もあります）。
-    \n意見グループ数を変更する場合は、「AI詳細設定」を開いてください。`,
-          );
-          if (!confirmProceed) {
-            setLoading(false);
-            return;
-          }
-        }
       } else if (inputData.inputType === "spreadsheet" && inputData.spreadsheetImported) {
         comments = inputData.spreadsheetData.map((row, index) => {
           const rowData = row as unknown as Record<string, unknown>;
@@ -195,18 +185,6 @@ export default function Page() {
 
           return comment;
         });
-
-        if (comments.length < clusterSettings.clusterLv2) {
-          const confirmProceed = window.confirm(
-            `インポートされたコメント数 (${comments.length}) が設定された意見グループ数 (${clusterSettings.clusterLv2}) を下回っています。このまま続けますか？
-    \n※コメントから抽出される意見が設定された意見グループ数に満たない場合、処理中にエラーになる可能性があります（一つのコメントから複数の意見が抽出されることもあるため、問題ない場合もあります）。
-    \n意見グループ数を変更する場合は、「AI詳細設定」を開いてください。`,
-          );
-          if (!confirmProceed) {
-            setLoading(false);
-            return;
-          }
-        }
       }
     } catch (e) {
       toaster.create({
@@ -227,8 +205,8 @@ export default function Page() {
     // 調査概要が空の場合は空文字列を使用
     const intro = basicInfo.intro.trim();
 
-    try {
-      const result = await createReport({
+    setPrepared({
+      request: {
         input: basicInfo.input,
         question,
         intro,
@@ -244,7 +222,21 @@ export default function Page() {
         enable_source_link: aiSettings.enableSourceLink,
         local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
         userApiKey: aiSettings.userApiKey.trim() || undefined,
-      });
+      },
+      commentColumn: isPluginInput ? pluginData.pluginSelectedCommentColumn : inputData.selectedCommentColumn,
+      attributeColumns: [
+        ...(isPluginInput ? pluginData.pluginSelectedAttributeColumns : inputData.selectedAttributeColumns),
+      ],
+    });
+    setLoading(false);
+  };
+
+  const confirmCreate = async () => {
+    if (!prepared || submitting.current) return;
+    submitting.current = true;
+    setLoading(true);
+    try {
+      const result = await createReport(prepared.request);
 
       if (result.success) {
         toaster.create({
@@ -253,6 +245,9 @@ export default function Page() {
           title: "レポート作成を開始しました",
         });
 
+        setPrepared(null);
+        submitting.current = false;
+        setLoading(false);
         router.replace("/");
         return;
       }
@@ -270,6 +265,7 @@ export default function Page() {
       });
     }
 
+    submitting.current = false;
     setLoading(false);
   };
 
@@ -277,6 +273,14 @@ export default function Page() {
   return (
     <div className={"container"}>
       <Header />
+      {prepared && (
+        <CreateReportConfirmation
+          prepared={prepared}
+          loading={loading}
+          onCancel={() => setPrepared(null)}
+          onConfirm={confirmCreate}
+        />
+      )}
       <Box mx={"auto"} maxW={"800px"} px="6" py="12">
         <Heading textAlign={"center"} my={10}>
           新しいレポートを作成する
@@ -320,7 +324,10 @@ export default function Page() {
                 {/* CSVファイルタブ */}
                 <CsvFileTab
                   csv={inputData.csv}
-                  setCsv={inputData.setCsv}
+                  setCsv={(file) => {
+                    basicInfo.fillEmptyFromCsv(file);
+                    inputData.setCsv(file);
+                  }}
                   csvColumns={inputData.csvColumns}
                   setCsvColumns={inputData.setCsvColumns}
                   selectedCommentColumn={inputData.selectedCommentColumn}
@@ -436,17 +443,13 @@ export default function Page() {
           <WarningSection />
 
           <VStack mt="11" gap="6">
-            <EnvironmentCheckDialog
-              provider={aiSettings.provider}
-              userApiKey={aiSettings.userApiKey.trim() || undefined}
-            />
             {/* 送信ボタン */}
             <HStack gap="4">
               <Button variant="outline" size={"2xl"} w={"140px"} asChild>
                 <Link href="/">キャンセル</Link>
               </Button>
               <Button className={"gradientBg shadow"} size={"2xl"} w={"300px"} onClick={onSubmit} loading={loading}>
-                レポート作成を開始
+                作成前の確認へ
               </Button>
             </HStack>
             <Text textStyle="body/sm" color="font.secondary">

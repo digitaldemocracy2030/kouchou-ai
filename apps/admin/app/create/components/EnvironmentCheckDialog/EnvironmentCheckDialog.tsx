@@ -23,13 +23,18 @@ import { verifyApiKey } from "./verifyApiKey";
 type EnvironmentCheckDialogProps = {
   provider: Provider;
   userApiKey?: string;
+  model?: string;
+  localLLMAddress?: string;
 };
 
-function Dialog({ provider, userApiKey }: EnvironmentCheckDialogProps) {
-  const [state, action, isPending] = useActionState(verifyApiKey.bind(null, provider, userApiKey), {
-    result: null,
-    error: false,
-  });
+function Dialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentCheckDialogProps) {
+  const [state, action, isPending] = useActionState(
+    verifyApiKey.bind(null, provider, userApiKey, model, localLLMAddress),
+    {
+      result: null,
+      error: false,
+    },
+  );
 
   return (
     <>
@@ -51,10 +56,14 @@ function Dialog({ provider, userApiKey }: EnvironmentCheckDialogProps) {
             justifyContent="center"
             textAlign="center"
           >
-            <Text textStyle="body/md">APIキー設定とデポジット残高を確認します。</Text>
+            <Text textStyle="body/md">表示中の設定でチャット接続を確認します。</Text>
+            <Text mt="2" fontSize="sm" overflowWrap="anywhere">
+              {provider} / {provider === "azure" ? "サーバー設定済みデプロイ" : model || "検証用モデル"}
+              {provider === "local" && ` / ${localLLMAddress || "接続先未設定"}`}
+            </Text>
             <Image src="/images/check-api-img.svg" alt="" mt="6" />
             <Text textStyle="body/sm" textAlign="left" mt="6">
-              接続チェックにはAPIを使用します。有料のAIプロバイダーの場合は1回あたり約0.005円のAPI利用料がかかります。
+              短いチャットを送信します。API利用料がかかる場合があります。埋め込み・残高・レポート全体の動作は未確認です。
             </Text>
             <Text textStyle="body/sm" color="font.secondary" mt="4">
               ボタン押下をもって上記に同意とみなします。
@@ -85,9 +94,9 @@ function Dialog({ provider, userApiKey }: EnvironmentCheckDialogProps) {
             textAlign="center"
           >
             <Text textStyle="body/md">
-              正しく接続されています。
+              チャット接続を確認しました。
               <br />
-              このままレポートを作成いただけます。
+              埋め込み・残高・レポート全体の動作は未確認です。
             </Text>
           </DialogBody>
           <DialogCloseTrigger />
@@ -128,7 +137,7 @@ function Dialog({ provider, userApiKey }: EnvironmentCheckDialogProps) {
                 "デポジット残高が不足しています。チャージしてください。"}
               {state.result?.error_type === "rate_limit_error" &&
                 "APIのレート制限に達しました。時間をおいて再度お試しください。"}
-              {state.result?.error_type === "unknown_error" &&
+              {(!state.result?.error_type || state.result.error_type === "unknown_error") &&
                 "不明なエラーが発生しました。APIの設定や接続を再確認してください。"}
             </Box>
           </DialogBody>
@@ -146,12 +155,12 @@ function Dialog({ provider, userApiKey }: EnvironmentCheckDialogProps) {
   );
 }
 
-export function EnvironmentCheckDialog({ provider, userApiKey }: EnvironmentCheckDialogProps) {
+export function EnvironmentCheckDialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentCheckDialogProps) {
   const [uuid, setUUID] = useState(() => createUUID());
 
   return (
     <DialogRoot
-      key={uuid}
+      key={`${uuid}:${provider}:${model}:${localLLMAddress}:${userApiKey}`}
       size="sm"
       placement="center"
       onOpenChange={(e) => {
@@ -173,7 +182,13 @@ export function EnvironmentCheckDialog({ provider, userApiKey }: EnvironmentChec
           API接続チェック <SquareArrowOutUpRight />
         </Button>
       </DialogTrigger>
-      <Dialog provider={provider} userApiKey={userApiKey} />
+      <Dialog
+        key={`${provider}:${model}:${localLLMAddress}:${userApiKey}`}
+        provider={provider}
+        userApiKey={userApiKey}
+        model={model}
+        localLLMAddress={localLLMAddress}
+      />
     </DialogRoot>
   );
 }

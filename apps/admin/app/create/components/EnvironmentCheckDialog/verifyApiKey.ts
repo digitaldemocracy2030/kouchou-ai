@@ -12,9 +12,11 @@ type VerificationResult = {
   error_detail?: string;
 };
 
-export const verifyApiKey = async (provider: string, userApiKey?: string) => {
+export const verifyApiKey = async (provider: string, userApiKey?: string, model?: string, localLLMAddress?: string) => {
   try {
-    const encodedProvider = encodeURIComponent(provider);
+    const params = new URLSearchParams({ provider });
+    if (model?.trim()) params.set("model", model.trim());
+    if (provider === "local" && localLLMAddress?.trim()) params.set("local_llm_address", localLLMAddress.trim());
     const headers: Record<string, string> = {
       "x-api-key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
       "Content-Type": "application/json",
@@ -24,15 +26,16 @@ export const verifyApiKey = async (provider: string, userApiKey?: string) => {
       headers["x-user-api-key"] = userApiKey;
     }
 
-    const response = await fetch(`${getApiBaseUrl()}/admin/environment/verify?provider=${encodedProvider}`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/environment/verify?${params}`, {
       method: "GET",
+      cache: "no-store",
       headers,
     });
 
     const result = (await response.json()) as VerificationResult;
     return {
       result,
-      error: !!result.error_type,
+      error: !response.ok || !result.success || !!result.error_type,
     };
   } catch (error) {
     console.error("Error verifying API key:", error);

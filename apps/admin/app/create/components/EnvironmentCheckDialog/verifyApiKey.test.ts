@@ -27,6 +27,7 @@ describe("verifyApiKey", () => {
     };
 
     (fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: jest.fn().mockResolvedValueOnce(mockResponse),
     });
 
@@ -34,6 +35,7 @@ describe("verifyApiKey", () => {
 
     expect(fetch).toHaveBeenCalledWith("http://localhost:8000/admin/environment/verify?provider=openai", {
       method: "GET",
+      cache: "no-store",
       headers: {
         "x-api-key": "test-api-key",
         "Content-Type": "application/json",
@@ -70,6 +72,7 @@ describe("verifyApiKey", () => {
     };
 
     (fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: jest.fn().mockResolvedValueOnce(mockResponse),
     });
 
@@ -88,6 +91,7 @@ describe("verifyApiKey", () => {
     };
 
     (fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: jest.fn().mockResolvedValueOnce(mockResponse),
     });
 
@@ -95,6 +99,7 @@ describe("verifyApiKey", () => {
 
     expect(fetch).toHaveBeenCalledWith("http://localhost:8000/admin/environment/verify?provider=openai", {
       method: "GET",
+      cache: "no-store",
       headers: {
         "x-api-key": "test-api-key",
         "x-user-api-key": "user-test-key",
@@ -102,4 +107,24 @@ describe("verifyApiKey", () => {
       },
     });
   });
+});
+
+it("選択モデルとlocal接続先をエンコードして送り、キーをURLに入れない", async () => {
+  (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) });
+  await verifyApiKey("local", "private-key", "model/a & b", "http://localhost:1234/v1");
+  const [url, options] = (fetch as jest.Mock).mock.calls.at(-1);
+  const parsed = new URL(url);
+  expect(parsed.searchParams.get("model")).toBe("model/a & b");
+  expect(parsed.searchParams.get("local_llm_address")).toBe("http://localhost:1234/v1");
+  expect(url).not.toContain("private-key");
+  expect(options.cache).toBe("no-store");
+});
+
+it.each([
+  [false, { success: true }],
+  [true, { success: false }],
+  [true, { detail: "invalid request" }],
+])("HTTPエラーやsuccessがない応答を成功扱いしない", async (ok, body) => {
+  (fetch as jest.Mock).mockResolvedValueOnce({ ok, json: async () => body });
+  expect((await verifyApiKey("azure")).error).toBe(true);
 });

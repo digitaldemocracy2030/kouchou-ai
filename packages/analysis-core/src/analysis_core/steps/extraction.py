@@ -11,9 +11,10 @@ from analysis_core.core import update_progress
 from analysis_core.core.utils import read_input_csv
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.parse_json_list import parse_extraction_response
+from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
 
 COMMA_AND_SPACE_AND_RIGHT_BRACKET = re.compile(r",\s*(\])")
-EXTRACTION_WAIT_TIMEOUT_SECONDS = 300
+EXTRACTION_WAIT_TIMEOUT_SECONDS = DEFAULT_REQUEST_TIMEOUT_SECONDS
 
 
 class ExtractionResponse(BaseModel):
@@ -72,7 +73,7 @@ def extraction(config):
     workers = config["extraction"]["workers"]
     limit = config["extraction"]["limit"]
     property_columns = config["extraction"]["properties"]
-    timeout_seconds = config["extraction"].get("timeout_seconds", EXTRACTION_WAIT_TIMEOUT_SECONDS)
+    timeout_seconds = resolve_timeout(config["extraction"].get("timeout_seconds"))
     user_api_key = config.get("user_api_key") or os.getenv("USER_API_KEY")
 
     if "provider" not in config:

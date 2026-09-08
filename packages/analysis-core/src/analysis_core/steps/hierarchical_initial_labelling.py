@@ -1,6 +1,4 @@
-import json
 import os
-from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import TypedDict
 
@@ -8,6 +6,7 @@ import polars as pl
 from pydantic import BaseModel, Field
 
 from analysis_core.services.llm import request_to_chat_ai
+from analysis_core.steps._labelling import parse_label, record_usage, run_labelling_batch
 
 
 class LabellingResult(TypedDict):
@@ -111,8 +110,7 @@ def initial_labelling(
         local_llm_address=local_llm_address,
         config=config,  # configを渡す
     )
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        results = list(executor.map(process_func, cluster_ids))
+    results = run_labelling_batch(process_func, cluster_ids, workers, "hierarchical_initial_labelling")
     return pl.DataFrame(results)
 
 
@@ -158,33 +156,21 @@ def process_initial_labelling(
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
     ]
-    try:
-        user_api_key = config.get("user_api_key") if config is not None else None
-        response_text, token_input, token_output, token_total = request_to_chat_ai(
-            messages=messages,
-            model=model,
-            provider=provider,
-            json_schema=LabellingFromat,
-            local_llm_address=local_llm_address,
-            user_api_key=user_api_key or os.getenv("USER_API_KEY"),
-        )
+    user_api_key = config.get("user_api_key") if config is not None else None
+    response_text, token_input, token_output, token_total = request_to_chat_ai(
+        messages=messages,
+        model=model,
+        provider=provider,
+        json_schema=LabellingFromat,
+        local_llm_address=local_llm_address,
+        user_api_key=user_api_key or os.getenv("USER_API_KEY"),
+    )
 
-        # トークン使用量を累積（configが渡されている場合）
-        if config is not None:
-            config["total_token_usage"] = config.get("total_token_usage", 0) + token_total
-            config["token_usage_input"] = config.get("token_usage_input", 0) + token_input
-            config["token_usage_output"] = config.get("token_usage_output", 0) + token_output
+    record_usage(config, token_input, token_output, token_total)
 
-        response_json = json.loads(response_text) if isinstance(response_text, str) else response_text
-        return LabellingResult(
-            cluster_id=cluster_id,
-            label=response_json.get("label", "エラーでラベル名が取得できませんでした"),
-            description=response_json.get("description", "エラーで解説が取得できませんでした"),
-        )
-    except Exception as e:
-        print(e)
-        return LabellingResult(
-            cluster_id=cluster_id,
-            label="エラーでラベル名が取得できませんでした",
-            description="エラーで解説が取得できませんでした",
-        )
+    response_json = parse_label(response_text)
+    return LabellingResult(
+        cluster_id=cluster_id,
+        label=response_json["label"],
+        description=response_json["description"],
+    )
