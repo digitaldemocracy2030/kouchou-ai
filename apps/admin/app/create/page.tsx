@@ -320,7 +320,10 @@ export default function Page() {
                 {/* CSVファイルタブ */}
                 <CsvFileTab
                   csv={inputData.csv}
-                  setCsv={inputData.setCsv}
+                  setCsv={(file) => {
+                    basicInfo.fillEmptyFromCsv(file);
+                    inputData.setCsv(file);
+                  }}
                   csvColumns={inputData.csvColumns}
                   setCsvColumns={inputData.setCsvColumns}
                   selectedCommentColumn={inputData.selectedCommentColumn}

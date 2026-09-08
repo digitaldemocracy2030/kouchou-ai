@@ -38,6 +38,13 @@ export function useBasicInfo() {
     setIntro(e.target.value);
   };
 
+  const fillEmptyFromCsv = (file: File | null) => {
+    if (!file) return;
+    const name = file.name.replace(/\.csv$/i, "");
+    setQuestion((current) => (current.trim() ? current : name));
+    setIntro((current) => (current.trim() ? current : name));
+  };
+
   /**
    * 基本情報をリセット
    */
@@ -59,5 +66,6 @@ export function useBasicInfo() {
     handleQuestionChange,
     handleIntroChange,
     resetBasicInfo,
+    fillEmptyFromCsv,
   };
 }
