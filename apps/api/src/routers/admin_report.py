@@ -495,11 +495,20 @@ async def get_models(
 async def verify_api_key(
     request: Request,
     provider: str = Query("openai"),
+    model: str | None = Query(None, max_length=256),
+    local_llm_address: str | None = Query(None, max_length=2048),
     api_key: str = Depends(verify_admin_api_key),
 ) -> dict:
     """Verify the API key for the specified provider by making a simple chat request."""
 
     from analysis_core.services.llm import request_to_chat_ai
+
+    if provider not in {"openai", "azure", "openrouter", "gemini", "local"}:
+        raise HTTPException(status_code=400, detail="Unsupported provider")
+    model = model.strip() if model else None
+    local_llm_address = local_llm_address.strip() if local_llm_address else None
+    if provider == "local" and (not model or not local_llm_address):
+        raise HTTPException(status_code=400, detail="Local provider requires model and local_llm_address")
 
     try:
         test_messages = [
@@ -513,19 +522,26 @@ async def verify_api_key(
             "openrouter": "openai/gpt-4o-mini-2024-07-18",
             "gemini": "gemini-2.5-flash",
         }
-        model = model_map.get(provider, "gpt-4o-mini")
+        model = model or model_map.get(provider, "gpt-4o-mini")
         user_api_key = request.headers.get("x-user-api-key")
 
-        _ = request_to_chat_ai(
+        response = request_to_chat_ai(
             messages=test_messages,
             model=model,
             provider=provider,
             user_api_key=user_api_key or None,
+            local_llm_address=local_llm_address if provider == "local" else None,
+            timeout_seconds=30,
         )
+
+        if not isinstance(response[0], str) or not response[0].strip():
+            return _api_key_verification_error_response(
+                "チャットの応答が空でした。モデル設定を確認してください。", "unknown_error"
+            )
 
         return {
             "success": True,
-            "message": "APIキーは有効です",
+            "message": "チャット接続を確認しました。埋め込み・残高・レポート全体の動作は未確認です。",
             "error_detail": None,
             "error_type": None,
         }

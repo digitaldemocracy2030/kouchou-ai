@@ -55,7 +55,7 @@ describe("EnvironmentCheckDialog", () => {
 
     userEvent.click(screen.getByRole("button", { name: /API接続チェック/i }));
 
-    expect(await screen.findByText("APIキー設定とデポジット残高を確認します。")).toBeInTheDocument();
+    expect(await screen.findByText("表示中の設定でチャット接続を確認します。")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "チェックする" })).toBeInTheDocument();
   });
 
@@ -126,8 +126,8 @@ describe("EnvironmentCheckDialog", () => {
     const checkButton = await screen.findByRole("button", { name: "チェックする" });
     userEvent.click(checkButton);
 
-    expect(await screen.findByText(/正しく接続されています/)).toBeInTheDocument();
-    expect(await screen.findByText(/このままレポートを作成いただけます/)).toBeInTheDocument();
+    expect(await screen.findByText(/チャット接続を確認しました/)).toBeInTheDocument();
+    expect(await screen.findByText(/埋め込み・残高・レポート全体の動作は未確認です/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "閉じる" })).toBeInTheDocument();
   });
 
@@ -263,4 +263,24 @@ describe("EnvironmentCheckDialog", () => {
     // Promiseを解決してテストを終了
     resolvePromise({ result: null, error: false });
   });
+});
+
+it("localの選択モデル・接続先を渡す", async () => {
+  mockVerifyApiKey.mockResolvedValue({ result: { success: true, message: "ok" }, error: false });
+  render(
+    <TestWrapper>
+      <EnvironmentCheckDialog provider="local" model="selected-local" localLLMAddress="localhost:1234" />
+    </TestWrapper>,
+  );
+  await userEvent.click(screen.getByRole("button", { name: /API接続チェック/ }));
+  expect(await screen.findByText("local / selected-local / localhost:1234")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "チェックする" }));
+  await waitFor(() =>
+    expect(mockVerifyApiKey.mock.calls.at(-1)?.slice(0, 4)).toEqual([
+      "local",
+      undefined,
+      "selected-local",
+      "localhost:1234",
+    ]),
+  );
 });

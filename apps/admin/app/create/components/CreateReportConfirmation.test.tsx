@@ -66,7 +66,7 @@ it.each([
   mount();
   await userEvent.click(await screen.findByRole("button", { name: "API接続を確認する" }));
   expect(await screen.findByText(new RegExp(`^${text}`))).toBeVisible();
-  expect(verify).toHaveBeenCalledWith("openai", "test-key");
+  expect(verify).toHaveBeenCalledWith("openai", "test-key", prepared.request.model, undefined);
 });
 
 it("接続確認の成功と明示した作成操作を扱う", async () => {
@@ -102,13 +102,24 @@ it("確認中は作成できず、キャンセル後の再表示では結果を�
   expect(await screen.findByText("未確認")).toBeVisible();
 });
 
-it("Azureではサーバー設定、localでは未対応を表示し、空入力は開始させない", async () => {
+it("Azureではサーバー設定、localでは接続確認を表示し、空入力は開始させない", async () => {
   const view = mount({ ...prepared, request: { ...prepared.request, provider: "azure", model: "old-model" } });
   expect(await screen.findByText("AI：azure / サーバー設定を使用")).toBeVisible();
   expect(screen.queryByText(/old-model/)).not.toBeInTheDocument();
   view.unmount();
   mount({ ...prepared, request: { ...prepared.request, provider: "local", comments: [] } });
-  expect(await screen.findByText(/ローカル接続先・モデル/)).toBeVisible();
-  expect(screen.queryByRole("button", { name: "API接続を確認する" })).not.toBeInTheDocument();
+  expect(await screen.findByText(/接続先：/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "API接続を確認する" })).toBeVisible();
   expect(screen.getByRole("button", { name: "未確認のまま作成を開始" })).toBeDisabled();
+});
+
+it.each(["local", "openrouter", "azure"] as const)("%sの選択設定を接続確認へ渡す", async (provider) => {
+  verify.mockResolvedValue({ result: { success: true, message: "ok" }, error: false });
+  mount({
+    ...prepared,
+    request: { ...prepared.request, provider, model: "selected-model", local_llm_address: "localhost:1234" },
+  });
+  await userEvent.click(await screen.findByRole("button", { name: "API接続を確認する" }));
+  expect(verify).toHaveBeenCalledWith(provider, "test-key", "selected-model", "localhost:1234");
+  expect(await screen.findByText(/^OK/)).toBeVisible();
 });

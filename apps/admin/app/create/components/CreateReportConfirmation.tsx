@@ -23,7 +23,7 @@ type CheckStatus =
 const checkMessages: Record<CheckStatus, string> = {
   unchecked: "未確認",
   checking: "確認中…",
-  ok: "OK（検証用モデルで接続確認済み）",
+  ok: "OK（表示中の設定でチャット接続確認済み）",
   authentication_error: "認証エラー：APIキーの設定・有効期限を確認してください。",
   insufficient_quota: "残高不足 / quota不足：プロバイダーの課金設定・利用上限を確認してください。",
   rate_limit_error: "rate limit：時間をおいて再度お試しください。",
@@ -53,7 +53,12 @@ export function CreateReportConfirmation({
   const verify = async () => {
     setCheck("checking");
     try {
-      const response = await verifyApiKey(request.provider, request.userApiKey);
+      const response = await verifyApiKey(
+        request.provider,
+        request.userApiKey,
+        request.model,
+        request.local_llm_address,
+      );
       if (response.result?.success && !response.error) setCheck("ok");
       else setCheck(response.result?.error_type || "unknown_error");
     } catch {
@@ -114,20 +119,18 @@ export function CreateReportConfirmation({
               <Text as="output" display="block" aria-live="polite" mt="2">
                 {checkMessages[check]}
               </Text>
-              {request.provider === "local" ? (
+              <Text mt="2" fontSize="sm">
+                {request.provider === "azure" ? "Azureのサーバー設定済みデプロイ" : "選択したモデル"}
+                へ短いチャットを送信します。API利用料がかかる場合があります。埋め込み・残高・レポート全体の動作は未確認です。
+              </Text>
+              {request.provider === "local" && (
                 <Text mt="2" fontSize="sm">
-                  この画面では選択したローカル接続先・モデルの接続確認に未対応です。
+                  接続先：{request.local_llm_address}
                 </Text>
-              ) : (
-                <>
-                  <Text mt="2" fontSize="sm">
-                    接続チェックにはAPI利用料がかかる場合があります。検証用モデルでの確認であり、選択モデルの実行や必要な残高を保証するものではありません。
-                  </Text>
-                  <Button mt="3" variant="outline" onClick={verify} disabled={busy}>
-                    API接続を確認する
-                  </Button>
-                </>
               )}
+              <Button mt="3" variant="outline" onClick={verify} disabled={busy}>
+                API接続を確認する
+              </Button>
             </Box>
             <HStack gap="6" flexWrap="wrap">
               <Text>費用：目安なし</Text>
