@@ -41,7 +41,7 @@ export function Chart({
     showConvexHull,
     treemapLevel,
     onTreeZoom,
-    onHover: isFullscreen ? () => setTimeout(avoidHoverTextCoveringShrinkButton, 500) : undefined,
+    onHover: undefined,
   };
 
   // Get the plugin that handles the selected chart mode
@@ -56,23 +56,25 @@ export function Chart({
             <Dialog.Content>
               <Box
                 w="100%"
-                h="100vh"
+                h="100dvh"
                 display="flex"
                 flexDirection="column"
                 justifyContent="center"
                 alignItems="center"
                 bg="#fff"
               >
-                <HStack id={"fullScreenButtons"} position={"fixed"} top={5} right={5} zIndex={1}>
+                <HStack id="fullScreenButtons" w="100%" justifyContent="flex-end" p={2} flexShrink={0}>
                   <Tooltip content={"全画面終了"} openDelay={0} closeDelay={0}>
-                    <Button onClick={onExitFullscreen} h={"50px"} borderWidth={2}>
+                    <Button aria-label="全画面終了" onClick={onExitFullscreen} h="44px" borderWidth={2}>
                       <Icon>
                         <Minimize2 />
                       </Icon>
                     </Button>
                   </Tooltip>
                 </HStack>
-                {plugin?.render(renderContext)}
+                <Box w="100%" flex="1" minH={0} overflow={selectedChart === "hierarchyList" ? "auto" : "hidden"}>
+                  {plugin?.render(renderContext)}
+                </Box>
               </Box>
             </Dialog.Content>
           </Dialog.Positioner>
@@ -83,51 +85,9 @@ export function Chart({
 
   return (
     <Box mx={"auto"} w={"100%"} maxW={"1200px"} mb={10} border={"1px solid #ccc"}>
-      <Box h={"500px"} mb={0}>
+      <Box h={selectedChart === "hierarchyList" ? "auto" : "500px"} mb={0}>
         {plugin?.render({ ...renderContext, onHover: undefined })}
       </Box>
     </Box>
   );
-}
-
-/**
- * If hover text is covered by 全画面終了 button, move hover text downwards until whole text is visible.
- */
-function avoidHoverTextCoveringShrinkButton(): void {
-  const hoverlayer = document.querySelector(".hoverlayer");
-  const shrinkButton = document.getElementById("fullScreenButtons");
-  if (!hoverlayer || !shrinkButton) return;
-  const hoverPos = hoverlayer.getBoundingClientRect();
-  const btnPos = shrinkButton.getBoundingClientRect();
-  const isCovered = !(
-    btnPos.top > hoverPos.bottom ||
-    btnPos.bottom < hoverPos.top ||
-    btnPos.left > hoverPos.right ||
-    btnPos.right < hoverPos.left
-  );
-  if (!isCovered) return;
-
-  const diff = btnPos.bottom - hoverPos.top;
-
-  // move hoverlayer downwards
-  const hovertext = hoverlayer.querySelector(".hovertext");
-  if (!hovertext) return;
-  const originalTransform = hovertext.getAttribute("transform"); // example：translate(1643,66)
-  if (!originalTransform) return;
-  const newTransform = `${originalTransform.split(",")[0]},${(Number(originalTransform.split(",")[1].slice(0, -1)) + diff).toString()})`;
-  hovertext.setAttribute("transform", newTransform);
-
-  // hoverpath SVGs follow either of the following patterns:
-  // - bubble:    M0,-65 L-6,40 v89 h-201 v-190 H-6 V28 Z
-  // - rectangle: M-160,-17 h328 v35 h-328 Z
-  // In case of bubble pattern, the first point must go back to its original position.
-  const hoverpath = hovertext.querySelector("path");
-  if (!hoverpath) return;
-  const originalPath = hoverpath.getAttribute("d");
-  if (!originalPath) return;
-  const bubblePointers = originalPath.match(/[Ll]/g);
-  if (!bubblePointers) return; // rectangle pattern
-  const bubblePointer = bubblePointers[0];
-  const newPath = `${originalPath.split(",")[0]},${(Number(originalPath.split(",")[1].split(bubblePointer)[0]) - diff).toString()}${bubblePointer}${originalPath.split(bubblePointer)[1]}`;
-  hoverpath.setAttribute("d", newPath);
 }

@@ -1,3 +1,4 @@
+import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster, Config } from "@/type";
 import { Box } from "@chakra-ui/react";
 import type { Annotations, Data, Layout, PlotMouseEvent } from "plotly.js";
@@ -337,7 +338,7 @@ export function ScatterChart({
                 : undefined,
             },
             text: matching.map((arg) => {
-              const argumentText = arg.argument.replace(/(.{30})/g, "$1<br />");
+              const argumentText = wrapJapaneseText(arg.argument, 30);
               const urlText = config?.enable_source_link && arg.url ? "<br><b>🔗 クリックしてソースを見る</b>" : "";
               return `<b>${cluster.label}</b><br>${argumentText}${urlText}`;
             }),
@@ -396,7 +397,7 @@ export function ScatterChart({
             color: clusterColorMap[dataSet.cluster.id],
           },
           text: clusterArguments.map(
-            (arg) => `<b>${dataSet.cluster.label}</b><br>${arg.argument.replace(/(.{30})/g, "$1<br />")}`,
+            (arg) => `<b>${dataSet.cluster.label}</b><br>${wrapJapaneseText(arg.argument, 30)}`,
           ),
           type: "scattergl",
           hoverinfo: "text",

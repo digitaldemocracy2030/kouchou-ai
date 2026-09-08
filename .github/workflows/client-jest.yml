@@ -10,6 +10,10 @@ on:
       - 'apps/public-viewer/**/*.jsx'
       - 'apps/public-viewer/package.json'
       - 'apps/public-viewer/jest.config.js'
+      - 'apps/public-viewer/components/dev/*.json'
+      - 'test/e2e/tests/viewer-states/**'
+      - 'test/e2e/playwright.viewer-states.config.ts'
+      - '.github/workflows/client-jest.yml'
   pull_request:
     branches: [ main ]
     paths:
@@ -19,6 +23,10 @@ on:
       - 'apps/public-viewer/**/*.jsx'
       - 'apps/public-viewer/package.json'
       - 'apps/public-viewer/jest.config.js'
+      - 'apps/public-viewer/components/dev/*.json'
+      - 'test/e2e/tests/viewer-states/**'
+      - 'test/e2e/playwright.viewer-states.config.ts'
+      - '.github/workflows/client-jest.yml'
 
 jobs:
   test:
@@ -44,3 +52,11 @@ jobs:
 
     - name: Run tests with Jest
       run: pnpm --filter @kouchou-ai/public-viewer test
+
+    - name: Install Chromium for viewer states
+      working-directory: test/e2e
+      run: pnpm exec playwright install --with-deps chromium
+
+    - name: Verify viewer states without API
+      working-directory: test/e2e
+      run: pnpm exec playwright test -c playwright.viewer-states.config.ts

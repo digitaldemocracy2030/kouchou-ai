@@ -27,6 +27,8 @@ import {
 // Ensure plugins are loaded for validation
 ensurePluginsLoaded();
 
+const DEFAULT_READING_CHARTS = [...DEFAULT_ENABLED_CHARTS, "hierarchyList"];
+
 type Props = {
   result: Result;
 };
@@ -46,7 +48,7 @@ export function ClientContainer({ result }: Props) {
 
   // --- Extract visualization config with defaults ---
   const visualizationConfig = result.visualizationConfig;
-  const enabledCharts = visualizationConfig?.enabledCharts ?? DEFAULT_ENABLED_CHARTS;
+  const enabledCharts = visualizationConfig?.enabledCharts ?? DEFAULT_READING_CHARTS;
   const chartOrder = visualizationConfig?.chartOrder;
   const defaultChart = visualizationConfig?.defaultChart ?? enabledCharts[0] ?? "scatterAll";
   const defaultParams = visualizationConfig?.params;
@@ -54,6 +56,16 @@ export function ClientContainer({ result }: Props) {
   // --- UI State ---
   const [openDensityFilterSetting, setOpenDensityFilterSetting] = useState(false);
   const [selectedChart, setSelectedChart] = useState<string>(defaultChart);
+  useEffect(() => {
+    if (
+      !visualizationConfig?.defaultChart &&
+      enabledCharts.includes("hierarchyList") &&
+      window.matchMedia("(max-width: 600px)").matches
+    ) {
+      setSelectedChart("hierarchyList");
+    }
+    // Initial reading mode only; resizing must not overwrite the user's selection.
+  }, [visualizationConfig?.defaultChart, enabledCharts]);
   const [maxDensity, setMaxDensity] = useState(defaultParams?.scatterDensity?.maxDensity ?? 0.2);
   const [minValue, setMinValue] = useState(defaultParams?.scatterDensity?.minValue ?? 5);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -209,9 +221,7 @@ export function ClientContainer({ result }: Props) {
         treemapLevel={treemapLevel}
         onTreeZoom={setTreemapLevel}
       />
-      {clustersToDisplay.map((c) => (
-        <ClusterOverview key={c.id} cluster={c} />
-      ))}
+      {selectedChart !== "hierarchyList" && clustersToDisplay.map((c) => <ClusterOverview key={c.id} cluster={c} />)}
     </div>
   );
 }

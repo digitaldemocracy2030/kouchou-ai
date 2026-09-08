@@ -162,7 +162,7 @@ export function SelectChartButton({
           </Tooltip>
 
           <Tooltip content={"全画面表示"} openDelay={0} closeDelay={0}>
-            <Button onClick={onClickFullscreen} variant={"outline"} h={"50px"} w={"50px"} p={0}>
+            <Button aria-label="全画面表示" onClick={onClickFullscreen} variant={"outline"} h={"50px"} w={"50px"} p={0}>
               <Icon as={FullscreenIcon} />
             </Button>
           </Tooltip>

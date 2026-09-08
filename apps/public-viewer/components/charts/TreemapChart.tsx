@@ -1,3 +1,4 @@
+import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster } from "@/type";
 import type { PlotData } from "plotly.js";
 import { ChartCore } from "./ChartCore";
@@ -56,7 +57,7 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
   const list = [{ ...clusterList[0], parent: "" }, ...clusterList.slice(1), ...convertedArgumentList];
   const ids = list.map((node) => node.id);
   const labels = list.map((node) => {
-    return node.id === level ? node.label.replace(/(.{50})/g, "$1<br />") : node.label.replace(/(.{15})/g, "$1<br />");
+    return node.id === level ? wrapJapaneseText(node.label, 50) : wrapJapaneseText(node.label, 15);
   });
   const parents = list.map((node) => node.parent);
   const values = list.map((node) => {
@@ -69,7 +70,7 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
     return node.filtered ? 0 : 1; // フィルター対象外なら0、そうでなければ1
   });
   const customdata = list.map((node) => {
-    let takeaway = node.takeaway.replace(/(.{15})/g, "$1<br />");
+    let takeaway = wrapJapaneseText(node.takeaway, 15);
 
     // クラスターノードの場合、フィルター情報を追加
     if (clusterCounts[node.id] !== undefined && isFilteringActive) {
