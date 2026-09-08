@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import openai
 import pytest
 from analysis_core.services.llm import (
+    _openai_flex_timeout_seconds,
     _should_use_openai_flex,
     _validate_model,
     extract_embedding_values,
@@ -328,7 +329,9 @@ class TestLLMService:
         """Flexがresource_unavailable(429)を返したら標準処理(auto)で再送する"""
         messages = [{"role": "user", "content": "Hello, world!"}]
         mock_client = self._make_mock_openai_client(mock_openai_response)
-        rate_limit_error = openai.RateLimitError(message="Resource unavailable", response=MagicMock(), body=MagicMock())
+        rate_limit_error = openai.RateLimitError(
+            message="Resource unavailable", response=MagicMock(), body={"code": "resource_unavailable"}
+        )
         mock_client.chat.completions.create.side_effect = [rate_limit_error, mock_openai_response]
 
         with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
@@ -345,6 +348,81 @@ class TestLLMService:
         assert first_kwargs["timeout"] == 900
         assert second_kwargs["service_tier"] == "auto"
         assert second_kwargs["timeout"] == 300
+
+    def test_request_to_openai_flex_ordinary_rate_limit_retries_on_flex(self, flex_env, mock_openai_response):
+        """Flex利用中でもresource_unavailable以外の429は標準処理へ切り替えず、Flexのままリトライする"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_mock_openai_client(mock_openai_response)
+        rate_limit_error = openai.RateLimitError(
+            message="Rate limit exceeded", response=MagicMock(), body={"code": "rate_limit_exceeded"}
+        )
+        mock_client.chat.completions.create.side_effect = [rate_limit_error, mock_openai_response]
+
+        with (
+            patch("analysis_core.services.llm.OpenAI", return_value=mock_client),
+            patch("analysis_core.services.llm._send_openai_chat_request.retry.sleep"),
+        ):
+            response, *_ = request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=300)
+
+        assert response == "This is a test response"
+        tiers = [c.kwargs["service_tier"] for c in mock_client.chat.completions.create.call_args_list]
+        assert tiers == ["flex", "flex"]
+
+    def test_request_to_openai_flex_fallback_does_not_retry_flex_again(self, flex_env, mock_openai_response):
+        """標準処理へ切り替えた後に429が続いても、Flexを叩き直さず標準処理のみをリトライする"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_mock_openai_client(mock_openai_response)
+        flex_unavailable = openai.RateLimitError(
+            message="Resource unavailable", response=MagicMock(), body={"code": "resource_unavailable"}
+        )
+        rate_limit_error = openai.RateLimitError(
+            message="Rate limit exceeded", response=MagicMock(), body={"code": "rate_limit_exceeded"}
+        )
+        mock_client.chat.completions.create.side_effect = [
+            flex_unavailable,
+            rate_limit_error,
+            rate_limit_error,
+            mock_openai_response,
+        ]
+
+        with (
+            patch("analysis_core.services.llm.OpenAI", return_value=mock_client),
+            patch("analysis_core.services.llm._send_openai_chat_request.retry.sleep"),
+        ):
+            response, *_ = request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=300)
+
+        assert response == "This is a test response"
+        tiers = [c.kwargs["service_tier"] for c in mock_client.chat.completions.create.call_args_list]
+        assert tiers == ["flex", "auto", "auto", "auto"]
+
+    def test_request_to_openai_flex_fallback_reraises_after_standard_retries(self, flex_env, mock_openai_response):
+        """標準処理側で429が3回続いたら、Flexへ戻らずRateLimitErrorを再送出する(最大4リクエスト)"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_mock_openai_client(mock_openai_response)
+        flex_unavailable = openai.RateLimitError(
+            message="Resource unavailable", response=MagicMock(), body={"code": "resource_unavailable"}
+        )
+        rate_limit_error = openai.RateLimitError(
+            message="Rate limit exceeded", response=MagicMock(), body={"code": "rate_limit_exceeded"}
+        )
+        mock_client.chat.completions.create.side_effect = [flex_unavailable] + [rate_limit_error] * 3
+
+        with (
+            patch("analysis_core.services.llm.OpenAI", return_value=mock_client),
+            patch("analysis_core.services.llm._send_openai_chat_request.retry.sleep"),
+            pytest.raises(openai.RateLimitError),
+        ):
+            request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=300)
+
+        assert mock_client.chat.completions.create.call_count == 4
+
+    def test_openai_flex_timeout_invalid_env_mentions_variable(self, flex_env):
+        """OPENAI_FLEX_TIMEOUT_SECONDSが不正な場合は変数名を含むエラーにする"""
+        with (
+            patch.dict(os.environ, {"OPENAI_FLEX_TIMEOUT_SECONDS": "abc"}),
+            pytest.raises(ValueError, match="OPENAI_FLEX_TIMEOUT_SECONDS"),
+        ):
+            _openai_flex_timeout_seconds(300)
 
     def test_request_to_openai_rate_limit_error_retry(self):
         """request_to_openai: レート制限エラーが発生した場合は3回までリトライする"""

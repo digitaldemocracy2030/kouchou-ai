@@ -26,6 +26,7 @@ OPENAI_FLEX_TIMEOUT_SECONDS=900
 ## 挙動
 
 - OpenAIはFlexに15分程度のタイムアウトを推奨しているため、Flex利用時は `OPENAI_FLEX_TIMEOUT_SECONDS` まで待ちます。
-- Flexのリソース不足時、OpenAIは 429（`resource_unavailable`）を返し課金しません。この場合は同じリクエストを `service_tier=auto`（標準処理）で1回再送します。
-  標準処理でも 429 になった場合は従来どおり最大3回リトライします。
+- Flexのリソース不足時、OpenAIは 429（エラーコード `resource_unavailable`）を返し課金しません。この場合のみ同じリクエストを `service_tier=auto`（標準処理）に切り替えて再送します。
+  切り替え後は標準処理のみを最大3回リトライし、Flexを叩き直しません（1回の呼び出しで最大4リクエスト）。
+- `resource_unavailable` 以外の 429（通常のrate limit・quota超過）は標準処理へ切り替えず、従来どおり同じtierで最大3回リトライします。
 - GPT-5/6系および o 系モデルは `temperature` の指定を受け付けないため、これらのモデルでは `temperature` を送信しません（`seed` は送信します）。

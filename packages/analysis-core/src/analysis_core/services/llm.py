@@ -9,7 +9,7 @@ import openai
 from dotenv import load_dotenv
 from openai import AzureOpenAI, OpenAI
 from pydantic import BaseModel
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, positive_timeout
 
@@ -73,8 +73,38 @@ def _should_use_openai_flex(model: str | None) -> bool:
 
 def _openai_flex_timeout_seconds(timeout_seconds: int) -> int:
     """Flex 利用時のタイムアウト。通常のタイムアウトと OPENAI_FLEX_TIMEOUT_SECONDS の大きい方を使う。"""
-    flex_timeout = positive_timeout(os.getenv("OPENAI_FLEX_TIMEOUT_SECONDS", str(DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS)))
+    raw = os.getenv("OPENAI_FLEX_TIMEOUT_SECONDS", str(DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS))
+    try:
+        flex_timeout = positive_timeout(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"OPENAI_FLEX_TIMEOUT_SECONDS must be a positive integer number of seconds (got {raw!r})"
+        ) from exc
     return max(timeout_seconds, flex_timeout)
+
+
+def _is_openai_flex_unavailable(error: openai.RateLimitError) -> bool:
+    """Flex のリソース不足 (429 resource_unavailable) か。通常の rate limit / quota 超過とは区別する。"""
+    return getattr(error, "code", None) == "resource_unavailable"
+
+
+def _is_retryable_rate_limit(error: BaseException) -> bool:
+    """Flex のリソース不足はリトライせず即座に標準処理へ切り替えるため、リトライ対象から外す。"""
+    return isinstance(error, openai.RateLimitError) and not _is_openai_flex_unavailable(error)
+
+
+@retry(
+    retry=retry_if_exception(_is_retryable_rate_limit),
+    wait=wait_exponential(multiplier=3, min=3, max=20),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
+def _send_openai_chat_request(client: OpenAI, payload: dict[str, Any], use_pydantic: bool):
+    """同じ service_tier のまま rate limit をリトライする。tier の切り替えは呼び出し側で行う。"""
+    if use_pydantic:
+        # Use beta.chat.completions.parse for Pydantic BaseModel
+        return client.beta.chat.completions.parse(**payload)
+    return client.chat.completions.create(**payload)
 
 
 def _build_openai_chat_payload(
@@ -100,12 +130,6 @@ def _build_openai_chat_payload(
     return payload
 
 
-@retry(
-    retry=retry_if_exception_type(openai.RateLimitError),
-    wait=wait_exponential(multiplier=3, min=3, max=20),
-    stop=stop_after_attempt(3),
-    reraise=True,
-)
 def request_to_openai(
     messages: list[dict],
     model: str = "gpt-4",
@@ -131,22 +155,17 @@ def request_to_openai(
 
     payload = _build_openai_chat_payload(model, messages, timeout_seconds, response_format)
 
-    def _send(request_payload: dict[str, Any]):
-        if use_pydantic:
-            # Use beta.chat.completions.parse for Pydantic BaseModel
-            return client.beta.chat.completions.parse(**request_payload)
-        return client.chat.completions.create(**request_payload)
-
     try:
         try:
-            response = _send(payload)
+            response = _send_openai_chat_request(client, payload, use_pydantic)
         except openai.RateLimitError as e:
-            if payload.get("service_tier") != "flex":
+            if payload.get("service_tier") != "flex" or not _is_openai_flex_unavailable(e):
                 raise
-            # Flex はリソース不足時に 429 (resource_unavailable) を返す。課金されないので標準処理へ切り替える。
+            # Flex はリソース不足時に 429 (resource_unavailable) を返し、課金されない。
+            # 以降のリトライは標準処理のみで行い、Flex を叩き直さない。
             logging.warning(f"OpenAI Flex processing unavailable, falling back to standard tier: {e}")
             fallback_payload = {**payload, "service_tier": "auto", "timeout": timeout_seconds}
-            response = _send(fallback_payload)
+            response = _send_openai_chat_request(client, fallback_payload, use_pydantic)
 
         if hasattr(response, "usage") and response.usage:
             token_usage_input = response.usage.prompt_tokens or 0
