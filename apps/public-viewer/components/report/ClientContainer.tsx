@@ -159,6 +159,7 @@ export function ClientContainer({ result }: Props) {
 
   // --- クラスタ表示 ---
   const clustersToDisplay = useMemo(() => {
+    if (selectedChart === "hierarchyList") return [];
     let c: Cluster[] = [];
     if (selectedChart === "scatterDensity" || selectedChart === "scatterDetail") {
       const max = Math.max(...filteredResult.clusters.map((c) => c.level));
@@ -221,7 +222,9 @@ export function ClientContainer({ result }: Props) {
         treemapLevel={treemapLevel}
         onTreeZoom={setTreemapLevel}
       />
-      {selectedChart !== "hierarchyList" && clustersToDisplay.map((c) => <ClusterOverview key={c.id} cluster={c} />)}
+      {clustersToDisplay.map((c) => (
+        <ClusterOverview key={c.id} cluster={c} />
+      ))}
     </div>
   );
 }
