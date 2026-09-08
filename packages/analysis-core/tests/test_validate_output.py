@@ -30,6 +30,7 @@ def test_valid_report_is_not_mutated():
     lambda r: r["arguments"][0].update(x=float("nan")),
     lambda r: r["clusters"].append(r["clusters"][1]),
     lambda r: r["clusters"][1].update(parent=[]),
+    lambda r: r["arguments"][0].update(x=10**1000),
 ])
 def test_invalid_references_and_values(mutate):
     data = copy.deepcopy(REPORT)

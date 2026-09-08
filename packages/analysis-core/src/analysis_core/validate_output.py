@@ -6,6 +6,13 @@ import math
 from pathlib import Path
 
 
+def is_finite_number(value):
+    try:
+        return not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(value)
+    except OverflowError:
+        return False
+
+
 def validate_output(data):
     """Check structural invariants needed by both viewers, not analytical quality."""
     errors = []
@@ -29,7 +36,7 @@ def validate_output(data):
             if not isinstance(group.get(field), str):
                 errors.append(f"clusters[{index}]: {field} must be a string")
         value = group.get("value")
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+        if not is_finite_number(value) or value < 0:
             errors.append(f"clusters[{index}]: invalid value")
     root = clusters[0].get("id") if isinstance(clusters[0], dict) else None
     for index, group in enumerate(clusters):
@@ -60,7 +67,7 @@ def validate_output(data):
             errors.append(f"arguments[{index}]: argument must be a string")
         for field in ("x", "y"):
             value = arg.get(field)
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            if not is_finite_number(value):
                 errors.append(f"arguments[{index}]: {field} must be finite")
         path = arg.get("cluster_ids")
         if not isinstance(path, list) or not path or path[0] != root:
