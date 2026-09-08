@@ -5,6 +5,7 @@ import { Analysis } from "@/components/report/Analysis";
 import { BackButton } from "@/components/report/BackButton";
 import { ClientContainer } from "@/components/report/ClientContainer";
 import { Overview } from "@/components/report/Overview";
+import { ReadingGuide } from "@/components/report/ReadingGuide";
 import { Reporter } from "@/components/reporter/Reporter";
 import type { Meta, Report, Result } from "@/type";
 import { ReportVisibility } from "@/type";
@@ -146,6 +147,7 @@ export default async function Page({ params }: PageProps) {
       <Header />
       <Box className="container" mt="8">
         <Overview result={result} />
+        <ReadingGuide />
         <ClientContainer result={result} />
         <Analysis result={result} />
         <BackButton />
