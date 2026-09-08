@@ -42,7 +42,7 @@ test.describe("Client Static (shell) - レポート詳細", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("レポート一覧")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "レポート一覧" })).toBeVisible();
     await expect(page.getByText("テストレポート1")).toBeVisible();
     await expect(page.getByText("テストレポート2：市民の声を集めよう")).toBeVisible();
   });
