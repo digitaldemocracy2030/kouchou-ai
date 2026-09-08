@@ -41,6 +41,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # shell ビルドはレポートに依存しないので API を一切参照しない。
+      # ここで fixture API を立てずに通ることが「データ非依存」の検査になる。
+      - name: Run API-less shell build
+        run: pnpm --filter @kouchou-ai/public-viewer build:shell
+
+      - name: Assert the shell output carries no report data
+        run: |
+          set -eu
+          out="apps/public-viewer/out"
+          test -f "$out/__shell__/index.html"
+          if compgen -G "$out/*/index.html" > /dev/null; then
+            for dir in "$out"/*/; do
+              name="$(basename "$dir")"
+              if [ "$name" != "__shell__" ] && [ "$name" != "_next" ] && [ "$name" != "meta" ]; then
+                echo "shell ビルドがレポート由来のルートを出力しました: $name" >&2
+                exit 1
+              fi
+            done
+          fi
+          rm -rf "$out"
+        shell: bash
+
       - name: Run API-less dynamic build
         run: pnpm --filter @kouchou-ai/public-viewer build
 
