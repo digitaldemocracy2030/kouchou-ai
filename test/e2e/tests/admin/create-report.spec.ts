@@ -70,7 +70,7 @@ test.describe("管理画面 - レポート作成フロー", () => {
         .info()
         .attach("作成前確認", { body: await page.screenshot({ animations: "disabled" }), contentType: "image/png" });
       await dialog.getByRole("button", { name: "API接続を確認する" }).click();
-      await expect(dialog.getByText("OK（検証用モデルで接続確認済み）")).toBeVisible();
+      await expect(dialog.getByText("OK（表示中の設定でチャット接続確認済み）")).toBeVisible();
       await dialog.getByRole("button", { name: "設定に戻る" }).click();
       await expect(dialog).not.toBeVisible();
       await expect(page.getByLabel("タイトル（省略可）", { exact: true })).toHaveValue("確認テスト");

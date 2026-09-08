@@ -437,6 +437,8 @@ export default function Page({ params }: PageProps) {
 
           <VStack mt="8" gap="6">
             <EnvironmentCheckDialog
+              model={aiSettings.model}
+              localLLMAddress={aiSettings.localLLMAddress}
               provider={aiSettings.provider}
               userApiKey={aiSettings.userApiKey.trim() || undefined}
             />

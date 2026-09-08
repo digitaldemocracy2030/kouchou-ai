@@ -140,6 +140,37 @@ class TestVerifyApiKey:
             assert kwargs["provider"] == "openai"
             assert kwargs["model"] == "gpt-4o-mini"
 
+    @pytest.mark.parametrize("provider", ["azure", "openrouter", "local"])
+    def test_verify_selected_provider_settings(self, client, provider):
+        with patch("analysis_core.services.llm.request_to_chat_ai") as call:
+            call.return_value = ("ok", 0, 0, 0)
+            response = client.get(
+                "/admin/environment/verify",
+                params={"provider": provider, "model": "selected/model", "local_llm_address": "localhost:1234"},
+                headers={"x-api-key": "test-api-key"},
+            )
+            assert response.status_code == 200
+            assert response.json()["success"] is True
+            assert call.call_args.kwargs["provider"] == provider
+            assert call.call_args.kwargs["model"] == "selected/model"
+            assert call.call_args.kwargs["local_llm_address"] == ("localhost:1234" if provider == "local" else None)
+            assert call.call_args.kwargs["timeout_seconds"] == 30
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"provider": "unknown"},
+            {"provider": "local"},
+            {"provider": "local", "model": "model"},
+            {"provider": "local", "model": " ", "local_llm_address": "localhost:1234"},
+        ],
+    )
+    def test_verify_rejects_incomplete_target(self, client, params):
+        with patch("analysis_core.services.llm.request_to_chat_ai") as call:
+            response = client.get("/admin/environment/verify", params=params, headers={"x-api-key": "test-api-key"})
+            assert response.status_code == 400
+            call.assert_not_called()
+
     def test_verify_api_key_gemini(self, client):
         with patch("analysis_core.services.llm.request_to_chat_ai") as mock_request:
             mock_request.return_value = ("ok", 0, 0, 0)
@@ -167,6 +198,12 @@ class TestVerifyApiKey:
             mock_request.assert_called_once()
             _, kwargs = mock_request.call_args
             assert kwargs["user_api_key"] == "user-test-key"
+
+    def test_verify_empty_response_is_not_success(self, client):
+        with patch("analysis_core.services.llm.request_to_chat_ai", return_value=("", 0, 0, 0)):
+            response = client.get("/admin/environment/verify?provider=openai", headers={"x-api-key": "test-api-key"})
+            assert response.json()["success"] is False
+            assert response.json()["error_type"] == "unknown_error"
 
     def test_verify_api_key_does_not_expose_exception_detail(self, client):
         with patch("analysis_core.services.llm.request_to_chat_ai") as mock_request:
