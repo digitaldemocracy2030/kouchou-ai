@@ -6,6 +6,7 @@
     "options": {
       "limit": 1000,
       "workers": 1,
+      "timeout_seconds": null,
       "properties": [],
       "categories": {},
       "category_batch_size": 5

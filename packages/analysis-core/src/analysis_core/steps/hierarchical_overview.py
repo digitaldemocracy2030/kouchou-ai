@@ -8,8 +8,9 @@ import polars as pl
 from pydantic import BaseModel, Field
 
 from analysis_core.services.llm import request_to_chat_ai
+from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS
 
-OVERVIEW_TIMEOUT_SECONDS = 300
+OVERVIEW_TIMEOUT_SECONDS = DEFAULT_REQUEST_TIMEOUT_SECONDS
 
 
 class OverviewResponse(BaseModel):
