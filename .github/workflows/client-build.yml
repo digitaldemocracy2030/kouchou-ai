@@ -41,28 +41,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # shell ビルドはレポートに依存しないので API を一切参照しない。
-      # ここで fixture API を立てずに通ることが「データ非依存」の検査になる。
-      - name: Run API-less shell build
-        run: pnpm --filter @kouchou-ai/public-viewer build:shell
-
-      - name: Assert the shell output carries no report data
-        run: |
-          set -eu
-          out="apps/public-viewer/out"
-          test -f "$out/__shell__/index.html"
-          if compgen -G "$out/*/index.html" > /dev/null; then
-            for dir in "$out"/*/; do
-              name="$(basename "$dir")"
-              if [ "$name" != "__shell__" ] && [ "$name" != "_next" ] && [ "$name" != "meta" ]; then
-                echo "shell ビルドがレポート由来のルートを出力しました: $name" >&2
-                exit 1
-              fi
-            done
-          fi
-          rm -rf "$out"
-        shell: bash
-
       - name: Run API-less dynamic build
         run: pnpm --filter @kouchou-ai/public-viewer build
 
@@ -122,6 +100,28 @@ jobs:
 
           echo "static export fixture API did not start" >&2
           exit 1
+
+      # shell ビルドはレポートに依存しない HTML を 1 枚だけ出力する。
+      # 直後の static export と同じ fixture API が見えている状態で、
+      # レポート由来のルート (example) が出ないことを確かめる。
+      - name: Run shell build
+        run: pnpm --filter @kouchou-ai/public-viewer build:shell
+        env:
+          API_BASEPATH: 'http://127.0.0.1:8002'
+          NEXT_PUBLIC_API_BASEPATH: 'http://127.0.0.1:8002'
+          NEXT_PUBLIC_PUBLIC_API_KEY: 'xxxxxxxxxx'
+
+      - name: Assert the shell output is independent of the reports
+        run: |
+          set -eu
+          out="apps/public-viewer/out"
+          test -f "$out/__shell__/index.html"
+          if [ -e "$out/example" ]; then
+            echo "shell ビルドがレポート由来のルートを出力しました: example" >&2
+            exit 1
+          fi
+          rm -rf "$out"
+        shell: bash
 
       - name: Run static export build
         run: pnpm --filter @kouchou-ai/public-viewer build:static
