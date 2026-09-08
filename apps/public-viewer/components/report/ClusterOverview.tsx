@@ -4,15 +4,17 @@ import { MessagesSquareIcon } from "lucide-react";
 
 type Props = {
   cluster: Cluster;
+  onNavigate?: () => void;
 };
 
-export function ClusterOverview({ cluster }: Props) {
+export function ClusterOverview({ cluster, onNavigate }: Props) {
   return (
     <Box mx={"auto"} maxW={"750px"} mb={12}>
       <Box mb={2}>
         <Link
           id={cluster.label}
-          href={`#${cluster.label}`}
+          href={onNavigate ? "#report-chart" : `#${cluster.label}`}
+          onClick={onNavigate}
           className={"headingColor"}
           position={"relative"}
           _hover={{

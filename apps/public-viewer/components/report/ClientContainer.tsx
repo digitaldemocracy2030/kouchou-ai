@@ -14,6 +14,7 @@ import { ClusterOverview } from "@/components/report/ClusterOverview";
 import { DisplaySettingDialog } from "@/components/report/DisplaySettingDialog";
 import type { Cluster, Result } from "@/type";
 import { useEffect, useMemo, useState } from "react";
+import { TreemapDetails } from "./TreemapDetails";
 import {
   type AttributeFilters,
   type FilterParams,
@@ -211,6 +212,7 @@ export function ClientContainer({ result }: Props) {
         showAttentionFilterBadge={hasActiveFilters(filterParams)}
         attentionFilterBadgeCount={countActiveFilters(filterParams)}
       />
+      <div id="report-chart" />
       <Chart
         result={filteredResult}
         selectedChart={selectedChart}
@@ -222,9 +224,33 @@ export function ClientContainer({ result }: Props) {
         treemapLevel={treemapLevel}
         onTreeZoom={setTreemapLevel}
       />
-      {clustersToDisplay.map((c) => (
-        <ClusterOverview key={c.id} cluster={c} />
-      ))}
+      {selectedChart === "treemap" ? (
+        <TreemapDetails
+          clusters={result.clusters}
+          arguments={result.arguments}
+          level={treemapLevel}
+          filteredIds={filteredArgIds}
+          onNavigate={(id) => {
+            setTreemapLevel(id);
+            document.getElementById("report-chart")?.scrollIntoView();
+          }}
+        />
+      ) : (
+        clustersToDisplay.map((c) => (
+          <ClusterOverview
+            key={c.id}
+            cluster={c}
+            onNavigate={
+              enabledCharts.includes("treemap")
+                ? () => {
+                    setTreemapLevel(c.id);
+                    setSelectedChart("treemap");
+                  }
+                : undefined
+            }
+          />
+        ))
+      )}
     </div>
   );
 }

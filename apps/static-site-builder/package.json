@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -18,7 +18,7 @@
     "@types/archiver": "^6.0.3",
     "@types/express": "^5.0.1",
     "@types/node": "^22.14.1",
-    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.8.3"
   }
 }

@@ -1,7 +1,9 @@
 import concurrent.futures
+import json
 import logging
 import os
 import re
+from pathlib import Path
 
 import polars as pl
 from pydantic import BaseModel, Field
@@ -94,6 +96,14 @@ def extraction(config):
     comments_lookup = {row["comment-id"]: row for row in comments.iter_rows(named=True)}
     update_progress(config, total=len(comment_ids))
 
+    # Keep original comments outside the published outputs tree.
+    diagnostics_dir = Path(output_base_dir).resolve().parent / "diagnostics"
+    diagnostics_dir.mkdir(parents=True, exist_ok=True)
+    diagnostics_path = diagnostics_dir / f"{Path(dataset).name}-extraction.jsonl"
+    fd = os.open(diagnostics_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.close(fd)
+    logging.info("抽出診断（原文を含む非公開ファイル）: %s", diagnostics_path)
+
     argument_map = {}
     relation_rows = []
 
@@ -111,6 +121,7 @@ def extraction(config):
             timeout_seconds,
             user_api_key,
             comment_ids=batch,
+            diagnostics_path=diagnostics_path,
         )
 
         for comment_id, extracted_args in zip(batch, batch_results, strict=False):
@@ -158,6 +169,7 @@ def extract_batch(
     timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
     user_api_key=None,
     comment_ids=None,
+    diagnostics_path=None,
 ):
     """Run argument extraction concurrently for a batch of comment texts."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
@@ -214,6 +226,18 @@ def extract_batch(
                 f"Extraction batch: input={total_token_input}, output={total_token_output}, total={total_token_usage} tokens"
             )
 
+        if diagnostics_path is not None:
+            with open(diagnostics_path, "a", encoding="utf-8") as diagnostic_file:
+                for index, items in enumerate(results):
+                    if index not in failures and items:
+                        continue
+                    record = {
+                        "comment_id": comment_ids[index] if comment_ids is not None else index,
+                        "comment": batch[index],
+                        "status": "error" if index in failures else "empty",
+                        "error_type": failures.get(index),
+                    }
+                    diagnostic_file.write(json.dumps(record, ensure_ascii=False) + "\n")
         if failures:
             raise ExtractionBatchError(failures, comment_ids)
         return results
