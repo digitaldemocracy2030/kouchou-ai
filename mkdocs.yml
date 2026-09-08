@@ -82,6 +82,7 @@ nav:
       - レポート整合性検査: development/output-validation.md
       - AIエージェントの作業導線: development/ai-assistants.md
       - LLMタイムアウト設定: development/llm-timeout.md
+      - 狭い画面での閲覧: development/mobile-reading.md
       - 抽出プロンプトの調整: development/extraction-prompts.md
       - 抽出失敗の診断: development/extraction-diagnostics.md
       - npmではなくpnpmを使う理由: development/why-pnpm.md

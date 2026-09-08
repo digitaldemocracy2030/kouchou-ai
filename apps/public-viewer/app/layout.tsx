@@ -1,4 +1,5 @@
 import { getImageFromServerSrc } from "@/app/utils/image-src";
+import { LocalFileNotice } from "@/components/report/LocalFileNotice";
 import { Provider } from "@/components/ui/provider";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "./global.css";
@@ -20,7 +21,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {enableGA && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ""} />}
       </head>
       <body>
-        <Provider>{children}</Provider>
+        <div id="report-app">
+          <Provider>{children}</Provider>
+        </div>
+        <LocalFileNotice />
       </body>
     </html>
   );
