@@ -42,3 +42,6 @@ docs/development/code-review-guidelines.md
 docs/misc/projects.md
 docs/misc/cla.md
 docs/repo-readmes/
+
+# Extraction diagnostics contain original comments and are never public artifacts.
+diagnostics/
