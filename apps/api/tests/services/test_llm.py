@@ -326,7 +326,7 @@ class TestLLMService:
         assert kwargs["seed"] == 0
 
     def test_request_to_openai_flex_falls_back_to_standard_on_rate_limit(self, flex_env, mock_openai_response):
-        """Flexがresource_unavailable(429)を返したら標準処理(auto)で再送する"""
+        """Flexがresource_unavailable(429)を返したら標準処理(default)で再送する"""
         messages = [{"role": "user", "content": "Hello, world!"}]
         mock_client = self._make_mock_openai_client(mock_openai_response)
         rate_limit_error = openai.RateLimitError(
@@ -346,7 +346,7 @@ class TestLLMService:
         second_kwargs = mock_client.chat.completions.create.call_args_list[1].kwargs
         assert first_kwargs["service_tier"] == "flex"
         assert first_kwargs["timeout"] == 900
-        assert second_kwargs["service_tier"] == "auto"
+        assert second_kwargs["service_tier"] == "default"
         assert second_kwargs["timeout"] == 300
 
     def test_request_to_openai_flex_ordinary_rate_limit_retries_on_flex(self, flex_env, mock_openai_response):
@@ -393,7 +393,7 @@ class TestLLMService:
 
         assert response == "This is a test response"
         tiers = [c.kwargs["service_tier"] for c in mock_client.chat.completions.create.call_args_list]
-        assert tiers == ["flex", "auto", "auto", "auto"]
+        assert tiers == ["flex", "default", "default", "default"]
 
     def test_request_to_openai_flex_fallback_reraises_after_standard_retries(self, flex_env, mock_openai_response):
         """標準処理側で429が3回続いたら、Flexへ戻らずRateLimitErrorを再送出する(最大4リクエスト)"""
@@ -415,6 +415,12 @@ class TestLLMService:
             request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=300)
 
         assert mock_client.chat.completions.create.call_count == 4
+
+    @pytest.mark.parametrize("raw", ["", "  "])
+    def test_openai_flex_timeout_empty_env_uses_default(self, flex_env, raw):
+        """OPENAI_FLEX_TIMEOUT_SECONDSが空なら既定値(900秒)を使う"""
+        with patch.dict(os.environ, {"OPENAI_FLEX_TIMEOUT_SECONDS": raw}):
+            assert _openai_flex_timeout_seconds(300) == 900
 
     def test_openai_flex_timeout_invalid_env_mentions_variable(self, flex_env):
         """OPENAI_FLEX_TIMEOUT_SECONDSが不正な場合は変数名を含むエラーにする"""

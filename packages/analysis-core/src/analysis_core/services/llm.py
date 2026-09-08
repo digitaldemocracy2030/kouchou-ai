@@ -73,7 +73,8 @@ def _should_use_openai_flex(model: str | None) -> bool:
 
 def _openai_flex_timeout_seconds(timeout_seconds: int) -> int:
     """Flex 利用時のタイムアウト。通常のタイムアウトと OPENAI_FLEX_TIMEOUT_SECONDS の大きい方を使う。"""
-    raw = os.getenv("OPENAI_FLEX_TIMEOUT_SECONDS", str(DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS))
+    # 空文字は未設定として扱う (.env.example の空欄をそのまま使えるように)
+    raw = (os.getenv("OPENAI_FLEX_TIMEOUT_SECONDS") or "").strip() or str(DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS)
     try:
         flex_timeout = positive_timeout(raw)
     except ValueError as exc:
@@ -162,9 +163,10 @@ def request_to_openai(
             if payload.get("service_tier") != "flex" or not _is_openai_flex_unavailable(e):
                 raise
             # Flex はリソース不足時に 429 (resource_unavailable) を返し、課金されない。
+            # "auto" は自動選択で再び Flex になり得るため、"default" で標準処理を明示する。
             # 以降のリトライは標準処理のみで行い、Flex を叩き直さない。
             logging.warning(f"OpenAI Flex processing unavailable, falling back to standard tier: {e}")
-            fallback_payload = {**payload, "service_tier": "auto", "timeout": timeout_seconds}
+            fallback_payload = {**payload, "service_tier": "default", "timeout": timeout_seconds}
             response = _send_openai_chat_request(client, fallback_payload, use_pydantic)
 
         if hasattr(response, "usage") and response.usage:
