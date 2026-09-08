@@ -58,3 +58,20 @@ export function createStaticBuildFetchError(error: unknown): Error {
     ].join(" "),
   );
 }
+
+/**
+ * shell ビルドで生成する唯一のルート。
+ * このディレクトリを各レポートの slug へコピーして配布するため、
+ * 実際のレポートには存在しない名前を使う。
+ */
+export const SHELL_SLUG = "__shell__";
+
+/**
+ * データ非依存な静的出力（shell ビルド）かどうか。
+ *
+ * 通常の static export はビルド時に API からレポート一覧と本文を取得して
+ * HTML に焼き込むため、レポートが増減するたび `next build` が必要になる。
+ * shell ビルドでは固定の 1 ルートだけを出力し、レポートの取得は実行時に
+ * 静的な JSON へ委ねるので、リリース時に一度ビルドすれば済む。
+ */
+export const isStaticShellBuild = () => isStaticExportBuild() && process.env.NEXT_PUBLIC_STATIC_SHELL === "1";

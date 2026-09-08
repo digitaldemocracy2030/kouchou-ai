@@ -13,7 +13,14 @@ import { Box, Separator } from "@chakra-ui/react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getApiBaseUrl } from "../utils/api";
-import { createStaticBuildFetchError, getStaticBuildReportSlugs, isStaticExportBuild } from "../utils/static-build";
+import { ReportShell } from "@/components/report/ReportShell";
+import {
+  SHELL_SLUG,
+  createStaticBuildFetchError,
+  getStaticBuildReportSlugs,
+  isStaticExportBuild,
+  isStaticShellBuild,
+} from "../utils/static-build";
 
 type PageProps = {
   params: Promise<{
@@ -27,6 +34,12 @@ export const revalidate = 300;
 export async function generateStaticParams() {
   if (!isStaticExportBuild()) {
     return [];
+  }
+
+  // shell ビルドはレポートに依存しない 1 ルートだけを出力する。
+  // 実際のレポートは配布時にこのディレクトリを slug へコピーして表示する。
+  if (isStaticShellBuild()) {
+    return [{ slug: SHELL_SLUG }];
   }
 
   let reports: Report[];
@@ -55,6 +68,13 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   if (!isStaticExportBuild()) {
+    return {
+      title: "広聴AI",
+    };
+  }
+
+  // shell ビルドはビルド時にレポートを読まないので、タイトルもレポートに依存させない。
+  if (isStaticShellBuild()) {
     return {
       title: "広聴AI",
     };
@@ -113,6 +133,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function Page({ params }: PageProps) {
+  // shell ビルドではレポートを実行時に同梱 JSON から読む。
+  if (isStaticShellBuild()) {
+    return <ReportShell />;
+  }
+
   const slug = (await params).slug;
   const apiUrl = getApiBaseUrl();
 

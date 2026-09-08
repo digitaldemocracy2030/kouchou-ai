@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 静的ビルドを生成するスクリプト
-# 使用方法: ./scripts/build-static.sh [root|subdir]
+# 使用方法: ./scripts/build-static.sh [root|subdir|shell]
 
 set -e
 
@@ -101,8 +101,34 @@ elif [ "$BUILD_TYPE" = "subdir" ]; then
 
   echo ">>> 静的ビルド完了: apps/public-viewer/out-subdir/kouchou-ai"
 
+elif [ "$BUILD_TYPE" = "shell" ]; then
+  DIST_DIR=".next-static-shell"
+  # 既存の生成物を削除
+  rm -rf out-shell out "$DIST_DIR"
+
+  # shell ビルドはビルド時に API を読まない。
+  # ここで API 系の環境変数を渡さないこと自体が「データ非依存」の検査になる。
+  echo ">>> shell ホスティング用のビルドを実行中（API を参照しない）..."
+  STATIC_EXPORT_DIST_DIR=$DIST_DIR \
+  NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH="" \
+  pnpm run build:shell
+
+  if [ -d "$DIST_DIR" ]; then
+    mv "$DIST_DIR" out-shell
+  elif [ -d "out" ]; then
+    mv out out-shell
+  else
+    echo "エラー: out ディレクトリが生成されませんでした"
+    exit 1
+  fi
+
+  echo ">>> shell 配布物を組み立て中..."
+  node "$SCRIPT_DIR/package-shell.mjs" "$PUBLIC_VIEWER_DIR/out-shell" "$SCRIPT_DIR/../fixtures/client"
+
+  echo ">>> 静的ビルド完了: apps/public-viewer/out-shell"
+
 else
   echo "エラー: 無効なビルドタイプ: $BUILD_TYPE"
-  echo "使用方法: ./scripts/build-static.sh [root|subdir]"
+  echo "使用方法: ./scripts/build-static.sh [root|subdir|shell]"
   exit 1
 fi

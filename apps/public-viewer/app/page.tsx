@@ -8,13 +8,21 @@ import { Box, Heading } from "@chakra-ui/react";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getApiBaseUrl } from "./utils/api";
-import { isStaticExportBuild } from "./utils/static-build";
+import { ReportListShell } from "@/components/report/ReportListShell";
+import { isStaticExportBuild, isStaticShellBuild } from "./utils/static-build";
 
 export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   if (!isStaticExportBuild()) {
     await connection();
+  }
+
+  // shell ビルドはビルド時に API を読まない。
+  if (isStaticShellBuild()) {
+    return {
+      title: "広聴AI",
+    };
   }
 
   try {
@@ -50,6 +58,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Page() {
   if (!isStaticExportBuild()) {
     await connection();
+  }
+
+  // shell ビルドではレポート一覧を実行時に同梱 JSON から読む。
+  if (isStaticShellBuild()) {
+    return <ReportListShell />;
   }
 
   try {
