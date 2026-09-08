@@ -35,3 +35,28 @@ describe("useBasicInfo", () => {
     expect(mockCreateUUID).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("CSV filename defaults", () => {
+  it.each([
+    ["", "", "調査.v2", "調査.v2"],
+    ["入力済み", "", "入力済み", "調査.v2"],
+    ["", "入力済み", "調査.v2", "入力済み"],
+    ["  タイトル  ", "概要", "  タイトル  ", "概要"],
+    ["  ", "", "調査.v2", "調査.v2"],
+  ])("preserves independently entered fields (%s / %s)", (title, intro, expectedTitle, expectedIntro) => {
+    const { result } = renderHook(() => useBasicInfo());
+    act(() => {
+      result.current.handleQuestionChange({ target: { value: title } } as React.ChangeEvent<HTMLInputElement>);
+      result.current.handleIntroChange({ target: { value: intro } } as React.ChangeEvent<HTMLInputElement>);
+      result.current.fillEmptyFromCsv(new File(["comment"], "調査.v2.CSV"));
+    });
+    expect(result.current.question).toBe(expectedTitle);
+    expect(result.current.intro).toBe(expectedIntro);
+    const id = result.current.input;
+    act(() => result.current.fillEmptyFromCsv(null));
+    act(() => result.current.fillEmptyFromCsv(new File(["comment"], "別ファイル.csv")));
+    expect(result.current.question).toBe(expectedTitle);
+    expect(result.current.intro).toBe(expectedIntro);
+    expect(result.current.input).toBe(id);
+  });
+});
