@@ -66,7 +66,9 @@ test.describe("管理画面 - レポート作成フロー", () => {
       await expect(dialog.getByText("コメント件数：3件（非空：3件）")).toBeVisible();
       await expect(dialog.getByText("未確認", { exact: true })).toBeVisible();
       await expect(dialog.getByText("費用：目安なし")).toBeVisible();
-      await test.info().attach("作成前確認", { body: await page.screenshot(), contentType: "image/png" });
+      await test
+        .info()
+        .attach("作成前確認", { body: await page.screenshot({ animations: "disabled" }), contentType: "image/png" });
       await dialog.getByRole("button", { name: "API接続を確認する" }).click();
       await expect(dialog.getByText("OK（検証用モデルで接続確認済み）")).toBeVisible();
       await dialog.getByRole("button", { name: "設定に戻る" }).click();
