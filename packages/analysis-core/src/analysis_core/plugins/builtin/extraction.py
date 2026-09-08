@@ -53,6 +53,7 @@ def extraction_plugin(
         "workers": step_config.get("workers", 1),
         "limit": step_config.get("limit", 1000),
         "properties": step_config.get("properties", []),
+        "timeout_seconds": step_config.get("timeout_seconds"),
     }
 
     # Run the extraction

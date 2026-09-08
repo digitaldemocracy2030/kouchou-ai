@@ -11,6 +11,8 @@ from openai import AzureOpenAI, OpenAI
 from pydantic import BaseModel
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS
+
 try:  # Optional dependency
     from google import genai
     from google.genai import errors as genai_errors
@@ -21,7 +23,6 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover - library might b
 # Load environment variables from .env file if present
 # Look in current directory first, then parent directories
 load_dotenv()
-DEFAULT_REQUEST_TIMEOUT_SECONDS = 300
 
 
 @retry(
@@ -541,7 +542,9 @@ def request_to_chat_ai(
         return request_to_gemini_chatcompletion(messages, model, is_json, json_schema, user_api_key, timeout_seconds)
     elif provider == "openrouter":
         # OpenRouterのモデル名を直接使用
-        return request_to_openrouter_chatcompletion(messages, model, is_json, json_schema, user_api_key, timeout_seconds)
+        return request_to_openrouter_chatcompletion(
+            messages, model, is_json, json_schema, user_api_key, timeout_seconds
+        )
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
