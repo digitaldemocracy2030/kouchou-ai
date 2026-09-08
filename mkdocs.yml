@@ -79,9 +79,11 @@ nav:
       - FAQ: user-guide/faq.md
   - 開発者向け:
       - コントリビューション: development/contributing.md
+      - レポート整合性検査: development/output-validation.md
       - AIエージェントの作業導線: development/ai-assistants.md
       - LLMタイムアウト設定: development/llm-timeout.md
       - 抽出プロンプトの調整: development/extraction-prompts.md
+      - 抽出失敗の診断: development/extraction-diagnostics.md
       - npmではなくpnpmを使う理由: development/why-pnpm.md
       - プラグインガイド: development/plugin-guide.md
       - プラグイン出力データ構造: development/plugin-output-data-structures.md

@@ -116,3 +116,24 @@ def test_extraction_failure_does_not_publish_partial_outputs(tmp_path, monkeypat
         assert status["total_token_usage"] == 3
     assert not (report / "args.csv").exists()
     assert not (report / "relations.csv").exists()
+
+
+def test_diagnostics_distinguish_empty_and_error_without_raw_exception(tmp_path, monkeypatch):
+    def extract(text, *args):
+        if text == "失敗した原文":
+            raise ValueError("secret API response")
+        return ([text] if text == "成功" else []), 0, 0, 0
+
+    monkeypatch.setattr(extraction, "extract_arguments", extract)
+    path = tmp_path / "diagnostics.jsonl"
+    with pytest.raises(extraction.ExtractionBatchError):
+        extraction.extract_batch(
+            ["成功", "意見なし", "失敗した原文"], "p", "m", 3,
+            comment_ids=["a", "b", "c"], diagnostics_path=path,
+        )
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    assert records == [
+        {"comment_id": "b", "comment": "意見なし", "status": "empty", "error_type": None},
+        {"comment_id": "c", "comment": "失敗した原文", "status": "error", "error_type": "ValueError"},
+    ]
+    assert "secret" not in path.read_text()

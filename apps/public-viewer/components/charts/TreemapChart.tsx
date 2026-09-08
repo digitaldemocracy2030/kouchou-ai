@@ -1,5 +1,6 @@
 import type { Argument, Cluster } from "@/type";
 import type { PlotData } from "plotly.js";
+import { useRef } from "react";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
@@ -12,6 +13,8 @@ type Props = {
 };
 
 export function TreemapChart({ clusterList, argumentList, onHover, level, onTreeZoom, filteredArgumentIds }: Props) {
+  const navigateRef = useRef(onTreeZoom);
+  navigateRef.current = onTreeZoom;
   // フィルタリングが有効かどうかをチェック
   const isFilteringActive = !!filteredArgumentIds;
 
@@ -123,8 +126,8 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
       align: "left",
     },
     texttemplate: isFilteringActive
-      ? "%{label}<br>%{value:,}件 (フィルター後)<br>%{percentEntry:.2%}"
-      : "%{label}<br>%{value:,}件<br>%{percentEntry:.2%}",
+      ? "%{label}<br>%{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}"
+      : "%{label}<br>%{value:,}件<br>全意見の %{percentRoot:.2%}",
     maxdepth: 2,
     pathbar: {
       thickness: 28,
@@ -164,11 +167,16 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
         onHover ? onHover() : null;
         darkenPathbar();
       }}
-      onClick={(event) => {
-        const clickedNode = event.points[0];
-        const newLevel = clickedNode.data.ids[clickedNode.pointNumber]?.toString() || "0";
-        onTreeZoom(newLevel);
-        // 元々のクリックイベントはキャンセルされるので無限ループにはならない
+      onInitialized={(_, graphDiv) => {
+        // react-plotly.js 2.x has no onTreemapClick prop. Use Plotly's nextLevel,
+        // including pathbar/up navigation, and keep React as the sole state owner.
+        const graph = graphDiv as unknown as {
+          on: (name: string, handler: (event: { nextLevel?: string }) => boolean) => void;
+        };
+        graph.on("plotly_treemapclick", (event) => {
+          if (event.nextLevel !== undefined) navigateRef.current(event.nextLevel);
+          return false;
+        });
       }}
     />
   );
@@ -181,13 +189,14 @@ function convertArgumentToCluster(argument: Argument): Cluster {
     label: argument.argument,
     takeaway: "",
     value: 1,
-    parent: argument.cluster_ids[2],
+    parent: argument.cluster_ids[argument.cluster_ids.length - 1],
     density_rank_percentile: 0,
   };
 }
 
 function darkenPathbar() {
   const panels = document.querySelectorAll(".treemap > .slice > .surface");
+  if (!panels.length) return;
   const leafColor = getColor(panels[panels.length - 1]);
   if (panels.length > 1) darkenColor(panels[0], leafColor);
   const pathbars = document.querySelectorAll(".treemap > .pathbar > .surface");
