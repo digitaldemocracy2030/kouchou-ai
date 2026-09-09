@@ -35,12 +35,15 @@ export function ReportListShell() {
 
         if (!active) return;
 
+        // 欠けているファイルをそのまま取得先として出す（別のファイルを指すと調査を誤らせる）
         if (!meta) {
-          throw new Error(`同梱データが見つかりませんでした (404): ${metaUrl}`);
+          setState({ status: "error", url: metaUrl, message: "同梱データが見つかりませんでした (404)" });
+          return;
         }
 
         if (!reports) {
-          throw new Error(`同梱データが見つかりませんでした (404): ${listUrl}`);
+          setState({ status: "error", url: listUrl, message: "同梱データが見つかりませんでした (404)" });
+          return;
         }
 
         setState({ status: "ready", meta, reports });
