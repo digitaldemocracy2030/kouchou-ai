@@ -17,9 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   // shell ビルドはビルド時に API を読まない。
   if (isStaticShellBuild()) {
-    return {
-      title: "広聴AI",
-    };
+    // The Python packager and shell navigation own per-report head metadata.
+    return {};
   }
 
   try {

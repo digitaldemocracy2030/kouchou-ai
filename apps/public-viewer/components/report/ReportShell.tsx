@@ -1,5 +1,6 @@
 "use client";
 
+import { useShellMetadata } from "@/app/hooks/useShellMetadata";
 import { getBasePath } from "@/app/utils/image-src";
 import {
   ShellDataFetchError,
@@ -37,6 +38,15 @@ export function ReportShell() {
   const pathname = usePathname();
   const [state, setState] = useState<ShellState>({ status: "loading" });
 
+  useShellMetadata(
+    state.status === "ready"
+      ? `${state.result.config.question} - ${state.meta.reporter}`
+      : state.status === "loading"
+        ? undefined
+        : "ページが見つかりませんでした - 広聴AI",
+    state.status === "ready" ? state.result.visibility === "unlisted" : true,
+  );
+
   useEffect(() => {
     let active = true;
     const slug = resolveShellSlug(pathname, getBasePath());
@@ -53,10 +63,7 @@ export function ReportShell() {
 
     (async () => {
       try {
-        const [meta, result] = await Promise.all([
-          fetchShellJson<Meta>(metaUrl),
-          fetchShellJson<Result>(reportUrl),
-        ]);
+        const [meta, result] = await Promise.all([fetchShellJson<Meta>(metaUrl), fetchShellJson<Result>(reportUrl)]);
 
         if (!active) return;
 
@@ -120,7 +127,5 @@ export function ReportShell() {
     );
   }
 
-  return (
-    <ReportView result={state.result} meta={state.meta} reporter={<ShellReporter meta={state.meta} />} />
-  );
+  return <ReportView result={state.result} meta={state.meta} reporter={<ShellReporter meta={state.meta} />} />;
 }

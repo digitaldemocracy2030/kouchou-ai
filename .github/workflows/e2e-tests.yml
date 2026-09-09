@@ -8,6 +8,7 @@ on:
     branches: [ main ]
     paths:
       - 'apps/api/src/services/model_catalog.json'
+      - 'apps/api/src/services/shell_export.py'
       - 'apps/public-viewer/**'
       - 'apps/admin/**/*.ts'
       - 'apps/admin/**/*.tsx'
@@ -25,6 +26,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Set up Python for shell packaging
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
 
     - name: Set up pnpm
       uses: pnpm/action-setup@v4

@@ -1,0 +1,14 @@
+[
+  {
+    "slug": "metadata-public",
+    "title": "メタデータ公開レポート",
+    "question": "日本語の <見出し> & \"引用\" </title><script>window.__shellInjected=true</script>",
+    "visibility": "public"
+  },
+  {
+    "slug": "metadata-unlisted",
+    "title": "メタデータ限定公開レポート",
+    "question": "限定公開の質問",
+    "visibility": "unlisted"
+  }
+]
