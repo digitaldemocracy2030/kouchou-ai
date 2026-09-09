@@ -16,6 +16,8 @@ on:
       - 'apps/admin/**/*.jsx'
       - 'apps/admin/package.json'
       - 'test/e2e/**/*'
+      - 'utils/dummy-server/**'
+      - '.github/workflows/e2e-tests.yml'
     types: [opened, synchronize, reopened, labeled]
 
 jobs:
