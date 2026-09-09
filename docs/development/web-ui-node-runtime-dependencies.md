@@ -71,7 +71,7 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 | route | 役割 | 種別 | 使用 env |
 |---|---|---|---|
 | `app/api/revalidate/route.ts` (POST) | `{tag, secret}` を検証し `revalidateTag(tag,"max")` | **Node固有（ISR）**。`output:"export"` 下では成立しない | `REVALIDATE_SECRET` |
-| `app/[slug]/opengraph-image.png/route.ts` (GET) | export 時の OGP 画像生成 route。`_op-image.tsx` の `OpImage(slug)` を呼ぶ | **Node固有（`next/og`）**。後述の通り build 時生成 | `NEXT_PUBLIC_PUBLIC_API_KEY` 経由 |
+| `app/[slug]/opengraph-image.png/route.ts` (GET) | `_op-image.tsx` の `OpImage(slug)` を呼ぶ OGP 画像 route。**ただし export ビルドでは除外される**（後述） | **Node固有（`next/og`）** | `NEXT_PUBLIC_PUBLIC_API_KEY` 経由 |
 
 ### 2-2. runtime Node 依存 → export で解決済（SSR モード専用に残存）
 
@@ -82,9 +82,12 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 
 ### 2-3. 残る依存 = build 時 Node
 
-- **OGP 動的画像**: `app/[slug]/_op-image.tsx` が `import { ImageResponse } from "next/og"`（内部に Satori/resvg wasm を Node 上で実行）。export 用に `opengraph-image.png/route.ts` で**ビルド時に静的 PNG 書き出し**（runtime には残らないが **`next build` に Node 必須**）。ビルド時に Google Fonts へ外部 fetch + API へ `fetchApiWithRetry(/reports/${slug})` も発生＝**ビルドにネットワーク到達が必要**。
+- **OGP 動的画像**: `app/[slug]/_op-image.tsx` が `import { ImageResponse } from "next/og"`（内部に Satori/resvg wasm を Node 上で実行）。SSR モードでは `opengraph-image.tsx` 経由で **runtime に Node が必要**。
+  - 🔴 **export ビルドではレポートごとの OGP 画像は生成されない**。`scripts/rename-file.mjs:9` が `NEXT_PUBLIC_OUTPUT_MODE=export` のとき `app/[slug]/opengraph-image.tsx` と `app/[slug]/opengraph-image.png`（route ディレクトリ）の**両方**を `_` 付きへ改名し、Next の private folder 規約でビルド対象から外すため（`prebuild:static` → `postbuild:static` で改名・復元）。
+  - このため `app/[slug]/page.tsx` が export 時にだけ設定する `openGraph.images: [`${slug}/opengraph-image.png`]` は、**生成されないファイルを指している**。
+  - 初版のこの節は「export 用に build 時へ静的 PNG を書き出す」と記載していたが、実際の挙動は上記のとおりで、誤りだったため訂正する。
 
-→ public-viewer は **runtime Node 依存は export で解決済**。残るのは「export ビルド自体が Node + Next + API 到達を要する」build 時依存のみ。
+→ public-viewer は **runtime Node 依存は export で解決済**。残るのは「export ビルド自体が Node + Next + API 到達を要する」build 時依存のみ（OGP 画像はそもそも export では生成されない）。
 
 ---
 
