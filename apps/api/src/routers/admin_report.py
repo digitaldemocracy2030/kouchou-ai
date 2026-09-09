@@ -579,6 +579,13 @@ async def verify_api_key(
                 "rate_limit_error",
             )
         slogger.error(f"Unknown error while verifying API key: {e}", exc_info=True)
+        if provider == "azure":
+            return _api_key_verification_error_response(
+                "Azureの接続を確認できませんでした。AZURE_CHATCOMPLETION_VERSIONにはモデルのバージョンではなく"
+                "APIバージョンを設定してください。ENDPOINT・DEPLOYMENT_NAME・API_KEYも同じAzureリソースの"
+                "設定か確認してください。",
+                "unknown_error",
+            )
         return _api_key_verification_error_response(
             "エラーが発生しました: APIの設定や接続を確認してください。",
             "unknown_error",

@@ -1,0 +1,2 @@
+export const azureErrorMessage =
+  "Azureの接続を確認できませんでした。AZURE_CHATCOMPLETION_VERSIONにはモデルのバージョンではなくAPIバージョンを設定してください。ENDPOINT・DEPLOYMENT_NAME・API_KEYも同じAzureリソースの設定か確認してください。";

@@ -18,6 +18,7 @@ import { startTransition, useActionState, useState } from "react";
 import type { Provider } from "../../hooks/useAISettings";
 import { ErrorIcon } from "./ErrorIcon";
 import { GradientCheckIcon } from "./GradientCheckIcon";
+import { azureErrorMessage } from "./azureErrorMessage";
 import { verifyApiKey } from "./verifyApiKey";
 
 type EnvironmentCheckDialogProps = {
@@ -138,7 +139,9 @@ function Dialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentChe
               {state.result?.error_type === "rate_limit_error" &&
                 "APIのレート制限に達しました。時間をおいて再度お試しください。"}
               {(!state.result?.error_type || state.result.error_type === "unknown_error") &&
-                "不明なエラーが発生しました。APIの設定や接続を再確認してください。"}
+                (provider === "azure"
+                  ? azureErrorMessage
+                  : "不明なエラーが発生しました。APIの設定や接続を再確認してください。")}
             </Box>
           </DialogBody>
           <DialogCloseTrigger />

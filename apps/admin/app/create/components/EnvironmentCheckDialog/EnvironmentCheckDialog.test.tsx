@@ -284,3 +284,13 @@ it("localの選択モデル・接続先を渡す", async () => {
     ]),
   );
 });
+
+it("Azureの詳細チェックにも設定項目を案内する", async () => {
+  mockVerifyApiKey.mockResolvedValue({ result: null, error: true });
+  renderEnvironmentCheckDialog("azure");
+  await userEvent.click(screen.getByRole("button", { name: /API接続チェック/i }));
+  await userEvent.click(await screen.findByRole("button", { name: "チェックする" }));
+  expect(
+    await screen.findByText(/AZURE_CHATCOMPLETION_VERSIONにはモデルのバージョンではなくAPIバージョン/),
+  ).toBeInTheDocument();
+});
