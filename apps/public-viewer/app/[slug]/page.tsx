@@ -1,19 +1,19 @@
 import { ApiConnectionError } from "@/components/ApiConnectionError";
-import { Footer } from "@/components/Footer";
-import { Header } from "@/components/Header";
-import { Analysis } from "@/components/report/Analysis";
-import { BackButton } from "@/components/report/BackButton";
-import { ClientContainer } from "@/components/report/ClientContainer";
-import { Overview } from "@/components/report/Overview";
-import { ReadingGuide } from "@/components/report/ReadingGuide";
+import { ReportShell } from "@/components/report/ReportShell";
+import { ReportView } from "@/components/report/ReportView";
 import { Reporter } from "@/components/reporter/Reporter";
 import type { Meta, Report, Result } from "@/type";
 import { ReportVisibility } from "@/type";
-import { Box, Separator } from "@chakra-ui/react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getApiBaseUrl } from "../utils/api";
-import { createStaticBuildFetchError, getStaticBuildReportSlugs, isStaticExportBuild } from "../utils/static-build";
+import {
+  SHELL_SLUG,
+  createStaticBuildFetchError,
+  getStaticBuildReportSlugs,
+  isStaticExportBuild,
+  isStaticShellBuild,
+} from "../utils/static-build";
 
 type PageProps = {
   params: Promise<{
@@ -27,6 +27,12 @@ export const revalidate = 300;
 export async function generateStaticParams() {
   if (!isStaticExportBuild()) {
     return [];
+  }
+
+  // shell ビルドはレポートに依存しない 1 ルートだけを出力する。
+  // 実際のレポートは配布時にこのディレクトリを slug へコピーして表示する。
+  if (isStaticShellBuild()) {
+    return [{ slug: SHELL_SLUG }];
   }
 
   let reports: Report[];
@@ -55,6 +61,13 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   if (!isStaticExportBuild()) {
+    return {
+      title: "広聴AI",
+    };
+  }
+
+  // shell ビルドはビルド時にレポートを読まないので、タイトルもレポートに依存させない。
+  if (isStaticShellBuild()) {
     return {
       title: "広聴AI",
     };
@@ -113,6 +126,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function Page({ params }: PageProps) {
+  // shell ビルドではレポートを実行時に同梱 JSON から読む。
+  if (isStaticShellBuild()) {
+    return <ReportShell />;
+  }
+
   const slug = (await params).slug;
   const apiUrl = getApiBaseUrl();
 
@@ -142,21 +160,5 @@ export default async function Page({ params }: PageProps) {
   const meta: Meta = await metaResponse.json();
   const result: Result = await resultResponse.json();
 
-  return (
-    <>
-      <Header />
-      <Box className="container" mt="8">
-        <Overview result={result} />
-        <ReadingGuide />
-        <ClientContainer result={result} />
-        <Analysis result={result} />
-        <BackButton />
-        <Separator my={12} maxW={"750px"} mx={"auto"} />
-        <Box maxW={"750px"} mx={"auto"} mb={24}>
-          <Reporter meta={meta} />
-        </Box>
-      </Box>
-      <Footer meta={meta} />
-    </>
-  );
+  return <ReportView result={result} meta={meta} reporter={<Reporter meta={meta} />} />;
 }

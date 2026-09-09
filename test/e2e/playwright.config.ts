@@ -61,6 +61,14 @@ export default defineConfig({
       },
     },
     {
+      name: "client-static-shell",
+      testMatch: "**/client-static/shell/**/*.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: "http://localhost:3003",
+      },
+    },
+    {
       name: "debug",
       testMatch: ["**/simple.spec.ts", "**/debug.spec.ts"],
       use: {
@@ -107,6 +115,14 @@ export default defineConfig({
       command:
         "./scripts/build-static.sh subdir && cd ../../apps/public-viewer && pnpm exec http-server out-subdir -p 3002 --cors --silent",
       url: "http://localhost:3002/kouchou-ai/",
+      timeout: 120 * 1000,
+      reuseExistingServer: !process.env.CI,
+    },
+    // Public viewer shell ビルドテスト用: データ非依存の HTML を slug へ配って検証（port 3003）
+    {
+      command:
+        "./scripts/build-static.sh shell && cd ../../apps/public-viewer && pnpm exec http-server out-shell -p 3003 --cors --silent",
+      url: "http://localhost:3003/",
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
     },

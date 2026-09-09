@@ -1,20 +1,25 @@
 import { ApiConnectionError } from "@/components/ApiConnectionError";
-import { Footer } from "@/components/Footer";
-import { Header } from "@/components/Header";
-import { ReportListContent } from "@/components/report/ReportListContent";
+import { ReportListShell } from "@/components/report/ReportListShell";
+import { ReportListView } from "@/components/report/ReportListView";
 import { Reporter } from "@/components/reporter/Reporter";
 import type { Meta, Report } from "@/type";
-import { Box, Heading } from "@chakra-ui/react";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getApiBaseUrl } from "./utils/api";
-import { isStaticExportBuild } from "./utils/static-build";
+import { isStaticExportBuild, isStaticShellBuild } from "./utils/static-build";
 
 export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   if (!isStaticExportBuild()) {
     await connection();
+  }
+
+  // shell ビルドはビルド時に API を読まない。
+  if (isStaticShellBuild()) {
+    return {
+      title: "広聴AI",
+    };
   }
 
   try {
@@ -52,6 +57,11 @@ export default async function Page() {
     await connection();
   }
 
+  // shell ビルドではレポート一覧を実行時に同梱 JSON から読む。
+  if (isStaticShellBuild()) {
+    return <ReportListShell />;
+  }
+
   try {
     const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`);
     const reportsResponse = await fetch(`${getApiBaseUrl()}/reports`, {
@@ -67,23 +77,7 @@ export default async function Page() {
       reports = reports.filter((report) => process.env.BUILD_SLUGS?.split(",").includes(report.slug));
     }
 
-    return (
-      <>
-        <Header />
-        <Box className="container">
-          <Box mx={"auto"} maxW={"1024px"} mb={10} mt="8">
-            <Box mb="12">
-              <Reporter meta={meta} />
-            </Box>
-            <Heading textAlign={"left"} fontSize={"xl"} mb={8}>
-              レポート一覧
-            </Heading>
-            <ReportListContent reports={reports} meta={meta} />
-          </Box>
-        </Box>
-        <Footer meta={meta} />
-      </>
-    );
+    return <ReportListView reports={reports} meta={meta} reporter={<Reporter meta={meta} />} />;
   } catch (e) {
     const apiUrl = getApiBaseUrl();
     const errorMessage = e instanceof Error ? e.message : String(e);

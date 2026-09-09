@@ -101,6 +101,35 @@ jobs:
           echo "static export fixture API did not start" >&2
           exit 1
 
+      # shell ビルドはレポートに依存しない HTML を 1 枚だけ出力する。
+      # 直後の static export と同じ fixture API が見えている状態で、
+      # レポート由来のルート (example) が出ないことを確かめる。
+      - name: Run shell build
+        run: pnpm --filter @kouchou-ai/public-viewer build:shell
+        env:
+          API_BASEPATH: 'http://127.0.0.1:8002'
+          NEXT_PUBLIC_API_BASEPATH: 'http://127.0.0.1:8002'
+          NEXT_PUBLIC_PUBLIC_API_KEY: 'xxxxxxxxxx'
+
+      - name: Assert the shell output is independent of the reports
+        run: |
+          set -eu
+          out="apps/public-viewer/out"
+          test -f "$out/__shell__/index.html"
+          if [ -e "$out/example" ]; then
+            echo "shell ビルドがレポート由来のルートを出力しました: example" >&2
+            exit 1
+          fi
+          # ルートも shell も、fixture のレポートを HTML に焼き込んでいないこと
+          for page in "$out/index.html" "$out/__shell__/index.html"; do
+            if grep -q "人類が人工知能を開発・展開する上で" "$page"; then
+              echo "shell ビルドがレポートの内容を焼き込みました: $page" >&2
+              exit 1
+            fi
+          done
+          rm -rf "$out"
+        shell: bash
+
       - name: Run static export build
         run: pnpm --filter @kouchou-ai/public-viewer build:static
         env:
