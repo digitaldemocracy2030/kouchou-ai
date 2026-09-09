@@ -11,7 +11,7 @@
     "build:static": "NEXT_PUBLIC_OUTPUT_MODE=export next build",
     "postbuild:static": "NEXT_PUBLIC_OUTPUT_MODE=export pnpm run restore-file",
     "prebuild:shell": "pnpm run copy-image && NEXT_PUBLIC_OUTPUT_MODE=export pnpm run rename-file",
-    "build:shell": "NEXT_PUBLIC_OUTPUT_MODE=export NEXT_PUBLIC_STATIC_SHELL=1 next build",
+    "build:shell": "NEXT_PUBLIC_OUTPUT_MODE=export NEXT_PUBLIC_STATIC_SHELL=1 next build --webpack",
     "postbuild:shell": "NEXT_PUBLIC_OUTPUT_MODE=export pnpm run restore-file",
     "copy-image": "node scripts/copy-image.mjs",
     "rename-file": "node scripts/rename-file.mjs rename",
