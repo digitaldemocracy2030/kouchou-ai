@@ -1,11 +1,7 @@
 "use client";
 
-import {
-  ShellDataFetchError,
-  fetchShellJson,
-  getShellMetaUrl,
-  getShellReportListUrl,
-} from "@/app/utils/shell-data";
+import { useShellMetadata } from "@/app/hooks/useShellMetadata";
+import { ShellDataFetchError, fetchShellJson, getShellMetaUrl, getShellReportListUrl } from "@/app/utils/shell-data";
 import { ReportListView } from "@/components/report/ReportListView";
 import { ShellDataError } from "@/components/report/ShellDataError";
 import { ShellReporter } from "@/components/reporter/ShellReporter";
@@ -24,6 +20,7 @@ type ShellListState =
  * `app/page.tsx` と同じ画面を、同梱された静的 JSON から実行時に組み立てる。
  */
 export function ReportListShell() {
+  useShellMetadata("広聴AI");
   const [state, setState] = useState<ShellListState>({ status: "loading" });
 
   useEffect(() => {
@@ -33,10 +30,7 @@ export function ReportListShell() {
 
     (async () => {
       try {
-        const [meta, reports] = await Promise.all([
-          fetchShellJson<Meta>(metaUrl),
-          fetchShellJson<Report[]>(listUrl),
-        ]);
+        const [meta, reports] = await Promise.all([fetchShellJson<Meta>(metaUrl), fetchShellJson<Report[]>(listUrl)]);
 
         if (!active) return;
 
@@ -80,7 +74,5 @@ export function ReportListShell() {
     return <ShellDataError url={state.url} message={state.message} />;
   }
 
-  return (
-    <ReportListView reports={state.reports} meta={state.meta} reporter={<ShellReporter meta={state.meta} />} />
-  );
+  return <ReportListView reports={state.reports} meta={state.meta} reporter={<ShellReporter meta={state.meta} />} />;
 }

@@ -22,13 +22,18 @@ test.describe("Client Static (shell) - レポート詳細", () => {
     await expect(page.getByText("テスト太郎")).toBeVisible();
   });
 
-  test("ビルド時のデータが HTML に焼き込まれていない", async ({ page }) => {
-    // JavaScript を切ると何も描画できない＝データはビルド成果物に含まれていない
+  test("共通shellはレポート非依存で、配布HTMLにはメタデータだけを加える", async ({ page }) => {
+    // 共通テンプレートには質問を含めず、組立後も本文・RSCには焼き込まない。
     const response = await page.request.get("/test-report-1/");
     const html = await response.text();
 
     expect(response.status()).toBe(200);
-    expect(html).not.toContain("AIと著作権について、どのような意見が寄せられているのか？");
+    const question = "AIと著作権について、どのような意見が寄せられているのか？";
+    expect(html).toContain(`<title>${question} - テスト太郎</title>`);
+    expect(html.slice(html.indexOf("<body>"))).not.toContain(question);
+    const template = await page.request.get("/__shell__/");
+    expect(template.status()).toBe(200);
+    expect(await template.text()).not.toContain(question);
   });
 
   test("同梱データの無い slug は見つかりません表示になる", async ({ page }) => {

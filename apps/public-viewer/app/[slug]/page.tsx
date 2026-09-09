@@ -68,9 +68,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // shell ビルドはビルド時にレポートを読まないので、タイトルもレポートに依存させない。
   if (isStaticShellBuild()) {
-    return {
-      title: "広聴AI",
-    };
+    // The Python packager and shell navigation own per-report head metadata.
+    return {};
   }
 
   try {
