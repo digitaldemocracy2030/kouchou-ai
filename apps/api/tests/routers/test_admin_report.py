@@ -380,3 +380,29 @@ class TestDuplicateReport:
         assert not (new_output / "hierarchical_overview.txt").exists()
         assert not (new_output / "hierarchical_result.json").exists()
         assert (new_output / "args.csv").exists()
+
+
+@pytest.mark.parametrize("error_kind", ["bad_request", "not_found", "connection", "runtime"])
+def test_azure_verification_guidance_without_exception_details(client, error_kind):
+    import httpx
+    import openai
+
+    request = httpx.Request("POST", "https://example.invalid/private-endpoint")
+    if error_kind == "bad_request":
+        error = openai.BadRequestError("secret detail", response=httpx.Response(400, request=request), body=None)
+    elif error_kind == "not_found":
+        error = openai.NotFoundError("secret detail", response=httpx.Response(404, request=request), body=None)
+    elif error_kind == "connection":
+        error = openai.APIConnectionError(message="secret detail", request=request)
+    else:
+        error = RuntimeError("secret detail")
+    with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+        response = client.get("/admin/environment/verify?provider=azure", headers={"x-api-key": "test-api-key"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is False
+    assert data["error_type"] == "unknown_error"
+    assert "AZURE_CHATCOMPLETION_VERSION" in data["message"]
+    assert "モデルのバージョンではなくAPIバージョン" in data["message"]
+    assert "secret detail" not in response.text
+    assert "private-endpoint" not in response.text

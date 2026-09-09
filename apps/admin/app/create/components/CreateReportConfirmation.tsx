@@ -4,6 +4,7 @@ import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogRoot, Dial
 import { Box, Button, HStack, Text, VStack } from "@chakra-ui/react";
 import { useRef, useState } from "react";
 import type { createReport } from "../api/createReport";
+import { azureErrorMessage } from "./EnvironmentCheckDialog/azureErrorMessage";
 import { verifyApiKey } from "./EnvironmentCheckDialog/verifyApiKey";
 
 export type PreparedReport = {
@@ -117,7 +118,7 @@ export function CreateReportConfirmation({
             <Box borderWidth="1px" borderRadius="md" p="4">
               <Text fontWeight="bold">API接続チェック</Text>
               <Text as="output" display="block" aria-live="polite" mt="2">
-                {checkMessages[check]}
+                {check === "unknown_error" && request.provider === "azure" ? azureErrorMessage : checkMessages[check]}
               </Text>
               <Text mt="2" fontSize="sm">
                 {request.provider === "azure" ? "Azureのサーバー設定済みデプロイ" : "選択したモデル"}
