@@ -61,3 +61,42 @@ CSV ファイルをアップロードする際には、コメント数に基づ�
       - しきい値はレポート表示画面の「濃いクラスタ設定」で調整可能です
   - 階層図
     - 全階層のデータをツリーマップ形式で可視化したもの
+
+## レポートを公開する前のリンク確認
+
+公開先で表示される作成者名やリンクを確認してください。開発用の画面で正しく見えていても、実際の公開サイトやダウンロードした静的サイトへ設定が反映されているとは限りません。
+
+| 確認するもの | 現行の設定場所・表示条件 |
+| --- | --- |
+| 作成者名・紹介文 | `apps/api/public/meta/custom/metadata.json`の`reporter`・`message` |
+| 作成者のウェブページ | 同ファイルの`webLink`。作成者情報欄に表示 |
+| プライバシーポリシー | 同ファイルの`privacyLink`。作成者情報欄に表示 |
+| 利用規約 | 同ファイルの`termsLink`。作成者情報欄とフッターに表示 |
+| ヘッダーのメニュー | `apps/public-viewer/components/globalNavigation/GlobalNavigation.tsx`の`navItems`。現在は「レポート一覧」と「よくあるご質問」 |
+| フッターのプロジェクト紹介・SNS等 | `apps/public-viewer/components/Footer.tsx`のリンク。作成者情報のリンクとは別に確認 |
+
+customのJSONがなければ`apps/api/public/meta/default/metadata.json`が使われます。デフォルト設定ではAPIが作成者のリンクを返さず、`isDefault: true`になります。独自のリンクを出す場合はcustom側に設定してください。`isDefault`はAPIが付ける値なので、JSONに手で追加する必要はありません。
+
+customの設定例（URLは公開者自身のものに置き換えてください）：
+
+```json
+{
+  "reporter": "レポート発行者名",
+  "message": "このレポートの作成目的と問い合わせ先を記載します。",
+  "webLink": "https://example.org/",
+  "privacyLink": "https://example.org/privacy",
+  "termsLink": "https://example.org/terms",
+  "brandColor": "#2577b1"
+}
+```
+
+公開前には次を確認します。
+
+- [ ] 公開用APIの`/meta/metadata.json`に意図した値が返る。
+- [ ] 一覧とレポート詳細の作成者名・紹介文・リンクが、公開者の設定になっている。
+- [ ] プライバシーポリシーと利用規約を実際に開き、到達先が正しく、下書きや閲覧権限の必要なページになっていない。
+- [ ] ヘッダー・フッター・紹介文に追加したリンクに、localhostやテスト環境へのリンクが残っていない。現在の標準ヘッダーメニューに「テスト環境」はないため、独自に追加したメニューも確認する。
+- [ ] 375px程度の狭い画面でもメニューを開き、リンクを確認する。
+- [ ] 通常の静的exportは設定変更後に出力し直し、出力先で確認する。shell配布物は同梱する`data/metadata.json`を更新して組み立て直す。API側の変更だけでは、配布済みの静的サイトには反映されない。
+
+ソースコード中のメニュー等を変更した場合はviewerの再ビルドが必要です。shell方式の組立手順は[開発ガイド](../development/static-shell-export.md)を参照してください。
