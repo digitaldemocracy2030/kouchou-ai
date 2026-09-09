@@ -119,11 +119,13 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
     },
     // Public viewer shell ビルドテスト用: データ非依存の HTML を slug へ配って検証（port 3003）
+    // 静的ビルドは 3 つとも同じソースツリーで prebuild の rename と out/ を共有するため、
+    // 既存 2 つ (root/subdir) の配信開始を待ってから開始する。
     {
       command:
-        "./scripts/build-static.sh shell && cd ../../apps/public-viewer && pnpm exec http-server out-shell -p 3003 --cors --silent",
+        "until curl -sf http://localhost:3001/ > /dev/null 2>&1 && curl -sf http://localhost:3002/kouchou-ai/ > /dev/null 2>&1; do sleep 2; done && ./scripts/build-static.sh shell && cd ../../apps/public-viewer && pnpm exec http-server out-shell -p 3003 --cors --silent",
       url: "http://localhost:3003/",
-      timeout: 120 * 1000,
+      timeout: 300 * 1000,
       reuseExistingServer: !process.env.CI,
     },
     // Public viewer tests: フロントエンドサーバーを起動（ダミーAPIサーバーを参照）
