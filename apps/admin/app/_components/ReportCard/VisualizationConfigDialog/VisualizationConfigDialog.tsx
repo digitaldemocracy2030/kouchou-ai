@@ -18,6 +18,7 @@ import {
   Checkbox,
   HStack,
   Heading,
+  Input,
   Portal,
   Select,
   Separator,
@@ -64,12 +65,13 @@ export function VisualizationConfigDialog({
         title: "エラー",
         description: "可視化設定の取得に失敗しました。",
       });
-      setConfig(DEFAULT_CONFIG);
+      setConfig(null);
+      setIsVisualizationConfigDialogOpen(false);
     } else {
       setConfig(result.config || DEFAULT_CONFIG);
     }
     setIsLoading(false);
-  }, [report.slug]);
+  }, [report.slug, setIsVisualizationConfigDialogOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -106,6 +108,15 @@ type DialogProps = {
 
 function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: DialogProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [densityPercent, setDensityPercent] = useState(
+    String((config.params?.scatterDensity?.maxDensity ?? 0.2) * 100),
+  );
+  const [minSamples, setMinSamples] = useState(String(config.params?.scatterDensity?.minValue ?? 5));
+  const density = Number(densityPercent);
+  const samples = Number(minSamples);
+  const densityValid = densityPercent.trim() !== "" && Number.isFinite(density) && density >= 0 && density <= 100;
+  const samplesValid = minSamples.trim() !== "" && Number.isSafeInteger(samples) && samples >= 0;
+  const thresholdsValid = densityValid && samplesValid;
 
   const enabledChartsSet = new Set(config.enabledCharts);
 
@@ -142,8 +153,15 @@ function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: Dia
   });
 
   async function handleSubmit() {
+    if (!thresholdsValid) return;
     setIsSaving(true);
-    const result = await updateVisualizationConfig(report.slug, config);
+    const result = await updateVisualizationConfig(report.slug, {
+      ...config,
+      params: {
+        ...config.params,
+        scatterDensity: { ...config.params?.scatterDensity, maxDensity: density / 100, minValue: samples },
+      },
+    });
 
     if (!result.success) {
       toaster.create({
@@ -166,7 +184,14 @@ function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: Dia
   }
 
   return (
-    <DialogRoot placement="center" open={isOpen} modal={true} closeOnInteractOutside={true} trapFocus={true}>
+    <DialogRoot
+      placement="center"
+      open={isOpen}
+      modal={true}
+      closeOnInteractOutside={true}
+      trapFocus={true}
+      scrollBehavior="inside"
+    >
       <Portal>
         <DialogBackdrop />
         <DialogContent>
@@ -198,6 +223,50 @@ function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: Dia
                     </HStack>
                   ))}
                 </VStack>
+              </Box>
+
+              <Box>
+                <Heading size="md" mb={3}>
+                  濃いクラスタの初期値
+                </Heading>
+                <Text mb={3} color="fg.muted" fontSize="sm">
+                  レポートを開いたときの絞り込み条件です。閲覧者は表示中に変更できます。
+                </Text>
+                <Text asChild>
+                  <label htmlFor="density-percent">表示する密度の上位割合（%）</label>
+                </Text>
+                <Input
+                  id="density-percent"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="any"
+                  value={densityPercent}
+                  onChange={(e) => setDensityPercent(e.target.value)}
+                  aria-invalid={!densityValid}
+                />
+                {!densityValid && (
+                  <Text role="alert" color="red.600">
+                    0〜100の数値を入力してください。
+                  </Text>
+                )}
+                <Text asChild mt={3} display="block">
+                  <label htmlFor="density-min-samples">意見グループの最小サンプル数</label>
+                </Text>
+                <Input
+                  id="density-min-samples"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={minSamples}
+                  onChange={(e) => setMinSamples(e.target.value)}
+                  aria-invalid={!samplesValid}
+                />
+                {!samplesValid && (
+                  <Text role="alert" color="red.600">
+                    0以上の整数を入力してください。
+                  </Text>
+                )}
               </Box>
 
               <Separator my={2} />
@@ -247,7 +316,11 @@ function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: Dia
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               キャンセル
             </Button>
-            <Button onClick={handleSubmit} loading={isSaving} disabled={config.enabledCharts.length === 0}>
+            <Button
+              onClick={handleSubmit}
+              loading={isSaving}
+              disabled={config.enabledCharts.length === 0 || !thresholdsValid}
+            >
               保存
             </Button>
           </DialogFooter>
