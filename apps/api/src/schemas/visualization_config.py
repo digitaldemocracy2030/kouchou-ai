@@ -4,6 +4,8 @@
 レポートの表示方法をカスタマイズするための設定を定義します。
 """
 
+from pydantic import Field
+
 from src.schemas.base import SchemaBaseModel
 
 ChartType = str
@@ -12,8 +14,8 @@ ChartType = str
 class ScatterDensityParams(SchemaBaseModel):
     """散布図密度設定のパラメータ"""
 
-    max_density: float | None = None
-    min_value: int | None = None
+    max_density: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    min_value: int | None = Field(default=None, ge=0, strict=True)
 
 
 class DisplayParams(SchemaBaseModel):
