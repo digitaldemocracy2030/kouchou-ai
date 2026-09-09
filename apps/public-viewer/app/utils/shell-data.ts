@@ -36,22 +36,46 @@ export const getShellReportUrl = (slug: string): string =>
   getRelativeUrl(`/data/reports/${encodeURIComponent(slug)}.json`);
 
 /**
+ * 同梱データの取得に失敗したことを表す。
+ * どのファイルで失敗したかを画面に出すため url を持つ。
+ */
+export class ShellDataFetchError extends Error {
+  readonly url: string;
+
+  constructor(url: string, message: string) {
+    super(message);
+    this.name = "ShellDataFetchError";
+    this.url = url;
+  }
+}
+
+/**
  * 同梱データを取得する。
  * ビルド時ではなく実行時に読むので、レポートの増減で再ビルドが要らない。
  *
  * @returns 取得した JSON。404 の場合は null
- * @throws 通信そのものに失敗した場合、および 404 以外の異常
+ * @throws {ShellDataFetchError} 通信の失敗・404 以外の異常・JSON の破損
  */
 export async function fetchShellJson<T>(url: string): Promise<T | null> {
-  const response = await fetch(url, { cache: "no-store" });
+  let response: Response;
+
+  try {
+    response = await fetch(url, { cache: "no-store" });
+  } catch (e) {
+    throw new ShellDataFetchError(url, e instanceof Error ? e.message : String(e));
+  }
 
   if (response.status === 404) {
     return null;
   }
 
   if (!response.ok) {
-    throw new Error(`Failed to load ${url}: ${response.status} ${response.statusText}`);
+    throw new ShellDataFetchError(url, `${response.status} ${response.statusText}`);
   }
 
-  return (await response.json()) as T;
+  try {
+    return (await response.json()) as T;
+  } catch (e) {
+    throw new ShellDataFetchError(url, `JSON として読めませんでした: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }

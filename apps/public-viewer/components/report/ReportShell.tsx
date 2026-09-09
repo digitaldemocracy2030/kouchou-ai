@@ -1,7 +1,13 @@
 "use client";
 
 import { getBasePath } from "@/app/utils/image-src";
-import { fetchShellJson, getShellMetaUrl, getShellReportUrl, resolveShellSlug } from "@/app/utils/shell-data";
+import {
+  ShellDataFetchError,
+  fetchShellJson,
+  getShellMetaUrl,
+  getShellReportUrl,
+  resolveShellSlug,
+} from "@/app/utils/shell-data";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { ReportView } from "@/components/report/ReportView";
@@ -72,9 +78,10 @@ export function ReportShell() {
         setState({ status: "ready", meta, result });
       } catch (e) {
         if (!active) return;
+        // 失敗したファイルをそのまま出す（別のファイルを指すと調査を誤らせる）
         setState({
           status: "error",
-          url: reportUrl,
+          url: e instanceof ShellDataFetchError ? e.url : reportUrl,
           message: e instanceof Error ? e.message : String(e),
         });
       }

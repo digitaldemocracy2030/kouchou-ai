@@ -1,6 +1,11 @@
 "use client";
 
-import { fetchShellJson, getShellMetaUrl, getShellReportListUrl } from "@/app/utils/shell-data";
+import {
+  ShellDataFetchError,
+  fetchShellJson,
+  getShellMetaUrl,
+  getShellReportListUrl,
+} from "@/app/utils/shell-data";
 import { ReportListView } from "@/components/report/ReportListView";
 import { ShellDataError } from "@/components/report/ShellDataError";
 import { ShellReporter } from "@/components/reporter/ShellReporter";
@@ -49,9 +54,10 @@ export function ReportListShell() {
         setState({ status: "ready", meta, reports });
       } catch (e) {
         if (!active) return;
+        // 失敗したファイルをそのまま出す（別のファイルを指すと調査を誤らせる）
         setState({
           status: "error",
-          url: listUrl,
+          url: e instanceof ShellDataFetchError ? e.url : listUrl,
           message: e instanceof Error ? e.message : String(e),
         });
       }
