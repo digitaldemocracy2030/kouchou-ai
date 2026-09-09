@@ -232,8 +232,8 @@ function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: Dia
                 <Text mb={3} color="fg.muted" fontSize="sm">
                   レポートを開いたときの絞り込み条件です。閲覧者は表示中に変更できます。
                 </Text>
-                <Text as="label" htmlFor="density-percent">
-                  表示する密度の上位割合（%）
+                <Text asChild>
+                  <label htmlFor="density-percent">表示する密度の上位割合（%）</label>
                 </Text>
                 <Input
                   id="density-percent"
@@ -250,8 +250,8 @@ function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: Dia
                     0〜100の数値を入力してください。
                   </Text>
                 )}
-                <Text as="label" htmlFor="density-min-samples" mt={3} display="block">
-                  意見グループの最小サンプル数
+                <Text asChild mt={3} display="block">
+                  <label htmlFor="density-min-samples">意見グループの最小サンプル数</label>
                 </Text>
                 <Input
                   id="density-min-samples"
