@@ -79,6 +79,7 @@ nav:
       - FAQ: user-guide/faq.md
   - 開発者向け:
       - コントリビューション: development/contributing.md
+      - CIの静的サイトを確認する: development/static-preview.md
       - shell配布物の組み立て: development/static-shell-export.md
       - レポート整合性検査: development/output-validation.md
       - AIエージェントの作業導線: development/ai-assistants.md
