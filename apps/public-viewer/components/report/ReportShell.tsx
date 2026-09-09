@@ -2,11 +2,13 @@
 
 import { getBasePath } from "@/app/utils/image-src";
 import { fetchShellJson, getShellMetaUrl, getShellReportUrl, resolveShellSlug } from "@/app/utils/shell-data";
+import { Footer } from "@/components/Footer";
+import { Header } from "@/components/Header";
 import { ReportView } from "@/components/report/ReportView";
 import { ShellDataError } from "@/components/report/ShellDataError";
 import { ShellReporter } from "@/components/reporter/ShellReporter";
 import type { Meta, Result } from "@/type";
-import { Box, Spinner, Text } from "@chakra-ui/react";
+import { Box, Button, Spinner, Text } from "@chakra-ui/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -14,7 +16,7 @@ import { useEffect, useState } from "react";
 type ShellState =
   | { status: "loading" }
   | { status: "ready"; meta: Meta; result: Result }
-  | { status: "notFound" }
+  | { status: "notFound"; meta: Meta | null }
   | { status: "error"; url: string; message: string };
 
 /**
@@ -34,7 +36,7 @@ export function ReportShell() {
     const slug = resolveShellSlug(pathname, getBasePath());
 
     if (!slug) {
-      setState({ status: "notFound" });
+      setState({ status: "notFound", meta: null });
       return;
     }
 
@@ -63,7 +65,7 @@ export function ReportShell() {
         }
 
         if (!result) {
-          setState({ status: "notFound" });
+          setState({ status: "notFound", meta });
           return;
         }
 
@@ -96,11 +98,18 @@ export function ReportShell() {
   }
 
   if (state.status === "notFound") {
+    // 素の文言だけだとサイトの体裁から浮くので、他の画面と同じ枠に収める
     return (
-      <Box className="container" mt="8" textAlign="center" py={24}>
-        <Text mb={4}>ページが見つかりませんでした</Text>
-        <Link href="/">トップに戻る</Link>
-      </Box>
+      <>
+        <Header />
+        <Box className="container" mt="8" textAlign="center" py={24}>
+          <Text mb={6}>ページが見つかりませんでした</Text>
+          <Link href="/">
+            <Button>トップに戻る</Button>
+          </Link>
+        </Box>
+        {state.meta ? <Footer meta={state.meta} /> : null}
+      </>
     );
   }
 
