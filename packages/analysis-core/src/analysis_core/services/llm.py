@@ -9,9 +9,9 @@ import openai
 from dotenv import load_dotenv
 from openai import AzureOpenAI, OpenAI
 from pydantic import BaseModel
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS
+from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, positive_timeout
 
 try:  # Optional dependency
     from google import genai
@@ -25,12 +25,112 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover - library might b
 load_dotenv()
 
 
+# Flex Processing (https://developers.openai.com/api/docs/guides/flex-processing)
+# は GPT-5 / GPT-6 系の主要モデルと o3 / o4-mini で利用できる。
+# モデル名の "-" 区切りトークンにこれらが含まれる派生モデルは Flex 非対応として扱う。
+_OPENAI_FLEX_EXCLUDED_TOKENS = frozenset(
+    {"pro", "chat", "codex", "realtime", "audio", "search", "transcribe", "tts", "image"}
+)
+_OPENAI_FLEX_EXACT_MODELS = frozenset({"o3", "o4-mini"})
+# Flex はレイテンシが大きいため、OpenAI は 15 分程度のタイムアウトを推奨している。
+DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS = 900
+
+
+def _normalize_model_name(model: str | None) -> str:
+    return (model or "").strip().lower()
+
+
+def _is_openai_reasoning_model(model: str | None) -> bool:
+    """GPT-5/6 系および o 系の推論モデルは temperature の指定を受け付けない。"""
+    normalized = _normalize_model_name(model)
+    return normalized.startswith(("gpt-5", "gpt-6", "o1", "o3", "o4"))
+
+
+def _model_supports_openai_flex(model: str | None) -> bool:
+    normalized = _normalize_model_name(model)
+    if not normalized:
+        return False
+    if normalized in _OPENAI_FLEX_EXACT_MODELS:
+        return True
+    if not normalized.startswith(("gpt-5", "gpt-6")):
+        return False
+    tokens = normalized.split("-")
+    return not any(token in _OPENAI_FLEX_EXCLUDED_TOKENS for token in tokens)
+
+
+def _should_use_openai_flex(model: str | None) -> bool:
+    """Flex Processing を使うかどうか。OPENAI_USE_FLEX で明示的に上書きできる。"""
+    override = os.getenv("OPENAI_USE_FLEX")
+    if override is not None:
+        normalized = override.strip().lower()
+        if normalized in {"0", "false", "off", "disabled"}:
+            return False
+        if normalized in {"1", "true", "on", "enabled"}:
+            return True
+
+    return _model_supports_openai_flex(model)
+
+
+def _openai_flex_timeout_seconds(timeout_seconds: int) -> int:
+    """Flex 利用時のタイムアウト。通常のタイムアウトと OPENAI_FLEX_TIMEOUT_SECONDS の大きい方を使う。"""
+    # 空文字は未設定として扱う (.env.example の空欄をそのまま使えるように)
+    raw = (os.getenv("OPENAI_FLEX_TIMEOUT_SECONDS") or "").strip() or str(DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS)
+    try:
+        flex_timeout = positive_timeout(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"OPENAI_FLEX_TIMEOUT_SECONDS must be a positive integer number of seconds (got {raw!r})"
+        ) from exc
+    return max(timeout_seconds, flex_timeout)
+
+
+def _is_openai_flex_unavailable(error: openai.RateLimitError) -> bool:
+    """Flex のリソース不足 (429 resource_unavailable) か。通常の rate limit / quota 超過とは区別する。"""
+    return getattr(error, "code", None) == "resource_unavailable"
+
+
+def _is_retryable_rate_limit(error: BaseException) -> bool:
+    """Flex のリソース不足はリトライせず即座に標準処理へ切り替えるため、リトライ対象から外す。"""
+    return isinstance(error, openai.RateLimitError) and not _is_openai_flex_unavailable(error)
+
+
 @retry(
-    retry=retry_if_exception_type(openai.RateLimitError),
+    retry=retry_if_exception(_is_retryable_rate_limit),
     wait=wait_exponential(multiplier=3, min=3, max=20),
     stop=stop_after_attempt(3),
     reraise=True,
 )
+def _send_openai_chat_request(client: OpenAI, payload: dict[str, Any], use_pydantic: bool):
+    """同じ service_tier のまま rate limit をリトライする。tier の切り替えは呼び出し側で行う。"""
+    if use_pydantic:
+        # Use beta.chat.completions.parse for Pydantic BaseModel
+        return client.beta.chat.completions.parse(**payload)
+    return client.chat.completions.create(**payload)
+
+
+def _build_openai_chat_payload(
+    model: str,
+    messages: list[dict],
+    timeout_seconds: int,
+    response_format: Any | None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "n": 1,
+        "seed": 0,
+        "timeout": timeout_seconds,
+    }
+    if not _is_openai_reasoning_model(model):
+        payload["temperature"] = 0
+    if response_format is not None:
+        payload["response_format"] = response_format
+    if _should_use_openai_flex(model):
+        payload["service_tier"] = "flex"
+        payload["timeout"] = _openai_flex_timeout_seconds(timeout_seconds)
+    return payload
+
+
 def request_to_openai(
     messages: list[dict],
     model: str = "gpt-4",
@@ -46,50 +146,35 @@ def request_to_openai(
 
     client = OpenAI(api_key=user_api_key) if user_api_key else OpenAI()
 
+    use_pydantic = isinstance(json_schema, type) and issubclass(json_schema, BaseModel)
+    if use_pydantic:
+        response_format = json_schema
+    else:
+        response_format = {"type": "json_object"} if is_json else None
+        if json_schema:  # 両方有効化されていたら、json_schemaを優先
+            response_format = json_schema
+
+    payload = _build_openai_chat_payload(model, messages, timeout_seconds, response_format)
+
     try:
-        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
-            # Use beta.chat.completions.create for Pydantic BaseModel
-            response = client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=json_schema,
-                timeout=timeout_seconds,
-            )
-            if hasattr(response, "usage") and response.usage:
-                token_usage_input = response.usage.prompt_tokens or 0
-                token_usage_output = response.usage.completion_tokens or 0
-                token_usage_total = response.usage.total_tokens or 0
-            return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
+        try:
+            response = _send_openai_chat_request(client, payload, use_pydantic)
+        except openai.RateLimitError as e:
+            if payload.get("service_tier") != "flex" or not _is_openai_flex_unavailable(e):
+                raise
+            # Flex はリソース不足時に 429 (resource_unavailable) を返し、課金されない。
+            # "auto" は自動選択で再び Flex になり得るため、"default" で標準処理を明示する。
+            # 以降のリトライは標準処理のみで行い、Flex を叩き直さない。
+            logging.warning(f"OpenAI Flex processing unavailable, falling back to standard tier: {e}")
+            fallback_payload = {**payload, "service_tier": "default", "timeout": timeout_seconds}
+            response = _send_openai_chat_request(client, fallback_payload, use_pydantic)
 
-        else:
-            response_format = None
-            if is_json:
-                response_format = {"type": "json_object"}
-            if json_schema:  # 両方有効化されていたら、json_schemaを優先
-                response_format = json_schema
+        if hasattr(response, "usage") and response.usage:
+            token_usage_input = response.usage.prompt_tokens or 0
+            token_usage_output = response.usage.completion_tokens or 0
+            token_usage_total = response.usage.total_tokens or 0
 
-            payload = {
-                "model": model,
-                "messages": messages,
-                "temperature": 0,
-                "n": 1,
-                "seed": 0,
-                "timeout": timeout_seconds,
-            }
-            if response_format:
-                payload["response_format"] = response_format
-
-            response = client.chat.completions.create(**payload)
-
-            if hasattr(response, "usage") and response.usage:
-                token_usage_input = response.usage.prompt_tokens or 0
-                token_usage_output = response.usage.completion_tokens or 0
-                token_usage_total = response.usage.total_tokens or 0
-
-            return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
+        return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
     except openai.RateLimitError as e:
         logging.warning(f"OpenAI API rate limit hit: {e}")
         raise

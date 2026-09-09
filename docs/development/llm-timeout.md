@@ -21,3 +21,5 @@ OpenAI / Azure / Gemini / OpenRouter / ローカルLLMのチャット呼び出�
 ```
 
 ローカルLLMで同時リクエストが処理能力を超える場合は、作成画面の並列数も1に下げて確認してください。タイムアウトの延長だけでは処理能力の不足は解消しません。
+
+OpenAIのFlex Processingを使う呼び出しでは、この値と `OPENAI_FLEX_TIMEOUT_SECONDS`（既定900秒）の大きい方を適用します。詳細は [openai-flex-processing.md](openai-flex-processing.md) を参照してください。
