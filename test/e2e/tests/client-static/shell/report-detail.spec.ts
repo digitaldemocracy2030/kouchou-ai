@@ -47,3 +47,23 @@ test.describe("Client Static (shell) - レポート詳細", () => {
     await expect(page.getByText("テストレポート2：市民の声を集めよう")).toBeVisible();
   });
 });
+
+test("一覧の初回表示と画面遷移でhydrationエラーが発生しない", async ({ page }) => {
+  // 表示が回復するReact #418も失敗として扱う。描画の確認だけでは検出できない。
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("heading", { name: "レポート一覧" })).toBeVisible();
+  expect(pageErrors).toEqual([]);
+
+  await page.getByRole("link").filter({ hasText: "テストレポート1" }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("AIと著作権について、どのような意見が寄せられているのか？")).toBeVisible();
+
+  await page.getByRole("link", { name: "一覧へ戻る" }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("heading", { name: "レポート一覧" })).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});

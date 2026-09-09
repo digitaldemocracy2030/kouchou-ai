@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Client Static (Subdirectory) - レポート詳細テスト（静的ビルド版）
@@ -96,6 +96,13 @@ test.describe("Client Static (Subdirectory) - レポート詳細のレスポン�
 
       // レポートタイトルが表示される
       await expect(page.getByText("AIと著作権について、どのような意見が寄せられているのか？")).toBeVisible();
+
+      // モバイルの初期表示は階層リスト。折りたたまれた全体ノードを展開してから確認する。
+      if (viewport.width <= 600) {
+        await expect(page.getByRole("radio", { name: "List View リスト" })).toBeChecked();
+        await page.getByRole("button", { name: "展開する", exact: true }).first().click();
+        await page.getByRole("button", { name: "子要素を表示 (10件)", exact: true }).click();
+      }
 
       // クラスタ情報が表示される
       await expect(page.getByText(/生成AIと著作権に関する法的/).first()).toBeVisible();
