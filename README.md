@@ -72,6 +72,7 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
    docker compose --profile ollama up -d
    ```
 3. Ollama サービスが起動し、ポート 11434 で利用可能になります
+   - ホストですでに別の Ollama などが 11434 番を使っていると、`failed to bind host port ... address already in use` で起動しません。その場合は `.env` の `OLLAMA_HOST_PORT` を空いている番号（例: `11435`）に変えてください。アプリはコンテナ間通信（`ollama:11434`）で接続するので、`NEXT_PUBLIC_LOCAL_LLM_ADDRESS` は変更不要です
 4. デフォルトでは `hf.co/elyza/Llama-3-ELYZA-JP-8B-GGUF` モデルが自動的にダウンロードされます
 5. ダウンロードが完了したモデルはレポート生成時に選択して使用できます
 
