@@ -31,6 +31,10 @@ const checkMessages: Record<CheckStatus, string> = {
   unknown_error: "不明なエラー：接続先やAPI設定を確認してください。",
 };
 
+/**
+ * 作成直前の入力内容と接続確認結果を表示し、設定への復帰または作成開始を受け付ける。
+ * Azureの不明な接続エラーでは、確認すべきサーバー設定を案内する。
+ */
 export function CreateReportConfirmation({
   prepared,
   loading,
@@ -51,6 +55,7 @@ export function CreateReportConfirmation({
   const busy = loading || check === "checking";
   const checkFailed = !["unchecked", "checking", "ok"].includes(check);
 
+  /** 表示中の設定で接続を確認し、通信失敗も確認結果として表示する。 */
   const verify = async () => {
     setCheck("checking");
     try {

@@ -28,6 +28,7 @@ type EnvironmentCheckDialogProps = {
   localLLMAddress?: string;
 };
 
+/** 接続確認の実行前・成功・失敗を表示し、Azureの不明な失敗には設定の確認先を示す。 */
 function Dialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentCheckDialogProps) {
   const [state, action, isPending] = useActionState(
     verifyApiKey.bind(null, provider, userApiKey, model, localLLMAddress),
@@ -158,6 +159,7 @@ function Dialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentChe
   );
 }
 
+/** 選択中の接続設定を受け取り、接続チェック用ダイアログの開閉を管理する。 */
 export function EnvironmentCheckDialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentCheckDialogProps) {
   const [uuid, setUUID] = useState(() => createUUID());
 

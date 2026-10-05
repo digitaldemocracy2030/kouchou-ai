@@ -384,6 +384,7 @@ class TestDuplicateReport:
 
 @pytest.mark.parametrize("error_kind", ["bad_request", "not_found", "connection", "runtime"])
 def test_azure_verification_guidance_without_exception_details(client, error_kind):
+    """Azureの接続失敗では例外の詳細を返さず、設定項目の確認を案内する。"""
     import httpx
     import openai
 
