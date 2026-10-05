@@ -1,7 +1,6 @@
 import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster } from "@/type";
-import type { PlotData } from "plotly.js";
-import { useRef } from "react";
+import type { TreemapData } from "plotly.js";
 import { ChartCore } from "./ChartCore";
 
 type Props = {
@@ -13,9 +12,12 @@ type Props = {
   filteredArgumentIds?: string[]; // 追加: フィルター済みID
 };
 
+/**
+ * クラスタと意見を、指定された表示階層を起点にツリーマップで描画する。
+ * 絞り込み結果を件数と色に反映し、クリックやパスバーでの階層移動を
+ * onTreeZoomへ通知して、React側の表示階層と説明を同期する。
+ */
 export function TreemapChart({ clusterList, argumentList, onHover, level, onTreeZoom, filteredArgumentIds }: Props) {
-  const navigateRef = useRef(onTreeZoom);
-  navigateRef.current = onTreeZoom;
   // フィルタリングが有効かどうかをチェック
   const isFilteringActive = !!filteredArgumentIds;
 
@@ -100,7 +102,7 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
   // すべてのアイテムでホバー表示を有効にする
   // ホバーテンプレートでカスタムデータを使用するため、hoverinfo は不要になった
 
-  const data: Partial<PlotData & { maxdepth: number; pathbar: { thickness: number } }> = {
+  const data: Partial<TreemapData> = {
     type: "treemap",
     ids: ids,
     labels: labels,
@@ -115,10 +117,6 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
         width: 1,
         color: "white",
       },
-      opacity: list.map((node) => {
-        // @ts-ignore filtered プロパティを追加したので無視
-        return node.filtered ? 0.5 : 1; // フィルターに該当しないものは半透明に
-      }),
     },
     // フィルター対象外のノードではホバー表示を無効にする
     hoverinfo: "text",
@@ -168,16 +166,10 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
         onHover ? onHover() : null;
         darkenPathbar();
       }}
-      onInitialized={(_, graphDiv) => {
-        // react-plotly.js 2.x has no onTreemapClick prop. Use Plotly's nextLevel,
-        // including pathbar/up navigation, and keep React as the sole state owner.
-        const graph = graphDiv as unknown as {
-          on: (name: string, handler: (event: { nextLevel?: string }) => boolean) => void;
-        };
-        graph.on("plotly_treemapclick", (event) => {
-          if (event.nextLevel !== undefined) navigateRef.current(event.nextLevel);
-          return false;
-        });
+      onTreemapClick={(event: { nextLevel?: string }) => {
+        // パスバーで戻る場合もReact側の表示階層と説明を同期する。
+        if (event.nextLevel !== undefined) onTreeZoom(event.nextLevel);
+        return false;
       }}
     />
   );
