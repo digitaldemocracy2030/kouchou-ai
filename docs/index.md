@@ -88,6 +88,7 @@ docker compose up
 
 - **[はじめに](getting-started/quickstart.md)**: セットアップと基本的な使い方
 - **[ユーザーガイド](user-guide/how-to-use.md)**: 詳細な操作方法
+- **[コードを書かずに参加する](development/contributing.md#コードを書かずに参加する)**: 感想・質問・事例共有・比較評価の始め方
 - **[開発者向け](development/contributing.md)**: コントリビューション方法、プラグイン開発
 - **[デプロイ](deployment/azure.md)**: Azure、GitHub Pages、静的ホスティング時の CSP 設定
 - **[静的ホスティング向け CSP 設定](deployment/static-hosting-csp.md)**: Azure Static Web Apps / Cloudflare Pages / Nginx での CSP 例
