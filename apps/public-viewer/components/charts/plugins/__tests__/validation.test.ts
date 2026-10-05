@@ -2,6 +2,7 @@
  * Tests for Plugin Validation System
  */
 
+import fixture from "@/components/dev/viewer-fixture.json";
 import type { ReportDisplayConfig, Result } from "@/type";
 import { ChartPluginRegistry } from "../registry";
 import type { ChartMode, ChartPlugin, ChartPluginManifest } from "../types";
@@ -362,13 +363,14 @@ describe("validateVisualizationConfig", () => {
 });
 
 describe("validateResultData", () => {
+  const baseResult = fixture as unknown as Result;
   it("passes for valid result", () => {
     const result: Result = {
+      ...baseResult,
       clusters: [
-        { id: "1", level: 1, label: "Test", takeaways: "", value: 10, density_rank_percentile: 0.5, x: 0, y: 0 },
+        { id: "1", level: 1, label: "Test", takeaway: "", value: 10, density_rank_percentile: 0.5, parent: "0" },
       ],
       arguments: [],
-      config: { title: "Test" },
     };
 
     const validation = validateResultData(result);
@@ -383,9 +385,9 @@ describe("validateResultData", () => {
 
   it("warns for empty clusters", () => {
     const result: Result = {
+      ...baseResult,
       clusters: [],
       arguments: [],
-      config: { title: "Test" },
     };
 
     const validation = validateResultData(result);
@@ -394,11 +396,11 @@ describe("validateResultData", () => {
 
   it("fails for cluster missing id", () => {
     const result: Result = {
+      ...baseResult,
       clusters: [
-        { level: 1, label: "Test", takeaways: "", value: 10, density_rank_percentile: 0.5, x: 0, y: 0 } as never,
+        { level: 1, label: "Test", takeaway: "", value: 10, density_rank_percentile: 0.5, parent: "0" } as never,
       ],
       arguments: [],
-      config: { title: "Test" },
     };
 
     const validation = validateResultData(result);

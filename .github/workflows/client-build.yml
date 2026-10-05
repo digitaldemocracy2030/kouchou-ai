@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/client-build.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'apps/public-viewer/**'
       - 'apps/shared/**'
       - 'packages/report-schema/**'
@@ -14,6 +17,9 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/client-build.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'apps/public-viewer/**'
       - 'apps/shared/**'
       - 'packages/report-schema/**'
