@@ -225,6 +225,8 @@ make client-dev -j 3
 ## 開発者向けのガイドライン
 
 広聴 AI は OSS として開発されており、開発者の方からのコントリビュートを募集しています。
+コードを書かずに参加する方は、[感想・質問・事例共有から始める案内](./CONTRIBUTING.md#コードを書かずに参加する)をご覧ください。
+
 詳しくは、[コントリビューションガイド](https://digitaldemocracy2030.github.io/kouchou-ai/development/contributing)を参照ください。
 また、本プロジェクトでは AI エンジニア「[Devin](https://cognition.ai)」との協働開発を行っています。
 現時点での Devin とのコラボレーションについては、模索中ですが [Devin とのコラボレーション](https://digitaldemocracy2030.github.io/kouchou-ai/development/devin-collaboration)を参照してください。

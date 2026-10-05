@@ -123,3 +123,12 @@ it.each(["local", "openrouter", "azure"] as const)("%sの選択設定を接続�
   expect(verify).toHaveBeenCalledWith(provider, "test-key", "selected-model", "localhost:1234");
   expect(await screen.findByText(/^OK/)).toBeVisible();
 });
+
+it("Azureの接続失敗ではAPIバージョンと設定項目を案内する", async () => {
+  verify.mockResolvedValue({ result: null, error: true });
+  mount({ ...prepared, request: { ...prepared.request, provider: "azure" } }, jest.fn(), jest.fn());
+  await userEvent.click(screen.getByRole("button", { name: "API接続を確認する" }));
+  expect(
+    await screen.findByText(/AZURE_CHATCOMPLETION_VERSIONにはモデルのバージョンではなくAPIバージョン/),
+  ).toBeInTheDocument();
+});

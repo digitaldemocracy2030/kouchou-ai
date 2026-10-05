@@ -1,5 +1,5 @@
 import path from "node:path";
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * 広聴AI 管理画面テストスイート
@@ -116,28 +116,6 @@ test.describe("管理画面 - レポート作成フロー", () => {
     // エラーメッセージの確認（toaster による表示）
     // ※Chakra UIのtoasterはalert roleで表示される
     await expect(page.getByText("入力エラー")).toBeVisible({ timeout: 5000 });
-  });
-});
-
-test.describe("管理画面 - API連携", () => {
-  // NOTE: このテストはE2E環境ではスキップします
-  // 理由: E2Eは「実際のユーザーフローが動作すること」を確認する場所であり、
-  // エラーハンドリングの詳細なテストはコンポーネントテスト/統合テストで行うべきです
-  // 推奨: apps/admin/__tests__/ にReact Testing Library + MSWでテストを作成
-  test.skip("APIエラー時にエラーメッセージが表示される", async ({ page }) => {
-    // APIをモックしてエラーレスポンスを返す
-    await page.route("**/admin/reports", (route) => {
-      route.fulfill({
-        status: 500,
-        body: JSON.stringify({ error: "Internal Server Error" }),
-      });
-    });
-
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    // エラーメッセージが表示されることを確認
-    await expect(page.getByRole("heading", { name: "レポートの取得に失敗しました" })).toBeVisible();
   });
 });
 
