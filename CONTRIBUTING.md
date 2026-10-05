@@ -6,6 +6,8 @@
 
 AIエージェントを使う方は、[AIエージェントを使ったコントリビュート](./docs/development/ai-assistants.md)で読む順番と作業導線を確認してください。
 
+セキュリティ上の問題は公開Issueへ投稿せず、[セキュリティポリシー](https://github.com/digitaldemocracy2030/kouchou-ai/security/policy)に記載された非公開の報告先へ連絡してください。
+
 ## このプロジェクトについて
 
 - ブロードリスニングを実現するためのソフトウェア「広聴AI」PJのリポジトリです。
