@@ -4,7 +4,9 @@
 レポートの表示方法をカスタマイズするための設定を定義します。
 """
 
-from pydantic import Field
+from copy import deepcopy
+
+from pydantic import Field, ValidationError
 
 from src.schemas.base import SchemaBaseModel
 
@@ -55,3 +57,38 @@ DEFAULT_REPORT_DISPLAY_CONFIG = ReportDisplayConfig(
         ),
     ),
 )
+
+
+def parse_saved_visualization_config(raw_config: object) -> ReportDisplayConfig:
+    """保存済み設定の不正な密度項目だけを補い、元データと他の設定を保持する。
+
+    新規保存には通常のモデル検証を使い、範囲外の値を引き続き拒否する。
+    密度以外の検証エラーは呼び出し元へ伝える。
+    """
+    try:
+        return ReportDisplayConfig.model_validate(raw_config)
+    except ValidationError as error:
+        if not isinstance(raw_config, dict):
+            raise
+        recovered = deepcopy(raw_config)
+        defaults = DEFAULT_REPORT_DISPLAY_CONFIG.model_dump()["params"]["scatter_density"]
+        field_names = {
+            "max_density": "max_density",
+            "maxDensity": "max_density",
+            "min_value": "min_value",
+            "minValue": "min_value",
+        }
+        repaired = False
+        for detail in error.errors():
+            loc = detail["loc"]
+            if (
+                len(loc) == 3
+                and loc[0] == "params"
+                and loc[1] in ("scatter_density", "scatterDensity")
+                and loc[2] in field_names
+            ):
+                recovered[loc[0]][loc[1]][loc[2]] = defaults[field_names[loc[2]]]
+                repaired = True
+        if not repaired:
+            raise
+        return ReportDisplayConfig.model_validate(recovered)

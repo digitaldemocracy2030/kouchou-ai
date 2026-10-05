@@ -25,7 +25,7 @@ from src.schemas.admin_report import ReportDuplicateRequest, ReportInput, Report
 from src.schemas.cluster import ClusterResponse, ClusterUpdate
 from src.schemas.report import Report, ReportStatus
 from src.schemas.report_config import ReportConfigUpdate
-from src.schemas.visualization_config import ReportDisplayConfig
+from src.schemas.visualization_config import ReportDisplayConfig, parse_saved_visualization_config
 from src.services.llm_models import get_models_by_provider
 from src.services.llm_pricing import LLMPricing
 from src.services.report_duplicate import duplicate_report
@@ -418,7 +418,7 @@ async def get_visualization_config(slug: str, api_key: str = Depends(verify_admi
     try:
         with open(visualization_config_path) as f:
             raw_config = json.load(f)
-        validated_config = ReportDisplayConfig.model_validate(raw_config)
+        validated_config = parse_saved_visualization_config(raw_config)
         return {"visualizationConfig": validated_config.model_dump(by_alias=True)}
     except Exception as e:
         slogger.error(f"Error reading visualization config: {e}")

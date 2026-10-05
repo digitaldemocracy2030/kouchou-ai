@@ -48,6 +48,7 @@ type VisualizationConfigDialogProps = {
   setIsVisualizationConfigDialogOpen: Dispatch<SetStateAction<boolean>>;
 };
 
+/** 保存済みの表示設定を取得し、取得失敗時は編集を開始せずダイアログを閉じる。 */
 export function VisualizationConfigDialog({
   report,
   isOpen,
@@ -56,6 +57,7 @@ export function VisualizationConfigDialog({
   const [config, setConfig] = useState<ReportDisplayConfig | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  /** 対象レポートの設定を取得し、未設定の場合だけ初期設定を使う。 */
   const fetchInitialConfig = useCallback(async () => {
     setIsLoading(true);
     const result = await fetchVisualizationConfig(report.slug);
@@ -106,6 +108,7 @@ type DialogProps = {
   isLoading: boolean;
 };
 
+/** チャート設定と密度の初期値を編集し、他の表示設定を保持して保存する。 */
 function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: DialogProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [densityPercent, setDensityPercent] = useState(
@@ -120,6 +123,7 @@ function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: Dia
 
   const enabledChartsSet = new Set(config.enabledCharts);
 
+  /** 表示チャートを切り替え、既定チャートを外した場合は残るチャートへ切り替える。 */
   const handleChartToggle = (chartId: ChartType, checked: boolean) => {
     const newEnabledCharts = checked
       ? [...config.enabledCharts, chartId]
@@ -138,6 +142,7 @@ function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: Dia
     });
   };
 
+  /** レポートを開いたときに表示するチャートを更新する。 */
   const handleDefaultChartChange = (chartId: ChartType) => {
     setConfig({
       ...config,
@@ -152,6 +157,7 @@ function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: Dia
     }),
   });
 
+  /** 入力した閾値が有効な場合だけ、他の設定を保持してAPIへ保存する。 */
   async function handleSubmit() {
     if (!thresholdsValid) return;
     setIsSaving(true);
