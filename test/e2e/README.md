@@ -464,3 +464,20 @@ npx http-server out -p 3001
 cd apps/public-viewer
 npx http-server out-subdir -p 3002
 ```
+
+### 作成前のAPI接続エラーと復帰（#395）
+
+`tests/admin/connection-errors.spec.ts`は、CSV入力→作成前確認→API接続エラー→設定へ戻る→キー変更→再確認までを検証します。実APIキーやLLMへの接続は不要です。
+
+`E2E_TEST=true`のダミーAPIは、リクエストの`x-user-api-key`に次のテスト専用値がある場合だけエラーを返します。共有の切替状態は使わないため、他のテストへ影響しません。
+
+| テスト専用値 | 応答 |
+| --- | --- |
+| `e2e-authentication-error` | `authentication_error` |
+| `e2e-insufficient-quota` | `insufficient_quota` |
+| `e2e-rate-limit` | `rate_limit_error` |
+| `e2e-server-error` | HTTP 503 |
+| `e2e-connection-error` | レスポンスストリームを切断し、Server Actionの通信失敗経路を通す |
+| `e2e-success` | 通常の成功応答 |
+
+ブラウザの`page.route()`ではServer ActionからAPIへのリクエストを捕捉できないため、ダミーAPI側で再現しています。実プロバイダーでの認証・残高検出自体はこのE2Eの検証範囲外です。
