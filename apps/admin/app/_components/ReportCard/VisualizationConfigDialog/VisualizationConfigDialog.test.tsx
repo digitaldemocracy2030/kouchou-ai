@@ -66,6 +66,22 @@ test("未設定なら20%・5件を表示する", async () => {
   expect(screen.getByLabelText("意見グループの最小サンプル数")).toHaveValue(5);
 });
 
+test.each([
+  [0.07, 7],
+  [0.29, 29],
+  [0.123456, 12.3456],
+])("保存済み割合%sの表示に丸め誤差や末尾のゼロを付けない", async (maxDensity, percentage) => {
+  const config = {
+    ...initial,
+    params: { ...initial.params, scatterDensity: { ...initial.params?.scatterDensity, maxDensity } },
+  };
+  jest.mocked(fetchVisualizationConfig).mockResolvedValue({ success: true, config });
+  mount();
+  expect(await screen.findByLabelText("表示する密度の上位割合（%）")).toHaveDisplayValue(String(percentage));
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(updateVisualizationConfig).toHaveBeenCalledWith("test", config));
+});
+
 test("取得失敗時にデフォルト値で既存設定を上書きしない", async () => {
   jest.mocked(fetchVisualizationConfig).mockResolvedValue({ success: false, error: "error" });
   mount();

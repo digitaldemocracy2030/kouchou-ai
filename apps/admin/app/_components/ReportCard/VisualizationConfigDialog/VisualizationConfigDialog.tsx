@@ -112,7 +112,7 @@ type DialogProps = {
 function Dialog({ config, setConfig, report, isOpen, setIsOpen, isLoading }: DialogProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [densityPercent, setDensityPercent] = useState(
-    String((config.params?.scatterDensity?.maxDensity ?? 0.2) * 100),
+    String(Number(((config.params?.scatterDensity?.maxDensity ?? 0.2) * 100).toFixed(6))),
   );
   const [minSamples, setMinSamples] = useState(String(config.params?.scatterDensity?.minValue ?? 5));
   const density = Number(densityPercent);
