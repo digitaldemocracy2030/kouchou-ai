@@ -4,6 +4,7 @@ import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogRoot, Dial
 import { Box, Button, HStack, Text, VStack } from "@chakra-ui/react";
 import { useRef, useState } from "react";
 import type { createReport } from "../api/createReport";
+import { azureErrorMessage } from "./EnvironmentCheckDialog/azureErrorMessage";
 import { verifyApiKey } from "./EnvironmentCheckDialog/verifyApiKey";
 
 export type PreparedReport = {
@@ -30,6 +31,10 @@ const checkMessages: Record<CheckStatus, string> = {
   unknown_error: "不明なエラー：接続先やAPI設定を確認してください。",
 };
 
+/**
+ * 作成直前の入力内容と接続確認結果を表示し、設定への復帰または作成開始を受け付ける。
+ * Azureの不明な接続エラーでは、確認すべきサーバー設定を案内する。
+ */
 export function CreateReportConfirmation({
   prepared,
   loading,
@@ -50,6 +55,7 @@ export function CreateReportConfirmation({
   const busy = loading || check === "checking";
   const checkFailed = !["unchecked", "checking", "ok"].includes(check);
 
+  /** 表示中の設定で接続を確認し、通信失敗も確認結果として表示する。 */
   const verify = async () => {
     setCheck("checking");
     try {
@@ -117,7 +123,7 @@ export function CreateReportConfirmation({
             <Box borderWidth="1px" borderRadius="md" p="4">
               <Text fontWeight="bold">API接続チェック</Text>
               <Text as="output" display="block" aria-live="polite" mt="2">
-                {checkMessages[check]}
+                {check === "unknown_error" && request.provider === "azure" ? azureErrorMessage : checkMessages[check]}
               </Text>
               <Text mt="2" fontSize="sm">
                 {request.provider === "azure" ? "Azureのサーバー設定済みデプロイ" : "選択したモデル"}

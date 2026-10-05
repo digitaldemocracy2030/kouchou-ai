@@ -18,6 +18,7 @@ import { startTransition, useActionState, useState } from "react";
 import type { Provider } from "../../hooks/useAISettings";
 import { ErrorIcon } from "./ErrorIcon";
 import { GradientCheckIcon } from "./GradientCheckIcon";
+import { azureErrorMessage } from "./azureErrorMessage";
 import { verifyApiKey } from "./verifyApiKey";
 
 type EnvironmentCheckDialogProps = {
@@ -27,6 +28,7 @@ type EnvironmentCheckDialogProps = {
   localLLMAddress?: string;
 };
 
+/** 接続確認の実行前・成功・失敗を表示し、Azureの不明な失敗には設定の確認先を示す。 */
 function Dialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentCheckDialogProps) {
   const [state, action, isPending] = useActionState(
     verifyApiKey.bind(null, provider, userApiKey, model, localLLMAddress),
@@ -138,7 +140,9 @@ function Dialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentChe
               {state.result?.error_type === "rate_limit_error" &&
                 "APIのレート制限に達しました。時間をおいて再度お試しください。"}
               {(!state.result?.error_type || state.result.error_type === "unknown_error") &&
-                "不明なエラーが発生しました。APIの設定や接続を再確認してください。"}
+                (provider === "azure"
+                  ? azureErrorMessage
+                  : "不明なエラーが発生しました。APIの設定や接続を再確認してください。")}
             </Box>
           </DialogBody>
           <DialogCloseTrigger />
@@ -155,6 +159,7 @@ function Dialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentChe
   );
 }
 
+/** 選択中の接続設定を受け取り、接続チェック用ダイアログの開閉を管理する。 */
 export function EnvironmentCheckDialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentCheckDialogProps) {
   const [uuid, setUUID] = useState(() => createUUID());
 
