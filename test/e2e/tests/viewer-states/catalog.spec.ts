@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@playwright/test";
+import fixture from "../../../../apps/public-viewer/components/dev/viewer-fixture.json";
 
 test.beforeEach(async ({ page }) => {
   await page.route("https://fonts.**/*", (route) => route.abort());
@@ -48,6 +49,28 @@ test("スマホは一覧を初期表示し明示設定を尊重する", async ({
   await page.screenshot({ path: "test-results/viewer-mobile.png", fullPage: true });
   await page.getByRole("combobox", { name: "状態", exact: true }).selectOption("明示的な散布図");
   await expect(page.locator(".js-plotly-plot")).toBeVisible();
+});
+
+test("描画更新後もクラウド送信を表示せず階層クリックと説明が同期する", async ({ page }) => {
+  await page.getByRole("combobox", { name: "状態", exact: true }).selectOption("明示的な散布図");
+  const plot = page.locator(".js-plotly-plot");
+  await expect(plot).toBeVisible();
+  await plot.hover();
+  await expect(plot.locator(".modebar-btn").first()).toBeVisible();
+  await expect(plot.locator('[data-title="Share chart..."]')).toHaveCount(0);
+
+  await page.getByText("階層", { exact: true }).click();
+  const cluster = fixture.clusters.filter((item) => item.parent === "0").sort((a, b) => b.value - a.value)[0];
+  const label = plot
+    .locator(".treemap .slice > .slicetext")
+    .filter({ hasText: cluster.label.slice(0, 10) })
+    .first();
+  await expect(label).toBeVisible();
+  await label.locator("..").locator(":scope > .surface").click();
+  await expect(page.getByRole("heading", { name: `表示中: ${cluster.label}`, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "一つ上に戻る" }).click();
+  const root = fixture.clusters.find((item) => item.id === "0");
+  await expect(page.getByRole("heading", { name: `表示中: ${root?.label}`, exact: true })).toBeVisible();
 });
 
 test("fileで直接開くとNextの起動なしで案内を表示する", async ({ page, request }, testInfo) => {

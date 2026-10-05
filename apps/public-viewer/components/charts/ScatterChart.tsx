@@ -1,7 +1,7 @@
 import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster, Config } from "@/type";
 import { Box } from "@chakra-ui/react";
-import type { Annotations, Data, Layout, PlotMouseEvent } from "plotly.js";
+import type { Annotation, Data, Layout, PlotMouseEvent } from "plotly.js";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
 
@@ -17,6 +17,11 @@ type Props = {
   showConvexHull?: boolean; // クラスターの凸包を表示するか
 };
 
+/**
+ * 意見の座標と指定階層のクラスタを散布図で表示する。
+ * 絞り込み対象外の意見も灰色で残し、元の分布との比較を可能にする。
+ * ソースへの遷移はレポート設定に従い、Plotly Cloudへの送信導線は表示しない。
+ */
 export function ScatterChart({
   clusterList,
   argumentList,
@@ -464,7 +469,7 @@ export function ScatterChart({
   const allPlotData = [...hullTraces, ...plotData];
 
   // アノテーションの設定
-  const annotations: Partial<Annotations>[] = showClusterLabels
+  const annotations: Partial<Annotation>[] = showClusterLabels
     ? clusterDataSets.map((dataSet) => {
         // フィルターされていても背景色を維持（灰色のクラスターでもラベルは元の色で表示）
         // @ts-ignore allFilteredプロパティが存在する前提で処理（TypeScript型定義に追加済み）
@@ -523,6 +528,7 @@ export function ScatterChart({
           config={{
             responsive: true,
             displayModeBar: "hover", // 操作時にツールバーを表示
+            showSendToCloud: false, // Plotly Cloudへの送信導線は表示しない
             scrollZoom: true, // マウスホイールによるズームを有効化
             locale: "ja",
           }}
