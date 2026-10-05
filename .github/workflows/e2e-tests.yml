@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [ main ]
     paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'apps/api/src/services/model_catalog.json'
       - 'apps/api/src/services/shell_export.py'
       - 'apps/public-viewer/**'
@@ -40,7 +43,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
         cache: 'pnpm'
         cache-dependency-path: ./pnpm-lock.yaml
 

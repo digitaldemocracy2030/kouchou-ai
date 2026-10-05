@@ -4,12 +4,18 @@ on:
   push:
     branches: [main]
     paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'apps/api/src/services/model_catalog.json'
       - 'apps/admin/**'
       - '!apps/admin/**/*.md'
   pull_request:
     branches: [main]
     paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'apps/api/src/services/model_catalog.json'
       - 'apps/admin/**'
       - '!apps/admin/**/*.md'
