@@ -12,6 +12,11 @@ type Props = {
   filteredArgumentIds?: string[]; // 追加: フィルター済みID
 };
 
+/**
+ * クラスタと意見を、指定された表示階層を起点にツリーマップで描画する。
+ * 絞り込み結果を件数と色に反映し、クリックやパスバーでの階層移動を
+ * onTreeZoomへ通知して、React側の表示階層と説明を同期する。
+ */
 export function TreemapChart({ clusterList, argumentList, onHover, level, onTreeZoom, filteredArgumentIds }: Props) {
   // フィルタリングが有効かどうかをチェック
   const isFilteringActive = !!filteredArgumentIds;

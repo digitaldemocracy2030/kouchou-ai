@@ -17,6 +17,11 @@ type Props = {
   showConvexHull?: boolean; // クラスターの凸包を表示するか
 };
 
+/**
+ * 意見の座標と指定階層のクラスタを散布図で表示する。
+ * 絞り込み対象外の意見も灰色で残し、元の分布との比較を可能にする。
+ * ソースへの遷移はレポート設定に従い、Plotly Cloudへの送信導線は表示しない。
+ */
 export function ScatterChart({
   clusterList,
   argumentList,
