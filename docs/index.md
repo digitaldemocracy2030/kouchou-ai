@@ -82,7 +82,7 @@ docker compose up
 | public-viewer | 3000 | レポート表示用フロントエンド |
 | admin | 4000 | 管理用フロントエンド |
 | api | 8000 | バックエンド API サービス |
-| ollama | 11434 | ローカル LLM（オプション） |
+| ollama | 11434（ホスト側は `.env` の `OLLAMA_HOST_PORT` で変更可） | ローカル LLM（オプション） |
 
 ## ドキュメント構成
 
