@@ -79,7 +79,9 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      # ホスト側のポート。ホストで別の Ollama が 11434 を使っている場合は .env の OLLAMA_HOST_PORT で変える
+      # （アプリはコンテナ間通信の ollama:11434 で接続するため、この値を変えてもアプリ側の設定は不要）
+      - "${OLLAMA_HOST_PORT:-11434}:11434"
     volumes:
       - ollama-data:/root/.ollama
     restart: unless-stopped
