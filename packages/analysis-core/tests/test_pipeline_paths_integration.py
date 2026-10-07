@@ -472,6 +472,7 @@ class TestVisualizationWorkflowIntegration:
     """The default CLI path (HTML enabled) must finish without extra config keys."""
 
     def test_only_visualization_writes_report_without_report_dir(self, tmp_path):
+        """Re-running only the visualization step writes report.html without report_dir in config."""
         from analysis_core.orchestrator import PipelineOrchestrator
 
         input_dir = tmp_path / "inputs"
