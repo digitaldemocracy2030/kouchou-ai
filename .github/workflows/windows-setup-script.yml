@@ -4,11 +4,19 @@ on:
   pull_request:
     paths:
       - setup_win.bat
+      - setup_win.ps1
+      - .env.example
+      - compose.yaml
+      - scripts/check_setup_env.py
       - .github/workflows/windows-setup-script.yml
   push:
     branches: [main]
     paths:
       - setup_win.bat
+      - setup_win.ps1
+      - .env.example
+      - compose.yaml
+      - scripts/check_setup_env.py
       - .github/workflows/windows-setup-script.yml
 
 jobs:
@@ -87,5 +95,10 @@ jobs:
           }
           if ($envText -notmatch "NEXT_PUBLIC_API_BASEPATH=http://localhost:8000") {
             throw "NEXT_PUBLIC_API_BASEPATH was not written to .env"
+          }
+
+          python scripts/check_setup_env.py .env
+          if ($LASTEXITCODE -ne 0) {
+            throw "Generated .env is missing required variables"
           }
           exit 0
