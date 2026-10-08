@@ -1,6 +1,6 @@
-import type { JaLocaleType } from "@/type";
+import type { PlotlyLocale } from "@/type";
 
-const jaLocale: JaLocaleType = {
+const jaLocale: PlotlyLocale = {
   moduleType: "locale",
   name: "ja",
   dictionary: {

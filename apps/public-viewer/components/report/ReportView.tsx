@@ -1,12 +1,8 @@
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { Analysis } from "@/components/report/Analysis";
-import { BackButton } from "@/components/report/BackButton";
-import { ClientContainer } from "@/components/report/ClientContainer";
-import { Overview } from "@/components/report/Overview";
-import { ReadingGuide } from "@/components/report/ReadingGuide";
+import { LocalizedReportView } from "@/components/report/LocalizedReportView";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import type { Meta, Result } from "@/type";
-import { Box, Separator } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 
 /**
@@ -15,6 +11,9 @@ import type { ReactNode } from "react";
  * サーバー側で組み立てる `app/[slug]/page.tsx` と、shell ビルドで実行時に
  * 組み立てる `ReportShell` の両方から使う。レポーターの表示だけが
  * 取得方法によって異なるので slot で受ける。
+ *
+ * 表示言語（日本語 / 英語 / 韓国語）は LanguageProvider が持ち、本文の
+ * 差し替えと UI 文言の切替は LocalizedReportView 以下で行う。
  */
 export function ReportView({
   result,
@@ -26,20 +25,10 @@ export function ReportView({
   reporter: ReactNode;
 }) {
   return (
-    <>
+    <LanguageProvider>
       <Header />
-      <Box className="container" mt="8">
-        <Overview result={result} />
-        <ReadingGuide />
-        <ClientContainer result={result} />
-        <Analysis result={result} />
-        <BackButton />
-        <Separator my={12} maxW={"750px"} mx={"auto"} />
-        <Box maxW={"750px"} mx={"auto"} mb={24}>
-          {reporter}
-        </Box>
-      </Box>
+      <LocalizedReportView result={result} reporter={reporter} />
       <Footer meta={meta} />
-    </>
+    </LanguageProvider>
   );
 }

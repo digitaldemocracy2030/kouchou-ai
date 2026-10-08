@@ -8,6 +8,7 @@
 "use client";
 
 import { groupArgumentsByCluster, toIdSet } from "@/lib/argumentIndex";
+import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Argument, Cluster } from "@/type";
 import { Box, Icon, Text, VStack } from "@chakra-ui/react";
 import { ChevronRight } from "lucide-react";
@@ -57,13 +58,14 @@ function ArgumentsDisplay({
   filteredIdSet?: ReadonlySet<string>;
   maxDisplay?: number;
 }) {
+  const messages = useMessages();
   const [showAll, setShowAll] = useState(false);
   const displayArguments = showAll ? argumentsList : argumentsList.slice(0, maxDisplay);
 
   if (argumentsList.length === 0) {
     return (
       <Text fontSize="sm" color="gray.500">
-        個別データがありません
+        {messages.noItems}
       </Text>
     );
   }
@@ -71,7 +73,7 @@ function ArgumentsDisplay({
   return (
     <Box mt={2}>
       <Text fontSize="sm" fontWeight="medium" color="gray.600" mb={2}>
-        個別データ ({argumentsList.length}件)
+        {messages.itemsHeading(argumentsList.length)}
       </Text>
       <Box as="ul" pl={4} m={0} listStyleType="disc">
         {displayArguments.map((arg) => {
@@ -98,7 +100,7 @@ function ArgumentsDisplay({
           border="none"
           p={0}
         >
-          {showAll ? "表示を減らす" : `さらに表示 (残り${argumentsList.length - maxDisplay}件)`}
+          {showAll ? messages.showLess : messages.showMore(argumentsList.length - maxDisplay)}
         </Box>
       )}
     </Box>
@@ -111,6 +113,7 @@ export function HierarchyListChart({
   filteredArgumentIds,
   onHover,
 }: HierarchyListChartProps) {
+  const messages = useMessages();
   const [treeData, setTreeData] = useState<ClusterNode[]>([]);
   // ツリーを作り直すときに、直前の展開状態をクラスタ ID で引き継ぐための参照（下の effect より先に更新する）
   const treeDataRef = useRef(treeData);
@@ -268,7 +271,7 @@ export function HierarchyListChart({
               bg="transparent"
               border="none"
               p={0}
-              aria-label={node.isExpanded ? "折りたたむ" : "展開する"}
+              aria-label={node.isExpanded ? messages.collapse : messages.expand}
             >
               <Icon
                 as={ChevronRight}
@@ -290,7 +293,7 @@ export function HierarchyListChart({
               <Text as="span" fontWeight="normal" fontSize="sm" color="gray.500" ml={2}>
                 {filteredCounts
                   ? `(フィルター後 ${filteredCounts.get(node.id) ?? 0}件 / 全${node.value}件)`
-                  : `(${node.value}件)`}
+                  : `(${messages.opinionCount(node.value)})`}
               </Text>
             </Text>
 
@@ -316,7 +319,7 @@ export function HierarchyListChart({
                       border="none"
                       p={0}
                     >
-                      {node.isChildrenExpanded ? "子要素を閉じる" : `子要素を表示 (${node.children.length}件)`}
+                      {node.isChildrenExpanded ? messages.closeChildren : messages.showChildren(node.children.length)}
                     </Box>
                   </Box>
                 )}
@@ -335,7 +338,7 @@ export function HierarchyListChart({
                       border="none"
                       p={0}
                     >
-                      {node.isChildrenExpanded ? "個別データを閉じる" : `個別データを表示 (${node.arguments.length}件)`}
+                      {node.isChildrenExpanded ? messages.closeItems : messages.showItems(node.arguments.length)}
                     </Box>
                   </Box>
                 )}
@@ -364,10 +367,10 @@ export function HierarchyListChart({
       <VStack align="stretch" gap={0}>
         <Box mb={4}>
           <Text fontSize="xl" fontWeight="bold" color="gray.800" mb={1}>
-            階層リスト
+            {messages.hierarchyList}
           </Text>
           <Text fontSize="sm" color="gray.600">
-            クラスタを展開して詳細を表示できます
+            {messages.hierarchyListDescription}
           </Text>
         </Box>
 

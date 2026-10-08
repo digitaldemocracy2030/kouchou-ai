@@ -1,5 +1,6 @@
 "use client";
 
+import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Cluster } from "@/type";
 import { Box, Heading, Link, Text } from "@chakra-ui/react";
 import { MessagesSquareIcon } from "lucide-react";
@@ -26,6 +27,7 @@ export const ClusterOverview = memo(function ClusterOverview({
   isFiltering,
   isSelected,
 }: Props) {
+  const messages = useMessages();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 散布図でこのクラスタが選択されたら、連動して一覧の該当項目へスクロールする
@@ -72,7 +74,8 @@ export const ClusterOverview = memo(function ClusterOverview({
         </Link>
         <Text fontWeight={"bold"} display={"flex"} gap={1} mt={2}>
           <MessagesSquareIcon size={20} />
-          {displayCount.toLocaleString()}件{isFiltering ? "（フィルター後）" : ""}
+          {messages.opinionCount(displayCount)}
+          {isFiltering ? "（フィルター後）" : ""}
         </Text>
       </Box>
       <Text>{cluster.takeaway}</Text>
