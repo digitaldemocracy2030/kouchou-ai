@@ -218,6 +218,10 @@ export function ClientContainer({ result }: Props) {
         selectedChart={selectedChart}
         isFullscreen={isFullscreen}
         onExitFullscreen={() => setIsFullscreen(false)}
+        onChangeChart={setSelectedChart}
+        enabledCharts={enabledCharts}
+        chartOrder={chartOrder}
+        disabledModeOverrides={{ scatterDensity: !isDenseGroupEnabled }}
         showClusterLabels={showClusterLabels}
         onToggleClusterLabels={setShowClusterLabels}
         showConvexHull={showConvexHull}

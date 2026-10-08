@@ -32,6 +32,54 @@ type Props = {
   attentionFilterBadgeCount?: number;
 };
 
+export type ResolvedChartMode = {
+  id: string;
+  label: string;
+  icon: ComponentType;
+  isDisabled: boolean;
+  tooltip?: string;
+};
+
+/**
+ * 表示可能なチャートモードを enabledCharts / chartOrder で絞り込み・並べ替え、
+ * プラグインの isDisabled と親からの上書きを合わせて無効状態を決める。
+ * 通常のモード選択と全画面ツールバーで同じ判定を共有する。
+ */
+export function resolveChartModes(
+  result: Result,
+  enabledCharts?: ChartType[],
+  chartOrder?: ChartType[],
+  disabledModeOverrides: Record<string, boolean> = {},
+): ResolvedChartMode[] {
+  const allModes = chartRegistry.getAllModes();
+  const enabled = enabledCharts ?? DEFAULT_ENABLED_CHARTS;
+  const order = chartOrder ?? enabled;
+
+  // Filter modes by enabledCharts
+  const enabledModes = allModes.filter((mode) => enabled.includes(mode.id as ChartType));
+
+  // Sort by chartOrder if provided
+  const sortedModes = [...enabledModes].sort((a, b) => {
+    const aIndex = order.indexOf(a.id as ChartType);
+    const bIndex = order.indexOf(b.id as ChartType);
+    // Modes not in order go to the end
+    const aOrder = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+    const bOrder = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+    return aOrder - bOrder;
+  });
+
+  return sortedModes.map((mode) => {
+    // Evaluate disabled state from multiple sources:
+    // 1. Plugin's isDisabled function (based on result data structure)
+    // 2. Parent's override (e.g., density filter produces empty results)
+    const pluginDisabled = mode.isDisabled?.(result) ?? false;
+    const overrideDisabled = disabledModeOverrides[mode.id] ?? false;
+    const isDisabled = pluginDisabled || overrideDisabled;
+    const tooltip = isDisabled && mode.disabledTooltip ? mode.disabledTooltip : undefined;
+    return { id: mode.id, label: mode.label, icon: mode.icon, isDisabled, tooltip };
+  });
+}
+
 const SegmentItemWithIcon = (icon: ComponentType, text: string, selected: boolean) => {
   return (
     <Stack
@@ -72,39 +120,12 @@ export function SelectChartButton({
 }: Props) {
   // Generate items from plugin registry, filtered by enabledCharts
   const items = useMemo(() => {
-    const allModes = chartRegistry.getAllModes();
-    const enabled = enabledCharts ?? DEFAULT_ENABLED_CHARTS;
-    const order = chartOrder ?? enabled;
-
-    // Filter modes by enabledCharts
-    const enabledModes = allModes.filter((mode) => enabled.includes(mode.id as ChartType));
-
-    // Sort by chartOrder if provided
-    const sortedModes = [...enabledModes].sort((a, b) => {
-      const aIndex = order.indexOf(a.id as ChartType);
-      const bIndex = order.indexOf(b.id as ChartType);
-      // Modes not in order go to the end
-      const aOrder = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
-      const bOrder = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
-      return aOrder - bOrder;
-    });
-
-    return sortedModes.map((mode) => {
-      // Evaluate disabled state from multiple sources:
-      // 1. Plugin's isDisabled function (based on result data structure)
-      // 2. Parent's override (e.g., density filter produces empty results)
-      const pluginDisabled = mode.isDisabled?.(result) ?? false;
-      const overrideDisabled = disabledModeOverrides[mode.id] ?? false;
-      const isDisabled = pluginDisabled || overrideDisabled;
-      const tooltip = isDisabled && mode.disabledTooltip ? mode.disabledTooltip : undefined;
-
-      return {
-        value: mode.id,
-        label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id),
-        isDisabled,
-        tooltip,
-      };
-    });
+    return resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides).map((mode) => ({
+      value: mode.id,
+      label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id),
+      isDisabled: mode.isDisabled,
+      tooltip: mode.tooltip,
+    }));
   }, [selected, result, disabledModeOverrides, enabledCharts, chartOrder]);
 
   // Calculate dynamic tab width based on mode count
