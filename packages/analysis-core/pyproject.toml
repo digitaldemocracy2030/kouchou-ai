@@ -56,6 +56,7 @@ Issues = "https://github.com/digitaldemocracy2030/kouchou-ai/issues"
 
 [project.scripts]
 kouchou-analyze = "analysis_core.__main__:main"
+kouchou-translate = "analysis_core.translate:main"
 
 [build-system]
 requires = ["hatchling"]
