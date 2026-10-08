@@ -1,5 +1,7 @@
 # 広聴 AI / kouchou-ai
 
+日本語 | [한국어](./README.ko.md)
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/digitaldemocracy2030/kouchou-ai)
 
 デジタル民主主義 2030 プロジェクトにおいて、ブロードリスニングを実現するためのソフトウェア「広聴 AI」のリポジトリです。
