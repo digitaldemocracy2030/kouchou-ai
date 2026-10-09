@@ -12,7 +12,7 @@ function EmptyText() {
     <Text textStyle="body/md" color="gray.500">
       レポーター情報が未設定です。レポート作成者が
       <Link
-        href="https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/README.md#%E3%83%A1%E3%82%BF%E3%83%87%E3%83%BC%E3%82%BF%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E3%81%AE%E3%82%BB%E3%83%83%E3%83%88%E3%82%A2%E3%83%83%E3%83%97"
+        href="https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/README.ja.md#%E3%83%A1%E3%82%BF%E3%83%87%E3%83%BC%E3%82%BF%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E3%81%AE%E3%82%BB%E3%83%83%E3%83%88%E3%82%A2%E3%83%83%E3%83%97"
         target="_blank"
         rel="noopener noreferrer"
       >
