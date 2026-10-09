@@ -9,7 +9,14 @@ import { Box, Dialog, Portal } from "@chakra-ui/react";
 ensurePluginsLoaded();
 
 type ReportProps = {
+  /** 描画に使う結果（属性フィルタ・密度フィルタ適用後） */
   result: Result;
+  /**
+   * 全画面の粒度切替で「どのモードが選べるか」を判定するための、フィルタ適用前の結果。
+   * 密度フィルタで最深 level のクラスタが全て落ちても、通常のセレクタと同じ判定になるよう result と分ける。
+   * 未指定なら result を使う。
+   */
+  modeResult?: Result;
   selectedChart: string;
   isFullscreen: boolean;
   onExitFullscreen: () => void;
@@ -25,8 +32,13 @@ type ReportProps = {
   onTreeZoom: (level: string) => void;
 };
 
+/**
+ * 選択中のモードのチャートプラグインを描画する。
+ * 全画面時はダイアログで包み、上部ツールバーに「全画面終了」と（onChangeChart があれば）粒度切替を置く。
+ */
 export function Chart({
   result,
+  modeResult,
   selectedChart,
   isFullscreen,
   onExitFullscreen,
@@ -77,7 +89,7 @@ export function Chart({
                     <ScatterLevelSwitch
                       selected={selectedChart}
                       onChange={onChangeChart}
-                      result={result}
+                      result={modeResult ?? result}
                       enabledCharts={enabledCharts}
                       chartOrder={chartOrder}
                       disabledModeOverrides={disabledModeOverrides}

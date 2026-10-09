@@ -215,6 +215,7 @@ export function ClientContainer({ result }: Props) {
       <div id="report-chart" />
       <Chart
         result={filteredResult}
+        modeResult={result}
         selectedChart={selectedChart}
         isFullscreen={isFullscreen}
         onExitFullscreen={() => setIsFullscreen(false)}
