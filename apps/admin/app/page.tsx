@@ -1,6 +1,6 @@
 import { Header } from "@/components/Header";
 import type { Report } from "@/type";
-import { Box, Heading, Text, VStack, Code } from "@chakra-ui/react";
+import { Box, Code, Heading, Text, VStack } from "@chakra-ui/react";
 import { PageContent } from "./_components/PageContent";
 import { getApiBaseUrl } from "./utils/api";
 
@@ -12,7 +12,10 @@ type ErrorInfo = {
 
 function getErrorInfo(error: unknown, apiUrl: string): ErrorInfo {
   // 接続エラー（サーバーが起動していない、アドレス/ポートが間違っている）
-  if (error instanceof TypeError && (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED"))) {
+  if (
+    error instanceof TypeError &&
+    (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED"))
+  ) {
     return {
       title: "APIサーバーに接続できません",
       description: "APIサーバーが起動していないか、接続先の設定が間違っている可能性があります。",

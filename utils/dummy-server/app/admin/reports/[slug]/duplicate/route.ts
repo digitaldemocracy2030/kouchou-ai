@@ -22,7 +22,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   if (usedSlugs.has(newSlug)) {
     return NextResponse.json(
       { error: "newSlug already exists", detail: "newSlug already exists" },
-      { status: 409, headers: corsHeaders }
+      { status: 409, headers: corsHeaders },
     );
   }
   usedSlugs.add(newSlug);
@@ -32,7 +32,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       success: true,
       report: { slug: newSlug, status: "processing" },
     },
-    { headers: corsHeaders }
+    { headers: corsHeaders },
   );
 }
 

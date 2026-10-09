@@ -140,7 +140,9 @@ export function computeAttributeMetas(args: Argument[]): AttributeMeta[] {
   }
 
   return Object.entries(attrMap).map(([name, info]) => {
-    const values = Array.from(info.valueSet).filter((v) => v !== "").sort();
+    const values = Array.from(info.valueSet)
+      .filter((v) => v !== "")
+      .sort();
     const valueCounts: Record<string, number> = {};
     for (const v of values) valueCounts[v] = info.valueCounts.get(v) ?? 0;
     return {
