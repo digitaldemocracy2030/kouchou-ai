@@ -1,12 +1,12 @@
 # 広聴 AI / kouchou-ai
 
-[English](./README.md) | [日本語](./README.ja.md) | 한국어
+[English](./README.en.md) | [日本語](./README.md) | 한국어
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/digitaldemocracy2030/kouchou-ai)
 
 디지털 민주주의 2030 프로젝트에서 브로드 리스닝(broad listening)을 실현하기 위한 소프트웨어 ‘広聴 AI(코초 AI, kouchou-ai)’의 저장소입니다.
 
-> 이 문서는 [README.ja.md](./README.ja.md)(일본어)의 한국어 번역입니다. 내용이 다를 경우 일본어판이 우선합니다. 본문에서 링크하는 가이드와 문서는 대부분 일본어로 작성되어 있습니다.
+> 이 문서는 [README.md](./README.md)(일본어)의 한국어 번역입니다. 내용이 다를 경우 일본어판이 우선합니다. 본문에서 링크하는 가이드와 문서는 대부분 일본어로 작성되어 있습니다.
 
 이 프로젝트는 [AI Objectives Institute](https://www.aiobjectivesinstitute.org/)가 개발한 [Talk to the City](https://github.com/AIObjectives/talk-to-the-city-reports)를 참고하여, 일본의 지방자치단체와 정치인의 실무에 맞춘 기능 개선을 진행하고 있습니다.
 

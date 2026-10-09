@@ -1,248 +1,245 @@
 # 広聴 AI / kouchou-ai
 
-English | [日本語](./README.ja.md) | [한국어](./README.ko.md)
+[English](./README.en.md) | 日本語 | [한국어](./README.ko.md)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/digitaldemocracy2030/kouchou-ai)
 
-This is the repository of "広聴 AI" (kouchou-ai), software for broad listening developed in the Digital Democracy 2030 project.
+デジタル民主主義 2030 プロジェクトにおいて、ブロードリスニングを実現するためのソフトウェア「広聴 AI」のリポジトリです。
 
-> This README is an English translation of [README.ja.md](./README.ja.md) (Japanese). If the two differ, the Japanese version takes precedence. Most of the guides and documents linked from this page are written in Japanese.
+このプロジェクトは、[AI Objectives Institute](https://www.aiobjectivesinstitute.org/) が開発した [Talk to the City](https://github.com/AIObjectives/talk-to-the-city-reports)を参考に、日本の自治体や政治家の実務に合わせた機能改善を進めています。
 
-The project is based on [Talk to the City](https://github.com/AIObjectives/talk-to-the-city-reports), developed by the [AI Objectives Institute](https://www.aiobjectivesinstitute.org/), and improves its features to fit the practical needs of Japanese local governments and politicians.
+- 機能例
+  - 開発者以外でも扱いやすいような機能 (CSV Upload)
+  - 濃いクラスタ抽出機能
+  - パブリックコメント用分析機能（予定）
+  - 多数派攻撃に対する防御機能（予定）
 
-- Example features
-  - Features that are easy to use for non-developers (CSV upload)
-  - Dense cluster extraction
-  - Analysis for public comments (planned)
-  - Defense against majority attacks (planned)
+## 前提条件
 
-## Prerequisites
-
-- For general users:
-  - Download the stable release (see the guide for [Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup) / [Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup) / [Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup))
-  - Docker (install it by following each guide)
-  - An OpenAI API key
-- For developers:
+- 一般ユーザー向け：
+- 安定版リリースをダウンロード（[Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup)/[Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup)/[Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup)の各ガイドを参照）
+  - Docker（各ガイドに従ってインストール）
+  - OpenAI API キー
+- 開発者向け：
   - docker
   - git
-  - An OpenAI API key
+  - OpenAI API キー
+## セットアップ・起動
 
-## Setup and launch
+### 前提
 
-### Overview
+- 広聴 AI は Web アプリとして構築されており、アプリケーションを立ち上げ、ブラウザを操作することでレポートの出力と閲覧ができます
+- 以下の手順は、ローカル環境で docker compose を使用してセットアップする際の手順となります
+- リモート環境でホスティングする場合は、個別のサービス（public-viewer, admin, api）について、適切に環境変数を設定した上でそれぞれホスティングしてください
+  - サービスごとに設定する環境変数は.env.example に記載しています
 
-- 広聴 AI is built as a web application. You start the application and operate it in your browser to generate and view reports
-- The steps below describe how to set it up locally with docker compose
-- To host it in a remote environment, host each service (public-viewer, admin, api) separately with the appropriate environment variables
-  - The environment variables for each service are described in `.env.example`
+### おすすめクラスタ数設定
 
-### Recommended number of clusters
+レポート作成時の意見グループ数（クラスタ数）の目安は以下の通りです：
 
-Guidelines for the number of opinion groups (clusters) when creating a report:
+- コメント数の立方根（∛n）を基準として設定することをお勧めします
+- 例：
+  - 1000 件のコメント: 10→100（一層目 → 二層目）
+  - 8000 件のコメント: 20→400
+  - 125 件のコメント: 5→25
+  - 400 件のコメント: 7→50
+- デフォルト設定は上記に基づいて設定されますが、コメント数に応じて調整することで最適な分析結果が得られます
 
-- We recommend using the cube root of the number of comments (∛n) as a baseline
-- Examples:
-  - 1000 comments: 10→100 (first level → second level)
-  - 8000 comments: 20→400
-  - 125 comments: 5→25
-  - 400 comments: 7→50
-- The defaults are set based on the above, but adjusting them to the number of comments gives the best results
+### 手順
 
-### Steps
+- 開発者でない方は以下のユーザーガイドを参照してください：
 
-- If you are not a developer, see the user guides below:
+  - [Windows 環境でのユーザーガイド](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup)
+  - [Mac 環境でのユーザーガイド](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup)
+  - [Linux 環境でのユーザーガイド](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup)
 
-  - [User guide for Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup)
-  - [User guide for Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup)
-  - [User guide for Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup)
+- 開発者向け：
+  - リポジトリをクローン
+  - `cp .env.example .env` をコンソールで実行
+    - コピー後に各環境変数を設定。各環境変数の意味は.env.example に記載。
+  - `docker compose up` をコンソールで実行
+    - ブラウザで http://localhost:3000 にアクセスすることでレポート一覧画面にアクセス可能
+    - ブラウザで http://localhost:4000 にアクセスすることで管理画面にアクセス可能
+    - 環境変数（.env）を編集した場合は、`docker compose down` を実行した後、 `docker compose up --build` を実行してアプリケーションを起動してください
+      - 一部の環境変数は Docker イメージのビルド時に埋め込まれているため、環境変数を変更した場合はビルドの再実行が必要となります
+    - すべてのモジュールを起動すると遅い場合は `docker compose up --no-deps public-viewer api` など適宜絞って起動できます
 
-- For developers:
-  - Clone the repository
-  - Run `cp .env.example .env` in a terminal
-    - After copying, set each environment variable. The meaning of each variable is described in `.env.example`
-  - Run `docker compose up` in a terminal
-    - Open http://localhost:3000 in a browser to see the report list
-    - Open http://localhost:4000 in a browser to see the admin screen
-    - If you edit the environment variables (`.env`), run `docker compose down` and then `docker compose up --build` to start the application
-      - Some environment variables are embedded when the Docker images are built, so you need to rebuild after changing them
-    - If starting all modules is slow, you can start only what you need, e.g. `docker compose up --no-deps public-viewer api`
+### ローカル LLM の使用
 
-### Using a local LLM
+GPU を搭載したマシンでローカル LLM を使用したい場合は、以下の手順に従ってください：
 
-To use a local LLM on a machine with a GPU, follow these steps:
-
-1. Set `WITH_GPU=true` in your `.env` file
-2. Run the following command to start the services including Ollama:
+1. `.env`ファイルに`WITH_GPU=true`を設定します
+2. 以下のコマンドを実行して Ollama を含めたサービスを起動します：
    ```sh
    docker compose --profile ollama up -d
    ```
-3. The Ollama service starts and is available from the host on the port set by `OLLAMA_HOST_PORT` in `.env` (default: 11434). The app still connects to `ollama:11434`
-   - If another Ollama or other process on the host already uses port 11434, startup fails with `failed to bind host port ... address already in use`. In that case, change `OLLAMA_HOST_PORT` in `.env` to a free port (e.g. `11435`). The app connects via container-to-container networking (`ollama:11434`), so you do not need to change `NEXT_PUBLIC_LOCAL_LLM_ADDRESS`
-4. By default, the `hf.co/elyza/Llama-3-ELYZA-JP-8B-GGUF` model is downloaded automatically
-5. Once downloaded, the model can be selected when generating a report
+3. Ollama サービスが起動し、ホストからは `.env` の `OLLAMA_HOST_PORT` で指定したポート（既定は 11434）で利用可能になります。アプリからの接続先は引き続き `ollama:11434` です
+   - ホストですでに別の Ollama などが 11434 番を使っていると、`failed to bind host port ... address already in use` で起動しません。その場合は `.env` の `OLLAMA_HOST_PORT` を空いている番号（例: `11435`）に変えてください。アプリはコンテナ間通信（`ollama:11434`）で接続するので、`NEXT_PUBLIC_LOCAL_LLM_ADDRESS` は変更不要です
+4. デフォルトでは `hf.co/elyza/Llama-3-ELYZA-JP-8B-GGUF` モデルが自動的にダウンロードされます
+5. ダウンロードが完了したモデルはレポート生成時に選択して使用できます
 
-**Prerequisites**:
+**前提条件**:
 
-- **Linux** / **Windows**:
+- **Linux**・**Windows**：
 
-  - An NVIDIA GPU
-  - An appropriate NVIDIA driver
-  - The equivalent of the NVIDIA Container Toolkit
-    - On Linux: nvidia-docker2 / NVIDIA Container Toolkit
-    - On Windows: GPU support settings in Docker Desktop
-  - About 5GB or more of free disk space to download and install the default model
+  - NVIDIA の GPU が搭載されていること
+  - 適切な NVIDIA ドライバーがインストールされていること
+  - NVIDIA Container Toolkit に相当するものがインストールされていること
+    - Linux では nvidia-docker2 / NVIDIA Container Toolkit
+    - Windows では Docker Desktop の GPU サポート設定
+  - デフォルトのモデルデータのダウンロードとインストールに約 5GB 以上の空きディスク容量が必要
 
-- **macOS**:
-  - Apple Silicon (M1/M2/M3) and most Intel Macs basically do not support NVIDIA GPUs
+- **macOS**：
+  - Apple Silicon (M1/M2/M3)やほとんどの Intel Mac では、NVIDIA GPU の利用は基本的に対応していません
 
-**Notes**:
+**注意**:
 
-- Using a local LLM requires enough GPU memory (8GB or more recommended)
-- The first launch may take a while to download the model
+- ローカル LLM の使用には十分な GPU メモリが必要です（8GB 以上推奨）
+- 初回起動時にはモデルのダウンロードに時間がかかる場合があります
 
-### Google Analytics
+### Google Analytics の設定
 
-- You can use Google Analytics 4 (GA4) to analyze user access
-- Setup:
-  1. Create a Google Analytics account, set up a data stream, and get a measurement ID (in the form G-XXXXXXXXXX)
-  2. Set the following environment variables in your `.env` file:
-     - `NEXT_PUBLIC_GA_MEASUREMENT_ID`: measurement ID for the client app (port 3000)
-     - `NEXT_PUBLIC_ADMIN_GA_MEASUREMENT_ID`: measurement ID for the admin app (port 4000)
-  3. Google Analytics is enabled only in production (`ENVIRONMENT=production` or `NODE_ENV=production`)
-     - It is automatically disabled in development, so access during development is not counted
+- Google Analytics 4（GA4）を使用して、ユーザーのアクセス解析を行うことができます
+- 設定手順:
+  1. Google Analytics アカウントを作成し、データストリームを設定して測定 ID を取得します（G-XXXXXXXXXX の形式）
+  2. `.env` ファイルに以下の環境変数を設定します:
+     - `NEXT_PUBLIC_GA_MEASUREMENT_ID`: クライアントアプリ（ポート 3000）用の測定 ID
+     - `NEXT_PUBLIC_ADMIN_GA_MEASUREMENT_ID`: 管理画面アプリ（ポート 4000）用の測定 ID
+  3. 本番環境（`ENVIRONMENT=production` または `NODE_ENV=production`）でのみ Google Analytics が有効になります
+     - 開発環境では自動的に無効化されるため、開発中のアクセスはカウントされません
 
-For how to use the app after it starts, see [How to use 広聴 AI](https://digitaldemocracy2030.github.io/kouchou-ai/user-guide/how-to-use) (Japanese).
+アプリ起動後の、アプリの操作方法については[広聴 AI の使い方](https://digitaldemocracy2030.github.io/kouchou-ai/user-guide/how-to-use)を参照
 
-### Setting up metadata files
+### メタデータファイルのセットアップ
 
-To customize information about the report author (logo image, links, etc.), configure it as follows.
+レポート作成者に関する情報（ロゴ画像やリンクなど）をカスタマイズするには、以下の手順で設定してください。
 
-1. Default environment
+1. デフォルト環境について
 
-   - In the default environment (`apps/api/public/meta/default`), no images or links are shown
-   - This is a setting for test environments; do not use it in production
+  - デフォルト環境（`apps/api/public/meta/default`）では、画像やリンクは表示されません
+   - これはテスト環境用の設定であり、本番環境では使用しないでください
 
-2. How to customize
+2. カスタマイズ方法
 
-   - Place the following files in the `apps/api/public/meta/custom` directory to customize the report author information:
-     - `metadata.json`: basic information about the report author
-     - `reporter.png`: logo image of the report author
-     - `icon.png`: icon image of the report
-     - `ogp.png`: OGP image of the report
+  - `apps/api/public/meta/custom` ディレクトリに以下のファイルを配置することで、レポート作成者情報をカスタマイズできます：
+     - `metadata.json`: レポート作成者の基本情報
+     - `reporter.png`: レポート作成者のロゴ画像
+     - `icon.png`: レポートのアイコン画像
+     - `ogp.png`: レポートの OGP 画像
 
-3. Display conditions
-   - Image: shown only if `reporter.png` exists in the `custom` directory
-   - Links: each link in `metadata.json` (webLink, privacyLink, termsLink) is shown only if it has a value
-   - If a value is empty or a file does not exist, the corresponding element is not shown
+3. 表示の条件
+   - 画像の表示：`reporter.png`が`custom`ディレクトリに存在する場合のみ表示されます
+   - リンクの表示：`metadata.json`の各リンク（webLink, privacyLink, termsLink）に値が設定されている場合のみ表示されます
+   - 値が空の場合や、ファイルが存在しない場合は、該当する要素は表示されません
 
-### Setting up on Azure
+### Azure 環境へのセットアップ
 
-For how to set up on Azure, see [Setting up on Azure](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/azure) (Japanese).
+Azure 環境にセットアップする方法は[Azure 環境へのセットアップ方法](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/azure)を参照
 
-### Static file export
+### 静的ファイル出力
 
-The report viewer can also be exported as static files.
-By placing the exported files on a web server, reports can be viewed without running the app.
+レポートを閲覧する画面は、静的ファイルとしても出力できます。<br>
+出力したファイルを Web サーバーに配置することで、アプリを起動せずにレポートを閲覧することが可能です。
 
-To generate static files, run:
+静的ファイルを生成する場合は、以下のコマンドを実行してください。
 
 ```sh
 make client-build-static
 ```
 
-The static files are written to the `out/` directory; place them on your web server.
+`out/` ディレクトリに静的ファイルが出力されますので、Web サーバーに配置してください。
 
-For hosting exported reports on GitHub Pages, see [Hosting static files on GitHub Pages](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/github-pages) (Japanese).
+静的エクスポートしたレポートをGithub Pagesにホスティングする手順は[GitHub Pagesの静的ファイルホスティング手順](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/github-pages)を参照。
 
-If you add a CSP in a static hosting environment, also see the [CSP guide for static hosting](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/static-hosting-csp) (Japanese). Plotly's `scattergl` requires `script-src 'unsafe-eval'`, and without `blob:` in `img-src` the browser blocks PNG downloads.
+静的ホスティング環境で CSP を付与する場合は、[静的ホスティング向け CSP 設定ガイド](https://digitaldemocracy2030.github.io/kouchou-ai/deployment/static-hosting-csp)も参照してください。Plotly の `scattergl` には `script-src 'unsafe-eval'` が必要で、`img-src` に `blob:` が無いと PNG ダウンロードがブラウザにブロックされます。
 
-## Architecture overview
+## アーキテクチャ概要
 
-The system consists of the following services.
+本システムは以下のサービスで構成されています。
 
 ### api
 
-- Port: 8000
-- Role: backend API service
-- Main features:
-  - Retrieving and managing report data
-  - Running the report generation pipeline
-  - Providing admin APIs
-- Tech stack:
+- ポート: 8000
+- 役割: バックエンド API サービス
+- 主要機能:
+  - レポートデータの取得・管理
+  - レポート生成パイプラインの実行
+  - 管理用 API の提供
+- 技術スタック:
   - Python (FastAPI)
   - Docker
 
 ### public-viewer
 
-- Port: 3000
-- Role: frontend for viewing reports
-- Main features:
-  - Report visualization
-  - Interactive data analysis
-  - User-friendly interface
-- Tech stack:
+- ポート: 3000
+- 役割: レポート表示用フロントエンド
+- 主要機能:
+  - レポートの可視化
+  - インタラクティブなデータ分析
+  - ユーザーフレンドリーなインターフェース
+- 技術スタック:
   - Next.js
   - TypeScript
   - Docker
 
 ### admin
 
-- Port: 4000
-- Role: admin frontend
-- Main features:
-  - Creating and editing reports
-  - Managing pipeline settings
-  - Managing system settings
-- Tech stack:
+- ポート: 4000
+- 役割: 管理用フロントエンド
+- 主要機能:
+  - レポートの作成・編集
+  - パイプライン設定の管理
+  - システム設定の管理
+- 技術スタック:
   - Next.js
   - TypeScript
   - Docker
 
 ### utils/dummy-server
 
-- Role: dummy API for development
-- Usage: used as an API mock in the development environment
+- 役割: 開発用ダミー API
+- 用途: 開発環境での API モックとして使用
 
-## Setting up the public-viewer development environment
+## public-viewer の開発環境の構築手順
 
-Steps to start the frontend applications (public-viewer and admin) with the development dummy server (dummy-server) as the backend.
+フロントエンドのアプリケーション(public-viewer と admin) を開発用のダミーサーバ (dummy-server) をバックエンドとして起動する手順です。
 
-### 1. Set up public-viewer, admin, and dummy-server
+### 1. public-viewer, admin, dummy-server の環境構築
 
 ```sh
 make client-setup
 ```
 
-### 2. Start the development servers
+### 2. 開発サーバーを起動
 
 ```sh
 make client-dev -j 3
 ```
 
-## Disclaimer
+## 免責事項
 
-Large language models (LLMs) are known to have biases and to produce unreliable results. We are actively working on ways to mitigate these issues, but at this stage we cannot provide any guarantees. Especially when making important decisions, do not rely solely on the output of this app; always verify the content.
+大規模言語モデル（LLM）にはバイアスがあり、信頼性の低い結果を生成することが知られています。私たちはこれらの問題を軽減する方法に積極的に取り組んでいますが、現段階ではいかなる保証も提供することはできません。特に重要な決定を下す際は、本アプリの出力結果のみに依存せず、必ず内容を検証してください。
 
-## Notes
+## 注意事項
 
-This app is in an early stage of development, and changes that are incompatible with previous versions may be made as development continues.
-When updating the app, if you have important data (reports), we recommend backing up the app and data before updating.
+本アプリは開発の初期段階であり、今後開発を進めていく過程で前バージョンと互換性のない変更が行われる可能性があります。
+アプリをアップデートする際には、重要なデータ（レポート）がある場合はアプリ・データのバックアップを保存した上でアップデートすることを推奨します。
 
-## Guidelines for developers
+## 開発者向けのガイドライン
 
-広聴 AI is developed as OSS, and we welcome contributions from developers.
-If you want to participate without writing code, see [Getting started with feedback, questions, and sharing use cases](./CONTRIBUTING.md#コードを書かずに参加する) (Japanese).
+広聴 AI は OSS として開発されており、開発者の方からのコントリビュートを募集しています。
+コードを書かずに参加する方は、[感想・質問・事例共有から始める案内](./CONTRIBUTING.md#コードを書かずに参加する)をご覧ください。
 
-For details, see the [Contribution guide](https://digitaldemocracy2030.github.io/kouchou-ai/development/contributing) (Japanese).
-This project is also developed in collaboration with the AI engineer "[Devin](https://cognition.ai)".
-Our collaboration with Devin is still being explored; see [Collaborating with Devin](https://digitaldemocracy2030.github.io/kouchou-ai/development/devin-collaboration) (Japanese).
+詳しくは、[コントリビューションガイド](https://digitaldemocracy2030.github.io/kouchou-ai/development/contributing)を参照ください。
+また、本プロジェクトでは AI エンジニア「[Devin](https://cognition.ai)」との協働開発を行っています。
+現時点での Devin とのコラボレーションについては、模索中ですが [Devin とのコラボレーション](https://digitaldemocracy2030.github.io/kouchou-ai/development/devin-collaboration)を参照してください。
 
-## Feature requests and bug reports
+## 機能要望・バグ報告について
 
-- If you have a GitHub account, please post bugs and improvement requests to [Issues](https://github.com/digitaldemocracy2030/kouchou-ai/issues)
-- If you do not have a GitHub account, please use the Google Form below
-  - [Bug report / improvement request form](https://docs.google.com/forms/d/e/1FAIpQLSf43rpi8N1hGQmECDOBOmiV3c-Buwf4gWSj2sYc2KbZL9NOBA/viewform?usp=dialog)
+- github アカウントをお持ちの方は、[Issue](https://github.com/digitaldemocracy2030/kouchou-ai/issues) にバグ・改善要望を投稿してください
+- github アカウントをお持ちでない方は、以下の google form よりバグ・改善要望を投稿してください
+  - [バグ報告・改善要望フォーム](https://docs.google.com/forms/d/e/1FAIpQLSf43rpi8N1hGQmECDOBOmiV3c-Buwf4gWSj2sYc2KbZL9NOBA/viewform?usp=dialog)
 
-## Credits
+## クレジット
 
-This project is developed with reference to [Talk to the City](https://github.com/AIObjectives/talk-to-the-city-reports), developed by the [AI Objectives Institute](https://www.aiobjectivesinstitute.org/). It partially uses its source code under its license and adds features and improvements. We express our gratitude for the original authors' contributions.
+このプロジェクトは、[AI Objectives Institute](https://www.aiobjectivesinstitute.org/) が開発した [Talk to the City](https://github.com/AIObjectives/talk-to-the-city-reports)を参考に開発されており、ライセンスに基づいてソースコードを一部活用し、機能追加や改善を実施しています。ここに原作者の貢献に感謝の意を表します。
