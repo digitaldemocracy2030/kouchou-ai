@@ -41,6 +41,20 @@ test("全画面ツールバーは描画領域の外にある", async ({ page }) 
   await expect(page.getByRole("dialog")).not.toBeVisible();
 });
 
+test("全画面のままクラスタ粒度を切り替えられ、選択は通常表示にも引き継がれる", async ({ page }) => {
+  await page.getByRole("button", { name: "全画面表示" }).click();
+  const dialog = page.getByRole("dialog");
+  const granularity = dialog.getByRole("group", { name: "クラスタの粒度" });
+  await expect(granularity.getByRole("button", { name: "全体" })).toHaveAttribute("aria-pressed", "true");
+  await granularity.getByRole("button", { name: "詳細クラスタ" }).click();
+  await expect(granularity.getByRole("button", { name: "詳細クラスタ" })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator(".js-plotly-plot")).toBeVisible();
+  await dialog.getByRole("button", { name: "全画面終了" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole("radio", { name: "詳細クラスタ" })).toBeChecked();
+});
+
 test("スマホは一覧を初期表示し明示設定を尊重する", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
