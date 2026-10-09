@@ -161,9 +161,20 @@ jobs:
 
       - name: Run Docker build
         run: |
-          docker build --platform linux/amd64 \
-            -f ./apps/public-viewer/Dockerfile \
-            --build-arg NEXT_PUBLIC_API_BASEPATH=http://localhost:8000 \
-            --build-arg NEXT_PUBLIC_PUBLIC_API_KEY=xxxxxxxxxx \
-            --build-arg API_BASEPATH=http://api:8000 \
-            -t kouchou-ai-public-viewer-ci .
+          for attempt in 1 2 3; do
+            if docker build --platform linux/amd64 \
+              -f ./apps/public-viewer/Dockerfile \
+              --build-arg NEXT_PUBLIC_API_BASEPATH=http://localhost:8000 \
+              --build-arg NEXT_PUBLIC_PUBLIC_API_KEY=xxxxxxxxxx \
+              --build-arg API_BASEPATH=http://api:8000 \
+              -t kouchou-ai-public-viewer-ci .; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Docker build failed (attempt $attempt/3); retrying in $((attempt * 10)) seconds..." >&2
+              sleep "$((attempt * 10))"
+            fi
+          done
+
+          exit 1
