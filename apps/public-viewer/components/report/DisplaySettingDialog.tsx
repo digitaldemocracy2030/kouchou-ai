@@ -60,11 +60,7 @@ export function DisplaySettingDialog({
               <HStack gap={2} alignItems="center">
                 <Text fontSize="sm">意見グループの境界線を表示</Text>
                 <Spacer />
-                <Switch
-                  checked={showConvexHull}
-                  onChange={() => onToggleConvexHull?.(!showConvexHull)}
-                  size="sm"
-                />
+                <Switch checked={showConvexHull} onChange={() => onToggleConvexHull?.(!showConvexHull)} size="sm" />
               </HStack>
             </Box>
           </Box>

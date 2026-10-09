@@ -1,5 +1,5 @@
-import fs from "fs/promises";
-import path from "path";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export async function GET(request: Request) {
   const requestApiKey = request.headers.get("x-api-key");
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   }
 
   // E2E_TEST環境変数が設定されている場合はテストフィクスチャを使用
-  let data;
+  let data: unknown;
   if (process.env.E2E_TEST === "true") {
     try {
       const fixtureDir = path.resolve(process.cwd(), "../../test/e2e/fixtures/client");

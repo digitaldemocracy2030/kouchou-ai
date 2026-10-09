@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/client-build.yml'
       - 'package.json'
+      - 'biome.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'apps/public-viewer/**'
@@ -18,6 +19,7 @@ on:
     paths:
       - '.github/workflows/client-build.yml'
       - 'package.json'
+      - 'biome.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'apps/public-viewer/**'
@@ -48,6 +50,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Biome の lint / format を強制する。ローカルでは `pnpm run format` で直せる
+      - name: Run Biome check
+        run: pnpm exec biome ci --reporter=github apps/public-viewer utils/dummy-server
 
       - name: Run API-less dynamic build
         run: pnpm --filter @kouchou-ai/public-viewer build

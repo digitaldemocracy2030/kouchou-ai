@@ -80,12 +80,12 @@ describe("isStaticShellBuild", () => {
 
   it("is false for a plain static export", () => {
     process.env.NEXT_PUBLIC_OUTPUT_MODE = "export";
-    delete process.env.NEXT_PUBLIC_STATIC_SHELL;
+    Reflect.deleteProperty(process.env, "NEXT_PUBLIC_STATIC_SHELL");
     expect(isStaticShellBuild()).toBe(false);
   });
 
   it("is false outside the export build", () => {
-    delete process.env.NEXT_PUBLIC_OUTPUT_MODE;
+    Reflect.deleteProperty(process.env, "NEXT_PUBLIC_OUTPUT_MODE");
     process.env.NEXT_PUBLIC_STATIC_SHELL = "1";
     expect(isStaticShellBuild()).toBe(false);
   });
