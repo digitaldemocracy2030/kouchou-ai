@@ -17,7 +17,7 @@
 ## 前提条件
 
 - 一般ユーザー向け：
-- 安定版リリースをダウンロード（[Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup)/[Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup)/[Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup)の各ガイドを参照）
+  - 安定版リリースをダウンロード（[Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup)/[Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup)/[Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup)の各ガイドを参照）
   - Docker（各ガイドに従ってインストール）
   - OpenAI API キー
 - 開発者向け：
