@@ -73,6 +73,7 @@ nav:
       - Linuxセットアップ: getting-started/linux-setup.md
   - ユーザーガイド:
       - 使い方: user-guide/how-to-use.md
+      - 濃いクラスタの初期値: user-guide/density-settings.md
       - レポート再利用: user-guide/reuse-report.md
       - CLIクイックスタート: user-guide/cli-quickstart.md
       - インポート方法: user-guide/import-quickstart.md
