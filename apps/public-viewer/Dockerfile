@@ -1,4 +1,5 @@
-FROM node:22-alpine AS builder
+ARG REGISTRY=""
+FROM ${REGISTRY}node:22-alpine AS builder
 WORKDIR /repo
 RUN corepack enable
 ARG NEXT_PUBLIC_API_BASEPATH
@@ -24,7 +25,7 @@ COPY apps/public-viewer apps/public-viewer
 RUN node_modules/.bin/tsc --project packages/report-schema/tsconfig.json
 RUN pnpm --filter @kouchou-ai/public-viewer build
 
-FROM node:22-alpine AS runner
+FROM ${REGISTRY}node:22-alpine AS runner
 WORKDIR /repo
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 ARG NEXT_PUBLIC_API_BASEPATH
