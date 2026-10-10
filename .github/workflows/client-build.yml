@@ -163,16 +163,19 @@ jobs:
         id: base-image
         shell: bash
         run: |
-          registries=("" "public.ecr.aws/docker/library/" "public.ecr.aws/docker/library/")
-          for attempt in 1 2 3; do
-            registry="${registries[$((attempt - 1))]}"
+          RETRY=3
+          for ((attempt = 1; attempt <= RETRY; attempt++)); do
+            registry=""
+            if [ "$attempt" -gt 1 ]; then
+              registry="public.ecr.aws/docker/library/"
+            fi
             if docker pull --platform linux/amd64 "${registry}node:22-alpine"; then
               printf 'registry=%s\n' "$registry" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
-            if [ "$attempt" -lt 3 ]; then
-              echo "Base image pull failed (attempt $attempt/3); retrying via ECR Public in $((attempt * 10)) seconds..." >&2
+            if [ "$attempt" -lt "$RETRY" ]; then
+              echo "Base image pull failed (attempt $attempt/$RETRY); retrying via ECR Public in $((attempt * 10)) seconds..." >&2
               sleep "$((attempt * 10))"
             fi
           done
