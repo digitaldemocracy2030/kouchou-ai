@@ -159,22 +159,34 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Run Docker build
+      - name: Pull Docker base image with registry fallback
+        id: base-image
+        shell: bash
         run: |
+          registries=("" "public.ecr.aws/docker/library/" "public.ecr.aws/docker/library/")
           for attempt in 1 2 3; do
-            if docker build --platform linux/amd64 \
-              -f ./apps/public-viewer/Dockerfile \
-              --build-arg NEXT_PUBLIC_API_BASEPATH=http://localhost:8000 \
-              --build-arg NEXT_PUBLIC_PUBLIC_API_KEY=xxxxxxxxxx \
-              --build-arg API_BASEPATH=http://api:8000 \
-              -t kouchou-ai-public-viewer-ci .; then
+            registry="${registries[$((attempt - 1))]}"
+            if docker pull --platform linux/amd64 "${registry}node:22-alpine"; then
+              printf 'registry=%s\n' "$registry" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
             if [ "$attempt" -lt 3 ]; then
-              echo "Docker build failed (attempt $attempt/3); retrying in $((attempt * 10)) seconds..." >&2
+              echo "Base image pull failed (attempt $attempt/3); retrying via ECR Public in $((attempt * 10)) seconds..." >&2
               sleep "$((attempt * 10))"
             fi
           done
 
           exit 1
+
+      - name: Run Docker build
+        env:
+          BASE_IMAGE_REGISTRY: ${{ steps.base-image.outputs.registry }}
+        run: |
+          docker build --platform linux/amd64 \
+            -f ./apps/public-viewer/Dockerfile \
+            --build-arg REGISTRY="$BASE_IMAGE_REGISTRY" \
+            --build-arg NEXT_PUBLIC_API_BASEPATH=http://localhost:8000 \
+            --build-arg NEXT_PUBLIC_PUBLIC_API_KEY=xxxxxxxxxx \
+            --build-arg API_BASEPATH=http://api:8000 \
+            -t kouchou-ai-public-viewer-ci .
