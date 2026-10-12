@@ -22,6 +22,8 @@ The project is based on [Talk to the City](https://github.com/AIObjectives/talk-
   - Download the stable release (see the guide for [Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup) / [Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup) / [Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup))
   - Docker (install it by following each guide)
   - An OpenAI API key
+- [Licensing and publishing results (Japanese)](docs/user-guide/license.md): local analysis, generated HTML, and custom plugins
+
 - For developers:
   - docker
   - git

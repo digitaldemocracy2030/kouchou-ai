@@ -20,6 +20,8 @@
 - 安定版リリースをダウンロード（[Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup)/[Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup)/[Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup)の各ガイドを参照）
   - Docker（各ガイドに従ってインストール）
   - OpenAI API キー
+- [ライセンスと結果の公開](docs/user-guide/license.md)：手元での分析、出力HTML、自作プラグインの扱い
+
 - 開発者向け：
   - docker
   - git

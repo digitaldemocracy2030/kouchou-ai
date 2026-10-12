@@ -1,6 +1,13 @@
 """Tests for the self-contained HTML report visualization step."""
 
+import base64
+import html
+import io
 import json
+import re
+import subprocess
+import sys
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -192,3 +199,48 @@ class TestHierarchicalVisualizationStep:
         html_text = (run_dir / "report.html").read_text(encoding="utf-8")
         assert "https://example.com/r/1" in html_text
         assert "const ENABLE_SOURCE_LINK = true;" in html_text
+
+
+class TestReportLicense:
+    def test_source_bundle_is_data_free_and_renders_without_the_package(self, tmp_path: Path) -> None:
+        payload = _minimal_payload()
+        payload["overview"] = "private-report-content-should-not-be-in-source-zip"
+        out = build_html(payload)
+        assert "ライセンス・表示プログラムのソース" in out
+        assert "無保証" in out
+        assert 'download="kouchou-ai-report-source.zip"' in out
+        encoded = re.search(r'href="data:application/zip;base64,([^"]+)"', out)
+        assert encoded is not None
+        expected_license = (Path(__file__).parents[1] / "LICENSE").read_text(encoding="utf-8")
+        assert html.escape(expected_license) in out
+        with zipfile.ZipFile(io.BytesIO(base64.b64decode(encoded.group(1)))) as bundle:
+            assert set(bundle.namelist()) == {"hierarchical_visualization.py", "AGPL-3.0.txt", "README.md"}
+            assert bundle.read("AGPL-3.0.txt").decode("utf-8") == expected_license
+            for name in bundle.namelist():
+                assert payload["overview"].encode() not in bundle.read(name)
+            bundle.extractall(tmp_path)
+        result_json = tmp_path / "result.json"
+        result_json.write_text(json.dumps(payload), encoding="utf-8")
+        rebuilt = tmp_path / "rebuilt.html"
+        # Isolated Python ignores PYTHONPATH and site-packages: stdlib alone suffices.
+        subprocess.run(
+            [sys.executable, "-I", "-S", str(tmp_path / "hierarchical_visualization.py"),
+             str(result_json), "-o", str(rebuilt)],
+            check=True, capture_output=True, text=True,
+        )
+        assert rebuilt.read_text(encoding="utf-8") == out
+
+    def test_bundle_preserves_local_source_edits(self, tmp_path: Path, monkeypatch) -> None:
+        import importlib
+
+        module = importlib.import_module("analysis_core.steps.hierarchical_visualization")
+        source = Path(module.__file__).read_text(encoding="utf-8") + "\n# local viewer modification\n"
+        renderer = tmp_path / "hierarchical_visualization.py"
+        renderer.write_text(source, encoding="utf-8")
+        (tmp_path / "AGPL-3.0.txt").write_bytes((Path(__file__).parents[1] / "LICENSE").read_bytes())
+        monkeypatch.setattr(module, "__file__", str(renderer))
+        out = module.build_html(_minimal_payload())
+        encoded = re.search(r'href="data:application/zip;base64,([^"]+)"', out)
+        assert encoded is not None
+        with zipfile.ZipFile(io.BytesIO(base64.b64decode(encoded.group(1)))) as bundle:
+            assert bundle.read("hierarchical_visualization.py").decode("utf-8") == source

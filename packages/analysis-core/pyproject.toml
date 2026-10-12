@@ -64,6 +64,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/analysis_core"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"LICENSE" = "analysis_core/steps/AGPL-3.0.txt"
+
 [tool.ruff]
 line-length = 120
 target-version = "py312"

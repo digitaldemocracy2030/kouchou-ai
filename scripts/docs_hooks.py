@@ -37,6 +37,7 @@ LINK_TRANSFORMS = {
         (r"\[lefthook-local\.sample\.yml\]\(\./lefthook-local\.sample\.yml\)", "`lefthook-local.sample.yml`"),
     ],
     "repo-readmes/packages/analysis-core.md": [
+        (r"\(LICENSE\)", "(https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/packages/analysis-core/LICENSE)"),
         (r"\(\.\./\.\./docs/user-guide/cli-quickstart\.md\)", "(../../user-guide/cli-quickstart.md)"),
         (r"\(\.\./\.\./docs/user-guide/import-quickstart\.md\)", "(../../user-guide/import-quickstart.md)"),
         (r"\(\.\./\.\./docs/development/plugin-guide\.md\)", "(../../development/plugin-guide.md)"),
