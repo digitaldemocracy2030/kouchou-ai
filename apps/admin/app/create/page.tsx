@@ -216,6 +216,7 @@ export default function Page() {
         model: aiSettings.model,
         workers: aiSettings.workers,
         prompt: promptData,
+        analysis_mode: aiSettings.analysisMode,
         is_pubcom: aiSettings.isPubcomMode,
         inputType: inputData.inputType,
         is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
@@ -408,9 +409,11 @@ export default function Page() {
               workers={aiSettings.workers}
               isPubcomMode={aiSettings.isPubcomMode}
               enableSourceLink={aiSettings.enableSourceLink}
+              analysisMode={aiSettings.analysisMode}
               isEmbeddedAtLocal={aiSettings.isEmbeddedAtLocal}
               localLLMAddress={aiSettings.localLLMAddress}
               userApiKey={aiSettings.userApiKey}
+              onAnalysisModeChange={aiSettings.handleAnalysisModeChange}
               onProviderChange={aiSettings.handleProviderChange}
               onModelChange={aiSettings.handleModelChange}
               fetchLocalLLMModels={aiSettings.fetchLocalLLMModels}

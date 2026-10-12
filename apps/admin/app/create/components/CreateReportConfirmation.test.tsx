@@ -21,6 +21,7 @@ const prepared: PreparedReport = {
     model: "gpt-4o-mini",
     workers: 1,
     prompt: { extraction: "p", initialLabelling: "p", mergeLabelling: "p", overview: "p" },
+    analysis_mode: "hierarchical",
     is_pubcom: false,
     inputType: "file",
     is_embedded_at_local: false,

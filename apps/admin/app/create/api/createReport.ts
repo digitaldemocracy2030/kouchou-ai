@@ -19,6 +19,7 @@ export async function createReport({
   model,
   workers,
   prompt,
+  analysis_mode,
   is_pubcom,
   inputType,
   is_embedded_at_local,
@@ -35,6 +36,7 @@ export async function createReport({
   model: string;
   workers: number;
   prompt: PromptSettings;
+  analysis_mode: string;
   is_pubcom: boolean;
   inputType: string;
   is_embedded_at_local: boolean;
@@ -65,6 +67,7 @@ export async function createReport({
         model,
         workers,
         prompt,
+        analysis_mode,
         is_pubcom,
         inputType,
         is_embedded_at_local,

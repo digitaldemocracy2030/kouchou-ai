@@ -21,6 +21,8 @@ MAX_ERROR_LOG_CHARS = 4000
 def _build_config(report_input: ReportInput) -> dict[str, Any]:
     comment_num = len(report_input.comments)
 
+    # extraction / overview / aggregation は両モード共通のステップ。
+    # 分析方式に依存するステップだけを analysis_mode で分岐する。
     config = {
         "name": report_input.input,
         "input": report_input.input,
@@ -28,6 +30,7 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
         "intro": report_input.intro,
         "model": report_input.model,
         "provider": report_input.provider,
+        "analysis_mode": report_input.analysis_mode,
         "is_pubcom": report_input.is_pubcom,
         "is_embedded_at_local": report_input.is_embedded_at_local,
         "local_llm_address": report_input.local_llm_address,
@@ -36,25 +39,37 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
             "workers": report_input.workers,
             "limit": comment_num,
         },
-        "hierarchical_clustering": {
-            "cluster_nums": report_input.cluster,
-        },
-        "hierarchical_initial_labelling": {
-            "prompt": report_input.prompt.initial_labelling,
-            "sampling_num": 30,
-            "workers": report_input.workers,
-        },
-        "hierarchical_merge_labelling": {
-            "prompt": report_input.prompt.merge_labelling,
-            "sampling_num": 30,
-            "workers": report_input.workers,
-        },
         "hierarchical_overview": {"prompt": report_input.prompt.overview},
         "hierarchical_aggregation": {
             "sampling_num": report_input.workers,
         },
         "enable_source_link": report_input.enable_source_link,
     }
+
+    if report_input.analysis_mode == "llm_grouping":
+        # LLM 直接グルーピングでは hierarchical_clustering と
+        # 初期・統合ラベリングを行わず、llm_grouping ステップ
+        # (group discovery + batch assignment) に置き換わる。
+        # group discovery / assignment の prompt・パラメータは
+        # analysis-core 側の既定値 (llm_grouping_specs.json) を使用するため、
+        # ここでは明示セクションを付けない。
+        # NOTE: analysis-core は analysis_mode ごとに許可される config キーを
+        # 検証するため、hierarchical 専用セクションを含めてはいけない。
+        pass
+    else:
+        config["hierarchical_clustering"] = {
+            "cluster_nums": report_input.cluster,
+        }
+        config["hierarchical_initial_labelling"] = {
+            "prompt": report_input.prompt.initial_labelling,
+            "sampling_num": 30,
+            "workers": report_input.workers,
+        }
+        config["hierarchical_merge_labelling"] = {
+            "prompt": report_input.prompt.merge_labelling,
+            "sampling_num": 30,
+            "workers": report_input.workers,
+        }
 
     return config
 

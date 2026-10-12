@@ -34,6 +34,10 @@ class ReportInput(SchemaBaseModel):
     inputType: str = "file"  # 入力タイプ（"file", "spreadsheet", "plugin:xxx"）
     is_embedded_at_local: bool = False  # エンベデッド処理をローカルで行うかどうか
 
+    # 分析方式。"hierarchical"=埋め込みベースの階層クラスタリング（既定）、
+    # "llm_grouping"=LLM 直接グルーピング（LLM による group discovery + batch assignment）
+    analysis_mode: str = "hierarchical"
+
     @field_validator("inputType")
     @classmethod
     def validate_input_type(cls, v: str) -> str:
@@ -42,6 +46,15 @@ class ReportInput(SchemaBaseModel):
         if v in valid_types or v.startswith("plugin:"):
             return v
         raise ValueError(f"inputType must be 'file', 'spreadsheet', or 'plugin:xxx', got '{v}'")
+
+    @field_validator("analysis_mode")
+    @classmethod
+    def validate_analysis_mode(cls, v: str) -> str:
+        """Validate analysis mode: hierarchical (embedding-based) or llm_grouping."""
+        valid_modes = {"hierarchical", "llm_grouping"}
+        if v in valid_modes:
+            return v
+        raise ValueError(f"analysis_mode must be 'hierarchical' or 'llm_grouping', got '{v}'")
 
     provider: str = "openai"  # LLMプロバイダー（openai, azure, openrouter, gemini, local）
     local_llm_address: str | None = None  # LocalLLM用アドレス（例: "127.0.0.1:1234"）

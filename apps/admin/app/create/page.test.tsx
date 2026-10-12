@@ -39,6 +39,7 @@ beforeEach(() => {
     provider: "openai",
     model: "gpt-4o-mini",
     workers: 1,
+    analysisMode: "hierarchical",
     userApiKey: "",
     getCurrentModels: () => [],
   } as unknown as ReturnType<typeof useAISettings>);

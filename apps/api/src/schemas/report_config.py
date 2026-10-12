@@ -31,6 +31,14 @@ class HierarchicalAggregationConfig(SchemaBaseModel):
     sampling_num: int | None = None
 
 
+class LLMGroupingConfig(SchemaBaseModel):
+    group_count: int | None = None
+    discovery_sample_size: int | None = None
+    assignment_batch_size: int | None = None
+    discovery_prompt: str | None = None
+    assignment_prompt: str | None = None
+
+
 class ReportConfig(SchemaBaseModel):
     name: str | None = None  # CLI実行時は未設定の場合あり、inputから導出可能
     input: str
@@ -38,15 +46,20 @@ class ReportConfig(SchemaBaseModel):
     intro: str
     model: str
     provider: str | None = None
+    analysis_mode: str | None = None  # "hierarchical"（既定） or "llm_grouping"
     is_pubcom: bool | None = None
     is_embedded_at_local: bool | None = None
     local_llm_address: str | None = None
     extraction: ExtractionConfig
-    hierarchical_clustering: HierarchicalClusteringConfig
-    hierarchical_initial_labelling: HierarchicalInitialLabellingConfig
-    hierarchical_merge_labelling: HierarchicalMergeLabellingConfig
+    # NOTE: hierarchical_clustering / 初期・統合ラベリングは hierarchical モード専用。
+    # llm_grouping モードの config には含まれないため optional にする。
+    hierarchical_clustering: HierarchicalClusteringConfig | None = None
+    hierarchical_initial_labelling: HierarchicalInitialLabellingConfig | None = None
+    hierarchical_merge_labelling: HierarchicalMergeLabellingConfig | None = None
     hierarchical_overview: HierarchicalOverviewConfig
     hierarchical_aggregation: HierarchicalAggregationConfig
+    # NOTE: llm_grouping モード専用。hierarchical モードの config には含まれない。
+    llm_grouping: LLMGroupingConfig | None = None
 
 
 class ReportConfigUpdate(SchemaBaseModel):

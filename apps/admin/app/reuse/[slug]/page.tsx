@@ -25,6 +25,7 @@ type ReportConfig = {
   intro?: string | null;
   model?: string | null;
   provider?: string | null;
+  analysis_mode?: string | null;
   is_pubcom?: boolean | null;
   is_embedded_at_local?: boolean | null;
   enable_source_link?: boolean | null;
@@ -114,6 +115,11 @@ export default function Page({ params }: PageProps) {
     }
     if (nextConfig.model) {
       aiSettings.handleModelChange(toSelectEvent(nextConfig.model));
+    }
+    if (nextConfig.analysis_mode) {
+      // 複製元の分析方式を引き継いで表示する（複製時の config は元設定を再利用するため、
+      // analysis_mode の切り替え自体は現状 duplicate フローでは未対応）
+      aiSettings.handleAnalysisModeChange(toSelectEvent(nextConfig.analysis_mode));
     }
     if (typeof nextConfig.extraction?.workers === "number") {
       aiSettings.handleWorkersChange(nextConfig.extraction.workers);
@@ -394,9 +400,11 @@ export default function Page({ params }: PageProps) {
               workers={aiSettings.workers}
               isPubcomMode={aiSettings.isPubcomMode}
               enableSourceLink={aiSettings.enableSourceLink}
+              analysisMode={aiSettings.analysisMode}
               isEmbeddedAtLocal={aiSettings.isEmbeddedAtLocal}
               localLLMAddress={aiSettings.localLLMAddress}
               userApiKey={aiSettings.userApiKey}
+              onAnalysisModeChange={aiSettings.handleAnalysisModeChange}
               onProviderChange={aiSettings.handleProviderChange}
               onModelChange={aiSettings.handleModelChange}
               fetchLocalLLMModels={aiSettings.fetchLocalLLMModels}

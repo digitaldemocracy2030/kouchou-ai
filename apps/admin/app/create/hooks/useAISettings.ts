@@ -4,6 +4,10 @@ import { type ChangeEvent, useEffect, useState } from "react";
 
 export type Provider = "openai" | "azure" | "openrouter" | "gemini" | "local";
 
+// 分析方式。"hierarchical"=埋め込みベースの階層クラスタリング（既定）、
+// "llm_grouping"=LLM 直接グルーピング
+export type AnalysisMode = "hierarchical" | "llm_grouping";
+
 const STORAGE_KEY_PREFIX = "kouchou_ai_";
 const STORAGE_KEYS = {
   PROVIDER: `${STORAGE_KEY_PREFIX}provider`,
@@ -12,7 +16,10 @@ const STORAGE_KEYS = {
   LOCAL_LLM_ADDRESS: `${STORAGE_KEY_PREFIX}local_llm_address`,
   IS_EMBEDDED_AT_LOCAL: `${STORAGE_KEY_PREFIX}is_embedded_at_local`,
   ENABLE_SOURCE_LINK: `${STORAGE_KEY_PREFIX}enable_source_link`,
+  ANALYSIS_MODE: `${STORAGE_KEY_PREFIX}analysis_mode`,
 };
+
+const DEFAULT_ANALYSIS_MODE: AnalysisMode = "hierarchical";
 
 // LocalLLMのデフォルトアドレスを定数化
 const DEFAULT_LOCAL_LLM_ADDRESS = process.env.NEXT_PUBLIC_LOCAL_LLM_ADDRESS || "ollama:11434";
@@ -72,6 +79,9 @@ export function useAISettings() {
   const [enableSourceLink, setEnableSourceLink] = useState<boolean>(() =>
     getFromStorage<boolean>(STORAGE_KEYS.ENABLE_SOURCE_LINK, false),
   );
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>(() =>
+    getFromStorage<AnalysisMode>(STORAGE_KEYS.ANALYSIS_MODE, DEFAULT_ANALYSIS_MODE),
+  );
 
   const [localLLMAddress, setLocalLLMAddress] = useState<string>(() =>
     getFromStorage<string>(STORAGE_KEYS.LOCAL_LLM_ADDRESS, DEFAULT_LOCAL_LLM_ADDRESS),
@@ -113,6 +123,14 @@ export function useAISettings() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.ENABLE_SOURCE_LINK, enableSourceLink);
   }, [enableSourceLink]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.ANALYSIS_MODE, analysisMode);
+  }, [analysisMode]);
+
+  const handleAnalysisModeChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setAnalysisMode(e.target.value as AnalysisMode);
+  };
 
   const handleProviderChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setProvider(e.target.value as Provider);
@@ -229,6 +247,7 @@ export function useAISettings() {
     setIsPubcomMode(true);
     setIsEmbeddedAtLocal(false);
     setEnableSourceLink(false);
+    setAnalysisMode(DEFAULT_ANALYSIS_MODE);
     setLocalLLMAddress(DEFAULT_LOCAL_LLM_ADDRESS);
     setUserApiKey("");
     catalog.reload();
@@ -239,6 +258,7 @@ export function useAISettings() {
     saveToStorage(STORAGE_KEYS.LOCAL_LLM_ADDRESS, DEFAULT_LOCAL_LLM_ADDRESS);
     saveToStorage(STORAGE_KEYS.IS_EMBEDDED_AT_LOCAL, false);
     saveToStorage(STORAGE_KEYS.ENABLE_SOURCE_LINK, false);
+    saveToStorage(STORAGE_KEYS.ANALYSIS_MODE, DEFAULT_ANALYSIS_MODE);
   };
 
   return {
@@ -251,10 +271,12 @@ export function useAISettings() {
     isPubcomMode,
     isEmbeddedAtLocal,
     enableSourceLink,
+    analysisMode,
     localLLMAddress,
     userApiKey,
     handleProviderChange,
     handleModelChange,
+    handleAnalysisModeChange,
     handleWorkersChange,
     increaseWorkers,
     decreaseWorkers,

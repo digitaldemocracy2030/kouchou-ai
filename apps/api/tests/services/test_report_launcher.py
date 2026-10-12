@@ -48,6 +48,44 @@ def patch_subprocess_launch(monkeypatch):
     return called
 
 
+def test_build_config_defaults_to_hierarchical_mode():
+    from src.services.report_launcher import _build_config
+
+    report_input = make_report_input(
+        prompt=Prompt(extraction="ex", initial_labelling="init", merge_labelling="merge", overview="ov"),
+        cluster=[3, 6],
+    )
+
+    config = _build_config(report_input)
+
+    assert config["analysis_mode"] == "hierarchical"
+    assert config["hierarchical_clustering"] == {"cluster_nums": [3, 6]}
+    assert config["hierarchical_initial_labelling"]["prompt"] == "init"
+    assert config["hierarchical_merge_labelling"]["prompt"] == "merge"
+    assert config["hierarchical_overview"] == {"prompt": "ov"}
+
+
+def test_build_config_llm_grouping_mode_omits_hierarchical_only_sections():
+    from src.services.report_launcher import _build_config
+
+    report_input = make_report_input(
+        analysis_mode="llm_grouping",
+        prompt=Prompt(extraction="ex", initial_labelling="init", merge_labelling="merge", overview="ov"),
+    )
+
+    config = _build_config(report_input)
+
+    assert config["analysis_mode"] == "llm_grouping"
+    # hierarchical 専用セクションは analysis-core の config 検証で弾かれるため含めない
+    assert "hierarchical_clustering" not in config
+    assert "hierarchical_initial_labelling" not in config
+    assert "hierarchical_merge_labelling" not in config
+    # 共通ステップは残る
+    assert config["extraction"]["prompt"] == "ex"
+    assert config["hierarchical_overview"] == {"prompt": "ov"}
+    assert "hierarchical_aggregation" in config
+
+
 def test_save_input_file_writes_mixed_type_attributes_as_csv(tmp_path, monkeypatch):
     from src.services import report_launcher
 

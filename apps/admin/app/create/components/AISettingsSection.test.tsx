@@ -18,6 +18,8 @@ function Settings() {
         workers={ai.workers}
         isPubcomMode={false}
         enableSourceLink={false}
+        analysisMode={ai.analysisMode}
+        onAnalysisModeChange={ai.handleAnalysisModeChange}
         onProviderChange={ai.handleProviderChange}
         onModelChange={ai.handleModelChange}
         onWorkersChange={noop}

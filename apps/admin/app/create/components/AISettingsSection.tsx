@@ -11,6 +11,8 @@ export function AISettingsSection({
   workers,
   isPubcomMode,
   enableSourceLink,
+  analysisMode,
+  onAnalysisModeChange,
   onProviderChange,
   onModelChange,
   onWorkersChange,
@@ -37,6 +39,8 @@ export function AISettingsSection({
   workers: number;
   isPubcomMode: boolean;
   enableSourceLink: boolean;
+  analysisMode: string;
+  onAnalysisModeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onProviderChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onModelChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onWorkersChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -84,6 +88,22 @@ export function AISettingsSection({
         </Checkbox>
         <Field.HelperText>
           元のコメントと要約された意見をCSV形式で出力します。完成したCSVファイルはレポート一覧ページからダウンロードできます。
+        </Field.HelperText>
+      </Field.Root>
+
+      <Field.Root>
+        <Field.Label>分析方式</Field.Label>
+        <NativeSelect.Root w={"60%"}>
+          <NativeSelect.Field value={analysisMode} onChange={onAnalysisModeChange}>
+            <option value={"hierarchical"}>埋め込みベース（階層クラスタリング）</option>
+            <option value={"llm_grouping"}>LLM直接グルーピング</option>
+          </NativeSelect.Field>
+          <NativeSelect.Indicator />
+        </NativeSelect.Root>
+        <Field.HelperText>
+          {analysisMode === "llm_grouping"
+            ? "LLMがコメントから直接グループを発見し、各コメントをグループへ割り当てます（LLM直接グルーピング）。クラスタ数設定・初期/統合ラベリングプロンプトは使用されません。"
+            : "埋め込みベクトルの階層クラスタリングでグループ化します（既定）。"}
         </Field.HelperText>
       </Field.Root>
 
@@ -228,25 +248,30 @@ export function AISettingsSection({
         <Field.HelperText>AIに提示する抽出プロンプトです(通常は変更不要です)</Field.HelperText>
       </Field.Root>
 
-      <Field.Root>
-        <Field.Label>初期ラベリングプロンプト</Field.Label>
-        <Textarea
-          h={"150px"}
-          value={promptSettings.initialLabelling}
-          onChange={(e) => promptSettings.setInitialLabelling(e.target.value)}
-        />
-        <Field.HelperText>AIに提示する初期ラベリングプロンプトです(通常は変更不要です)</Field.HelperText>
-      </Field.Root>
+      {/* 初期/統合ラベリングは hierarchical モード専用。LLM直接グルーピングでは使用しない。 */}
+      {analysisMode !== "llm_grouping" && (
+        <>
+          <Field.Root>
+            <Field.Label>初期ラベリングプロンプト</Field.Label>
+            <Textarea
+              h={"150px"}
+              value={promptSettings.initialLabelling}
+              onChange={(e) => promptSettings.setInitialLabelling(e.target.value)}
+            />
+            <Field.HelperText>AIに提示する初期ラベリングプロンプトです(通常は変更不要です)</Field.HelperText>
+          </Field.Root>
 
-      <Field.Root>
-        <Field.Label>統合ラベリングプロンプト</Field.Label>
-        <Textarea
-          h={"150px"}
-          value={promptSettings.mergeLabelling}
-          onChange={(e) => promptSettings.setMergeLabelling(e.target.value)}
-        />
-        <Field.HelperText>AIに提示する統合ラベリングプロンプトです(通常は変更不要です)</Field.HelperText>
-      </Field.Root>
+          <Field.Root>
+            <Field.Label>統合ラベリングプロンプト</Field.Label>
+            <Textarea
+              h={"150px"}
+              value={promptSettings.mergeLabelling}
+              onChange={(e) => promptSettings.setMergeLabelling(e.target.value)}
+            />
+            <Field.HelperText>AIに提示する統合ラベリングプロンプトです(通常は変更不要です)</Field.HelperText>
+          </Field.Root>
+        </>
+      )}
 
       <Field.Root>
         <Field.Label>要約プロンプト</Field.Label>
