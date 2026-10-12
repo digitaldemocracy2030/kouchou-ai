@@ -4,7 +4,7 @@ version = "0.1.2"
 description = "広聴AI分析パイプラインコア - Broadlistening Analysis Pipeline Core"
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0" }
 authors = [
     { name = "Digital Democracy 2030", email = "info@example.com" }
 ]
@@ -12,7 +12,7 @@ keywords = ["broadlistening", "analysis", "pipeline", "llm", "clustering"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]

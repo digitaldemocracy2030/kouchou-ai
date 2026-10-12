@@ -190,6 +190,7 @@ jobs:
 - [ ] CHANGELOG/リリースノートを更新（必要に応じて）
 - [ ] コミット & `analysis-core-vX.Y.Z` タグ作成
 - [ ] ビルド成功
+- [ ] wheel / sdist のライセンス表記がAGPL-3.0で、rootの `LICENSE` と同じ全文が同梱されている
 - [ ] TestPyPI でテスト（オプション）
 - [ ] PyPI にアップロード
 - [ ] インストール確認

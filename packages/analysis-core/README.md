@@ -101,4 +101,8 @@ ruff check .
 
 ## ライセンス
 
-MIT License
+広聴AI本体と同じ **GNU Affero General Public License v3 (AGPL-3.0)** です。
+ライセンス全文は [LICENSE](LICENSE) を参照してください。
+
+以前のREADMEとパッケージメタデータ（PyPI 0.1.0 / 0.1.2を含む）のMIT表記は誤りです。
+`analysis-core` の独立パッケージ化は、ライセンスをMITへ変更するものではありません。
