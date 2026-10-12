@@ -1072,7 +1072,6 @@ def _openrouter_json_fallback(
     messages: list[dict],
     json_schema: dict | type[BaseModel] | None,
     timeout_seconds: int,
-    is_json: bool = False,
 ) -> tuple[str, int, int, int]:
     """structured outputs 非対応モデル向けのフォールバック経路。
 
@@ -1168,10 +1167,10 @@ def request_to_openrouter_chatcompletion(
                     logging.warning(
                         f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {e}"
                     )
-            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, is_json=is_json)
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
 
         if structured_dict_schema and prefer_json_fallback:
-            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, is_json=is_json)
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
 
         payload: dict[str, Any] = {
             "model": model,
@@ -1196,7 +1195,7 @@ def request_to_openrouter_chatcompletion(
             logging.warning(
                 f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {e}"
             )
-            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, is_json=is_json)
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
 
         token_usage_input, token_usage_output, token_usage_total = _extract_token_usage(response)
         return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total

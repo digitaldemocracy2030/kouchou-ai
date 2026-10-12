@@ -11,7 +11,11 @@
 
 import json
 
-import httpx2
+try:  # httpx is openai の HTTP 層で requirements-dev.lock に含まれる（openai 2.x）
+    import httpx
+except ModuleNotFoundError:  # 新しめの openai(3.x) は httpx2 を同梱する。ローカル uv run 用の保険
+    import httpx2 as httpx
+
 import openai
 import pytest
 from pydantic import BaseModel
@@ -31,8 +35,8 @@ class _Schema(BaseModel):
 
 
 def _bad_request(message: str = "response_format is not supported") -> openai.BadRequestError:
-    request = httpx2.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
-    response = httpx2.Response(400, request=request)
+    request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+    response = httpx.Response(400, request=request)
     return openai.BadRequestError(message, response=response, body=None)
 
 
