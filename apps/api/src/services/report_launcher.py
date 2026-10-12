@@ -41,6 +41,9 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
             "limit": comment_num,
         },
         "hierarchical_overview": {"prompt": report_input.prompt.overview},
+        # 埋め込みモデルはチャットモデルとは独立に選択できる。未指定なら embedding セクション
+        # 自体を省略し、analysis-core の normalize_config 既定 (text-embedding-3-small) に委ねる。
+        **({"embedding": {"model": report_input.embedding_model}} if report_input.embedding_model else {}),
         "hierarchical_aggregation": {
             "sampling_num": report_input.workers,
         },

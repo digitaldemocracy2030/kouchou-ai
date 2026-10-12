@@ -86,6 +86,21 @@ def test_build_config_llm_grouping_mode_omits_hierarchical_only_sections():
     assert "hierarchical_aggregation" in config
 
 
+def test_build_config_includes_embedding_model_when_specified():
+    from src.services.report_launcher import _build_config
+
+    config = _build_config(make_report_input(embedding_model="text-embedding-3-large"))
+    assert config["embedding"]["model"] == "text-embedding-3-large"
+
+
+def test_build_config_omits_embedding_section_when_not_specified():
+    from src.services.report_launcher import _build_config
+
+    # 未指定なら embedding セクションを置かず、analysis-core の既定に委ねる
+    config = _build_config(make_report_input())
+    assert "embedding" not in config
+
+
 def test_save_input_file_writes_mixed_type_attributes_as_csv(tmp_path, monkeypatch):
     from src.services import report_launcher
 

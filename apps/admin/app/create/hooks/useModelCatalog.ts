@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 export interface ModelOption {
   value: string;
   label: string;
+  /** "chat" (default) か "embedding"。未指定はチャットモデル扱い。 */
+  kind?: string;
   description?: string;
   verified?: boolean;
   unverified_label?: string;

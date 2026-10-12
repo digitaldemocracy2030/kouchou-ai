@@ -21,6 +21,34 @@ def test_requested_models_are_selectable_but_unverified():
             assert row["price"]["source"]
 
 
+def test_models_for_provider_filters_and_tags_kind():
+    # kind 省略時は chat / embedding 両方を返し、各行に kind が入る
+    all_openai = models_for_provider("openai")
+    assert all(row.get("kind") in ("chat", "embedding") for row in all_openai)
+    assert {row["value"] for row in models_for_provider("openai", "embedding")} == {
+        "text-embedding-3-small",
+        "text-embedding-3-large",
+    }
+    assert all(row["kind"] == "chat" for row in models_for_provider("openai", "chat"))
+    assert "text-embedding-3-small" not in {row["value"] for row in models_for_provider("openai", "chat")}
+
+
+def test_azure_exposes_chat_and_embedding_server_entries():
+    chat = models_for_provider("azure", "chat")
+    embedding = models_for_provider("azure", "embedding")
+    assert [row["value"] for row in chat] == ["azure-server"]
+    assert [row["value"] for row in embedding] == ["azure-embedding-server"]
+    assert embedding[0]["selection_mode"] == "server"
+
+
+def test_chat_discovery_preserves_catalog_embedding_rows():
+    # チャットのライブ探索結果でも、カタログの embedding 行は温存される
+    rows = enrich_models("openai", [{"value": "gpt-new", "label": "New"}])
+    assert "text-embedding-3-small" in {r["value"] for r in rows}
+    new = next(r for r in rows if r["value"] == "gpt-new")
+    assert new["kind"] == "chat"
+
+
 def test_discovery_preserves_lifecycle():
     rows = enrich_models(
         "gemini", [{"value": "models/gemini-1.5-pro", "label": "old"}, {"value": "models/new-model", "label": "New"}]

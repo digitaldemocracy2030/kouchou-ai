@@ -26,7 +26,8 @@ class ReportInput(SchemaBaseModel):
     question: str  # レポートのタイトル
     intro: str  # レポートの調査概要
     cluster: list[int]  # 層ごとのクラスタ数定義
-    model: str  # 利用するLLMの名称
+    model: str  # 利用するLLMの名称（チャット用）
+    embedding_model: str | None = None  # 利用する埋め込みモデル名（未指定時はサーバー既定）
     workers: int  # LLM APIの並列実行数
     prompt: Prompt  # プロンプト
     comments: list[Comment]  # コメントのリスト
@@ -81,6 +82,7 @@ class ReportDuplicateOverrides(SchemaBaseModel):
     intro: str | None = None
     cluster: list[int] | None = None
     model: str | None = None
+    embedding_model: str | None = None
     provider: str | None = None
     workers: int | None = None
     is_pubcom: bool | None = None

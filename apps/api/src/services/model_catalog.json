@@ -228,5 +228,41 @@
     "available": true,
     "deprecated": false,
     "price": null
+  },
+  {
+    "provider": "openai",
+    "value": "text-embedding-3-small",
+    "label": "Text Embedding 3 Small",
+    "description": "OpenAIの埋め込みモデル。安価で標準的な精度。広聴AIの既定の埋め込みモデル。",
+    "kind": "embedding",
+    "verified": true,
+    "verification_source": "analysis-core の埋め込み許可リスト (EMBDDING_MODELS)",
+    "available": true,
+    "deprecated": false,
+    "price": null
+  },
+  {
+    "provider": "openai",
+    "value": "text-embedding-3-large",
+    "label": "Text Embedding 3 Large",
+    "description": "OpenAIの埋め込みモデル。高精度だが単価は高め。",
+    "kind": "embedding",
+    "verified": true,
+    "verification_source": "analysis-core の埋め込み許可リスト (EMBDDING_MODELS)",
+    "available": true,
+    "deprecated": false,
+    "price": null
+  },
+  {
+    "provider": "gemini",
+    "value": "gemini-embedding-001",
+    "label": "Gemini Embedding 001",
+    "description": "Google Geminiの埋め込みモデル。",
+    "kind": "embedding",
+    "verified": false,
+    "verification_source": null,
+    "available": true,
+    "deprecated": false,
+    "price": null
   }
 ]

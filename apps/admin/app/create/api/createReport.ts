@@ -17,6 +17,7 @@ export async function createReport({
   cluster,
   provider,
   model,
+  embedding_model,
   workers,
   prompt,
   analysis_mode,
@@ -34,6 +35,7 @@ export async function createReport({
   cluster: [number, number];
   provider: string;
   model: string;
+  embedding_model?: string;
   workers: number;
   prompt: PromptSettings;
   analysis_mode: string;
@@ -65,6 +67,7 @@ export async function createReport({
         cluster,
         provider,
         model,
+        embedding_model,
         workers,
         prompt,
         analysis_mode,

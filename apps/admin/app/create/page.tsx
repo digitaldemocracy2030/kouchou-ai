@@ -214,6 +214,7 @@ export default function Page() {
         cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
         provider: aiSettings.provider,
         model: aiSettings.model,
+        embedding_model: aiSettings.isEmbeddingModelDisabled() ? undefined : aiSettings.embeddingModel || undefined,
         workers: aiSettings.workers,
         prompt: promptData,
         analysis_mode: aiSettings.analysisMode,
@@ -406,6 +407,7 @@ export default function Page() {
             <AISettingsSection
               provider={aiSettings.provider}
               model={aiSettings.model}
+              embeddingModel={aiSettings.embeddingModel}
               workers={aiSettings.workers}
               isPubcomMode={aiSettings.isPubcomMode}
               enableSourceLink={aiSettings.enableSourceLink}
@@ -416,6 +418,7 @@ export default function Page() {
               onAnalysisModeChange={aiSettings.handleAnalysisModeChange}
               onProviderChange={aiSettings.handleProviderChange}
               onModelChange={aiSettings.handleModelChange}
+              onEmbeddingModelChange={aiSettings.handleEmbeddingModelChange}
               fetchLocalLLMModels={aiSettings.fetchLocalLLMModels}
               onWorkersChange={(e) => {
                 const v = Number(e.target.value);
@@ -434,8 +437,11 @@ export default function Page() {
               }}
               setLocalLLMAddress={aiSettings.setLocalLLMAddress}
               getModelDescription={aiSettings.getModelDescription}
+              getEmbeddingModelDescription={aiSettings.getEmbeddingModelDescription}
               getProviderDescription={aiSettings.getProviderDescription}
               getCurrentModels={aiSettings.getCurrentModels}
+              getCurrentEmbeddingModels={aiSettings.getCurrentEmbeddingModels}
+              isEmbeddingModelDisabled={aiSettings.isEmbeddingModelDisabled}
               requiresConnectionSettings={aiSettings.requiresConnectionSettings}
               isEmbeddedAtLocalDisabled={aiSettings.isEmbeddedAtLocalDisabled}
               promptSettings={promptSettings}

@@ -1,6 +1,6 @@
 import { system } from "@/components/theme/system";
 import { ChakraProvider } from "@chakra-ui/react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useAISettings } from "../hooks/useAISettings";
 import { AISettingsSection } from "./AISettingsSection";
@@ -30,6 +30,11 @@ function Settings() {
         getModelDescription={ai.getModelDescription}
         getProviderDescription={ai.getProviderDescription}
         getCurrentModels={ai.getCurrentModels}
+        embeddingModel={ai.embeddingModel}
+        onEmbeddingModelChange={ai.handleEmbeddingModelChange}
+        getEmbeddingModelDescription={ai.getEmbeddingModelDescription}
+        getCurrentEmbeddingModels={ai.getCurrentEmbeddingModels}
+        isEmbeddingModelDisabled={ai.isEmbeddingModelDisabled}
         requiresConnectionSettings={ai.requiresConnectionSettings}
         isEmbeddedAtLocal={ai.isEmbeddedAtLocal}
         onEmbeddedAtLocalChange={noop}
@@ -95,6 +100,25 @@ it("OpenAIからAzureへ切り替えると固定表示になり、戻すとモ�
   await user.selectOptions(model, "o3-mini");
   expect(model).toHaveValue("o3-mini");
   expect(screen.queryByText(/Azure OpenAIでは/)).not.toBeInTheDocument();
+});
+
+it("埋め込みモデルをチャットモデルとは別に選択でき、チャット一覧には混ざらない", async () => {
+  render(<Settings />);
+  const embedding = await screen.findByRole("combobox", { name: "埋め込みモデル" });
+  expect(embedding).toBeEnabled();
+  await within(embedding).findByRole("option", { name: "Text Embedding 3 Small" });
+  // 埋め込みモデルはチャットモデルの一覧に出てこない
+  const chat = screen.getByRole("combobox", { name: "AIモデル" });
+  expect(within(chat).queryByRole("option", { name: "Text Embedding 3 Small" })).not.toBeInTheDocument();
+});
+
+it("LocalLLM選択時は埋め込みモデル選択が無効化される", async () => {
+  const user = userEvent.setup();
+  render(<Settings />);
+  await user.selectOptions(screen.getByRole("combobox", { name: "AIプロバイダー" }), "local");
+  const embedding = screen.getByRole("combobox", { name: "埋め込みモデル" });
+  await waitFor(() => expect(embedding).toBeDisabled());
+  expect(embedding).toHaveDisplayValue("サーバ内埋め込みを使用");
 });
 
 it("Geminiは従来どおりモデルを選択できる", async () => {

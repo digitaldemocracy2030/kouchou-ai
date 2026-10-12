@@ -208,6 +208,8 @@ def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -
         config["intro"] = overrides.intro
     if overrides.model is not None:
         config["model"] = overrides.model
+    if overrides.embedding_model is not None:
+        config.setdefault("embedding", {})["model"] = overrides.embedding_model
     if overrides.provider is not None:
         config["provider"] = overrides.provider
     if overrides.workers is not None:

@@ -38,10 +38,13 @@ beforeEach(() => {
   jest.mocked(useAISettings).mockReturnValue({
     provider: "openai",
     model: "gpt-4o-mini",
+    embeddingModel: "text-embedding-3-small",
     workers: 1,
     analysisMode: "hierarchical",
     userApiKey: "",
     getCurrentModels: () => [],
+    getCurrentEmbeddingModels: () => [],
+    isEmbeddingModelDisabled: () => false,
   } as unknown as ReturnType<typeof useAISettings>);
   jest.mocked(usePluginData).mockReturnValue({
     plugins: [],

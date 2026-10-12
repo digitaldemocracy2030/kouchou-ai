@@ -23,6 +23,11 @@ export function AISettingsSection({
   getModelDescription,
   getProviderDescription,
   getCurrentModels,
+  embeddingModel,
+  onEmbeddingModelChange,
+  getEmbeddingModelDescription,
+  getCurrentEmbeddingModels,
+  isEmbeddingModelDisabled,
   requiresConnectionSettings,
   isEmbeddedAtLocalDisabled,
   localLLMAddress,
@@ -51,6 +56,11 @@ export function AISettingsSection({
   getModelDescription: () => string;
   getProviderDescription: () => string;
   getCurrentModels: () => ModelOption[];
+  embeddingModel?: string;
+  onEmbeddingModelChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  getEmbeddingModelDescription?: () => string;
+  getCurrentEmbeddingModels?: () => ModelOption[];
+  isEmbeddingModelDisabled?: () => boolean;
   requiresConnectionSettings: () => boolean;
   isEmbeddedAtLocalDisabled?: () => boolean;
   localLLMAddress?: string;
@@ -73,6 +83,11 @@ export function AISettingsSection({
 }) {
   const isAzure = provider === "azure";
   const modelOptions = getCurrentModels();
+  const showEmbeddingModelSelect = typeof getCurrentEmbeddingModels === "function";
+  const embeddingModelOptions = showEmbeddingModelSelect ? (getCurrentEmbeddingModels?.() ?? []) : [];
+  const embeddingDisabled = isEmbeddingModelDisabled?.() ?? false;
+  const embeddingPlaceholder =
+    isEmbeddedAtLocal && provider !== "azure" ? "サーバ内埋め込みを使用" : "サーバー設定を使用";
 
   return (
     <VStack gap={10}>
@@ -221,6 +236,27 @@ export function AISettingsSection({
           )}
         </Field.HelperText>
       </Field.Root>
+
+      {showEmbeddingModelSelect && (
+        <Field.Root disabled={embeddingDisabled}>
+          <Field.Label>埋め込みモデル</Field.Label>
+          <NativeSelect.Root w="full" maxW="600px">
+            <NativeSelect.Field value={embeddingDisabled ? "" : embeddingModel} onChange={onEmbeddingModelChange}>
+              {embeddingDisabled ? (
+                <option value="">{embeddingPlaceholder}</option>
+              ) : (
+                embeddingModelOptions.map((option) => (
+                  <option key={option.value} value={option.value} disabled={option.available === false}>
+                    {modelLabel(option)}
+                  </option>
+                ))
+              )}
+            </NativeSelect.Field>
+            <NativeSelect.Indicator />
+          </NativeSelect.Root>
+          <Field.HelperText>{getEmbeddingModelDescription?.()}</Field.HelperText>
+        </Field.Root>
+      )}
 
       <Field.Root>
         <Checkbox
