@@ -16,6 +16,11 @@ def all_exist(paths):
     return all(p.exists() for p in paths)
 
 
+# 子プロセスは、この run_evaluation.py を起動したのと同じ Python で呼ぶ
+# （venv 内の `python` が無い環境でも動くように `sys.executable` を使う）
+PY = sys.executable
+
+
 def script_path(script_name):
     # このスクリプトと同じディレクトリ内にあるスクリプトを呼び出す
     return str((Path(__file__).parent / script_name).resolve())
@@ -28,6 +33,11 @@ def main():
     parser.add_argument("--max-samples", type=int, help="LLMプロンプトに含める最大意見数（省略可）")
     parser.add_argument("--mode", choices=["api", "print"], default="api", help="LLM評価の実行モード（api or print）")
     parser.add_argument("--model", help="使用するOpenAIモデル名（例: gpt-4o）")
+    parser.add_argument(
+        "--skip-llm",
+        action="store_true",
+        help="LLM評価（API課金あり）をスキップし、silhouette + CSV + HTML だけを生成する",
+    )
     args = parser.parse_args()
 
     dataset = args.dataset
@@ -45,7 +55,7 @@ def main():
 
             # prompt_level{level}.txt の出力を前提として評価スクリプトに任せる
             cmd = (
-                f"python {script_path('evaluation_consistency_llm.py')} "
+                f"{PY} {script_path('evaluation_consistency_llm.py')} "
                 f"--dataset {dataset} --level {level} --mode print"
             )
             if args.max_samples:
@@ -69,17 +79,23 @@ def main():
             for f in required_files:
                 print(f"✅ 出力ファイルが存在するためスキップします: {f}")
         else:
-            cmd = f"python {script_path('evaluate_silhouette_score.py')} --dataset {dataset} --level {level} --source umap"
+            cmd = f"{PY} {script_path('evaluate_silhouette_score.py')} --dataset {dataset} --level {level} --source umap"
             run_command(cmd, f"シルエットスコア計算（level {level}）")
 
+    if args.skip_llm:
+        print("\n=== ステップ2: LLM評価をスキップ（--skip-llm 指定） ===")
+        print("ℹ️ silhouette のみで評価します。clarity/coherence 等のLLM列は空になります。")
+
     for level in levels:
+        if args.skip_llm:
+            break
         print(f"\n=== ステップ2: LLM評価（level {level}） ===")
         out_path = input_dir / f"evaluation_consistency_llm_level{level}.json"
         if out_path.exists():
             print(f"✅ 出力ファイルが存在するためスキップします: {out_path}")
         else:
             cmd = (
-                f"python {script_path('evaluation_consistency_llm.py')} "
+                f"{PY} {script_path('evaluation_consistency_llm.py')} "
                 f"--dataset {dataset} --level {level} --mode {args.mode}"
             )
             if args.max_samples:
@@ -90,13 +106,13 @@ def main():
             run_command(cmd, f"LLM評価（level {level}）")
 
     print(f"\n=== ステップ3: CSV出力 ===")
-    run_command(f"python {script_path('generate_csv.py')} {dataset}", "CSV出力")
+    run_command(f"{PY} {script_path('generate_csv.py')} {dataset}", "CSV出力")
     print(f"✓ CSV出力完了:")
     print(f" - クラスタ: {output_dir / 'cluster_evaluation.csv'}")
     print(f" - 意見:     {output_dir / 'comment_evaluation.csv'}")
 
     print(f"\n=== ステップ4: HTMLレポート生成 ===")
-    run_command(f"python {script_path('generate_html.py')} {dataset}", "HTMLレポート生成")
+    run_command(f"{PY} {script_path('generate_html.py')} {dataset}", "HTMLレポート生成")
     print(f"✓ HTML出力完了: {output_dir / 'report.html'}")
 
 

@@ -1,0 +1,15 @@
+# 評価ハーネスの入出力ディレクトリは原則として追跡しない。
+# 利用者が docker cp などで持ち込む実データ（生コメント等）を誤って
+# commit しないための保険。
+inputs/*
+outputs/*
+
+# ただし同梱サンプルは例外。第三者が追加取得なしで 1 コマンド再現するための
+# 最小データセットと、その silhouette 経路の出力例だけは追跡する。
+!inputs/sample/
+!outputs/sample/
+
+# sample 配下でも「実行時に再生成される中間ファイル」は追跡しない
+# （evaluate_silhouette_score.py / LLM 評価が作る JSON）。
+inputs/sample/silhouette_umap_*.json
+inputs/sample/evaluation_consistency_llm_*.json

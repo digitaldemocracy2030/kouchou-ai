@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>サンプル自治体アンケート（合成データ）</title>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        h1,
+        h3 {
+            color: #2a4365;
+        }
+
+        table.stat-table {
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        table.stat-table th,
+        table.stat-table td {
+            border: 1px solid #ccc;
+            text-align: center;
+            padding: 8px;
+        }
+
+        table.stat-table th {
+            background-color: #f0f8ff;
+        }
+
+        table.stat-table td {
+            background-color: #f9f9f9;
+        }
+
+        .evaluation-block {
+            border: 2px solid #ccddee;
+            background-color: #f5f9ff;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            display: inline-block;
+            width: 200px;
+            text-align: center;
+            margin: 0 10px;
+        }
+
+        .label {
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .fullscreen-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 999;
+        }
+
+        #groupContainer {
+            margin-top: 30px;
+        }
+
+        .eval-column {
+            display: table-cell;
+        }
+
+        .group {
+            border: 1px solid #ccc;
+            margin: 5px 0;
+            padding: 5px 10px;
+        }
+
+        .group-header {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #f7f7f7;
+            padding: 5px;
+        }
+
+        .group-header .toggle {
+            font-weight: bold;
+            margin-right: 10px;
+            user-select: none;
+        }
+
+        .group-header .title {
+            flex: 1;
+        }
+
+        .group-header .stats {
+            font-size: 0.9em;
+            color: #555;
+            margin-left: 10px;
+        }
+
+        .group-header .summary {
+            font-size: 0.9em;
+            color: #333;
+            margin-left: 20px;
+        }
+
+        .group-children,
+        .arguments {
+            margin-left: 20px;
+            border-left: 1px dashed #ccc;
+            padding-left: 10px;
+        }
+
+        .argument {
+            margin: 5px 0;
+            padding: 3px;
+            background-color: #eef;
+        }
+
+        #toggleAll {
+            margin-bottom: 15px;
+            background-color: #3182ce;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        #toggleAll:hover {
+            background-color: #2a69ac;
+        }
+
+        #toggleEvalBtn {
+            margin-bottom: 15px;
+            background-color: #3182ce;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        #toggleEvalBtn:hover {
+            background-color: #2a69ac;
+        }
+
+        .score-1 {
+            background-color: #fed7d7 !important;
+        }
+
+        .score-2 {
+            background-color: #fefcbf !important;
+        }
+
+        .score-3 {
+            background-color: #f0fff4 !important;
+        }
+
+        .score-4 {
+            background-color: #c6f6d5 !important;
+        }
+
+        .score-5 {
+            background-color: #9ae6b4 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>サンプル自治体アンケート（合成データ）</h1>
+    <p><strong>24件</strong></p>
+    <p>これはクラスタ品質評価ハーネスの動作確認用に生成された完全な合成データセットです。実在する意見・個人情報は含まれていません。</p>
+    <button id="toggleEvalBtn" onclick="toggleEvaluation()">評価を隠す</button>
+    <div id="evaluationBlock" class="evaluation-block">
+
+        <table class="stat-table">
+            <tr>
+                <th>明確さ</th>
+                <th>一貫性</th>
+                <th>整合性</th>
+                <th>差異性</th>
+                <th>まとまり具合</th>
+                <th>内訳: 中心との近さ</th>
+                <th>内訳: 他との距離</th>
+            </tr>
+            <tr>
+                <td class="score-None">None</td>
+                <td class="score-None">None</td>
+                <td class="score-None">None</td>
+                <td class="score-None">None</td>
+                <td class="score-5">
+                    5.0（0.791）
+                </td>
+                <td class="score-5">
+                    5.0（1.65）
+                </td>
+                <td class="score-5">
+                    5.0（9.886）
+                </td>
+            </tr>
+
+        </table>
+        
+
+        <details class="eval-help" style="margin-top:1.5rem;">
+            <summary style="font-weight:bold; cursor:pointer;">📊 評価指標の見方（クリックで開閉）</summary>
+            <div style="padding:0.8rem 1.2rem; line-height:1.6;">
+                <h4 style="margin-top:0;">1. 定性評価（文章の質を AI が採点）</h4>
+                <ul style="margin-left:1rem;">
+                    <li><b>明確さ Clarity</b> … 主語・述語がはっきりしていて “言いたいこと” が伝わるか</li>
+                    <li><b>一貫性 Coherence</b> … 文や段落の流れが自然につながっているか</li>
+                    <li><b>整合性 Consistency</b> … 意見とその説明・根拠の内容に矛盾がないか。同じクラスタ内の他の意見と比べても自然な説明になっているか</li>
+                    <li><b>差異性 Distinctiveness</b> … 他のクラスタと被らない独自性があるか</li>
+                </ul>
+                <p>AI（LLM）が 1〜5 の整数で採点します。<br>
+                    <span style="opacity:0.7;">※ あくまで目安ですが、<b>2 以下</b>は注意信号 と考えてください。</span>
+                </p>
+
+                <h4>2. 定量評価（まとまり具合のスコア）</h4>
+                <p>「クラスタ内の平均距離」と「最も近い別クラスタとの距離」を比較して得られる <b>シルエットスコア</b> を使っています。</p>
+
+                <p>シルエットスコアは、意見グループの <b>内部の密集度</b> と <b>他グループとの分離度</b> をあわせて評価する指標で、数値が高いほど「よくまとまっていて他と被っていない」状態といえます。
+                </p>
+
+                <table
+                    style="border-collapse:collapse; font-size:0.9rem; margin-top:0.3rem; table-layout: fixed; width: 60%;">
+                    <thead>
+                        <tr>
+                            <th style="border-bottom:1px solid #aaa;" colspan="6">まとまり具合（シルエットスコア）の評価基準</th>
+                        </tr>
+                        <tr>
+                            <th style="padding:2px 6px;">1</th>
+                            <th>2</th>
+                            <th>3</th>
+                            <th>4</th>
+                            <th>5</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            
+                            
+                            <td>-0.25 未満</td>
+                            
+                            
+                            
+                            <td>-0.25～0.0</td>
+                            
+                            
+                            
+                            <td>0.0～0.25</td>
+                            
+                            
+                            
+                            <td>0.25～0.5</td>
+                            
+                            
+                            
+                            <td>0.5 以上</td>
+                            
+                            
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p><span style="opacity:0.7;">※ 5 に近いほど「同じクラスタはギュッと密集、別クラスタとはハッキリ離れている」良い状態です。</span></p>
+
+                <p><b>補助スコア「中心との近さ」「他との距離」について：</b><br>
+                    これらは、まとまり具合スコア（シルエット）と距離情報から <u>相対的に割り振った補助評価</u>です。<br>
+                    シルエットスコアほど厳密なものではありませんが、クラスタの「中でどれだけ近いか」「他とどれだけ離れているか」の内訳傾向を知る参考になります。</p>
+                <p style="margin-top:0.6rem;">
+                    <b>活用イメージ：</b><br>
+                    ・シルエットが低いクラスタ → まずはコメント一覧を確認し、<b>別クラスタ候補の意見</b>が混ざっていないか目視チェック。<br>
+                    ・LLM スコアが 2 以下 → ラベル表現やコメント内容を再整理し、必要に応じて <b>データを修正 → レポート再生成</b>。<br>
+                    ・全体感をつかむ用途 が主眼なので、<u>個々の数値は “ざっくり傾向を知るための指標”</u> という位置付けです。<br>
+                </p>
+            </div>
+        </details>
+    </div>
+    <div class="chart-container" id="scatterChart"></div>
+
+    <h2>意見グループ一覧</h2>
+    <button id="toggleAll" onclick="toggleAllGroups()">すべて展開</button>
+    <div id="groupContainer">
+        
+
+        
+        <div class="group" data-group-id="1_0">
+            <div class="group-header" onclick="toggleThisGroup(this)" style="color: #b24747;">
+                <span class="toggle">[+]</span>
+                <span class="title">公共交通の利便性</span>
+                
+                
+                <span class="stats">8件 (33.3%)</span>
+            </div>
+            <div class="summary">バス路線や自転車利用など、移動手段の使いやすさに関する意見のまとまり。</div>
+
+            <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                <div id="evaluationBlock" class="evaluation-block">
+                    <table class="stat-table">
+                        <tr>
+                            <th>明確さ</th>
+                            <th>一貫性</th>
+                            <th>整合性</th>
+                            <th>差異性</th>
+                            <th>まとまり具合</th>
+                            <th>内訳: 中心との近さ</th>
+                            <th>内訳: 他との距離</th>
+                        </tr>
+                        <tr>
+                            <td class="score-0">None
+                            </td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-5">5（0.810）
+                            </td>
+                            <td class="score-5">5（1.552）</td>
+                            <td class="score-5">5（10.245）</td>
+                        </tr>
+                    </table>
+
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>評価コメント:</strong> （なし）
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="group-children" style="display: none;">
+                
+                <div class="group" data-group-id="2_0">
+            <div class="group-header" onclick="toggleThisGroup(this)" style="color: #b24747;">
+                <span class="toggle">[+]</span>
+                <span class="title">バス路線の拡充</span>
+                
+                
+                <span class="stats">4件 (16.7%)</span>
+            </div>
+            <div class="summary">運行本数の増加や路線網の見直しを求める意見。</div>
+
+            <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                <div id="evaluationBlock" class="evaluation-block">
+                    <table class="stat-table">
+                        <tr>
+                            <th>明確さ</th>
+                            <th>一貫性</th>
+                            <th>整合性</th>
+                            <th>差異性</th>
+                            <th>まとまり具合</th>
+                            <th>内訳: 中心との近さ</th>
+                            <th>内訳: 他との距離</th>
+                        </tr>
+                        <tr>
+                            <td class="score-0">None
+                            </td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-5">5（0.877）
+                            </td>
+                            <td class="score-5">5（0.235）</td>
+                            <td class="score-5">5（3.085）</td>
+                        </tr>
+                    </table>
+
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>評価コメント:</strong> （なし）
+                    </div>
+                </div>
+            </div>
+
+            
+            
+            <div class="arguments" style="display: none;">
+                <table class="stat-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 65%;">意見</th>
+                            <th class="eval-column">まとまり具合</th>
+                            <th class="eval-column">内訳: 中心との近さ</th>
+                            <th class="eval-column">内訳: 他との距離</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td style="text-align: left;">朝夕のバスの本数を増やしてほしい。</td>
+                            <td class="eval-column score-5">5（0.890）</td>
+                            <td class="eval-column score-5">5（0.172）</td>
+                            <td class="eval-column score-5">5（3.065）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">郊外へ向かうバス路線を新設してほしい。</td>
+                            <td class="eval-column score-5">5（0.880）</td>
+                            <td class="eval-column score-5">5（0.209）</td>
+                            <td class="eval-column score-5">5（3.019）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">最終バスの時刻をもっと遅くしてほしい。</td>
+                            <td class="eval-column score-5">5（0.865）</td>
+                            <td class="eval-column score-3">3（0.323）</td>
+                            <td class="eval-column score-5">5（3.405）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">乗り換えなしで中心部へ行ける路線がほしい。</td>
+                            <td class="eval-column score-5">5（0.873）</td>
+                            <td class="eval-column score-5">5（0.234）</td>
+                            <td class="eval-column score-5">5（2.850）</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+            
+        </div>
+        
+                
+                <div class="group" data-group-id="2_1">
+            <div class="group-header" onclick="toggleThisGroup(this)" style="color: #b24747;">
+                <span class="toggle">[+]</span>
+                <span class="title">自転車環境の改善</span>
+                
+                
+                <span class="stats">4件 (16.7%)</span>
+            </div>
+            <div class="summary">自転車レーンや駐輪場の整備を求める意見。</div>
+
+            <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                <div id="evaluationBlock" class="evaluation-block">
+                    <table class="stat-table">
+                        <tr>
+                            <th>明確さ</th>
+                            <th>一貫性</th>
+                            <th>整合性</th>
+                            <th>差異性</th>
+                            <th>まとまり具合</th>
+                            <th>内訳: 中心との近さ</th>
+                            <th>内訳: 他との距離</th>
+                        </tr>
+                        <tr>
+                            <td class="score-0">None
+                            </td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-5">5（0.881）
+                            </td>
+                            <td class="score-5">5（0.217）</td>
+                            <td class="score-5">5（3.090）</td>
+                        </tr>
+                    </table>
+
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>評価コメント:</strong> （なし）
+                    </div>
+                </div>
+            </div>
+
+            
+            
+            <div class="arguments" style="display: none;">
+                <table class="stat-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 65%;">意見</th>
+                            <th class="eval-column">まとまり具合</th>
+                            <th class="eval-column">内訳: 中心との近さ</th>
+                            <th class="eval-column">内訳: 他との距離</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td style="text-align: left;">幹線道路に自転車専用レーンを整備してほしい。</td>
+                            <td class="eval-column score-5">5（0.905）</td>
+                            <td class="eval-column score-5">5（0.124）</td>
+                            <td class="eval-column score-5">5（3.181）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">駅前の駐輪場が不足しているので増やしてほしい。</td>
+                            <td class="eval-column score-5">5（0.901）</td>
+                            <td class="eval-column score-5">5（0.106）</td>
+                            <td class="eval-column score-5">5（2.990）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">シェアサイクルの拠点を増やしてほしい。</td>
+                            <td class="eval-column score-5">5（0.863）</td>
+                            <td class="eval-column score-5">5（0.307）</td>
+                            <td class="eval-column score-5">5（3.066）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">歩行者と自転車の動線を分けて安全にしてほしい。</td>
+                            <td class="eval-column score-5">5（0.856）</td>
+                            <td class="eval-column score-5">5（0.330）</td>
+                            <td class="eval-column score-5">5（3.124）</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+            
+        </div>
+        
+                
+            </div>
+            
+        </div>
+        
+        
+        <div class="group" data-group-id="1_1">
+            <div class="group-header" onclick="toggleThisGroup(this)" style="color: #b2a147;">
+                <span class="toggle">[+]</span>
+                <span class="title">公園と緑地の整備</span>
+                
+                
+                <span class="stats">8件 (33.3%)</span>
+            </div>
+            <div class="summary">遊具や緑地の管理など、公園空間の質に関する意見のまとまり。</div>
+
+            <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                <div id="evaluationBlock" class="evaluation-block">
+                    <table class="stat-table">
+                        <tr>
+                            <th>明確さ</th>
+                            <th>一貫性</th>
+                            <th>整合性</th>
+                            <th>差異性</th>
+                            <th>まとまり具合</th>
+                            <th>内訳: 中心との近さ</th>
+                            <th>内訳: 他との距離</th>
+                        </tr>
+                        <tr>
+                            <td class="score-0">None
+                            </td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-5">5（0.780）
+                            </td>
+                            <td class="score-5">5（1.738）</td>
+                            <td class="score-5">5（9.617）</td>
+                        </tr>
+                    </table>
+
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>評価コメント:</strong> （なし）
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="group-children" style="display: none;">
+                
+                <div class="group" data-group-id="2_2">
+            <div class="group-header" onclick="toggleThisGroup(this)" style="color: #b2a147;">
+                <span class="toggle">[+]</span>
+                <span class="title">遊具の充実</span>
+                
+                
+                <span class="stats">4件 (16.7%)</span>
+            </div>
+            <div class="summary">子ども向け遊具の種類や安全性に関する意見。</div>
+
+            <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                <div id="evaluationBlock" class="evaluation-block">
+                    <table class="stat-table">
+                        <tr>
+                            <th>明確さ</th>
+                            <th>一貫性</th>
+                            <th>整合性</th>
+                            <th>差異性</th>
+                            <th>まとまり具合</th>
+                            <th>内訳: 中心との近さ</th>
+                            <th>内訳: 他との距離</th>
+                        </tr>
+                        <tr>
+                            <td class="score-0">None
+                            </td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-5">5（0.822）
+                            </td>
+                            <td class="score-3">3（0.387）</td>
+                            <td class="score-5">5（3.460）</td>
+                        </tr>
+                    </table>
+
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>評価コメント:</strong> （なし）
+                    </div>
+                </div>
+            </div>
+
+            
+            
+            <div class="arguments" style="display: none;">
+                <table class="stat-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 65%;">意見</th>
+                            <th class="eval-column">まとまり具合</th>
+                            <th class="eval-column">内訳: 中心との近さ</th>
+                            <th class="eval-column">内訳: 他との距離</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td style="text-align: left;">幼児でも遊べる低い遊具を増やしてほしい。</td>
+                            <td class="eval-column score-5">5（0.870）</td>
+                            <td class="eval-column score-3">3（0.275）</td>
+                            <td class="eval-column score-5">5（3.623）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">老朽化した遊具を早めに更新してほしい。</td>
+                            <td class="eval-column score-5">5（0.873）</td>
+                            <td class="eval-column score-4">4（0.247）</td>
+                            <td class="eval-column score-5">5（3.625）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">雨の日でも遊べる屋根付きの広場がほしい。</td>
+                            <td class="eval-column score-5">5（0.765）</td>
+                            <td class="eval-column score-3">3（0.591）</td>
+                            <td class="eval-column score-5">5（3.525）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">バリアフリーで誰でも使える遊具を設置してほしい。</td>
+                            <td class="eval-column score-5">5（0.780）</td>
+                            <td class="eval-column score-5">5（0.436）</td>
+                            <td class="eval-column score-5">5（3.065）</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+            
+        </div>
+        
+                
+                <div class="group" data-group-id="2_3">
+            <div class="group-header" onclick="toggleThisGroup(this)" style="color: #b2a147;">
+                <span class="toggle">[+]</span>
+                <span class="title">緑地の維持管理</span>
+                
+                
+                <span class="stats">4件 (16.7%)</span>
+            </div>
+            <div class="summary">芝生や樹木の手入れ、清掃に関する意見。</div>
+
+            <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                <div id="evaluationBlock" class="evaluation-block">
+                    <table class="stat-table">
+                        <tr>
+                            <th>明確さ</th>
+                            <th>一貫性</th>
+                            <th>整合性</th>
+                            <th>差異性</th>
+                            <th>まとまり具合</th>
+                            <th>内訳: 中心との近さ</th>
+                            <th>内訳: 他との距離</th>
+                        </tr>
+                        <tr>
+                            <td class="score-0">None
+                            </td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-5">5（0.972）
+                            </td>
+                            <td class="score-5">5（0.061）</td>
+                            <td class="score-5">5（3.443）</td>
+                        </tr>
+                    </table>
+
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>評価コメント:</strong> （なし）
+                    </div>
+                </div>
+            </div>
+
+            
+            
+            <div class="arguments" style="display: none;">
+                <table class="stat-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 65%;">意見</th>
+                            <th class="eval-column">まとまり具合</th>
+                            <th class="eval-column">内訳: 中心との近さ</th>
+                            <th class="eval-column">内訳: 他との距離</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td style="text-align: left;">芝生の手入れの頻度を上げてほしい。</td>
+                            <td class="eval-column score-5">5（0.975）</td>
+                            <td class="eval-column score-5">5（0.057）</td>
+                            <td class="eval-column score-5">5（3.394）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">落ち葉や雑草の清掃をこまめに行ってほしい。</td>
+                            <td class="eval-column score-5">5（0.957）</td>
+                            <td class="eval-column score-5">5（0.115）</td>
+                            <td class="eval-column score-5">5（3.557）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">花壇の植え替えで季節感を出してほしい。</td>
+                            <td class="eval-column score-5">5（0.977）</td>
+                            <td class="eval-column score-5">5（0.044）</td>
+                            <td class="eval-column score-5">5（3.406）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">木陰になる高木をもっと植えてほしい。</td>
+                            <td class="eval-column score-5">5（0.980）</td>
+                            <td class="eval-column score-5">5（0.029）</td>
+                            <td class="eval-column score-5">5（3.415）</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+            
+        </div>
+        
+                
+            </div>
+            
+        </div>
+        
+        
+        <div class="group" data-group-id="1_2">
+            <div class="group-header" onclick="toggleThisGroup(this)" style="color: #69b247;">
+                <span class="toggle">[+]</span>
+                <span class="title">図書館サービス</span>
+                
+                
+                <span class="stats">8件 (33.3%)</span>
+            </div>
+            <div class="summary">開館時間や蔵書など、図書館の利用環境に関する意見のまとまり。</div>
+
+            <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                <div id="evaluationBlock" class="evaluation-block">
+                    <table class="stat-table">
+                        <tr>
+                            <th>明確さ</th>
+                            <th>一貫性</th>
+                            <th>整合性</th>
+                            <th>差異性</th>
+                            <th>まとまり具合</th>
+                            <th>内訳: 中心との近さ</th>
+                            <th>内訳: 他との距離</th>
+                        </tr>
+                        <tr>
+                            <td class="score-0">None
+                            </td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-5">5（0.783）
+                            </td>
+                            <td class="score-5">5（1.660）</td>
+                            <td class="score-5">5（9.797）</td>
+                        </tr>
+                    </table>
+
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>評価コメント:</strong> （なし）
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="group-children" style="display: none;">
+                
+                <div class="group" data-group-id="2_4">
+            <div class="group-header" onclick="toggleThisGroup(this)" style="color: #69b247;">
+                <span class="toggle">[+]</span>
+                <span class="title">開館時間の延長</span>
+                
+                
+                <span class="stats">4件 (16.7%)</span>
+            </div>
+            <div class="summary">平日夜間や休日の開館時間に関する意見。</div>
+
+            <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                <div id="evaluationBlock" class="evaluation-block">
+                    <table class="stat-table">
+                        <tr>
+                            <th>明確さ</th>
+                            <th>一貫性</th>
+                            <th>整合性</th>
+                            <th>差異性</th>
+                            <th>まとまり具合</th>
+                            <th>内訳: 中心との近さ</th>
+                            <th>内訳: 他との距離</th>
+                        </tr>
+                        <tr>
+                            <td class="score-0">None
+                            </td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-5">5（0.803）
+                            </td>
+                            <td class="score-4">4（0.400）</td>
+                            <td class="score-5">5（3.290）</td>
+                        </tr>
+                    </table>
+
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>評価コメント:</strong> （なし）
+                    </div>
+                </div>
+            </div>
+
+            
+            
+            <div class="arguments" style="display: none;">
+                <table class="stat-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 65%;">意見</th>
+                            <th class="eval-column">まとまり具合</th>
+                            <th class="eval-column">内訳: 中心との近さ</th>
+                            <th class="eval-column">内訳: 他との距離</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td style="text-align: left;">平日の閉館時間を延ばして夜も使えるようにしてほしい。</td>
+                            <td class="eval-column score-5">5（0.833）</td>
+                            <td class="eval-column score-5">5（0.250）</td>
+                            <td class="eval-column score-5">5（3.104）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">日曜も開館してほしい。</td>
+                            <td class="eval-column score-5">5（0.832）</td>
+                            <td class="eval-column score-5">5（0.322）</td>
+                            <td class="eval-column score-5">5（3.269）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">祝日の開館日を増やしてほしい。</td>
+                            <td class="eval-column score-5">5（0.811）</td>
+                            <td class="eval-column score-3">3（0.462）</td>
+                            <td class="eval-column score-5">5（3.736）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">試験期間は自習室の利用時間を延長してほしい。</td>
+                            <td class="eval-column score-5">5（0.736）</td>
+                            <td class="eval-column score-5">5（0.565）</td>
+                            <td class="eval-column score-5">5（3.052）</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+            
+        </div>
+        
+                
+                <div class="group" data-group-id="2_5">
+            <div class="group-header" onclick="toggleThisGroup(this)" style="color: #69b247;">
+                <span class="toggle">[+]</span>
+                <span class="title">蔵書の拡充</span>
+                
+                
+                <span class="stats">4件 (16.7%)</span>
+            </div>
+            <div class="summary">書籍のジャンルや新刊の取り揃えに関する意見。</div>
+
+            <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                <div id="evaluationBlock" class="evaluation-block">
+                    <table class="stat-table">
+                        <tr>
+                            <th>明確さ</th>
+                            <th>一貫性</th>
+                            <th>整合性</th>
+                            <th>差異性</th>
+                            <th>まとまり具合</th>
+                            <th>内訳: 中心との近さ</th>
+                            <th>内訳: 他との距離</th>
+                        </tr>
+                        <tr>
+                            <td class="score-0">None
+                            </td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-0">None</td>
+                            <td class="score-5">5（0.858）
+                            </td>
+                            <td class="score-4">4（0.274）</td>
+                            <td class="score-5">5（3.281）</td>
+                        </tr>
+                    </table>
+
+                    <div class="evaluation" style="margin: 10px 0 10px 10px;">
+                        <strong>評価コメント:</strong> （なし）
+                    </div>
+                </div>
+            </div>
+
+            
+            
+            <div class="arguments" style="display: none;">
+                <table class="stat-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 65%;">意見</th>
+                            <th class="eval-column">まとまり具合</th>
+                            <th class="eval-column">内訳: 中心との近さ</th>
+                            <th class="eval-column">内訳: 他との距離</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td style="text-align: left;">新刊の入荷を早くしてほしい。</td>
+                            <td class="eval-column score-5">5（0.875）</td>
+                            <td class="eval-column score-3">3（0.319）</td>
+                            <td class="eval-column score-5">5（3.514）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">専門書や技術書をもっと増やしてほしい。</td>
+                            <td class="eval-column score-5">5（0.895）</td>
+                            <td class="eval-column score-5">5（0.134）</td>
+                            <td class="eval-column score-5">5（3.297）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">子ども向けの絵本の種類を増やしてほしい。</td>
+                            <td class="eval-column score-5">5（0.771）</td>
+                            <td class="eval-column score-5">5（0.496）</td>
+                            <td class="eval-column score-5">5（2.896）</td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="text-align: left;">電子書籍の貸出に対応してほしい。</td>
+                            <td class="eval-column score-5">5（0.894）</td>
+                            <td class="eval-column score-5">5（0.150）</td>
+                            <td class="eval-column score-5">5（3.416）</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+            
+        </div>
+        
+                
+            </div>
+            
+        </div>
+        
+        
+    </div>
+
+    <script>
+        function toggleThisGroup(headerElem) {
+            const groupElem = headerElem.parentElement;
+            const toggleElem = headerElem.querySelector(".toggle");
+            const childContainer = groupElem.querySelector(".group-children") || groupElem.querySelector(".arguments");
+            if (childContainer) {
+                if (childContainer.style.display === "none") {
+                    childContainer.style.display = "block";
+                    toggleElem.textContent = "[-]";
+                } else {
+                    childContainer.style.display = "none";
+                    toggleElem.textContent = "[+]";
+                }
+            }
+        }
+
+        function toggleAllGroups() {
+            const btn = document.getElementById("toggleAll");
+            const groups = document.querySelectorAll("#groupContainer .group");
+            const expand = btn.textContent === "すべて展開";
+            groups.forEach(group => {
+                const header = group.querySelector(".group-header");
+                const toggleElem = header.querySelector(".toggle");
+                const childContainer = group.querySelector(".group-children") || group.querySelector(".arguments");
+                if (childContainer) {
+                    childContainer.style.display = expand ? "block" : "none";
+                    toggleElem.textContent = expand ? "[-]" : "[+]";
+                }
+            });
+            btn.textContent = expand ? "すべて閉じる" : "すべて展開";
+        }
+
+        const result = {"arguments": [{"arg_id": "A1", "argument": "\u671d\u5915\u306e\u30d0\u30b9\u306e\u672c\u6570\u3092\u5897\u3084\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_0", "2_0"], "comment_id": "C1", "p": 0, "silhouette": {"umap": {"centroid": 0.17234228251070594, "centroid_score": 5, "nearest": 3.06472062538376, "nearest_score": 5, "raw": 0.8904118920218145, "scaled": 5}}, "url": null, "x": -1.480055, "y": -0.848927}, {"arg_id": "A2", "argument": "\u90ca\u5916\u3078\u5411\u304b\u3046\u30d0\u30b9\u8def\u7dda\u3092\u65b0\u8a2d\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_0", "2_0"], "comment_id": "C2", "p": 0, "silhouette": {"umap": {"centroid": 0.20870632531142896, "centroid_score": 5, "nearest": 3.018561177592832, "nearest_score": 5, "raw": 0.8801582876077746, "scaled": 5}}, "url": null, "x": -1.187026, "y": -1.07615}, {"arg_id": "A3", "argument": "\u6700\u7d42\u30d0\u30b9\u306e\u6642\u523b\u3092\u3082\u3063\u3068\u9045\u304f\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_0", "2_0"], "comment_id": "C3", "p": 0, "silhouette": {"umap": {"centroid": 0.3233267325431042, "centroid_score": 3, "nearest": 3.4050068775430726, "nearest_score": 5, "raw": 0.8651035098672344, "scaled": 5}}, "url": null, "x": -1.599161, "y": -1.218667}, {"arg_id": "A4", "argument": "\u4e57\u308a\u63db\u3048\u306a\u3057\u3067\u4e2d\u5fc3\u90e8\u3078\u884c\u3051\u308b\u8def\u7dda\u304c\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_0", "2_0"], "comment_id": "C4", "p": 0, "silhouette": {"umap": {"centroid": 0.2341891515612966, "centroid_score": 5, "nearest": 2.8501372490786516, "nearest_score": 5, "raw": 0.8730321662531194, "scaled": 5}}, "url": null, "x": -1.234018, "y": -0.798648}, {"arg_id": "A5", "argument": "\u5e79\u7dda\u9053\u8def\u306b\u81ea\u8ee2\u8eca\u5c02\u7528\u30ec\u30fc\u30f3\u3092\u6574\u5099\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_0", "2_1"], "comment_id": "C5", "p": 0, "silhouette": {"umap": {"centroid": 0.12429490225115832, "centroid_score": 5, "nearest": 3.1808842774550916, "nearest_score": 5, "raw": 0.9053161085383157, "scaled": 5}}, "url": null, "x": 0.934975, "y": 1.201121}, {"arg_id": "A6", "argument": "\u99c5\u524d\u306e\u99d0\u8f2a\u5834\u304c\u4e0d\u8db3\u3057\u3066\u3044\u308b\u306e\u3067\u5897\u3084\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_0", "2_1"], "comment_id": "C6", "p": 0, "silhouette": {"umap": {"centroid": 0.10622780206059523, "centroid_score": 5, "nearest": 2.989765826747138, "nearest_score": 5, "raw": 0.9005272989340698, "scaled": 5}}, "url": null, "x": 0.709142, "y": 1.157946}, {"arg_id": "A7", "argument": "\u30b7\u30a7\u30a2\u30b5\u30a4\u30af\u30eb\u306e\u62e0\u70b9\u3092\u5897\u3084\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_0", "2_1"], "comment_id": "C7", "p": 0, "silhouette": {"umap": {"centroid": 0.30659562091723525, "centroid_score": 5, "nearest": 3.0659109797913247, "nearest_score": 5, "raw": 0.8629440450471567, "scaled": 5}}, "url": null, "x": 1.004502, "y": 0.947656}, {"arg_id": "A8", "argument": "\u6b69\u884c\u8005\u3068\u81ea\u8ee2\u8eca\u306e\u52d5\u7dda\u3092\u5206\u3051\u3066\u5b89\u5168\u306b\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_0", "2_1"], "comment_id": "C8", "p": 0, "silhouette": {"umap": {"centroid": 0.32984963558813435, "centroid_score": 5, "nearest": 3.124409375568605, "nearest_score": 5, "raw": 0.8562585767856902, "scaled": 5}}, "url": null, "x": 0.59781, "y": 1.437148}, {"arg_id": "A9", "argument": "\u5e7c\u5150\u3067\u3082\u904a\u3079\u308b\u4f4e\u3044\u904a\u5177\u3092\u5897\u3084\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_1", "2_2"], "comment_id": "C9", "p": 0, "silhouette": {"umap": {"centroid": 0.2754266273097974, "centroid_score": 3, "nearest": 3.6228872862728947, "nearest_score": 5, "raw": 0.8695759931594382, "scaled": 5}}, "url": null, "x": 8.902893, "y": -1.384663}, {"arg_id": "A10", "argument": "\u8001\u673d\u5316\u3057\u305f\u904a\u5177\u3092\u65e9\u3081\u306b\u66f4\u65b0\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_1", "2_2"], "comment_id": "C10", "p": 0, "silhouette": {"umap": {"centroid": 0.2466955530694666, "centroid_score": 4, "nearest": 3.6251372534540383, "nearest_score": 5, "raw": 0.8729759371601548, "scaled": 5}}, "url": null, "x": 8.869448, "y": -1.356956}, {"arg_id": "A11", "argument": "\u96e8\u306e\u65e5\u3067\u3082\u904a\u3079\u308b\u5c4b\u6839\u4ed8\u304d\u306e\u5e83\u5834\u304c\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_1", "2_2"], "comment_id": "C11", "p": 0, "silhouette": {"umap": {"centroid": 0.5907376712884073, "centroid_score": 3, "nearest": 3.5252226461522658, "nearest_score": 5, "raw": 0.7647280475524669, "scaled": 5}}, "url": null, "x": 8.441987, "y": -0.711426}, {"arg_id": "A12", "argument": "\u30d0\u30ea\u30a2\u30d5\u30ea\u30fc\u3067\u8ab0\u3067\u3082\u4f7f\u3048\u308b\u904a\u5177\u3092\u8a2d\u7f6e\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_1", "2_2"], "comment_id": "C12", "p": 0, "silhouette": {"umap": {"centroid": 0.4359679177924108, "centroid_score": 5, "nearest": 3.0652947176237832, "nearest_score": 5, "raw": 0.7803306559624097, "scaled": 5}}, "url": null, "x": 9.296232, "y": -0.988541}, {"arg_id": "A13", "argument": "\u829d\u751f\u306e\u624b\u5165\u308c\u306e\u983b\u5ea6\u3092\u4e0a\u3052\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_1", "2_3"], "comment_id": "C13", "p": 0, "silhouette": {"umap": {"centroid": 0.056896587092833496, "centroid_score": 5, "nearest": 3.3939421223564294, "nearest_score": 5, "raw": 0.9753767303250939, "scaled": 5}}, "url": null, "x": 11.284347, "y": 1.282636}, {"arg_id": "A14", "argument": "\u843d\u3061\u8449\u3084\u96d1\u8349\u306e\u6e05\u6383\u3092\u3053\u307e\u3081\u306b\u884c\u3063\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_1", "2_3"], "comment_id": "C14", "p": 0, "silhouette": {"umap": {"centroid": 0.11470276970201186, "centroid_score": 5, "nearest": 3.556845429064391, "nearest_score": 5, "raw": 0.95679644866856, "scaled": 5}}, "url": null, "x": 11.430402, "y": 1.366407}, {"arg_id": "A15", "argument": "\u82b1\u58c7\u306e\u690d\u3048\u66ff\u3048\u3067\u5b63\u7bc0\u611f\u3092\u51fa\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_1", "2_3"], "comment_id": "C15", "p": 0, "silhouette": {"umap": {"centroid": 0.044408237488246204, "centroid_score": 5, "nearest": 3.4055925041145567, "nearest_score": 5, "raw": 0.976652351040545, "scaled": 5}}, "url": null, "x": 11.329559, "y": 1.253108}, {"arg_id": "A16", "argument": "\u6728\u9670\u306b\u306a\u308b\u9ad8\u6728\u3092\u3082\u3063\u3068\u690d\u3048\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_1", "2_3"], "comment_id": "C16", "p": 0, "silhouette": {"umap": {"centroid": 0.02874839868257811, "centroid_score": 5, "nearest": 3.4154854604341764, "nearest_score": 5, "raw": 0.9799276533585696, "scaled": 5}}, "url": null, "x": 11.313931, "y": 1.283351}, {"arg_id": "A17", "argument": "\u5e73\u65e5\u306e\u9589\u9928\u6642\u9593\u3092\u5ef6\u3070\u3057\u3066\u591c\u3082\u4f7f\u3048\u308b\u3088\u3046\u306b\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_2", "2_4"], "comment_id": "C17", "p": 0, "silhouette": {"umap": {"centroid": 0.24999384462884755, "centroid_score": 5, "nearest": 3.103692468309907, "nearest_score": 5, "raw": 0.8332441889360082, "scaled": 5}}, "url": null, "x": 4.007082, "y": 8.03608}, {"arg_id": "A18", "argument": "\u65e5\u66dc\u3082\u958b\u9928\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_2", "2_4"], "comment_id": "C18", "p": 0, "silhouette": {"umap": {"centroid": 0.3222557469546708, "centroid_score": 5, "nearest": 3.268940630643529, "nearest_score": 5, "raw": 0.8322810601704111, "scaled": 5}}, "url": null, "x": 3.972093, "y": 7.827862}, {"arg_id": "A19", "argument": "\u795d\u65e5\u306e\u958b\u9928\u65e5\u3092\u5897\u3084\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_2", "2_4"], "comment_id": "C19", "p": 0, "silhouette": {"umap": {"centroid": 0.4615466933028686, "centroid_score": 3, "nearest": 3.7360756205925005, "nearest_score": 5, "raw": 0.8108739836175899, "scaled": 5}}, "url": null, "x": 3.393377, "y": 7.788781}, {"arg_id": "A20", "argument": "\u8a66\u9a13\u671f\u9593\u306f\u81ea\u7fd2\u5ba4\u306e\u5229\u7528\u6642\u9593\u3092\u5ef6\u9577\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_2", "2_4"], "comment_id": "C20", "p": 0, "silhouette": {"umap": {"centroid": 0.5650699031105025, "centroid_score": 5, "nearest": 3.0515071802194114, "nearest_score": 5, "raw": 0.7364177844776378, "scaled": 5}}, "url": null, "x": 3.665022, "y": 8.627086}, {"arg_id": "A21", "argument": "\u65b0\u520a\u306e\u5165\u8377\u3092\u65e9\u304f\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_2", "2_5"], "comment_id": "C21", "p": 0, "silhouette": {"umap": {"centroid": 0.3192691359435254, "centroid_score": 3, "nearest": 3.514303104481717, "nearest_score": 5, "raw": 0.8746297203120411, "scaled": 5}}, "url": null, "x": 6.409712, "y": 10.377795}, {"arg_id": "A22", "argument": "\u5c02\u9580\u66f8\u3084\u6280\u8853\u66f8\u3092\u3082\u3063\u3068\u5897\u3084\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_2", "2_5"], "comment_id": "C22", "p": 0, "silhouette": {"umap": {"centroid": 0.133518297544287, "centroid_score": 5, "nearest": 3.296741681438101, "nearest_score": 5, "raw": 0.8945966730334559, "scaled": 5}}, "url": null, "x": 6.292831, "y": 10.179502}, {"arg_id": "A23", "argument": "\u5b50\u3069\u3082\u5411\u3051\u306e\u7d75\u672c\u306e\u7a2e\u985e\u3092\u5897\u3084\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_2", "2_5"], "comment_id": "C23", "p": 0, "silhouette": {"umap": {"centroid": 0.495624402845164, "centroid_score": 5, "nearest": 2.896474244348259, "nearest_score": 5, "raw": 0.7708541958290979, "scaled": 5}}, "url": null, "x": 6.228457, "y": 9.584313}, {"arg_id": "A24", "argument": "\u96fb\u5b50\u66f8\u7c4d\u306e\u8cb8\u51fa\u306b\u5bfe\u5fdc\u3057\u3066\u307b\u3057\u3044\u3002", "attributes": null, "cluster_ids": ["0", "1_2", "2_5"], "comment_id": "C24", "p": 0, "silhouette": {"umap": {"centroid": 0.14955968028390884, "centroid_score": 5, "nearest": 3.4160706015929807, "nearest_score": 5, "raw": 0.8938577114552982, "scaled": 5}}, "url": null, "x": 6.499745, "y": 10.109563}], "clusters": [{"density_rank_percentile": 0, "id": "0", "label": "\u5168\u4f53", "level": 0, "parent": "", "takeaway": "", "value": 24}, {"children": [{"children": [], "density_rank_percentile": null, "id": "2_0", "label": "\u30d0\u30b9\u8def\u7dda\u306e\u62e1\u5145", "level": 2, "llm": {}, "parent": "1_0", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.23464112298163392, "centroid_score": 5, "nearest": 3.084606482399579, "nearest_score": 5, "raw": 0.8771764639374857, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.23464112298163392, "centroid_score": 5, "nearest_dist": 3.084606482399579, "nearest_score": 5, "silhouette": 0.8771764639374857, "silhouette_score": 5}, "takeaway": "\u904b\u884c\u672c\u6570\u306e\u5897\u52a0\u3084\u8def\u7dda\u7db2\u306e\u898b\u76f4\u3057\u3092\u6c42\u3081\u308b\u610f\u898b\u3002", "value": 4}, {"children": [], "density_rank_percentile": null, "id": "2_1", "label": "\u81ea\u8ee2\u8eca\u74b0\u5883\u306e\u6539\u5584", "level": 2, "llm": {}, "parent": "1_0", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.21674199020428078, "centroid_score": 5, "nearest": 3.0902426148905398, "nearest_score": 5, "raw": 0.8812615073263081, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.21674199020428078, "centroid_score": 5, "nearest_dist": 3.0902426148905398, "nearest_score": 5, "silhouette": 0.8812615073263081, "silhouette_score": 5}, "takeaway": "\u81ea\u8ee2\u8eca\u30ec\u30fc\u30f3\u3084\u99d0\u8f2a\u5834\u306e\u6574\u5099\u3092\u6c42\u3081\u308b\u610f\u898b\u3002", "value": 4}], "density_rank_percentile": null, "id": "1_0", "label": "\u516c\u5171\u4ea4\u901a\u306e\u5229\u4fbf\u6027", "level": 1, "llm": {}, "parent": "0", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 1.5521914192272799, "centroid_score": 5, "nearest": 10.244984669532831, "nearest_score": 5, "raw": 0.8095820716238503, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 1.5521914192272799, "centroid_score": 5, "nearest_dist": 10.244984669532831, "nearest_score": 5, "silhouette": 0.8095820716238503, "silhouette_score": 5}, "takeaway": "\u30d0\u30b9\u8def\u7dda\u3084\u81ea\u8ee2\u8eca\u5229\u7528\u306a\u3069\u3001\u79fb\u52d5\u624b\u6bb5\u306e\u4f7f\u3044\u3084\u3059\u3055\u306b\u95a2\u3059\u308b\u610f\u898b\u306e\u307e\u3068\u307e\u308a\u3002", "value": 8}, {"children": [{"children": [], "density_rank_percentile": null, "id": "2_2", "label": "\u904a\u5177\u306e\u5145\u5b9f", "level": 2, "llm": {}, "parent": "1_1", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.3872069423650205, "centroid_score": 3, "nearest": 3.4596354758757455, "nearest_score": 5, "raw": 0.8219026584586174, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.3872069423650205, "centroid_score": 3, "nearest_dist": 3.4596354758757455, "nearest_score": 5, "silhouette": 0.8219026584586174, "silhouette_score": 5}, "takeaway": "\u5b50\u3069\u3082\u5411\u3051\u904a\u5177\u306e\u7a2e\u985e\u3084\u5b89\u5168\u6027\u306b\u95a2\u3059\u308b\u610f\u898b\u3002", "value": 4}, {"children": [], "density_rank_percentile": null, "id": "2_3", "label": "\u7dd1\u5730\u306e\u7dad\u6301\u7ba1\u7406", "level": 2, "llm": {}, "parent": "1_1", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.061188998241417415, "centroid_score": 5, "nearest": 3.4429663789923883, "nearest_score": 5, "raw": 0.9721882958481921, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.061188998241417415, "centroid_score": 5, "nearest_dist": 3.4429663789923883, "nearest_score": 5, "silhouette": 0.9721882958481921, "silhouette_score": 5}, "takeaway": "\u829d\u751f\u3084\u6a39\u6728\u306e\u624b\u5165\u308c\u3001\u6e05\u6383\u306b\u95a2\u3059\u308b\u610f\u898b\u3002", "value": 4}], "density_rank_percentile": null, "id": "1_1", "label": "\u516c\u5712\u3068\u7dd1\u5730\u306e\u6574\u5099", "level": 1, "llm": {}, "parent": "0", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 1.737998558300428, "centroid_score": 5, "nearest": 9.617131566121548, "nearest_score": 5, "raw": 0.7800188943320912, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 1.737998558300428, "centroid_score": 5, "nearest_dist": 9.617131566121548, "nearest_score": 5, "silhouette": 0.7800188943320912, "silhouette_score": 5}, "takeaway": "\u904a\u5177\u3084\u7dd1\u5730\u306e\u7ba1\u7406\u306a\u3069\u3001\u516c\u5712\u7a7a\u9593\u306e\u8cea\u306b\u95a2\u3059\u308b\u610f\u898b\u306e\u307e\u3068\u307e\u308a\u3002", "value": 8}, {"children": [{"children": [], "density_rank_percentile": null, "id": "2_4", "label": "\u958b\u9928\u6642\u9593\u306e\u5ef6\u9577", "level": 2, "llm": {}, "parent": "1_2", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.3997165469992224, "centroid_score": 4, "nearest": 3.290053974941337, "nearest_score": 5, "raw": 0.8032042543004118, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.3997165469992224, "centroid_score": 4, "nearest_dist": 3.290053974941337, "nearest_score": 5, "silhouette": 0.8032042543004118, "silhouette_score": 5}, "takeaway": "\u5e73\u65e5\u591c\u9593\u3084\u4f11\u65e5\u306e\u958b\u9928\u6642\u9593\u306b\u95a2\u3059\u308b\u610f\u898b\u3002", "value": 4}, {"children": [], "density_rank_percentile": null, "id": "2_5", "label": "\u8535\u66f8\u306e\u62e1\u5145", "level": 2, "llm": {}, "parent": "1_2", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.2744928791542213, "centroid_score": 4, "nearest": 3.2808974079652646, "nearest_score": 5, "raw": 0.8584845751574732, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.2744928791542213, "centroid_score": 4, "nearest_dist": 3.2808974079652646, "nearest_score": 5, "silhouette": 0.8584845751574732, "silhouette_score": 5}, "takeaway": "\u66f8\u7c4d\u306e\u30b8\u30e3\u30f3\u30eb\u3084\u65b0\u520a\u306e\u53d6\u308a\u63c3\u3048\u306b\u95a2\u3059\u308b\u610f\u898b\u3002", "value": 4}], "density_rank_percentile": null, "id": "1_2", "label": "\u56f3\u66f8\u9928\u30b5\u30fc\u30d3\u30b9", "level": 1, "llm": {}, "parent": "0", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 1.6603925245964521, "centroid_score": 5, "nearest": 9.796764523753518, "nearest_score": 5, "raw": 0.7825161873954432, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 1.6603925245964521, "centroid_score": 5, "nearest_dist": 9.796764523753518, "nearest_score": 5, "silhouette": 0.7825161873954432, "silhouette_score": 5}, "takeaway": "\u958b\u9928\u6642\u9593\u3084\u8535\u66f8\u306a\u3069\u3001\u56f3\u66f8\u9928\u306e\u5229\u7528\u74b0\u5883\u306b\u95a2\u3059\u308b\u610f\u898b\u306e\u307e\u3068\u307e\u308a\u3002", "value": 8}, {"children": [], "density_rank_percentile": null, "id": "2_0", "label": "\u30d0\u30b9\u8def\u7dda\u306e\u62e1\u5145", "level": 2, "llm": {}, "parent": "1_0", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.23464112298163392, "centroid_score": 5, "nearest": 3.084606482399579, "nearest_score": 5, "raw": 0.8771764639374857, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.23464112298163392, "centroid_score": 5, "nearest_dist": 3.084606482399579, "nearest_score": 5, "silhouette": 0.8771764639374857, "silhouette_score": 5}, "takeaway": "\u904b\u884c\u672c\u6570\u306e\u5897\u52a0\u3084\u8def\u7dda\u7db2\u306e\u898b\u76f4\u3057\u3092\u6c42\u3081\u308b\u610f\u898b\u3002", "value": 4}, {"children": [], "density_rank_percentile": null, "id": "2_1", "label": "\u81ea\u8ee2\u8eca\u74b0\u5883\u306e\u6539\u5584", "level": 2, "llm": {}, "parent": "1_0", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.21674199020428078, "centroid_score": 5, "nearest": 3.0902426148905398, "nearest_score": 5, "raw": 0.8812615073263081, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.21674199020428078, "centroid_score": 5, "nearest_dist": 3.0902426148905398, "nearest_score": 5, "silhouette": 0.8812615073263081, "silhouette_score": 5}, "takeaway": "\u81ea\u8ee2\u8eca\u30ec\u30fc\u30f3\u3084\u99d0\u8f2a\u5834\u306e\u6574\u5099\u3092\u6c42\u3081\u308b\u610f\u898b\u3002", "value": 4}, {"children": [], "density_rank_percentile": null, "id": "2_2", "label": "\u904a\u5177\u306e\u5145\u5b9f", "level": 2, "llm": {}, "parent": "1_1", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.3872069423650205, "centroid_score": 3, "nearest": 3.4596354758757455, "nearest_score": 5, "raw": 0.8219026584586174, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.3872069423650205, "centroid_score": 3, "nearest_dist": 3.4596354758757455, "nearest_score": 5, "silhouette": 0.8219026584586174, "silhouette_score": 5}, "takeaway": "\u5b50\u3069\u3082\u5411\u3051\u904a\u5177\u306e\u7a2e\u985e\u3084\u5b89\u5168\u6027\u306b\u95a2\u3059\u308b\u610f\u898b\u3002", "value": 4}, {"children": [], "density_rank_percentile": null, "id": "2_3", "label": "\u7dd1\u5730\u306e\u7dad\u6301\u7ba1\u7406", "level": 2, "llm": {}, "parent": "1_1", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.061188998241417415, "centroid_score": 5, "nearest": 3.4429663789923883, "nearest_score": 5, "raw": 0.9721882958481921, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.061188998241417415, "centroid_score": 5, "nearest_dist": 3.4429663789923883, "nearest_score": 5, "silhouette": 0.9721882958481921, "silhouette_score": 5}, "takeaway": "\u829d\u751f\u3084\u6a39\u6728\u306e\u624b\u5165\u308c\u3001\u6e05\u6383\u306b\u95a2\u3059\u308b\u610f\u898b\u3002", "value": 4}, {"children": [], "density_rank_percentile": null, "id": "2_4", "label": "\u958b\u9928\u6642\u9593\u306e\u5ef6\u9577", "level": 2, "llm": {}, "parent": "1_2", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.3997165469992224, "centroid_score": 4, "nearest": 3.290053974941337, "nearest_score": 5, "raw": 0.8032042543004118, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.3997165469992224, "centroid_score": 4, "nearest_dist": 3.290053974941337, "nearest_score": 5, "silhouette": 0.8032042543004118, "silhouette_score": 5}, "takeaway": "\u5e73\u65e5\u591c\u9593\u3084\u4f11\u65e5\u306e\u958b\u9928\u6642\u9593\u306b\u95a2\u3059\u308b\u610f\u898b\u3002", "value": 4}, {"children": [], "density_rank_percentile": null, "id": "2_5", "label": "\u8535\u66f8\u306e\u62e1\u5145", "level": 2, "llm": {}, "parent": "1_2", "scores": {"clarity": {"raw": null, "scaled": null}, "coherence": {"raw": null, "scaled": null}, "consistency": {"raw": null, "scaled": null}, "distinctiveness": {"raw": null, "scaled": null}, "umap": {"centroid": 0.2744928791542213, "centroid_score": 4, "nearest": 3.2808974079652646, "nearest_score": 5, "raw": 0.8584845751574732, "scaled": 5}}, "silhouette_umap": {"centroid_dist": 0.2744928791542213, "centroid_score": 4, "nearest_dist": 3.2808974079652646, "nearest_score": 5, "silhouette": 0.8584845751574732, "silhouette_score": 5}, "takeaway": "\u66f8\u7c4d\u306e\u30b8\u30e3\u30f3\u30eb\u3084\u65b0\u520a\u306e\u53d6\u308a\u63c3\u3048\u306b\u95a2\u3059\u308b\u610f\u898b\u3002", "value": 4}], "comment_num": 24, "comments": {}, "config": {"intro": "\u3053\u308c\u306f\u30af\u30e9\u30b9\u30bf\u54c1\u8cea\u8a55\u4fa1\u30cf\u30fc\u30cd\u30b9\u306e\u52d5\u4f5c\u78ba\u8a8d\u7528\u306b\u751f\u6210\u3055\u308c\u305f\u5b8c\u5168\u306a\u5408\u6210\u30c7\u30fc\u30bf\u30bb\u30c3\u30c8\u3067\u3059\u3002\u5b9f\u5728\u3059\u308b\u610f\u898b\u30fb\u500b\u4eba\u60c5\u5831\u306f\u542b\u307e\u308c\u3066\u3044\u307e\u305b\u3093\u3002", "question": "\u30b5\u30f3\u30d7\u30eb\u81ea\u6cbb\u4f53\u30a2\u30f3\u30b1\u30fc\u30c8\uff08\u5408\u6210\u30c7\u30fc\u30bf\uff09"}, "llm_avg": {"clarity": null, "coherence": null, "consistency": null, "distinctiveness": null}, "llm_avg_scaled": {"clarity": null, "coherence": null, "consistency": null, "distinctiveness": null}, "overview": "\u3053\u308c\u306f\u30af\u30e9\u30b9\u30bf\u54c1\u8cea\u8a55\u4fa1\u30cf\u30fc\u30cd\u30b9\u306e\u52d5\u4f5c\u78ba\u8a8d\u7528\u306b\u751f\u6210\u3055\u308c\u305f\u5b8c\u5168\u306a\u5408\u6210\u30c7\u30fc\u30bf\u30bb\u30c3\u30c8\u3067\u3059\u3002\u5b9f\u5728\u3059\u308b\u610f\u898b\u30fb\u500b\u4eba\u60c5\u5831\u306f\u542b\u307e\u308c\u3066\u3044\u307e\u305b\u3093\u3002", "propertyMap": {}, "silhouette_umap_avg": {"centroid_dist": 1.65, "centroid_score": 5.0, "nearest_dist": 9.886, "nearest_score": 5.0, "silhouette": 0.791, "silhouette_score": 5.0}, "silhouette_umap_avg_scaled": {"centroid_score": 5, "nearest_score": 5, "silhouette_score": 5}, "translations": {}};
+        const color_map = {"1_0": "#b24747", "1_1": "#b2a147", "1_2": "#69b247"};
+
+        const clusters = result.clusters.filter(c => c.level === 2);
+        const args = result.arguments;
+
+        const scatterData = clusters.map((cluster, idx) => {
+            const clusterArgs = args.filter(arg => arg.cluster_ids.includes(cluster.id));
+            const x = clusterArgs.map(arg => arg.x);
+            const y = clusterArgs.map(arg => arg.y);
+
+            let color = "";
+            if (cluster.parent && color_map[cluster.parent]) {
+                color = color_map[cluster.parent];
+            } else {
+                color = `hsl(${(idx * 40) % 360},70%,60%)`;
+            }
+
+            return {
+                x: x,
+                y: y,
+                mode: "markers",
+                type: "scatter",
+                name: cluster.label,
+                marker: { color: color, size: 7 },
+                text: clusterArgs.map(arg => `<b>${cluster.label}</b><br>${arg.argument.replace(/(.{30})/g, "$1<br>")}`),
+                hoverinfo: "text"
+            };
+        });
+
+        const level1Clusters = result.clusters.filter(c => c.level === 1);
+        const annotations = level1Clusters.map(cluster => {
+            const clusterArgs = result.arguments.filter(arg => arg.cluster_ids.includes(cluster.id));
+            if (clusterArgs.length > 0) {
+                const sumX = clusterArgs.reduce((sum, arg) => sum + arg.x, 0);
+                const sumY = clusterArgs.reduce((sum, arg) => sum + arg.y, 0);
+                const centerX = sumX / clusterArgs.length;
+                const centerY = sumY / clusterArgs.length;
+                return {
+                    x: centerX,
+                    y: centerY,
+                    xref: "x",
+                    yref: "y",
+                    text: cluster.label,
+                    showarrow: false,
+                    font: { color: "#fff", size: 14 },
+                    bgcolor: color_map[cluster.id] || "#000",
+                    opacity: 0.8
+                };
+            }
+            return null;
+        }).filter(ann => ann !== null);
+
+        Plotly.newPlot("scatterChart", scatterData, {
+            margin: { l: 20, r: 20, t: 20, b: 20 },
+            xaxis: { showticklabels: false, zeroline: false },
+            yaxis: { showticklabels: false, zeroline: false },
+            hovermode: "closest",
+            showlegend: false,
+            annotations: annotations
+        }, { responsive: true });
+        function toggleEvaluation() {
+            const blocks = document.querySelectorAll(".evaluation-block");
+            const btn = document.getElementById("toggleEvalBtn");
+            const evalCols = document.querySelectorAll(".eval-column");
+
+            const currentlyHidden = Array.from(blocks).every(b => b.style.display === "none");
+
+            blocks.forEach(b => {
+                b.style.display = currentlyHidden ? "block" : "none";
+            });
+
+            evalCols.forEach(el => {
+                el.style.display = currentlyHidden ? "table-cell" : "none";
+            });
+
+            btn.textContent = currentlyHidden ? "評価を隠す" : "評価を表示";
+        }
+    </script>
+</body>
+
+</html>

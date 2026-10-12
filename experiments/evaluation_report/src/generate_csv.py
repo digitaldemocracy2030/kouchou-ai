@@ -29,6 +29,8 @@ if len(sys.argv) < 2:
 data_id = sys.argv[1]
 data_dir = Path("inputs") / data_id
 output_dir = Path("outputs") / data_id
+# 出力ディレクトリが無ければ作成（個別スクリプトとして実行された場合でも動くように）
+output_dir.mkdir(parents=True, exist_ok=True)
 
 # 入力ファイルパス
 LABEL_CSV = data_dir / "hierarchical_merge_labels.csv"

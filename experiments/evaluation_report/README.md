@@ -13,16 +13,76 @@
 - **レポート出力**  
   クラスタ単位・意見単位のCSV、Webブラウザ閲覧可能なHTMLレポート
 
+## クイックスタート（同梱サンプルで再現）
+
+第三者が追加データの取得なしに動作確認できるよう、小さな**合成**サンプルデータセットを
+`inputs/sample/` に同梱しています（実在する意見・個人情報は含みません）。
+
+silhouette（まとまり具合）評価は **LLM / OpenAI API を一切使わずに** 回せます。
+
+```bash
+# 1. 依存をインストール（silhouette 経路だけなら軽量な4つで足りる）
+pip install numpy pandas scikit-learn jinja2
+#   full 経路（LLM評価）も使うなら:
+#   pip install -r requirements.txt
+
+# 2. silhouette のみで一括実行（APIキー不要・課金なし）
+python src/run_evaluation.py sample --skip-llm
+```
+
+出力は `outputs/sample/` に生成されます（本リポジトリにも出力例を同梱済み）。
+
+- `cluster_evaluation.csv` … クラスタ単位の評価（LLM列は `--skip-llm` 時は空）
+- `comment_evaluation.csv` … 意見（コメント）単位の silhouette 指標
+- `report.html` … ブラウザで開けるHTMLレポート
+
+サンプルデータは決定論的に再生成できます（乱数シード固定）:
+
+```bash
+python make_sample_dataset.py          # inputs/sample/ を作り直す
+```
+
+### 2つの実行経路
+
+| 経路 | コマンド | 必要なもの | 得られる指標 |
+| --- | --- | --- | --- |
+| **silhouette のみ（最小）** | `python src/run_evaluation.py <dataset> --skip-llm` | numpy / pandas / scikit-learn / jinja2 のみ。API不要・課金なし | silhouette, centroid, nearest（1〜5段階含む） |
+| **full（LLM-judge 込み）** | `python src/run_evaluation.py <dataset>` | 上記 + OpenAI APIキー（`OPENAI_API_KEY`）、`analysis-core`、課金あり | 上記 + clarity / coherence / consistency / distinctiveness |
+
+> LLM-judge は OpenAI API 課金を伴うため、本リポジトリでは実行結果を同梱していません。
+> `--mode print` を使うと API を呼ばずに評価用プロンプトだけを出力でき、ChatGPT 等に貼り付けて
+> 手動評価 → `inputs/{dataset}/evaluation_consistency_llm_level{1,2}.json` に保存することで
+> CSV / HTML に反映できます（詳細は末尾「備考」参照）。
+
+## 入力データの形式
+
+`inputs/{dataset}/` には、クラスタリング pipeline
+（`packages/analysis-core`）の出力ファイルを置きます。silhouette (umap) 経路で必要なのは
+以下の4ファイルです（`embeddings.pkl` は `--source embedding` を使う時だけ必要）。
+
+| ファイル | 主なカラム / キー | 使う処理 |
+| --- | --- | --- |
+| `hierarchical_clusters.csv` | `arg-id`, `argument`, `x`, `y`, `cluster-level-1-id`, `cluster-level-2-id` | silhouette 計算 |
+| `hierarchical_merge_labels.csv` | `level`, `id`, `label`, `description`, `value`, `parent`, `density*` | クラスタCSV |
+| `hierarchical_result.json` | `arguments[]`, `clusters[]`, `config.question`, `overview` | 意見CSV / HTML |
+| `args.csv` | `arg-id`, `argument` | LLM評価（full 経路） |
+
+同梱サンプルの生成ロジックは `make_sample_dataset.py` を参照してください（各ファイルの
+正確なスキーマがコードで読めます）。
+
 ## ディレクトリ構成
 
 ```
 project-root/
+├── make_sample_dataset.py  ... 同梱サンプル（合成データ）の生成スクリプト
 ├── inputs/
+│   ├── sample/         ... 同梱の合成サンプル（args.csv, hierarchical_*.csv/json）
 │   └── {dataset-id}/   ... 入力元データ（args.csv, clusters.csv,中間データJSON 等）
 ├── outputs/
+│   ├── sample/         ... サンプルの出力例（CSV, HTML）
 │   └── {dataset-id}/   ... 評価出力ファイル群（CSV,  HTML）
 ├── src/
-│   └── run_evaluation.py   ... 一括実行スクリプト
+│   └── run_evaluation.py   ... 一括実行スクリプト（--skip-llm で silhouette のみ）
 ```
 
 
@@ -50,6 +110,7 @@ python src/run_evaluation.py 5c783025-ab42-4676-b68b-7e1fe9858c05
 | `--max-samples` | LLMプロンプトに含める最大意見数            | `--max-samples 500` |
 | `--mode`        | `api` または `print`（プロンプト出力のみ） | `--mode print`      |
 | `--model`       | 使用するOpenAIモデル名               | `--model gpt-4o-mini`    |
+| `--skip-llm`    | LLM評価をスキップし silhouette のみ実行（API不要） | `--skip-llm`       |
 
 
 ## クラスタリング評価結果の出力ファイルについて

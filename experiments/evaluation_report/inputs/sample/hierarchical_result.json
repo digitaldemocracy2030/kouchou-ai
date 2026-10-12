@@ -1,0 +1,465 @@
+{
+  "arguments": [
+    {
+      "arg_id": "A1",
+      "argument": "朝夕のバスの本数を増やしてほしい。",
+      "comment_id": "C1",
+      "x": -1.480055,
+      "y": -0.848927,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_0",
+        "2_0"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A2",
+      "argument": "郊外へ向かうバス路線を新設してほしい。",
+      "comment_id": "C2",
+      "x": -1.187026,
+      "y": -1.07615,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_0",
+        "2_0"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A3",
+      "argument": "最終バスの時刻をもっと遅くしてほしい。",
+      "comment_id": "C3",
+      "x": -1.599161,
+      "y": -1.218667,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_0",
+        "2_0"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A4",
+      "argument": "乗り換えなしで中心部へ行ける路線がほしい。",
+      "comment_id": "C4",
+      "x": -1.234018,
+      "y": -0.798648,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_0",
+        "2_0"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A5",
+      "argument": "幹線道路に自転車専用レーンを整備してほしい。",
+      "comment_id": "C5",
+      "x": 0.934975,
+      "y": 1.201121,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_0",
+        "2_1"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A6",
+      "argument": "駅前の駐輪場が不足しているので増やしてほしい。",
+      "comment_id": "C6",
+      "x": 0.709142,
+      "y": 1.157946,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_0",
+        "2_1"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A7",
+      "argument": "シェアサイクルの拠点を増やしてほしい。",
+      "comment_id": "C7",
+      "x": 1.004502,
+      "y": 0.947656,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_0",
+        "2_1"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A8",
+      "argument": "歩行者と自転車の動線を分けて安全にしてほしい。",
+      "comment_id": "C8",
+      "x": 0.59781,
+      "y": 1.437148,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_0",
+        "2_1"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A9",
+      "argument": "幼児でも遊べる低い遊具を増やしてほしい。",
+      "comment_id": "C9",
+      "x": 8.902893,
+      "y": -1.384663,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_1",
+        "2_2"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A10",
+      "argument": "老朽化した遊具を早めに更新してほしい。",
+      "comment_id": "C10",
+      "x": 8.869448,
+      "y": -1.356956,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_1",
+        "2_2"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A11",
+      "argument": "雨の日でも遊べる屋根付きの広場がほしい。",
+      "comment_id": "C11",
+      "x": 8.441987,
+      "y": -0.711426,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_1",
+        "2_2"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A12",
+      "argument": "バリアフリーで誰でも使える遊具を設置してほしい。",
+      "comment_id": "C12",
+      "x": 9.296232,
+      "y": -0.988541,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_1",
+        "2_2"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A13",
+      "argument": "芝生の手入れの頻度を上げてほしい。",
+      "comment_id": "C13",
+      "x": 11.284347,
+      "y": 1.282636,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_1",
+        "2_3"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A14",
+      "argument": "落ち葉や雑草の清掃をこまめに行ってほしい。",
+      "comment_id": "C14",
+      "x": 11.430402,
+      "y": 1.366407,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_1",
+        "2_3"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A15",
+      "argument": "花壇の植え替えで季節感を出してほしい。",
+      "comment_id": "C15",
+      "x": 11.329559,
+      "y": 1.253108,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_1",
+        "2_3"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A16",
+      "argument": "木陰になる高木をもっと植えてほしい。",
+      "comment_id": "C16",
+      "x": 11.313931,
+      "y": 1.283351,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_1",
+        "2_3"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A17",
+      "argument": "平日の閉館時間を延ばして夜も使えるようにしてほしい。",
+      "comment_id": "C17",
+      "x": 4.007082,
+      "y": 8.03608,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_2",
+        "2_4"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A18",
+      "argument": "日曜も開館してほしい。",
+      "comment_id": "C18",
+      "x": 3.972093,
+      "y": 7.827862,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_2",
+        "2_4"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A19",
+      "argument": "祝日の開館日を増やしてほしい。",
+      "comment_id": "C19",
+      "x": 3.393377,
+      "y": 7.788781,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_2",
+        "2_4"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A20",
+      "argument": "試験期間は自習室の利用時間を延長してほしい。",
+      "comment_id": "C20",
+      "x": 3.665022,
+      "y": 8.627086,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_2",
+        "2_4"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A21",
+      "argument": "新刊の入荷を早くしてほしい。",
+      "comment_id": "C21",
+      "x": 6.409712,
+      "y": 10.377795,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_2",
+        "2_5"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A22",
+      "argument": "専門書や技術書をもっと増やしてほしい。",
+      "comment_id": "C22",
+      "x": 6.292831,
+      "y": 10.179502,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_2",
+        "2_5"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A23",
+      "argument": "子ども向けの絵本の種類を増やしてほしい。",
+      "comment_id": "C23",
+      "x": 6.228457,
+      "y": 9.584313,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_2",
+        "2_5"
+      ],
+      "attributes": null,
+      "url": null
+    },
+    {
+      "arg_id": "A24",
+      "argument": "電子書籍の貸出に対応してほしい。",
+      "comment_id": "C24",
+      "x": 6.499745,
+      "y": 10.109563,
+      "p": 0,
+      "cluster_ids": [
+        "0",
+        "1_2",
+        "2_5"
+      ],
+      "attributes": null,
+      "url": null
+    }
+  ],
+  "clusters": [
+    {
+      "level": 0,
+      "id": "0",
+      "label": "全体",
+      "takeaway": "",
+      "value": 24,
+      "parent": "",
+      "density_rank_percentile": 0
+    },
+    {
+      "level": 1,
+      "id": "1_0",
+      "label": "公共交通の利便性",
+      "takeaway": "バス路線や自転車利用など、移動手段の使いやすさに関する意見のまとまり。",
+      "value": 8,
+      "parent": "0",
+      "density_rank_percentile": null
+    },
+    {
+      "level": 1,
+      "id": "1_1",
+      "label": "公園と緑地の整備",
+      "takeaway": "遊具や緑地の管理など、公園空間の質に関する意見のまとまり。",
+      "value": 8,
+      "parent": "0",
+      "density_rank_percentile": null
+    },
+    {
+      "level": 1,
+      "id": "1_2",
+      "label": "図書館サービス",
+      "takeaway": "開館時間や蔵書など、図書館の利用環境に関する意見のまとまり。",
+      "value": 8,
+      "parent": "0",
+      "density_rank_percentile": null
+    },
+    {
+      "level": 2,
+      "id": "2_0",
+      "label": "バス路線の拡充",
+      "takeaway": "運行本数の増加や路線網の見直しを求める意見。",
+      "value": 4,
+      "parent": "1_0",
+      "density_rank_percentile": null
+    },
+    {
+      "level": 2,
+      "id": "2_1",
+      "label": "自転車環境の改善",
+      "takeaway": "自転車レーンや駐輪場の整備を求める意見。",
+      "value": 4,
+      "parent": "1_0",
+      "density_rank_percentile": null
+    },
+    {
+      "level": 2,
+      "id": "2_2",
+      "label": "遊具の充実",
+      "takeaway": "子ども向け遊具の種類や安全性に関する意見。",
+      "value": 4,
+      "parent": "1_1",
+      "density_rank_percentile": null
+    },
+    {
+      "level": 2,
+      "id": "2_3",
+      "label": "緑地の維持管理",
+      "takeaway": "芝生や樹木の手入れ、清掃に関する意見。",
+      "value": 4,
+      "parent": "1_1",
+      "density_rank_percentile": null
+    },
+    {
+      "level": 2,
+      "id": "2_4",
+      "label": "開館時間の延長",
+      "takeaway": "平日夜間や休日の開館時間に関する意見。",
+      "value": 4,
+      "parent": "1_2",
+      "density_rank_percentile": null
+    },
+    {
+      "level": 2,
+      "id": "2_5",
+      "label": "蔵書の拡充",
+      "takeaway": "書籍のジャンルや新刊の取り揃えに関する意見。",
+      "value": 4,
+      "parent": "1_2",
+      "density_rank_percentile": null
+    }
+  ],
+  "comments": {},
+  "propertyMap": {},
+  "translations": {},
+  "overview": "これはクラスタ品質評価ハーネスの動作確認用に生成された完全な合成データセットです。実在する意見・個人情報は含まれていません。",
+  "comment_num": 24,
+  "config": {
+    "question": "サンプル自治体アンケート（合成データ）",
+    "intro": "これはクラスタ品質評価ハーネスの動作確認用に生成された完全な合成データセットです。実在する意見・個人情報は含まれていません。"
+  }
+}

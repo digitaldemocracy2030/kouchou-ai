@@ -32,6 +32,16 @@ def safe_int(v):
         return None
 
 
+def safe_round(v):
+    """None（LLM評価なしの silhouette 単独経路など）でも落ちない round。"""
+    if v is None:
+        return None
+    try:
+        return round(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Path):
     base_input = input_dir / slug
     base_output = output_dir / slug
@@ -118,10 +128,10 @@ def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Pa
     }
 
     result_data["llm_avg_scaled"] = {
-        "clarity": round(result_data["llm_avg"]["clarity"]),
-        "coherence": round(result_data["llm_avg"]["coherence"]),
-        "consistency": round(result_data["llm_avg"]["consistency"]),
-        "distinctiveness": round(result_data["llm_avg"]["distinctiveness"]),
+        "clarity": safe_round(result_data["llm_avg"]["clarity"]),
+        "coherence": safe_round(result_data["llm_avg"]["coherence"]),
+        "consistency": safe_round(result_data["llm_avg"]["consistency"]),
+        "distinctiveness": safe_round(result_data["llm_avg"]["distinctiveness"]),
     }
 
     result_data["silhouette_umap_avg"] = {
@@ -134,9 +144,9 @@ def generate_html(slug: str, input_dir: Path, output_dir: Path, template_dir: Pa
     }
 
     result_data["silhouette_umap_avg_scaled"] = {
-        "silhouette_score": round(result_data["silhouette_umap_avg"].get("silhouette_score")),
-        "centroid_score": round(result_data["silhouette_umap_avg"].get("centroid_score")),
-        "nearest_score": round(result_data["silhouette_umap_avg"].get("nearest_score")),
+        "silhouette_score": safe_round(result_data["silhouette_umap_avg"].get("silhouette_score")),
+        "centroid_score": safe_round(result_data["silhouette_umap_avg"].get("centroid_score")),
+        "nearest_score": safe_round(result_data["silhouette_umap_avg"].get("nearest_score")),
     }
 
     color_map = {}
