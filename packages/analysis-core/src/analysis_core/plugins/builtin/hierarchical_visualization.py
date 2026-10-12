@@ -45,7 +45,6 @@ def hierarchical_visualization_plugin(
 
     step_config = config.get("hierarchical_visualization", config)
     legacy_config = build_legacy_runtime_config(ctx, inputs)
-    legacy_config["report_dir"] = step_config.get("report_dir", "../report")
     legacy_config["report_html_title"] = step_config.get("report_html_title")
     legacy_config["report_url_pattern"] = step_config.get("report_url_pattern")
 

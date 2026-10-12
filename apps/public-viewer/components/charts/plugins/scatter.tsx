@@ -69,7 +69,9 @@ export const scatterPlugin: ChartPlugin = {
         showClusterLabels={showClusterLabels}
         filteredArgumentIds={filteredArgumentIds}
         config={result.config}
-        showConvexHull={(selectedChart === "scatterDetail" || selectedChart === "scatterAll") && (showConvexHull ?? true)}
+        showConvexHull={
+          (selectedChart === "scatterDetail" || selectedChart === "scatterAll") && (showConvexHull ?? true)
+        }
       />
     );
   },

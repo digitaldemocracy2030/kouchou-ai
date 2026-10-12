@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'package.json'
+      - 'biome.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'apps/api/src/services/model_catalog.json'
@@ -14,6 +15,7 @@ on:
     branches: [main]
     paths:
       - 'package.json'
+      - 'biome.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'apps/api/src/services/model_catalog.json'
@@ -42,6 +44,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Biome の lint / format を強制する。ローカルでは `pnpm run format` で直せる
+      - name: Run Biome check
+        run: pnpm exec biome ci --reporter=github apps/admin
 
       - name: Run build
         run: pnpm --filter @kouchou-ai/admin build

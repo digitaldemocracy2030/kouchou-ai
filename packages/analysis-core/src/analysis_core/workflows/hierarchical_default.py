@@ -103,9 +103,6 @@ def create_hierarchical_workflow(
                 depends_on=["aggregation"],
                 optional=True,
                 condition="${not config.without_html}",
-                config={
-                    "report_dir": "${config.report_dir}",
-                },
             )
         )
 

@@ -19,7 +19,7 @@ describe("jsonDownload", () => {
   });
 
   it("JSONダウンロードが正常に実行され、適切なデータを返す", async () => {
-    const mockData = "{\"foo\":\"bar\"}";
+    const mockData = '{"foo":"bar"}';
     const mockArrayBuffer = Buffer.from(mockData).buffer;
     const mockBlob = {
       arrayBuffer: jest.fn().mockResolvedValue(mockArrayBuffer),

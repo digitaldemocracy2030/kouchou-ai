@@ -25,6 +25,9 @@ NEXT_PUBLIC_CLIENT_BASEPATH=http://localhost:3000
 NEXT_PUBLIC_API_BASEPATH=http://localhost:8000
 API_BASEPATH=http://api:8000
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+CLIENT_STATIC_BUILD_BASEPATH=http://static-site-builder:3200
+REVALIDATE_SECRET=revalidate-secret
+REVALIDATE_URL=http://public-viewer:3000/api/revalidate
 EOL
 
 echo "Starting Docker environment..."

@@ -24,15 +24,18 @@ export async function GET(request: Request) {
   }
 
   // 通常のダミーデータ
-  return NextResponse.json([
-    {
-      id: "example",
-      slug: "example",
-      status: "ready",
-      title: "[テスト]人類が人工知能を開発・展開する上で、最優先すべき課題は何でしょうか？",
-      createdAt: new Date().toISOString(),
-    },
-  ], { headers: corsHeaders });
+  return NextResponse.json(
+    [
+      {
+        id: "example",
+        slug: "example",
+        status: "ready",
+        title: "[テスト]人類が人工知能を開発・展開する上で、最優先すべき課題は何でしょうか？",
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    { headers: corsHeaders },
+  );
 }
 
 export async function OPTIONS() {

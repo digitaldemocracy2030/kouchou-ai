@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from src.config import settings
 from src.schemas.public_report_result import PublicReportResult
 from src.schemas.report import Report, ReportStatus, ReportVisibility
-from src.schemas.visualization_config import DEFAULT_REPORT_DISPLAY_CONFIG, ReportDisplayConfig
+from src.schemas.visualization_config import DEFAULT_REPORT_DISPLAY_CONFIG, parse_saved_visualization_config
 from src.services.report_status import load_status_as_reports
 from src.utils.slug_utils import validate_slug
 
@@ -51,6 +51,7 @@ async def reports() -> list[Report]:
 
 @router.get("/reports/{slug}")
 async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> dict:
+    """公開可能なレポートに可視化設定を添え、古い密度項目だけを読み込み時に補正する。"""
     validate_slug(slug)
     report_path = settings.REPORT_DIR / slug / "hierarchical_result.json"
     all_reports = load_status_as_reports()
@@ -78,7 +79,7 @@ async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> di
             with open(visualization_config_path) as f:
                 raw_config = json.load(f)
             # pydanticで検証（snake_case/camelCase両対応、populate_by_name=True）
-            validated_config = ReportDisplayConfig.model_validate(raw_config)
+            validated_config = parse_saved_visualization_config(raw_config)
             # camelCaseで出力（by_alias=True）
             report_result["visualizationConfig"] = validated_config.model_dump(by_alias=True)
         except (json.JSONDecodeError, OSError) as e:

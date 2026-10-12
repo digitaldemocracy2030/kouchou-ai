@@ -1,5 +1,5 @@
-import fs from "fs/promises";
-import path from "path";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
   const requestApiKey = request.headers.get("x-api-key");

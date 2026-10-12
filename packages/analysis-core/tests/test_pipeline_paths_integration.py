@@ -466,3 +466,60 @@ class TestOrchestratorPathsIntegration:
             assert overview_step["reason"] == "previous data not found"
             assert aggregation_step["reason"] == "previous data not found"
             assert visualization_step["reason"] == "skipping html output"
+
+
+class TestVisualizationWorkflowIntegration:
+    """The default CLI path (HTML enabled) must finish without extra config keys."""
+
+    def test_only_visualization_writes_report_without_report_dir(self, tmp_path):
+        """Re-running only the visualization step writes report.html without report_dir in config."""
+        from analysis_core.orchestrator import PipelineOrchestrator
+
+        input_dir = tmp_path / "inputs"
+        output_dir = tmp_path / "outputs"
+        input_dir.mkdir()
+        (output_dir / "demo").mkdir(parents=True)
+        (output_dir / "demo" / "hierarchical_result.json").write_text(
+            json.dumps(
+                {
+                    "config": {"name": "demo", "question": "q"},
+                    "overview": "",
+                    "comment_num": 1,
+                    "arguments": [
+                        {
+                            "arg_id": "A1_0",
+                            "argument": "alpha",
+                            "comment_id": "1",
+                            "x": 0.1,
+                            "y": 0.2,
+                            "cluster_ids": ["0", "1_1"],
+                            "url": None,
+                        }
+                    ],
+                    "clusters": [
+                        {"id": "0", "level": 0, "label": "root", "value": 1, "parent": "", "takeaway": ""},
+                        {"id": "1_1", "level": 1, "label": "alpha", "value": 1, "parent": "0", "takeaway": ""},
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        config_path = tmp_path / "demo.json"
+        config_path.write_text(
+            json.dumps({"name": "demo", "input": "demo", "question": "q", "model": "gpt-4o-mini"}),
+            encoding="utf-8",
+        )
+
+        orchestrator = PipelineOrchestrator.from_config(
+            config_path=config_path,
+            only="hierarchical_visualization",
+            skip_interaction=True,
+            without_html=False,
+            validate_api_keys_early=False,
+            output_base_dir=output_dir,
+            input_base_dir=input_dir,
+        )
+        result = orchestrator.run_default()
+
+        assert result.success, result.error
+        assert (output_dir / "demo" / "report.html").exists()

@@ -1,0 +1,44 @@
+name: Setup scripts env
+
+on:
+  pull_request:
+    paths:
+      - setup_linux.sh
+      - setup_mac.sh
+      - .env.example
+      - compose.yaml
+      - scripts/check_setup_env.py
+      - .github/workflows/setup-scripts-env.yml
+  push:
+    branches: [main]
+    paths:
+      - setup_linux.sh
+      - setup_mac.sh
+      - .env.example
+      - compose.yaml
+      - scripts/check_setup_env.py
+      - .github/workflows/setup-scripts-env.yml
+
+jobs:
+  setup-scripts-env:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        script: [setup_linux.sh, setup_mac.sh]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Generate .env with Docker stubbed
+        run: |
+          mkdir -p .ci-bin
+          printf '#!/bin/sh\nexit 0\n' > .ci-bin/docker
+          chmod +x .ci-bin/docker
+          rm -f .env
+          printf 'sk-test\nAIza-test\n\n' | PATH="$PWD/.ci-bin:$PATH" bash ./${{ matrix.script }}
+          grep -q '^OPENAI_API_KEY=sk-test$' .env
+          grep -q '^GEMINI_API_KEY=AIza-test$' .env
+
+      - name: Check generated .env
+        run: python3 scripts/check_setup_env.py .env
