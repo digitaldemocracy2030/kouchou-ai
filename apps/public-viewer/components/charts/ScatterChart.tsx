@@ -7,6 +7,55 @@ import type { Annotation, Data, Layout, PlotMouseEvent } from "plotly.js";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
 
+// クラスタ配色のパレット。参照を安定させて clusterColorMap などの useMemo を効かせるため、
+// コンポーネント外（モジュールスコープ）の定数として保持する。
+const SOFT_COLORS = [
+  "#7ac943",
+  "#3fa9f5",
+  "#ff7997",
+  "#e0dd02",
+  "#d6410f",
+  "#b39647",
+  "#7cccc3",
+  "#a147e6",
+  "#ff6b6b",
+  "#4ecdc4",
+  "#ffbe0b",
+  "#fb5607",
+  "#8338ec",
+  "#3a86ff",
+  "#ff006e",
+  "#8ac926",
+  "#1982c4",
+  "#6a4c93",
+  "#f72585",
+  "#7209b7",
+  "#00b4d8",
+  "#e76f51",
+  "#606c38",
+  "#9d4edd",
+  "#457b9d",
+  "#bc6c25",
+  "#2a9d8f",
+  "#e07a5f",
+  "#5e548e",
+  "#81b29a",
+  "#f4a261",
+  "#9b5de5",
+  "#f15bb5",
+  "#00bbf9",
+  "#98c1d9",
+  "#84a59d",
+  "#f28482",
+  "#00afb9",
+  "#cdb4db",
+  "#fcbf49",
+];
+
+// フィルタで全点が除外された（plot 上でグレー表示される）クラスタの凡例 swatch 色。
+// plot 側の notMatchingData と同じ色にして視覚的に整合させる。
+const FILTERED_SWATCH_COLOR = "#cccccc";
+
 type Props = {
   clusterList: Cluster[];
   argumentList: Argument[];
@@ -50,68 +99,33 @@ export function ScatterChart({
     () => clusterList.filter((cluster) => cluster.level === targetLevel),
     [clusterList, targetLevel],
   );
-  const softColors = [
-    "#7ac943",
-    "#3fa9f5",
-    "#ff7997",
-    "#e0dd02",
-    "#d6410f",
-    "#b39647",
-    "#7cccc3",
-    "#a147e6",
-    "#ff6b6b",
-    "#4ecdc4",
-    "#ffbe0b",
-    "#fb5607",
-    "#8338ec",
-    "#3a86ff",
-    "#ff006e",
-    "#8ac926",
-    "#1982c4",
-    "#6a4c93",
-    "#f72585",
-    "#7209b7",
-    "#00b4d8",
-    "#e76f51",
-    "#606c38",
-    "#9d4edd",
-    "#457b9d",
-    "#bc6c25",
-    "#2a9d8f",
-    "#e07a5f",
-    "#5e548e",
-    "#81b29a",
-    "#f4a261",
-    "#9b5de5",
-    "#f15bb5",
-    "#00bbf9",
-    "#98c1d9",
-    "#84a59d",
-    "#f28482",
-    "#00afb9",
-    "#cdb4db",
-    "#fcbf49",
-  ];
-
-  const clusterColorMap = targetClusters.reduce(
-    (acc, cluster, index) => {
-      acc[cluster.id] = softColors[index % softColors.length];
-      return acc;
-    },
-    {} as Record<string, string>,
+  const clusterColorMap = useMemo(
+    () =>
+      targetClusters.reduce(
+        (acc, cluster, index) => {
+          acc[cluster.id] = SOFT_COLORS[index % SOFT_COLORS.length];
+          return acc;
+        },
+        {} as Record<string, string>,
+      ),
+    [targetClusters],
   );
 
-  const clusterColorMapA = targetClusters.reduce(
-    (acc, cluster, index) => {
-      const alpha = 0.8; // アルファ値を指定
-      acc[cluster.id] =
-        softColors[index % softColors.length] +
-        Math.floor(alpha * 255)
-          .toString(16)
-          .padStart(2, "0");
-      return acc;
-    },
-    {} as Record<string, string>,
+  const clusterColorMapA = useMemo(
+    () =>
+      targetClusters.reduce(
+        (acc, cluster, index) => {
+          const alpha = 0.8; // アルファ値を指定
+          acc[cluster.id] =
+            SOFT_COLORS[index % SOFT_COLORS.length] +
+            Math.floor(alpha * 255)
+              .toString(16)
+              .padStart(2, "0");
+          return acc;
+        },
+        {} as Record<string, string>,
+      ),
+    [targetClusters],
   );
 
   // 濃い意見グループ（最深階層の表示対象クラスタ）が、どの第一階層（level === 1）クラスタに
@@ -142,25 +156,46 @@ export function ScatterChart({
   // 第一階層クラスタごとにグルーピングした凡例データ（色対応つき）を作る。
   const parentAttribution = useMemo(() => {
     if (!showParentAttribution) return null;
+
+    // plot のグレー化判定と整合させるため、フィルタ条件に合致する引数を 1 件以上持つ
+    // クラスタ ID の集合を 1 パスで作る。plot 側の allElementsFiltered
+    // （filteredArgumentIds && (matching.length === 0 || cluster.allFiltered)）と同条件。
+    const clusterIdsWithMatching = new Set<string>();
+    if (filteredArgumentIds) {
+      const filteredIdSet = new Set(filteredArgumentIds);
+      for (const arg of allArguments) {
+        if (!filteredIdSet.has(arg.arg_id)) continue;
+        for (const clusterId of arg.cluster_ids) clusterIdsWithMatching.add(clusterId);
+      }
+    }
+
     const labelByClusterId = new Map<string, string>();
     const groupMap = new Map<
       string,
-      { parentId: string; parentLabel: string; members: { id: string; label: string; color: string }[] }
+      {
+        parentId: string;
+        parentLabel: string;
+        members: { id: string; label: string; color: string; filteredOut: boolean }[];
+      }
     >();
     for (const cluster of targetClusters) {
       const top = resolveTopAncestor(cluster);
       const parentLabel = top?.label ?? "不明";
       labelByClusterId.set(cluster.id, parentLabel);
       const key = top?.id ?? "__unknown__";
+      // このクラスタの点が plot 上で全てグレー表示になる（表示対象が 0 件）か
+      const filteredOut =
+        Boolean(filteredArgumentIds) && (!clusterIdsWithMatching.has(cluster.id) || Boolean(cluster.allFiltered));
       if (!groupMap.has(key)) groupMap.set(key, { parentId: key, parentLabel, members: [] });
       groupMap.get(key)?.members.push({
         id: cluster.id,
         label: cluster.label,
-        color: clusterColorMap[cluster.id],
+        color: filteredOut ? FILTERED_SWATCH_COLOR : clusterColorMap[cluster.id],
+        filteredOut,
       });
     }
     return { labelByClusterId, groups: Array.from(groupMap.values()) };
-  }, [showParentAttribution, targetClusters, resolveTopAncestor, clusterColorMap]);
+  }, [showParentAttribution, targetClusters, resolveTopAncestor, clusterColorMap, allArguments, filteredArgumentIds]);
 
   const annotationLabelWidth = 228; // ラベルの最大横幅を指定
   const annotationFontsize = 14; // フォントサイズを指定
@@ -507,7 +542,7 @@ export function ScatterChart({
       if (clusterArguments.length < 3) return [];
       const hull = convexHull(clusterArguments.map((arg) => [arg.x, arg.y]));
       if (hull.length < 3) return [];
-      const color = softColors[index % softColors.length];
+      const color = SOFT_COLORS[index % SOFT_COLORS.length];
       return [
         {
           x: [...hull.map((p) => p[0]), hull[0][0]],
@@ -677,10 +712,11 @@ export function ScatterChart({
                 </Text>
                 <Flex wrap="wrap" gap={2}>
                   {group.members.map((member) => (
-                    <Flex key={member.id} align="center" gap={1}>
+                    <Flex key={member.id} align="center" gap={1} opacity={member.filteredOut ? 0.5 : 1}>
                       <Box w="10px" h="10px" borderRadius="sm" flexShrink={0} bg={member.color} />
                       <Text fontSize="xs" color="gray.600">
                         {member.label}
+                        {member.filteredOut ? "（非表示）" : ""}
                       </Text>
                     </Flex>
                   ))}
