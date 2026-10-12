@@ -272,6 +272,47 @@ rm -rf outputs/config
 
 ## 9. 発展的な使い方
 
+### UMAP 平面を使い回す（別レポートと同じ散布図座標にそろえる）
+
+散布図の点の配置は UMAP による次元圧縮で決まりますが、UMAP は確率的なため、**同じデータでも実行するたびに平面（軸・配置）が変わります**。そのため「先月のデータと今月のデータを同じ平面に並べて変化を見る」といった比較がしにくくなります。
+
+分析を実行すると、使用した UMAP モデルが各レポートの出力先に `outputs/<レポート名>/umap_model.pkl` として保存されます。新しいレポートを作るときに既存レポートのモデルを指定すると、UMAP を学習し直さず（`fit_transform` ではなく）既存の平面へ `transform` で投影するため、**同じ座標平面上に別データを並べられます**。
+
+> この機能は現状 CLI 専用です。WebUI（管理画面）からは提供していません。
+
+`hierarchical_clustering.reuse_umap_model` に、使い回したい既存レポートを指定します。
+
+```json
+{
+  "input": "report_october",
+  "question": "10月のデータ",
+  "hierarchical_clustering": {
+    "cluster_nums": [3, 6],
+    "reuse_umap_model": "report_september"
+  }
+}
+```
+
+指定できる値（上から順に探索し、最初に見つかったファイルを使います）:
+
+| 書き方 | 解決されるパス | 用途 |
+|--------|----------------|------|
+| `"report_september"`（レポート名） | `outputs/report_september/umap_model.pkl` | 同じ `outputs` 配下の別レポートを使う（最も手軽） |
+| `"report_september/umap_model.pkl"`（相対パス） | `outputs/report_september/umap_model.pkl` | 出力先配下のパスを明示する |
+| `"/abs/path/umap_model.pkl"`（絶対パス） | そのまま | 別の場所に保存したモデルを使う |
+
+注意点:
+
+- **元レポートと同じ埋め込みモデル**（`embedding.model`）で生成した埋め込みが必要です。次元が一致しないとエラーで停止します。
+- 指定した `umap_model.pkl` が見つからない場合は、黙って新しい平面を学習し直すのではなく、エラーで停止します（指定ミスに気づけるようにするため）。
+- このレポート自身のモデルも `outputs/<レポート名>/umap_model.pkl` に保存されるため、さらに別のレポートの投影元として再利用できます。
+
+実行は通常どおりです:
+
+```bash
+kouchou-analyze --config report_october.json
+```
+
 ### カテゴリ分類の追加
 
 ```json

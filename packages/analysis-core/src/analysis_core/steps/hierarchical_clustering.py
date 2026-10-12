@@ -1,10 +1,16 @@
 """Cluster the arguments using UMAP + HDBSCAN and GPT-4."""
 
+import os
 import pickle
 from importlib import import_module
 
 import numpy as np
 import polars as pl
+
+# 保存する UMAP model payload のフォーマット版数。
+# 将来 model 保存形式を変える時に後方互換を判断するための marker。
+UMAP_MODEL_FORMAT_VERSION = 1
+UMAP_MODEL_FILENAME = "umap_model.pkl"
 
 
 def _load_clustering_dependencies():
@@ -48,6 +54,155 @@ def calculate_recommended_cluster_nums(argument_count: int) -> list[int]:
     lv1 = max(2, min(10, round(argument_count ** (1 / 3))))
     lv2 = max(2, min(1000, argument_count, lv1 * lv1))
     return sorted(set([lv1, lv2]))
+
+
+def save_umap_model(path: str, model, n_features_in: int, n_components: int) -> None:
+    """fit 済み UMAP model を metadata 付きで永続化する。
+
+    別レポートの embeddings を同じ平面へ ``.transform`` で投影し直せるようにする
+    (#515)。再現性/次元整合のため、学習時の入力次元 (n_features_in) と
+    出力次元 (n_components) を一緒に保存しておき、読み込み側で検証する。
+    """
+    payload = {
+        "format_version": UMAP_MODEL_FORMAT_VERSION,
+        "model": model,
+        "n_features_in": int(n_features_in),
+        "n_components": int(n_components),
+    }
+    with open(path, "wb") as f:
+        pickle.dump(payload, f)
+
+
+def load_umap_model(path: str) -> dict:
+    """``save_umap_model`` で保存した payload を読み込む。
+
+    後方互換: 生の UMAP model object が pickle されているだけの場合でも、
+    payload dict 形式へ正規化して返す。その場合 ``n_features_in`` は model の
+    属性から best-effort で復元する。
+    """
+    with open(path, "rb") as f:
+        loaded = pickle.load(f)
+
+    if isinstance(loaded, dict) and "model" in loaded:
+        return loaded
+
+    # 生 model のみが保存されていた場合のフォールバック
+    model = loaded
+    n_features_in = _infer_model_n_features(model)
+    n_components = getattr(model, "n_components", None)
+    return {
+        "format_version": None,
+        "model": model,
+        "n_features_in": n_features_in,
+        "n_components": n_components,
+    }
+
+
+def _infer_model_n_features(model) -> int | None:
+    """fit 済み UMAP model から学習時の入力次元を best-effort で推定する。"""
+    n_features = getattr(model, "n_features_in_", None)
+    if isinstance(n_features, int):
+        return n_features
+    raw = getattr(model, "_raw_data", None)
+    if raw is not None and getattr(raw, "ndim", 0) == 2:
+        return int(raw.shape[1])
+    return None
+
+
+def _resolve_reuse_model_path(reuse_value, output_base_dir: str, dataset: str) -> str | None:
+    """config の ``reuse_umap_model`` を実ファイルパスへ解決する (#515)。
+
+    CLI から別レポートの平面を使い回すことを主用途に、次の順で解決する:
+
+    - 空/None             -> None (従来通り fit_transform)
+    - 絶対パス            -> そのまま (存在しなければ FileNotFoundError)
+    - 相対パス/レポート名  -> 以下の候補を順に探し、最初に存在するファイルを使う:
+        1. ``<output_base_dir>/<reuse_value>``                (例: "report_a/umap_model.pkl")
+        2. ``<output_base_dir>/<reuse_value>/umap_model.pkl`` (例: レポート名 "report_a")
+        3. ``<output_base_dir>/<dataset>/<reuse_value>``      (自レポート dir 内。複製フロー互換)
+
+    reuse が指定されているのに候補ファイルが1つも存在しない場合は、黙って新規 fit に
+    フォールバックせず ``FileNotFoundError`` を送出する (CLI での指定ミスに早く気づけるように)。
+    """
+    if not reuse_value:
+        # None / "" / False / 0 は「使い回さない」の意味として扱う。
+        return None
+    if not isinstance(reuse_value, str):
+        # 真値だが文字列でない指定 (例: true, 数値, list) は設定ミスとみなし、
+        # 黙って新規 fit にフォールバックせずエラーにする。
+        raise TypeError(
+            "reuse_umap_model には文字列（レポート名または umap_model.pkl へのパス）を指定してください: "
+            f"{type(reuse_value).__name__}={reuse_value!r}"
+        )
+
+    if os.path.isabs(reuse_value):
+        if os.path.isfile(reuse_value):
+            return reuse_value
+        raise FileNotFoundError(f"reuse_umap_model に指定された UMAP model が見つかりません: {reuse_value}")
+
+    candidates = [
+        os.path.join(output_base_dir, reuse_value),
+        os.path.join(output_base_dir, reuse_value, UMAP_MODEL_FILENAME),
+        os.path.join(output_base_dir, dataset, reuse_value),
+    ]
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+
+    tried = "\n  ".join(candidates)
+    raise FileNotFoundError(
+        f"reuse_umap_model に指定した UMAP model が見つかりません: {reuse_value!r}\n"
+        f"  探索したパス:\n  {tried}\n"
+        "  別レポートの output ディレクトリ名、または umap_model.pkl への相対/絶対パスを指定してください。"
+    )
+
+
+def compute_umap_embeddings(
+    embeddings_array: np.ndarray,
+    n_neighbors: int,
+    n_components: int = 2,
+    reuse_model_path: str | None = None,
+    umap_factory=None,
+):
+    """UMAP 2D 埋め込みを計算し、使用した model と入力次元を返す。
+
+    reuse_model_path が指定され、かつファイルが存在する場合は、別レポートで fit 済みの
+    UMAP model を読み込み、新しい embeddings に ``.transform`` を適用する
+    (別データ/時系列データを同一平面へ投影する #515 のコア)。
+    それ以外は従来通り ``fit_transform`` を行う (既定挙動は不変)。
+
+    Returns:
+        (umap_embeds, model, n_features_in)
+    """
+    n_features_in = int(embeddings_array.shape[1])
+
+    if reuse_model_path:
+        # reuse を要求された以上、存在しないパスで黙って新規 fit に落とさない。
+        # (step 経由では resolver が存在保証するが、helper 単体利用時の保険)
+        if not os.path.exists(reuse_model_path):
+            raise FileNotFoundError(f"reuse_umap_model に指定された UMAP model が見つかりません: {reuse_model_path}")
+        payload = load_umap_model(reuse_model_path)
+        model = payload["model"]
+        expected = payload.get("n_features_in")
+        if expected is not None and int(expected) != n_features_in:
+            raise ValueError(
+                "再利用する UMAP model の学習次元と新しい embeddings の次元が一致しません: "
+                f"model={expected}, embeddings={n_features_in}. "
+                "同じ embedding model で生成した embeddings を使ってください。"
+            )
+        print(f"reuse existing UMAP model for projection: {reuse_model_path}")
+        umap_embeds = model.transform(embeddings_array)
+        return np.asarray(umap_embeds), model, n_features_in
+
+    if umap_factory is None:
+        UMAP, _, _ = _load_clustering_dependencies()
+
+        def umap_factory(**kwargs):
+            return UMAP(**kwargs)
+
+    model = umap_factory(n_components=n_components, n_neighbors=n_neighbors)
+    umap_embeds = model.fit_transform(embeddings_array)
+    return np.asarray(umap_embeds), model, n_features_in
 
 
 def hierarchical_clustering(config):
@@ -101,11 +256,29 @@ def hierarchical_clustering(config):
     else:
         n_neighbors = default_n_neighbors
 
-    umap_model = UMAP(n_components=2, n_neighbors=n_neighbors)
-    # TODO 詳細エラーメッセージを加える
-    # 以下のエラーの場合、おそらく元の意見件数が少なすぎることが原因
-    # TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N. Use scipy.linalg.eigh(A.toarray()) or reduce k.
-    umap_embeds = umap_model.fit_transform(embeddings_array)
+    # #515: 別レポートで fit 済みの UMAP model があれば、それを使い回して
+    # 新しい embeddings を同一平面へ投影 (transform) する。無ければ従来通り fit_transform。
+    reuse_value = config["hierarchical_clustering"].get("reuse_umap_model")
+    reuse_model_path = _resolve_reuse_model_path(reuse_value, output_base_dir, dataset)
+
+    def _umap_factory(**kwargs):
+        # TODO 詳細エラーメッセージを加える
+        # 以下のエラーの場合、おそらく元の意見件数が少なすぎることが原因
+        # TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N. Use scipy.linalg.eigh(A.toarray()) or reduce k.
+        return UMAP(**kwargs)
+
+    umap_embeds, umap_model, n_features_in = compute_umap_embeddings(
+        embeddings_array,
+        n_neighbors=n_neighbors,
+        n_components=2,
+        reuse_model_path=reuse_model_path,
+        umap_factory=_umap_factory,
+    )
+
+    # fit / reuse のいずれでも、使用した model を自レポートの output dir へ保存し、
+    # このレポート自体も別レポートの投影元として再利用できるようにする。
+    model_path = f"{output_base_dir}/{dataset}/{UMAP_MODEL_FILENAME}"
+    save_umap_model(model_path, umap_model, n_features_in=n_features_in, n_components=2)
 
     cluster_results = hierarchical_clustering_embeddings(
         umap_embeds=umap_embeds,

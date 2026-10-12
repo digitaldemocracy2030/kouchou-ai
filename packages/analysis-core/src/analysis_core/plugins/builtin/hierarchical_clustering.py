@@ -43,9 +43,16 @@ def hierarchical_clustering_plugin(
     )
 
     step_config = config.get("hierarchical_clustering", config)
+    # reuse_umap_model は workflow template に無いため、full config から読む (#515)。
+    full_clustering = {}
+    if isinstance(inputs.config, dict):
+        candidate = inputs.config.get("hierarchical_clustering")
+        if isinstance(candidate, dict):
+            full_clustering = candidate
     legacy_config = build_legacy_runtime_config(ctx, inputs)
     legacy_config["hierarchical_clustering"] = {
         "cluster_nums": step_config.get("cluster_nums"),
+        "reuse_umap_model": step_config.get("reuse_umap_model") or full_clustering.get("reuse_umap_model"),
     }
 
     clustering_impl(legacy_config)
