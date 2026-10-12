@@ -73,6 +73,8 @@ export function ClientContainer({ result }: Props) {
   const [showClusterLabels, setShowClusterLabels] = useState(defaultParams?.showClusterLabels ?? true);
   const [showConvexHull, setShowConvexHull] = useState(true);
   const [treemapLevel, setTreemapLevel] = useState("0");
+  // 散布図でクリックされたクラスタ（連動文章・一覧のハイライト対象）
+  const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
 
   // --- 属性メタデータ（純粋な派生データなのでuseMemoで計算） ---
   const attributeMetas = useMemo(() => computeAttributeMetas(result.arguments), [result.arguments]);
@@ -102,6 +104,23 @@ export function ClientContainer({ result }: Props) {
     () => filterArgumentIds(result.arguments, filterParams),
     [result.arguments, filterParams],
   );
+
+  // --- フィルタ適用中か（undefined = フィルタなし） ---
+  const isFiltering = filteredArgIds !== undefined;
+
+  // --- 各クラスタのフィルタ後件数（treemapContext と同じ数え方で、散布図一覧の件数表示に使う） ---
+  const clusterCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const allowed = filteredArgIds ? new Set(filteredArgIds) : null;
+    for (const arg of result.arguments) {
+      if (allowed && !allowed.has(arg.arg_id)) continue;
+      for (const id of arg.cluster_ids) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
+  }, [result.arguments, filteredArgIds]);
+
+  // 表示モードやフィルタが変わると clustersToDisplay の中身も変わるため、
+  // 一覧に存在しなくなった selectedClusterId は下の map で自然に一致せず、ハイライトは外れる。
 
   // --- フィルタ済み結果を派生計算（stale closure問題を解消） ---
   const filteredResult = useMemo(() => {
@@ -228,6 +247,7 @@ export function ClientContainer({ result }: Props) {
         showConvexHull={showConvexHull}
         treemapLevel={treemapLevel}
         onTreeZoom={setTreemapLevel}
+        onSelectCluster={setSelectedClusterId}
       />
       {selectedChart === "treemap" ? (
         <TreemapDetails
@@ -245,6 +265,9 @@ export function ClientContainer({ result }: Props) {
           <ClusterOverview
             key={c.id}
             cluster={c}
+            count={isFiltering ? (clusterCounts.get(c.id) ?? 0) : undefined}
+            isFiltering={isFiltering}
+            isSelected={c.id === selectedClusterId}
             onNavigate={
               enabledCharts.includes("treemap")
                 ? () => {

@@ -108,6 +108,8 @@ export interface ChartRenderContext {
   treemapLevel?: string;
   /** Callback for treemap navigation */
   onTreeZoom?: (level: string) => void;
+  /** Callback when a cluster is selected on the scatter chart (for linked text/list) */
+  onSelectCluster?: (clusterId: string) => void;
   /** Callback when hover occurs */
   onHover?: () => void;
 }

@@ -15,6 +15,8 @@ type Props = {
   filteredArgumentIds?: string[];
   config?: Config; // ソースリンク機能の有効/無効を制御するため
   showConvexHull?: boolean; // クラスターの凸包を表示するか
+  // クラスタ上の点をクリックした時に、そのクラスタIDを通知する（連動文章・一覧のハイライト用）
+  onSelectCluster?: (clusterId: string) => void;
 };
 
 /**
@@ -31,6 +33,7 @@ export function ScatterChart({
   filteredArgumentIds, // フィルター済みIDリスト（フィルター条件に合致する引数のID）
   config,
   showConvexHull,
+  onSelectCluster,
 }: Props) {
   // 全ての引数を表示するため、argumentListをそのまま使用
   // フィルター条件に合致しないものは後で灰色表示する
@@ -319,8 +322,8 @@ export function ScatterChart({
             // argumentのメタデータを埋め込み
             customdata:
               notMatching.length > 0
-                ? notMatching.map((arg) => ({ arg_id: arg.arg_id, url: arg.url }))
-                : allClusterArguments.map((arg) => ({ arg_id: arg.arg_id, url: arg.url })),
+                ? notMatching.map((arg) => ({ arg_id: arg.arg_id, url: arg.url, cluster_id: cluster.id }))
+                : allClusterArguments.map((arg) => ({ arg_id: arg.arg_id, url: arg.url, cluster_id: cluster.id })),
           }
         : null;
 
@@ -361,7 +364,7 @@ export function ScatterChart({
             },
             showlegend: false,
             // argumentのメタデータを埋め込み
-            customdata: matching.map((arg) => ({ arg_id: arg.arg_id, url: arg.url })),
+            customdata: matching.map((arg) => ({ arg_id: arg.arg_id, url: arg.url, cluster_id: cluster.id })),
           }
         : null;
 
@@ -417,7 +420,11 @@ export function ScatterChart({
           },
           showlegend: false,
           // argumentのメタデータを埋め込み
-          customdata: clusterArguments.map((arg) => ({ arg_id: arg.arg_id, url: arg.url })),
+          customdata: clusterArguments.map((arg) => ({
+            arg_id: arg.arg_id,
+            url: arg.url,
+            cluster_id: dataSet.cluster.id,
+          })),
         });
       }
     }
@@ -534,15 +541,22 @@ export function ScatterChart({
           }}
           onUpdate={onUpdate}
           onClick={(data: PlotMouseEvent) => {
-            if (!config?.enable_source_link) return;
-
             try {
               const point = data.points?.[0];
+              const customData = point?.customdata as unknown as
+                | { arg_id: string; url?: string; cluster_id?: string }
+                | undefined;
+
+              // クリックしたクラスタを連動文章・一覧へ通知する（ソースリンクの有無に関わらず動作する）
+              if (customData?.cluster_id) {
+                onSelectCluster?.(customData.cluster_id);
+              }
+
+              // 以降のソース遷移はレポート設定で有効な場合のみ行う
+              if (!config?.enable_source_link) return;
 
               // customdataから直接argumentの情報を取得
-              if (point?.customdata) {
-                const customData = point.customdata as unknown as { arg_id: string; url?: string };
-
+              if (customData) {
                 if (customData.url) {
                   window.open(customData.url, "_blank", "noopener,noreferrer");
                 } else {
