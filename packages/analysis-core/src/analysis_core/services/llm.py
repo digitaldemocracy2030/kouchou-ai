@@ -1,6 +1,8 @@
+import json
 import logging
 import os
 import random
+import re
 import threading
 import time
 from typing import Any
@@ -949,6 +951,185 @@ def _local_llm_test():
     print(response)
 
 
+# OpenRouter の無料モデルは末尾が `:free`（例: `deepseek/deepseek-chat-v3-0324:free`）。
+# これらは structured outputs (response_format=json_schema / beta parse) 非対応が多いため、
+# 構造化出力を要求すると BadRequestError で落ちる。
+_OPENROUTER_FREE_MODEL_SUFFIX = ":free"
+
+
+def _is_openrouter_free_model(model: str | None) -> bool:
+    return _normalize_model_name(model).endswith(_OPENROUTER_FREE_MODEL_SUFFIX)
+
+
+def _should_use_openrouter_json_fallback(model: str | None) -> bool:
+    """構造化出力(beta parse / json_schema)を避けて JSON モードへ最初から寄せるか。
+
+    OpenRouter の無料モデルは structured outputs 非対応が多いため、既定で fallback する。
+    `OPENROUTER_FORCE_JSON_FALLBACK` で明示的に上書きできる（1/true で常に fallback、
+    0/false で無効化し通常の structured outputs を試す）。
+    """
+    override = os.getenv("OPENROUTER_FORCE_JSON_FALLBACK")
+    if override is not None:
+        normalized = override.strip().lower()
+        if normalized in {"1", "true", "on", "enabled"}:
+            return True
+        if normalized in {"0", "false", "off", "disabled"}:
+            return False
+    return _is_openrouter_free_model(model)
+
+
+def _extract_token_usage(response: Any) -> tuple[int, int, int]:
+    if hasattr(response, "usage") and response.usage:
+        return (
+            response.usage.prompt_tokens or 0,
+            response.usage.completion_tokens or 0,
+            response.usage.total_tokens or 0,
+        )
+    return (0, 0, 0)
+
+
+def _unwrap_openai_json_schema(schema: dict | None) -> dict | None:
+    """OpenAI の response_format ラッパーから素の JSON スキーマ本体を取り出す。
+
+    - `{"type": "json_object"}` → スキーマ無し（None）
+    - `{"type": "json_schema", "json_schema": {"schema": {...}}}` → 中の素スキーマ
+    - それ以外の dict → そのまま
+    """
+    if not isinstance(schema, dict):
+        return None
+    if schema.get("type") == "json_object":
+        return None
+    if schema.get("type") == "json_schema" and isinstance(schema.get("json_schema"), dict):
+        inner = schema["json_schema"]
+        if isinstance(inner.get("schema"), dict):
+            return inner["schema"]
+        return inner
+    return schema
+
+
+def _extract_json_text(content: str | None) -> str | None:
+    """モデル出力から JSON 本体を取り出す。
+
+    structured outputs 非対応モデルは markdown コードフェンスや前後の散文を付けて
+    JSON を返すことがあるため、呼び出し側が `json.loads` できる形へ寄せる。
+    どうしても JSON を取り出せなければ元の文字列を返し、呼び出し側のパースに委ねる。
+    """
+    if not content:
+        return content
+
+    candidate = content.strip()
+    # ```json ... ``` のようなコードフェンスを剥がす
+    if candidate.startswith("```"):
+        candidate = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", candidate)
+        if candidate.endswith("```"):
+            candidate = candidate[:-3]
+        candidate = candidate.strip()
+
+    try:
+        json.loads(candidate)
+        return candidate
+    except Exception:
+        pass
+
+    # 最初の括弧から最後の対応括弧までを JSON として抽出し直す
+    for open_ch, close_ch in (("{", "}"), ("[", "]")):
+        start = candidate.find(open_ch)
+        end = candidate.rfind(close_ch)
+        if start != -1 and end != -1 and end > start:
+            snippet = candidate[start : end + 1]
+            try:
+                json.loads(snippet)
+                return snippet
+            except Exception:
+                continue
+    return candidate
+
+
+def _openrouter_structured_parse(
+    client: OpenAI,
+    model: str,
+    messages: list[dict],
+    json_schema: type[BaseModel],
+    timeout_seconds: int,
+) -> tuple[str, int, int, int]:
+    """structured outputs 対応モデル向け: beta.chat.completions.parse を使う既存経路。"""
+    response = client.beta.chat.completions.parse(
+        model=model,
+        messages=messages,
+        temperature=0,
+        n=1,
+        seed=0,
+        response_format=json_schema,
+        timeout=timeout_seconds,
+    )
+    token_usage_input, token_usage_output, token_usage_total = _extract_token_usage(response)
+    return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
+
+
+def _openrouter_json_fallback(
+    client: OpenAI,
+    model: str,
+    messages: list[dict],
+    json_schema: dict | type[BaseModel] | None,
+    timeout_seconds: int,
+    is_json: bool = False,
+) -> tuple[str, int, int, int]:
+    """structured outputs 非対応モデル向けのフォールバック経路。
+
+    ローカル LLM 経路と同様に `chat.completions.create` を使い、
+    まず `response_format={"type": "json_object"}` を試す。これも非対応なら
+    response_format 無し（プロンプトのみで JSON 強制）へ段階的に落とす。
+    スキーマが分かる場合はプロンプトへスキーマを注入し、出力から JSON 本体を抽出して返す。
+    """
+    schema_dict: dict | None = None
+    if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
+        schema_dict = json_schema.model_json_schema()
+    elif isinstance(json_schema, dict):
+        schema_dict = _unwrap_openai_json_schema(json_schema)
+
+    fallback_messages = list(messages)
+    if schema_dict is not None:
+        instruction = (
+            "You must respond with a single valid JSON value that conforms to the following "
+            "JSON Schema. Output only raw JSON. Do not wrap it in markdown code fences and do "
+            "not add any explanation.\n\nJSON Schema:\n" + json.dumps(schema_dict, ensure_ascii=False)
+        )
+        fallback_messages = fallback_messages + [{"role": "system", "content": instruction}]
+
+    base_payload: dict[str, Any] = {
+        "model": model,
+        "messages": fallback_messages,
+        "temperature": 0,
+        "n": 1,
+        "seed": 0,
+        "timeout": timeout_seconds,
+    }
+
+    # JSON モード → response_format 無し(プロンプト強制)の順に段階的フォールバック
+    attempts: list[dict[str, Any]] = [
+        {**base_payload, "response_format": {"type": "json_object"}},
+        base_payload,
+    ]
+
+    last_error: openai.BadRequestError | None = None
+    for payload in attempts:
+        try:
+            response = client.chat.completions.create(**payload)
+            token_usage_input, token_usage_output, token_usage_total = _extract_token_usage(response)
+            content = _extract_json_text(response.choices[0].message.content)
+            return content, token_usage_input, token_usage_output, token_usage_total
+        except openai.BadRequestError as e:
+            last_error = e
+            logging.warning(
+                "OpenRouter JSON fallback attempt failed "
+                f"(model={model}, response_format={payload.get('response_format')}): {e}"
+            )
+            continue
+    # すべての fallback 試行が BadRequestError で失敗
+    assert last_error is not None
+    raise last_error
+
+
 @retry(
     retry=retry_if_exception_type(openai.RateLimitError),
     wait=wait_exponential(multiplier=3, min=3, max=20),
@@ -967,52 +1148,58 @@ def request_to_openrouter_chatcompletion(
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY environment variable is not set")
 
-    token_usage_input = 0  # 入力トークン使用量を追跡する変数
-    token_usage_output = 0  # 出力トークン使用量を追跡する変数
-    token_usage_total = 0  # 合計トークン使用量を追跡する変数
-
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=api_key,
     )
 
+    use_pydantic = isinstance(json_schema, type) and issubclass(json_schema, BaseModel)
+    # dict で structured outputs(json_schema)を要求しているか（json_object 単体は含めない）
+    structured_dict_schema = isinstance(json_schema, dict) and json_schema.get("type") == "json_schema"
+    prefer_json_fallback = _should_use_openrouter_json_fallback(model)
+
     try:
-        if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
-            response = client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=json_schema,
-                timeout=timeout_seconds,
-            )
-            if hasattr(response, "usage") and response.usage:
-                token_usage_input = response.usage.prompt_tokens or 0
-                token_usage_output = response.usage.completion_tokens or 0
-                token_usage_total = response.usage.total_tokens or 0
-            return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
-        else:
-            payload = {
-                "model": model,
-                "messages": messages,
-                "temperature": 0,
-                "n": 1,
-                "seed": 0,
-                "timeout": timeout_seconds,
-            }
+        if use_pydantic:
+            if not prefer_json_fallback:
+                try:
+                    return _openrouter_structured_parse(client, model, messages, json_schema, timeout_seconds)
+                except openai.BadRequestError as e:
+                    # structured outputs 非対応モデルは 400 で落ちるため JSON モードへ切り替える
+                    logging.warning(
+                        f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {e}"
+                    )
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, is_json=is_json)
 
-            if is_json:
-                payload["response_format"] = {"type": "json_object"}
-            if json_schema:  # 両方有効化されていたら、json_schemaを優先
-                payload["response_format"] = json_schema
+        if structured_dict_schema and prefer_json_fallback:
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, is_json=is_json)
 
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0,
+            "n": 1,
+            "seed": 0,
+            "timeout": timeout_seconds,
+        }
+
+        if is_json:
+            payload["response_format"] = {"type": "json_object"}
+        if json_schema:  # 両方有効化されていたら、json_schemaを優先
+            payload["response_format"] = json_schema
+
+        try:
             response = client.chat.completions.create(**payload)
-            if hasattr(response, "usage") and response.usage:
-                token_usage_input = response.usage.prompt_tokens or 0
-                token_usage_output = response.usage.completion_tokens or 0
-                token_usage_total = response.usage.total_tokens or 0
-            return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
+        except openai.BadRequestError as e:
+            if not structured_dict_schema:
+                raise
+            # dict スキーマでも structured outputs 非対応なら JSON モードへ fallback
+            logging.warning(
+                f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {e}"
+            )
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, is_json=is_json)
+
+        token_usage_input, token_usage_output, token_usage_total = _extract_token_usage(response)
+        return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
     except openai.RateLimitError as e:
         logging.warning(f"OpenRouter API rate limit hit: {e}")
         raise
