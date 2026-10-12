@@ -201,17 +201,13 @@ python hierarchical_visualization.py hierarchical_result.json -o report.html
             bundle.writestr(zipfile.ZipInfo(name), text.encode("utf-8"), compress_type=zipfile.ZIP_DEFLATED)
     source_url = "data:application/zip;base64," + base64.b64encode(archive.getvalue()).decode("ascii")
     return (
-        '<details class="license-notice"><summary>ライセンス・表示プログラムのソース</summary>'
-        '<p>このレポートの表示プログラムには、'
-        '<a href="https://github.com/digitaldemocracy2030/kouchou-ai">広聴AI</a>を使用しています。'
-        'AGPL-3.0の条件のもとで利用・改変・再配布でき、無保証で提供されます。</p>'
-        '<p>ライセンスは表示プログラムについてのものです。分析結果データの利用条件とは区別されます。</p>'
-        f'<p><a href="{source_url}" download="kouchou-ai-report-source.zip">'
-        'このHTMLの表示ソースをダウンロード（ZIP）</a></p>'
-        '<p>ZIPには生成に使った表示コード・テンプレート・実行方法・ライセンス本文が含まれます。'
-        '分析結果のデータや入力CSVは含まれません。</p>'
-        '<details><summary>AGPL-3.0 ライセンス全文</summary>'
-        f'<pre>{html.escape(license_text)}</pre></details></details>'
+        '<div class="license-notice">'
+        '<p>表示プログラム: <a href="https://github.com/digitaldemocracy2030/kouchou-ai">広聴AI</a>'
+        ' · <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a>'
+        f' · <a href="{source_url}" download="kouchou-ai-report-source.zip">ソース（ZIP）</a></p>'
+        '<p>表示プログラムはAGPL-3.0の条件で利用・改変・再配布でき、無保証です。'
+        '分析結果データの利用条件とは別です。ライセンス本文はZIPにも同梱しています。</p>'
+        '</div>'
     )
 
 
@@ -405,9 +401,7 @@ _TEMPLATE = """<!DOCTYPE html>
   .src-link:hover {{ text-decoration: underline; }}
 
   .license-notice {{ text-align: left; line-height: 1.7; }}
-  .license-notice summary {{ cursor: pointer; }}
   .license-notice a {{ color: var(--accent); }}
-  .license-notice pre {{ white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }}
   footer {{
     max-width: 750px; margin: 64px auto 0; padding-top: 24px;
     border-top: 1px solid var(--border); color: var(--muted); font-size: 12px;

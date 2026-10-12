@@ -1,7 +1,6 @@
 """Tests for the self-contained HTML report visualization step."""
 
 import base64
-import html
 import io
 import json
 import re
@@ -206,13 +205,14 @@ class TestReportLicense:
         payload = _minimal_payload()
         payload["overview"] = "private-report-content-should-not-be-in-source-zip"
         out = build_html(payload)
-        assert "ライセンス・表示プログラムのソース" in out
+        assert "表示プログラム:" in out
         assert "無保証" in out
         assert 'download="kouchou-ai-report-source.zip"' in out
         encoded = re.search(r'href="data:application/zip;base64,([^"]+)"', out)
         assert encoded is not None
         expected_license = (Path(__file__).parents[1] / "LICENSE").read_text(encoding="utf-8")
-        assert html.escape(expected_license) in out
+        assert 'href="https://www.gnu.org/licenses/agpl-3.0.html"' in out
+        assert "GNU AFFERO GENERAL PUBLIC LICENSE" not in out
         with zipfile.ZipFile(io.BytesIO(base64.b64decode(encoded.group(1)))) as bundle:
             assert set(bundle.namelist()) == {"hierarchical_visualization.py", "AGPL-3.0.txt", "README.md"}
             assert bundle.read("AGPL-3.0.txt").decode("utf-8") == expected_license
