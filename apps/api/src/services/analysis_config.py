@@ -36,6 +36,7 @@ HIERARCHICAL_ONLY_SECTIONS = (
     "hierarchical_merge_labelling",
 )
 LLM_GROUPING_ONLY_SECTIONS = ("llm_grouping",)
+ALL_MODE_SECTIONS = HIERARCHICAL_ONLY_SECTIONS + LLM_GROUPING_ONLY_SECTIONS
 
 
 def resolve_analysis_mode(config: dict[str, Any]) -> str:
@@ -57,13 +58,25 @@ def prune_config_for_mode(config: dict[str, Any]) -> dict[str, Any]:
     - Config sections that do not belong to the resolved mode are removed
       (regardless of whether they are ``None`` or value-filled dicts), so the
       raw-config validation in analysis-core does not reject them.
+    - Sections that *do* belong to the resolved mode but are ``None`` / empty
+      are also removed. ``_build_config`` intentionally omits an active-mode
+      section to rely on analysis-core defaults, but a later ``model_dump()``
+      round-trip (e.g. ``ConfigRepository.update_json``) re-emits it as
+      ``<section>: null``. analysis-core's ``validate_config`` then runs
+      ``for key in config.get(step, {})`` against a *present-but-``None``*
+      section and raises ``TypeError: 'NoneType' object is not iterable``.
+      Dropping the empty section restores the "use defaults" behaviour.
     """
     mode = resolve_analysis_mode(config)
     pruned = dict(config)
     pruned["analysis_mode"] = mode
 
-    drop = LLM_GROUPING_ONLY_SECTIONS if mode == "hierarchical" else HIERARCHICAL_ONLY_SECTIONS
-    for key in drop:
-        pruned.pop(key, None)
+    keep = LLM_GROUPING_ONLY_SECTIONS if mode == "llm_grouping" else HIERARCHICAL_ONLY_SECTIONS
+    for section in ALL_MODE_SECTIONS:
+        if section not in pruned:
+            continue
+        value = pruned[section]
+        if section not in keep or value is None or value == {}:
+            pruned.pop(section, None)
 
     return pruned

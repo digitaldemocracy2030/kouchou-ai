@@ -110,6 +110,39 @@ def test_prune_llm_grouping_drops_none_hierarchical_only_sections():
     assert pruned["llm_grouping"] == {"discovery_sample_size": 80}
 
 
+def test_prune_llm_grouping_drops_none_or_empty_active_section():
+    # Regression for the create->edit->re-aggregate crash: the create flow omits the
+    # active-mode ``llm_grouping`` section to rely on analysis-core defaults, but a later
+    # ReportConfig.model_dump() round-trip re-emits it as ``llm_grouping: null`` (or {}).
+    # prune must drop it, otherwise analysis-core's ``for key in config.get("llm_grouping", {})``
+    # iterates ``None`` and raises ``TypeError: 'NoneType' object is not iterable``.
+    for empty_value in (None, {}):
+        config = {
+            "analysis_mode": "llm_grouping",
+            "extraction": {"prompt": "p", "workers": 1, "limit": 2},
+            "llm_grouping": empty_value,
+        }
+        pruned = prune_config_for_mode(config)
+        assert "llm_grouping" not in pruned, f"null/empty active section leaked for {empty_value!r}"
+        assert pruned["analysis_mode"] == "llm_grouping"
+
+
+def test_prune_hierarchical_drops_none_or_empty_active_sections():
+    # Symmetric guard: a hierarchical section that round-trips to null/empty must also be
+    # dropped so analysis-core falls back to defaults instead of iterating ``None``.
+    config = {
+        "analysis_mode": "hierarchical",
+        "hierarchical_clustering": None,
+        "hierarchical_initial_labelling": {},
+        "hierarchical_merge_labelling": {"prompt": "m", "sampling_num": 30, "workers": 1},
+    }
+    pruned = prune_config_for_mode(config)
+    assert "hierarchical_clustering" not in pruned
+    assert "hierarchical_initial_labelling" not in pruned
+    # value-filled active-mode sections are preserved.
+    assert pruned["hierarchical_merge_labelling"] == {"prompt": "m", "sampling_num": 30, "workers": 1}
+
+
 def test_prune_normalizes_missing_or_null_analysis_mode():
     # Old reports have no analysis_mode key; must never leak None to get_specs_path_for_mode.
     assert prune_config_for_mode({})["analysis_mode"] == "hierarchical"
@@ -194,6 +227,49 @@ def test_update_json_does_not_inject_mode_mismatched_sections(tmp_path, monkeypa
     assert "llm_grouping" not in written
     assert written["analysis_mode"] == "hierarchical"
     assert written["question"] == "new title"
+    _validate_with_analysis_core(written)
+
+
+def test_update_json_llm_grouping_report_does_not_poison_config(tmp_path, monkeypatch):
+    # End-to-end reproduction of the #987 blocker: an llm_grouping report created with the
+    # ``llm_grouping`` section omitted (defaults), then edited via the admin config endpoint.
+    # update_json round-trips through ReportConfig.model_dump(), which re-emits
+    # ``llm_grouping: null``; before the fix prune kept it and the next analysis-core run
+    # crashed with ``TypeError: 'NoneType' object is not iterable``.
+    from src.repositories.config_repository import ConfigRepository
+    from src.schemas.report_config import ReportConfigUpdate
+
+    monkeypatch.setattr("src.repositories.config_repository.settings.CONFIG_DIR", tmp_path)
+    slug = "grouping"
+    # As written by the create flow for analysis_mode=llm_grouping: no llm_grouping key.
+    (tmp_path / f"{slug}.json").write_text(
+        json.dumps(
+            {
+                "name": slug,
+                "input": slug,
+                "question": "old",
+                "intro": "i",
+                "model": "gpt-4o-mini",
+                "provider": "openai",
+                "analysis_mode": "llm_grouping",
+                "extraction": {"prompt": "p", "workers": 1, "limit": 2},
+                "hierarchical_overview": {"prompt": "ov"},
+                "hierarchical_aggregation": {"sampling_num": 5000},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert ConfigRepository(slug).update_json(ReportConfigUpdate(question="new title")) is True
+
+    written = json.loads((tmp_path / f"{slug}.json").read_text(encoding="utf-8"))
+    assert written["analysis_mode"] == "llm_grouping"
+    assert written["question"] == "new title"
+    # The active-mode section must be absent, not present-but-null.
+    assert "llm_grouping" not in written
+    for key in HIERARCHICAL_ONLY_SECTIONS:
+        assert key not in written
+    # The written config must survive the exact raw-config validation the subprocess runs.
     _validate_with_analysis_core(written)
 
 
