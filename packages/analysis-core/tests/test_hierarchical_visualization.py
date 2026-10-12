@@ -244,3 +244,21 @@ class TestReportLicense:
         assert encoded is not None
         with zipfile.ZipFile(io.BytesIO(base64.b64decode(encoded.group(1)))) as bundle:
             assert bundle.read("hierarchical_visualization.py").decode("utf-8") == source
+
+    def test_missing_license_degrades_to_link_only_notice(self, tmp_path: Path, monkeypatch) -> None:
+        import importlib
+
+        module = importlib.import_module("analysis_core.steps.hierarchical_visualization")
+        # Point __file__ at a tmp dir with no sibling AGPL-3.0.txt and no
+        # pyproject.toml/LICENSE fallback above it, so neither resource resolves.
+        renderer = tmp_path / "hierarchical_visualization.py"
+        renderer.write_text(Path(module.__file__).read_text(encoding="utf-8"), encoding="utf-8")
+        monkeypatch.setattr(module, "__file__", str(renderer))
+        # Report generation must still succeed, not raise FileNotFoundError.
+        out = module.build_html(_minimal_payload())
+        assert "表示プログラム:" in out
+        assert "無保証" in out
+        assert 'href="https://www.gnu.org/licenses/agpl-3.0.html"' in out
+        # The source ZIP is omitted when its inputs are unavailable.
+        assert "data:application/zip;base64," not in out
+        assert 'download="kouchou-ai-report-source.zip"' not in out

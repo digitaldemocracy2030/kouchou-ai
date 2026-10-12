@@ -148,6 +148,25 @@ def build_html(
 
 
 
+def _report_license_notice_link_only() -> str:
+    """Lightweight fallback notice used when the bundled license/source is absent.
+
+    The source ZIP needs both the license text and this module's source, so when
+    neither can be located we drop the ZIP download and point to the canonical
+    AGPL-3.0 text instead. This keeps ``report.html`` generation working even if a
+    future packaging change loses the force-included ``AGPL-3.0.txt``.
+    """
+    return (
+        '<div class="license-notice">'
+        '<p>表示プログラム: <a href="https://github.com/digitaldemocracy2030/kouchou-ai">広聴AI</a>'
+        ' · <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a></p>'
+        '<p>表示プログラムはAGPL-3.0の条件で利用・改変・再配布でき、無保証です。'
+        '分析結果データの利用条件とは別です。ライセンス本文は'
+        '<a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a>を参照してください。</p>'
+        '</div>'
+    )
+
+
 def _report_license_notice() -> str:
     """Bundle this renderer's actual source and license, without report data.
 
@@ -162,7 +181,9 @@ def _report_license_notice() -> str:
         if (package_root / "pyproject.toml").is_file():
             license_path = package_root / "LICENSE"
     if not license_path.is_file():
-        raise FileNotFoundError("Report license is missing. Reinstall kouchou-ai-analysis-core.")
+        # Degrade instead of failing report generation: emit a link-only notice
+        # (no source ZIP) so a missing license resource never breaks report.html.
+        return _report_license_notice_link_only()
     license_text = license_path.read_text(encoding="utf-8")
     source_text = source_path.read_text(encoding="utf-8")
     readme = """# このHTMLの表示プログラム
