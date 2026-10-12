@@ -1,6 +1,8 @@
+import { Tooltip } from "@/components/ui/tooltip";
 import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster, Config } from "@/type";
-import { Box } from "@chakra-ui/react";
+import { Box, Flex, Icon, IconButton, Text } from "@chakra-ui/react";
+import { CircleHelp } from "lucide-react";
 import type { Annotation, Data, Layout, PlotMouseEvent } from "plotly.js";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
@@ -17,6 +19,8 @@ type Props = {
   showConvexHull?: boolean; // クラスターの凸包を表示するか
   // クラスタ上の点をクリックした時に、そのクラスタIDを通知する（連動文章・一覧のハイライト用）
   onSelectCluster?: (clusterId: string) => void;
+  // 濃い意見グループが属する第一階層クラスタの帰属を可視化するか（scatterDensity モードで true）
+  showParentAttribution?: boolean;
 };
 
 /**
@@ -34,6 +38,7 @@ export function ScatterChart({
   config,
   showConvexHull,
   onSelectCluster,
+  showParentAttribution,
 }: Props) {
   // 全ての引数を表示するため、argumentListをそのまま使用
   // フィルター条件に合致しないものは後で灰色表示する
@@ -108,6 +113,54 @@ export function ScatterChart({
     },
     {} as Record<string, string>,
   );
+
+  // 濃い意見グループ（最深階層の表示対象クラスタ）が、どの第一階層（level === 1）クラスタに
+  // 属するかを `parent` チェーンを辿って解決する。帰属情報は既存の Cluster データ構造
+  // （cluster.parent）だけで辿れるため、新たなデータ追加は不要。
+  const clusterById = useMemo(() => {
+    const map = new Map<string, Cluster>();
+    for (const cluster of clusterList) map.set(cluster.id, cluster);
+    return map;
+  }, [clusterList]);
+
+  const resolveTopAncestor = useCallback(
+    (cluster: Cluster): Cluster | undefined => {
+      let current: Cluster | undefined = cluster;
+      const visited = new Set<string>(); // 万一の循環参照でも無限ループしないよう防御
+      while (current && current.level > 1) {
+        if (visited.has(current.id)) return undefined;
+        visited.add(current.id);
+        if (!current.parent) break;
+        current = clusterById.get(current.parent);
+      }
+      return current && current.level === 1 ? current : undefined;
+    },
+    [clusterById],
+  );
+
+  // 帰属可視化用のデータ。各濃いグループの親ラベル（hover 用）と、
+  // 第一階層クラスタごとにグルーピングした凡例データ（色対応つき）を作る。
+  const parentAttribution = useMemo(() => {
+    if (!showParentAttribution) return null;
+    const labelByClusterId = new Map<string, string>();
+    const groupMap = new Map<
+      string,
+      { parentId: string; parentLabel: string; members: { id: string; label: string; color: string }[] }
+    >();
+    for (const cluster of targetClusters) {
+      const top = resolveTopAncestor(cluster);
+      const parentLabel = top?.label ?? "不明";
+      labelByClusterId.set(cluster.id, parentLabel);
+      const key = top?.id ?? "__unknown__";
+      if (!groupMap.has(key)) groupMap.set(key, { parentId: key, parentLabel, members: [] });
+      groupMap.get(key)?.members.push({
+        id: cluster.id,
+        label: cluster.label,
+        color: clusterColorMap[cluster.id],
+      });
+    }
+    return { labelByClusterId, groups: Array.from(groupMap.values()) };
+  }, [showParentAttribution, targetClusters, resolveTopAncestor, clusterColorMap]);
 
   const annotationLabelWidth = 228; // ラベルの最大横幅を指定
   const annotationFontsize = 14; // フォントサイズを指定
@@ -348,7 +401,10 @@ export function ScatterChart({
             text: matching.map((arg) => {
               const argumentText = wrapJapaneseText(arg.argument, 30);
               const urlText = config?.enable_source_link && arg.url ? "<br><b>🔗 クリックしてソースを見る</b>" : "";
-              return `<b>${cluster.label}</b><br>${argumentText}${urlText}`;
+              const parentText = parentAttribution
+                ? `<br>所属: ${parentAttribution.labelByClusterId.get(cluster.id) ?? "不明"}`
+                : "";
+              return `<b>${cluster.label}</b>${parentText}<br>${argumentText}${urlText}`;
             }),
             type: "scattergl",
             hoverinfo: "text",
@@ -404,9 +460,12 @@ export function ScatterChart({
             size: 7,
             color: clusterColorMap[dataSet.cluster.id],
           },
-          text: clusterArguments.map(
-            (arg) => `<b>${dataSet.cluster.label}</b><br>${wrapJapaneseText(arg.argument, 30)}`,
-          ),
+          text: clusterArguments.map((arg) => {
+            const parentText = parentAttribution
+              ? `<br>所属: ${parentAttribution.labelByClusterId.get(dataSet.cluster.id) ?? "不明"}`
+              : "";
+            return `<b>${dataSet.cluster.label}</b>${parentText}<br>${wrapJapaneseText(arg.argument, 30)}`;
+          }),
           type: "scattergl",
           hoverinfo: "text",
           hoverlabel: {
@@ -505,9 +564,37 @@ export function ScatterChart({
       })
     : [];
 
+  // 散布図の操作方法を示すヒント。クリックでソースを開く挙動はソースリンク有効時のみ案内する。
+  const operationHint = (
+    <Box fontSize="xs" lineHeight="1.6">
+      <Text fontWeight="bold" mb={1}>
+        散布図の操作方法
+      </Text>
+      <Text>・ドラッグ: 表示位置を移動（パン）</Text>
+      <Text>・マウスホイール / ピンチ: 拡大・縮小</Text>
+      <Text>・右上ツールバー: 拡大・移動・初期表示へリセット</Text>
+      <Text>・点にカーソルを合わせる: 意見の内容を表示</Text>
+      {config?.enable_source_link && <Text>・点をクリック: 元のソースを開く</Text>}
+    </Box>
+  );
+
   return (
     <Box width="100%" height="100%" display="flex" flexDirection="column">
-      <Box position="relative" flex="1" ref={chartWrapperRef}>
+      <Box position="relative" flex="1" minH={0} ref={chartWrapperRef}>
+        <Box position="absolute" top="8px" left="8px" zIndex={2}>
+          <Tooltip content={operationHint} showArrow openDelay={0} closeDelay={150} contentProps={{ maxW: "260px" }}>
+            <IconButton
+              aria-label="散布図の操作方法を表示"
+              size="xs"
+              variant="ghost"
+              color="gray.500"
+              bg="whiteAlpha.800"
+              _hover={{ bg: "whiteAlpha.900", color: "gray.700" }}
+            >
+              <Icon as={CircleHelp} />
+            </IconButton>
+          </Tooltip>
+        </Box>
         <ChartCore
           data={allPlotData as unknown as Data[]}
           layout={
@@ -577,6 +664,32 @@ export function ScatterChart({
           }}
         />
       </Box>
+      {parentAttribution && parentAttribution.groups.length > 0 && (
+        <Box flexShrink={0} px={3} py={2} borderTop="1px solid #eee" maxH="140px" overflowY="auto" bg="#fafafa">
+          <Text fontSize="xs" fontWeight="bold" color="gray.600" mb={1}>
+            濃い意見グループの第一階層クラスタへの帰属
+          </Text>
+          <Flex wrap="wrap" gap={3}>
+            {parentAttribution.groups.map((group) => (
+              <Box key={group.parentId} border="1px solid #e2e8f0" borderRadius="md" px={2} py={1} bg="white">
+                <Text fontSize="xs" fontWeight="bold" mb={1} color="gray.700">
+                  {group.parentLabel}
+                </Text>
+                <Flex wrap="wrap" gap={2}>
+                  {group.members.map((member) => (
+                    <Flex key={member.id} align="center" gap={1}>
+                      <Box w="10px" h="10px" borderRadius="sm" flexShrink={0} bg={member.color} />
+                      <Text fontSize="xs" color="gray.600">
+                        {member.label}
+                      </Text>
+                    </Flex>
+                  ))}
+                </Flex>
+              </Box>
+            ))}
+          </Flex>
+        </Box>
+      )}
     </Box>
   );
 }

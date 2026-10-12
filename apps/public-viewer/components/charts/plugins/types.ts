@@ -32,6 +32,8 @@ export interface ScatterChartProps extends ChartComponentProps {
   targetLevel: number;
   /** Whether to show cluster labels */
   showClusterLabels?: boolean;
+  /** Whether to visualize which first-level cluster each dense group belongs to */
+  showParentAttribution?: boolean;
 }
 
 /**

@@ -74,6 +74,7 @@ export const scatterPlugin: ChartPlugin = {
           (selectedChart === "scatterDetail" || selectedChart === "scatterAll") && (showConvexHull ?? true)
         }
         onSelectCluster={onSelectCluster}
+        showParentAttribution={selectedChart === "scatterDensity"}
       />
     );
   },
