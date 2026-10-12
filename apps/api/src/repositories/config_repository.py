@@ -3,6 +3,7 @@ import json
 from src.config import settings
 from src.core.exceptions import ConfigFileNotFound, ConfigJSONParseError
 from src.schemas.report_config import ReportConfig, ReportConfigUpdate
+from src.services.analysis_config import prune_config_for_mode
 from src.utils.logger import setup_logger
 
 slogger = setup_logger()
@@ -53,6 +54,12 @@ class ConfigRepository:
             for key, value in updated_config.model_dump().items():
                 if value is not None:
                     current_config[key] = value
+
+            # ReportConfig.model_dump() は analysis_mode 非該当セクション（hierarchical では
+            # llm_grouping:null、旧 report では analysis_mode:null 等）を含めて出力するため、
+            # そのまま書き戻すと後続の analysis-core 実行が raw config 検証で落ちる。モードに
+            # 属すセクションだけ残して書き戻す。
+            current_config = prune_config_for_mode(current_config)
 
             with open(self.config_path, mode="w", encoding="utf-8") as jsonfile:
                 json.dump(current_config, jsonfile, ensure_ascii=False, indent=2)

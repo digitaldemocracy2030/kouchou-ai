@@ -9,6 +9,7 @@ import polars as pl
 
 from src.config import settings
 from src.schemas.admin_report import ReportInput
+from src.services.analysis_config import prune_config_for_mode
 from src.services.report_status import add_new_report_to_status, set_status, update_token_usage
 from src.services.report_sync import ReportSyncService
 from src.utils.logger import setup_logger
@@ -71,7 +72,9 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
             "workers": report_input.workers,
         }
 
-    return config
+    # 分岐で既に正しい section だけを組んでいるが、analysis_mode 非該当セクションが
+    # 混入しないことを共通ヘルパで保証する（書き戻し経路と同じ不変条件）。
+    return prune_config_for_mode(config)
 
 
 def _build_analysis_core_command(config_path: Path, only: str | None = None) -> list[str]:

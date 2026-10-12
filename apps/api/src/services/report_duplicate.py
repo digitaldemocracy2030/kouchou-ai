@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from src.config import settings
 from src.schemas.admin_report import ReportDuplicateOverrides, ReportDuplicateRequest
 from src.schemas.report_config import ReportConfig
+from src.services.analysis_config import prune_config_for_mode
 from src.services.report_launcher import launch_report_generation_from_config
 from src.services.report_status import add_new_report_to_status_from_config, delete_report_from_status, slug_exists
 from src.services.report_sync import ReportSyncService
@@ -315,6 +316,12 @@ def duplicate_report(
         config = _apply_overrides(config, payload.overrides)
         if input_limit_override is not None:
             config.setdefault("extraction", {})["limit"] = input_limit_override
+
+        # 複製元 config は (a) 既存 config ファイル、(b) hierarchical_result.json 埋め込みの
+        # normalize 済み config（この場合 llm_grouping が値入り dict で混入する）のいずれか。
+        # どちらの経路でも analysis_mode 非該当セクションが残りうるため、analysis-core に渡す
+        # 直前でモード別に prune する。
+        config = prune_config_for_mode(config)
 
         new_config_path = settings.CONFIG_DIR / f"{new_slug}.json"
         new_config_path.parent.mkdir(parents=True, exist_ok=True)
