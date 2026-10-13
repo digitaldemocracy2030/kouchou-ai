@@ -24,6 +24,9 @@ def llm_grouping_plugin(
     from analysis_core.steps.llm_grouping import llm_grouping as grouping_impl
 
     step_config = config.get("llm_grouping", config)
+    # predefined_groups / other_group_label は list/dict 値のため workflow の
+    # ${...} 補間を通さず、フル config（inputs.config）から直接受け取る。
+    full_llm_config = inputs.config.get("llm_grouping", {}) or {}
     legacy_config = build_legacy_runtime_config(ctx, inputs, include_token_usage=True)
     legacy_config["question"] = inputs.config.get("question", "")
     legacy_config["hierarchical_clustering"] = inputs.config.get("hierarchical_clustering", {})
@@ -33,6 +36,8 @@ def llm_grouping_plugin(
         "assignment_batch_size": step_config.get("assignment_batch_size", 25),
         "discovery_prompt": step_config.get("discovery_prompt", ""),
         "assignment_prompt": step_config.get("assignment_prompt", ""),
+        "predefined_groups": full_llm_config.get("predefined_groups"),
+        "other_group_label": full_llm_config.get("other_group_label"),
         "model": step_config.get("model", ctx.model),
     }
 

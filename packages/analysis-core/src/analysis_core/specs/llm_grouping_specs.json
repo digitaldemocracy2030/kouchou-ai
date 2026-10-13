@@ -32,6 +32,8 @@
       "assignment_batch_size": 25,
       "discovery_prompt": "",
       "assignment_prompt": "",
+      "predefined_groups": null,
+      "other_group_label": "その他",
       "model": "gpt-4o-mini"
     },
     "use_llm": true

@@ -20,6 +20,12 @@ from analysis_core.steps.hierarchical_clustering import (
 
 LLM_GROUPING_TIMEOUT_SECONDS = 300
 
+# 指定カテゴリ分類（supervised）で必ず用意する「その他」受け皿。
+# どのカテゴリにも当てはまらない意見を無理に押し込めないための catch-all。
+_OTHER_GROUP_ID = "other"
+_DEFAULT_OTHER_LABEL = "その他"
+_DEFAULT_OTHER_DESCRIPTION = "指定したどのカテゴリにも明確に当てはまらない意見"
+
 
 class ProposedGroup(BaseModel):
     """Single discovered group."""
@@ -66,18 +72,25 @@ def llm_grouping(config: dict) -> None:
     arguments = args_df["argument"].to_list()
 
     llm_config = config["llm_grouping"]
-    group_count = _resolve_group_count(config, len(arg_ids))
-    groups = _discover_groups(
-        arguments=arguments,
-        question=config.get("question", ""),
-        group_count=group_count,
-        sample_size=llm_config.get("discovery_sample_size", 80),
-        prompt=llm_config["discovery_prompt"],
-        model=llm_config["model"],
-        provider=config["provider"],
-        local_llm_address=config.get("local_llm_address"),
-        config=config,
-    )
+    predefined_groups = _resolve_predefined_groups(llm_config)
+    if predefined_groups is not None:
+        # 指定カテゴリ分類（supervised）: 枠は人間が与え、割当だけ LLM に任せる。
+        # 発見段（_discover_groups）はスキップし、必ず「その他」受け皿を足す。
+        groups, other_group_id = _ensure_other_group(predefined_groups, llm_config)
+    else:
+        group_count = _resolve_group_count(config, len(arg_ids))
+        groups = _discover_groups(
+            arguments=arguments,
+            question=config.get("question", ""),
+            group_count=group_count,
+            sample_size=llm_config.get("discovery_sample_size", 80),
+            prompt=llm_config["discovery_prompt"],
+            model=llm_config["model"],
+            provider=config["provider"],
+            local_llm_address=config.get("local_llm_address"),
+            config=config,
+        )
+        other_group_id = None
     assignments = _assign_groups(
         arg_ids=arg_ids,
         arguments=arguments,
@@ -88,6 +101,7 @@ def llm_grouping(config: dict) -> None:
         provider=config["provider"],
         local_llm_address=config.get("local_llm_address"),
         config=config,
+        other_group_id=other_group_id,
     )
     points = _project_embeddings_to_xy(output_base_dir, dataset, arg_ids)
 
@@ -121,6 +135,61 @@ def _resolve_group_count(config: dict, argument_count: int) -> int:
         return min(max(1, int(cluster_nums[0])), max(1, argument_count))
 
     return calculate_recommended_cluster_nums(max(2, argument_count))[0]
+
+
+def _resolve_predefined_groups(llm_config: dict) -> list[GroupDefinition] | None:
+    """`predefined_groups` を正規化する。未指定（falsy）なら None（＝自動グルーピング）。
+
+    各要素は ``{"id"?, "label", "description"?}`` の dict、または label 文字列。
+    label 必須・id 重複不可。「その他」受け皿はここでは足さない（_ensure_other_group の責務）。
+    """
+    raw_groups = llm_config.get("predefined_groups")
+    if not raw_groups:
+        return None
+    if not isinstance(raw_groups, (list, tuple)):
+        raise ValueError("predefined_groups must be a list of category definitions")
+
+    groups: list[GroupDefinition] = []
+    seen_ids: set[str] = set()
+    for index, item in enumerate(raw_groups, start=1):
+        if isinstance(item, str):
+            label, description, raw_id = item, "", None
+        elif isinstance(item, dict):
+            label = str(item.get("label") or "").strip()
+            description = str(item.get("description") or "").strip()
+            raw_id = item.get("id")
+        else:
+            raise ValueError("predefined_groups: each entry must be a string or an object")
+
+        if not label:
+            raise ValueError("predefined_groups: each category requires a non-empty label")
+
+        group_id = str(raw_id).strip() if raw_id not in (None, "") else f"g{index}"
+        if group_id in seen_ids:
+            raise ValueError(f"predefined_groups: duplicate group id '{group_id}'")
+        seen_ids.add(group_id)
+        groups.append(GroupDefinition(group_id=group_id, label=label, description=description))
+
+    return groups
+
+
+def _ensure_other_group(groups: list[GroupDefinition], llm_config: dict) -> tuple[list[GroupDefinition], str]:
+    """指定カテゴリに必ず「その他」受け皿を用意し、(groups, other_group_id) を返す。
+
+    既にユーザが同等の受け皿（id が ``other`` もしくは label が「その他」ラベル）を
+    定義していればそれを流用し、二重には足さない。
+    """
+    other_label = str(llm_config.get("other_group_label") or _DEFAULT_OTHER_LABEL).strip() or _DEFAULT_OTHER_LABEL
+    for group in groups:
+        if group.group_id == _OTHER_GROUP_ID or group.label == other_label:
+            return groups, group.group_id
+
+    other_group = GroupDefinition(
+        group_id=_OTHER_GROUP_ID,
+        label=other_label,
+        description=_DEFAULT_OTHER_DESCRIPTION,
+    )
+    return [*groups, other_group], _OTHER_GROUP_ID
 
 
 def _discover_groups(
@@ -185,10 +254,21 @@ def _assign_groups(
     provider: str,
     local_llm_address: str | None,
     config: dict,
+    other_group_id: str | None = None,
 ) -> dict[str, str]:
     assignments: dict[str, str] = {}
     allowed_group_ids = {group.group_id for group in groups}
     group_text = "\n".join(f"- {group.group_id}: {group.label}\n  {group.description}" for group in groups)
+
+    # 指定カテゴリ分類では、非該当・無効応答を先頭枠ではなく「その他」へ寄せる。
+    fallback_group_id = other_group_id if other_group_id in allowed_group_ids else groups[0].group_id
+    other_instruction = ""
+    if other_group_id in allowed_group_ids:
+        other_label = next((group.label for group in groups if group.group_id == other_group_id), other_group_id)
+        other_instruction = (
+            f"どのグループにも明確に当てはまらない意見は、無理に分類せず "
+            f"『{other_label}』({other_group_id}) に割り当ててください。\n"
+        )
 
     safe_batch_size = max(1, batch_size)
     for start in range(0, len(arg_ids), safe_batch_size):
@@ -201,7 +281,8 @@ def _assign_groups(
             "既知のグループ定義:\n"
             f"{group_text}\n\n"
             "各意見を最も近いグループへ 1 つだけ割り当ててください。\n"
-            "新しいグループは作らず、group_id は必ず既知のものから選んでください。\n\n"
+            "新しいグループは作らず、group_id は必ず既知のものから選んでください。\n"
+            f"{other_instruction}\n"
             f"意見一覧:\n{batch_lines}"
         )
         response_text, token_input, token_output, token_total = request_to_chat_ai(
@@ -224,7 +305,6 @@ def _assign_groups(
             if assignment.get("arg_id")
         }
 
-        fallback_group_id = groups[0].group_id
         for arg_id in batch_ids:
             group_id = batch_assignments.get(arg_id, fallback_group_id)
             if group_id not in allowed_group_ids:

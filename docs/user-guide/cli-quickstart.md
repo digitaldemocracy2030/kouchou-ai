@@ -313,6 +313,32 @@ rm -rf outputs/config
 kouchou-analyze --config report_october.json
 ```
 
+### 所与の分類枠へ意見を分類する（指定カテゴリ分類 / LLM grouping）
+
+あらかじめ決めたカテゴリに意見を割り当てたい場合は、`analysis_mode` を `llm_grouping` にし、`llm_grouping.predefined_groups` にカテゴリを与えます。クラスタを自動発見する代わりに、**枠は人間が与え、各意見の割当だけを LLM が行います**。
+
+```json
+{
+  "input": "my-comments",
+  "question": "住みやすい街にするには？",
+  "analysis_mode": "llm_grouping",
+  "llm_grouping": {
+    "predefined_groups": [
+      { "label": "交通", "description": "公共交通・道路・移動に関する意見" },
+      { "id": "park", "label": "公園・緑地", "description": "公園整備や緑地に関する意見" },
+      { "label": "子育て・教育", "description": "保育・学校・子育て支援に関する意見" }
+    ]
+  }
+}
+```
+
+- 各カテゴリは `label`（必須）と `description`（任意だが推奨。割当精度が上がります）を持ちます。`id` を省略すると `g1`, `g2`, … が自動採番されます。
+- **「その他」カテゴリは必ず自動で追加されます**（指定不要・削除不可）。どのカテゴリにも明確に当てはまらない意見は、無理に押し込めず「その他」に分類されます。「その他」に多くの意見が集まる場合は、分類枠に過不足があるサインです。
+- ラベルを変えたい場合は `llm_grouping.other_group_label`（既定 `"その他"`）で指定できます。自分で同名または `id: "other"` のカテゴリを定義した場合は、それが受け皿として使われ二重には追加されません。
+- 散布図の座標は従来どおり埋め込みから計算されるため、ビューアはそのまま利用できます。
+
+> この機能は現状 CLI 専用です。WebUI（管理画面）からの指定カテゴリ分類は今後の対応予定です。
+
 ### カテゴリ分類の追加
 
 ```json
