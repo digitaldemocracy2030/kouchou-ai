@@ -1,0 +1,89 @@
+name: how-to-use reminder
+
+# WebUI（apps/public-viewer / apps/admin）を変更する PR が
+# docs/user-guide/how-to-use.md を更新していない場合に、PR へリマインダーを
+# コメントする。CI をブロックしない（常に成功で終了する）非ブロッキングチェック。
+#
+# 外部フォーク PR でもコメントできるよう pull_request_target を使う。
+# PR の head コードは一切 checkout／実行せず、REST API 呼び出しのみ行うため安全。
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+    paths:
+      - "apps/public-viewer/**"
+      - "apps/admin/**"
+      - "!apps/public-viewer/**/*.md"
+      - "!apps/admin/**/*.md"
+
+permissions:
+  pull-requests: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const DOC = 'docs/user-guide/how-to-use.md';
+            const MARKER = '<!-- how-to-use-reminder -->';
+            const pr = context.payload.pull_request.number;
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr,
+              per_page: 100,
+            });
+            const touched = files.some((f) => f.filename === DOC);
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              per_page: 100,
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(MARKER));
+
+            if (touched) {
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                });
+                console.log('how-to-use.md が更新されたためリマインダーを削除しました。');
+              } else {
+                console.log('how-to-use.md が更新済みです。対応不要。');
+              }
+              return;
+            }
+
+            const body = [
+              MARKER,
+              '📝 **how-to-use リマインダー**',
+              '',
+              'この PR は WebUI（`apps/public-viewer` / `apps/admin`）を変更していますが、`docs/user-guide/how-to-use.md` は更新されていません。',
+              '利用者の操作や表示に影響する変更の場合は how-to-use を更新してください（更新不要な変更であれば、このコメントは無視して構いません）。',
+              '',
+              '*このチェックは CI をブロックしません。*',
+            ].join('\n');
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                body,
+              });
+            }
+            console.log('how-to-use リマインダーを投稿／更新しました。');
