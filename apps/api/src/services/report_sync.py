@@ -133,7 +133,7 @@ class ReportSyncService:
         """
         # 予期せぬ上書きを避けるため、statusファイルが存在し中身が空でない場合はダウンロードをスキップする
         if self.LOCAL_STATUS_FILE_PATH.exists() and self.LOCAL_STATUS_FILE_PATH.stat().st_size > 0:
-            with open(self.LOCAL_STATUS_FILE_PATH) as f:
+            with open(self.LOCAL_STATUS_FILE_PATH, encoding="utf-8") as f:
                 report_status = json.load(f)
             if report_status:  # データが存在する場合はスキップ
                 logger.info(

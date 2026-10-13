@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import threading
 
 from src.schemas.admin_report import Comment, Prompt, ReportInput
@@ -129,7 +130,7 @@ def test_user_api_key_propagation_to_env(monkeypatch):
     report_input = make_report_input()
     report_launcher.launch_report_generation(report_input, user_api_key="test-key")
     assert called["env"]["USER_API_KEY"] == "test-key"
-    assert called["args"][:3] == ["python", "-m", "analysis_core"]
+    assert called["args"][:3] == [sys.executable, "-m", "analysis_core"]
     assert "--without-html" in called["args"]
 
 
@@ -186,7 +187,9 @@ def test_launch_report_generation_from_config_uses_shared_command(monkeypatch, t
 
     report_launcher.launch_report_generation_from_config(config_path, "demo")
 
-    assert called["args"][:3] == ["python", "-m", "analysis_core"]
+    # #992: PATH 上の "python" ではなく、API を動かしているのと同一の
+    # インタプリタ (sys.executable) で analysis_core を起動する。
+    assert called["args"][:3] == [sys.executable, "-m", "analysis_core"]
     assert "--without-html" in called["args"]
     assert "--only" not in called["args"]
 
@@ -304,7 +307,7 @@ def test_launch_report_generation_from_config_runs_full_service_flow(monkeypatch
 
     updated = report_status._report_status[slug]
     assert calls["env"]["USER_API_KEY"] == "test-key"
-    assert calls["args"][:3] == ["python", "-m", "analysis_core"]
+    assert calls["args"][:3] == [sys.executable, "-m", "analysis_core"]
     assert "--without-html" in calls["args"]
     assert str(config_path) in calls["args"]
     assert updated["status"] == "ready"
@@ -429,7 +432,7 @@ def test_launch_report_generation_runs_full_service_flow(monkeypatch, tmp_path):
     updated = report_status._report_status[slug]
 
     assert calls["env"]["USER_API_KEY"] == "test-key"
-    assert calls["args"][:3] == ["python", "-m", "analysis_core"]
+    assert calls["args"][:3] == [sys.executable, "-m", "analysis_core"]
     assert "--without-html" in calls["args"]
     assert str(config_path) in calls["args"]
     assert config_path.exists()
@@ -821,7 +824,7 @@ def test_execute_aggregation_runs_monitor_flow_and_preserves_existing_status(mon
     updated = report_status._report_status[slug]
     assert result is True
     assert calls["env"]["USER_API_KEY"] == "test-key"
-    assert calls["args"][:3] == ["python", "-m", "analysis_core"]
+    assert calls["args"][:3] == [sys.executable, "-m", "analysis_core"]
     assert calls["args"][-2:] == ["--only", "hierarchical_aggregation"]
     assert str(config_path) in calls["args"]
     assert updated["status"] == "ready"

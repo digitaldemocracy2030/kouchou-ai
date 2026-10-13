@@ -200,7 +200,7 @@ async def get_current_step(slug: str) -> dict:
         if not status_file.exists():
             return {"current_step": "loading"}
 
-        with open(status_file) as f:
+        with open(status_file, encoding="utf-8") as f:
             status = json.load(f)
 
         response = {
@@ -418,7 +418,7 @@ async def get_visualization_config(slug: str, api_key: str = Depends(verify_admi
         return {"visualizationConfig": None}
 
     try:
-        with open(visualization_config_path) as f:
+        with open(visualization_config_path, encoding="utf-8") as f:
             raw_config = json.load(f)
         validated_config = parse_saved_visualization_config(raw_config)
         return {"visualizationConfig": validated_config.model_dump(by_alias=True)}

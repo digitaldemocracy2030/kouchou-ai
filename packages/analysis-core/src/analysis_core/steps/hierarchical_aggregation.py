@@ -106,7 +106,7 @@ def hierarchical_aggregation(config) -> bool:
         # 属性情報のカラムは、元データに対して指定したカラムとclassificationするカテゴリを合わせたもの
         results["propertyMap"] = _build_property_map(arguments, comments, hidden_properties_map, config)
 
-        with open(f"{output_base_dir}/{config['output_dir']}/hierarchical_overview.txt") as f:
+        with open(f"{output_base_dir}/{config['output_dir']}/hierarchical_overview.txt", encoding="utf-8") as f:
             overview = f.read()
         print("overview")
         print(overview)
@@ -115,7 +115,7 @@ def hierarchical_aggregation(config) -> bool:
         # Convert non-serializable NumPy types to native Python types
         results = json_serialize_numpy(results)
 
-        with open(path, "w") as file:
+        with open(path, "w", encoding="utf-8") as file:
             json.dump(results, file, indent=2, ensure_ascii=False)
         # TODO: サンプリングロジックを実装したいが、現状は全件抽出
         create_custom_intro(config)
@@ -172,10 +172,10 @@ def create_custom_intro(config):
         intro=intro, processed_num=processed_num, args_count=args_count, llm_provider=llm_provider
     )
 
-    with open(result_path) as f:
+    with open(result_path, encoding="utf-8") as f:
         result = json.load(f)
     result["config"]["intro"] = custom_intro
-    with open(result_path, "w") as f:
+    with open(result_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 
 
@@ -430,7 +430,7 @@ def _build_translations(config):
 
     languages = list(config.get("translation", {}).get("languages", []))
     if len(languages) > 0:
-        with open(f"{output_base_dir}/{config['output_dir']}/translations.json") as f:
+        with open(f"{output_base_dir}/{config['output_dir']}/translations.json", encoding="utf-8") as f:
             translations = f.read()
         return json.loads(translations)
     return {}

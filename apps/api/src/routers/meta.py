@@ -27,7 +27,7 @@ async def get_metadata() -> Metadata:
     """
     try:
         metadata_path = load_metadata_file_path("metadata.json")
-        with open(metadata_path) as f:
+        with open(metadata_path, encoding="utf-8") as f:
             metadata = json.load(f)
 
         # カスタムのメタデータかどうかを判定
@@ -92,7 +92,7 @@ async def get_metadata_json() -> Metadata:
     """
     try:
         metadata_path = load_metadata_file_path("metadata.json")
-        with open(metadata_path) as f:
+        with open(metadata_path, encoding="utf-8") as f:
             metadata = json.load(f)
 
         # カスタムのメタデータかどうかを判定

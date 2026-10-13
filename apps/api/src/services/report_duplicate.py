@@ -40,14 +40,14 @@ def _lock_path(slug: str) -> Path:
 def _write_lock(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         payload = {"created_at": time.time(), "pid": os.getpid()}
         json.dump(payload, f)
 
 
 def _lock_expired(path: Path) -> bool:
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             payload = json.load(f)
         created_at = float(payload.get("created_at", 0))
     except Exception:

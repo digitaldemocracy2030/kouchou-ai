@@ -63,7 +63,7 @@ def hierarchical_overview(config):
         else:
             parsed_response = json.loads(response_text)
 
-        with open(path, "w") as file:
+        with open(path, "w", encoding="utf-8") as file:
             file.write(parsed_response["summary"])
 
     except Exception:
@@ -75,5 +75,5 @@ def hierarchical_overview(config):
             flags=re.DOTALL,
         )
 
-        with open(path, "w") as file:
+        with open(path, "w", encoding="utf-8") as file:
             file.write(thinking_removed)

@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import sys
 import threading
 from pathlib import Path
 from typing import Any
@@ -89,7 +90,10 @@ def _build_analysis_core_command(config_path: Path, only: str | None = None) -> 
     artifact is not generated, stored, or distributed by the API path.
     """
     cmd = [
-        "python",
+        # API を動かしているのと同一のインタプリタで analysis_core を起動する。
+        # PATH 上の "python" を拾うと、venv / embeddable Python / python3 のみの
+        # 環境では別の（analysis_core 未導入の）Python を呼んでしまう (#992)。
+        sys.executable,
         "-m",
         "analysis_core",
         "--config",
@@ -110,7 +114,7 @@ def save_config_file(report_input: ReportInput) -> Path:
     config = _build_config(report_input)
     config_path = settings.CONFIG_DIR / f"{report_input.input}.json"
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(config_path, "w") as f:
+    with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
     return config_path
 

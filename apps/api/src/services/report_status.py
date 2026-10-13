@@ -41,7 +41,7 @@ def convert_old_format_status(status: dict) -> dict:
 def load_status() -> None:
     global _report_status
     try:
-        with open(STATE_FILE) as f:
+        with open(STATE_FILE, encoding="utf-8") as f:
             _report_status = convert_old_format_status(json.load(f))
     except FileNotFoundError:
         _report_status = {}
@@ -52,7 +52,7 @@ def load_status() -> None:
 def load_status_as_reports(include_deleted: bool = False) -> list[Report]:
     global _report_status
     try:
-        with open(STATE_FILE) as f:
+        with open(STATE_FILE, encoding="utf-8") as f:
             _report_status = convert_old_format_status(json.load(f))
     except FileNotFoundError:
         _report_status = {}
@@ -73,7 +73,7 @@ def save_status() -> None:
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
         # ローカルに保存
-        with open(STATE_FILE, "w") as f:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(_report_status, f, indent=4, ensure_ascii=False)
 
 
@@ -278,7 +278,7 @@ def add_analysis_data(report: Report) -> Report:
 
     report_path = settings.REPORT_DIR / report.slug / "hierarchical_result.json"
     try:
-        with open(report_path) as f:
+        with open(report_path, encoding="utf-8") as f:
             report_result = json.load(f)
 
         analysis_data = AnalysisData(
