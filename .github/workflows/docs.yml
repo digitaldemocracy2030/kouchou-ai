@@ -53,7 +53,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install mkdocs-material
+          pip install -r docs/requirements.txt
 
       - name: Build documentation
         run: mkdocs build --strict

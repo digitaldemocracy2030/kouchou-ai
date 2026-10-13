@@ -44,6 +44,14 @@ plugins:
   - search:
       lang: ja
   - offline
+  # getting-started/ を self-hosting/ に改称した際の旧 URL 救済（#876）。
+  # 旧パスへアクセスすると新パスへリダイレクトする。
+  - redirects:
+      redirect_maps:
+        getting-started/quickstart.md: self-hosting/quickstart.md
+        getting-started/windows-setup.md: self-hosting/windows-setup.md
+        getting-started/mac-setup.md: self-hosting/mac-setup.md
+        getting-started/linux-setup.md: self-hosting/linux-setup.md
 
 not_in_nav: |
   /refactoring/**
@@ -75,11 +83,11 @@ markdown_extensions:
 
 nav:
   - ホーム: index.md
-  - はじめに:
-      - クイックスタート: getting-started/quickstart.md
-      - Windowsセットアップ: getting-started/windows-setup.md
-      - Macセットアップ: getting-started/mac-setup.md
-      - Linuxセットアップ: getting-started/linux-setup.md
+  - セルフホスト（自分で環境を建てる）:
+      - クイックスタート: self-hosting/quickstart.md
+      - Windowsセットアップ: self-hosting/windows-setup.md
+      - Macセットアップ: self-hosting/mac-setup.md
+      - Linuxセットアップ: self-hosting/linux-setup.md
   - ユーザーガイド:
       - レポートの読み方: user-guide/report-reading-guide.md
       - 導入を検討する方へ: user-guide/adoption-guide.md

@@ -90,7 +90,7 @@
 分析を実行するには環境が必要です。技術的な準備が難しい場合も、いくつかの選択肢があります（各選択肢の概要は [トップページの「レポートを作るには」](../index.md#how-to-make-reports) にもまとまっています）。
 
 - **自分で環境を建てる（セルフホスト）**: お使いの OS のセットアップガイドに従います。技術的な知識と計算環境が必要です。
-    - [Windows セットアップ](../getting-started/windows-setup.md) / [Mac セットアップ](../getting-started/mac-setup.md) / [Linux セットアップ](../getting-started/linux-setup.md)
+    - [Windows セットアップ](../self-hosting/windows-setup.md) / [Mac セットアップ](../self-hosting/mac-setup.md) / [Linux セットアップ](../self-hosting/linux-setup.md)
     - 分析だけを手早く試したい・研究用途なら [CLI クイックスタート](cli-quickstart.md) も参照できます。
 - **建ててくれる人に相談する**: 組織内の情報システム担当者や、導入を支援できる技術者に、環境の用意・運用を相談する方法です。
 - **ブラウザで試せる serverless 版を検討する**: Docker などを用意しづらい場合、ブラウザ上で動く [serverless 版](https://github.com/tokoroten/kouchou-ai-serverless) を比較候補にできます。これは **別プロジェクト** で、本体と同一の機能・設定・運用を保証するものではありません。扱えるモデルやデータの取り扱いはリンク先の説明を確認してください。

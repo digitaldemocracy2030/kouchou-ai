@@ -19,7 +19,7 @@ The project is based on [Talk to the City](https://github.com/AIObjectives/talk-
 ## Prerequisites
 
 - For general users:
-  - Download the stable release (see the guide for [Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup) / [Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup) / [Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup))
+  - Download the stable release (see the guide for [Windows](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/windows-setup) / [Mac](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/mac-setup) / [Linux](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/linux-setup))
   - Docker (install it by following each guide)
   - An OpenAI API key
 - [Licensing and publishing results (Japanese)](docs/user-guide/license.md): local analysis, generated HTML, and custom plugins
@@ -54,9 +54,9 @@ Guidelines for the number of opinion groups (clusters) when creating a report:
 
 - If you are not a developer, see the user guides below:
 
-  - [User guide for Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup)
-  - [User guide for Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup)
-  - [User guide for Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup)
+  - [User guide for Windows](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/windows-setup)
+  - [User guide for Mac](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/mac-setup)
+  - [User guide for Linux](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/linux-setup)
 
 - For developers:
   - Clone the repository

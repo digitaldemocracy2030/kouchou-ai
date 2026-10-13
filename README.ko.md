@@ -19,7 +19,7 @@
 ## 사전 요구 사항
 
 - 일반 사용자:
-- 안정판 릴리스를 다운로드 ([Windows](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup)/[Mac](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup)/[Linux](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup) 각 가이드 참조)
+- 안정판 릴리스를 다운로드 ([Windows](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/windows-setup)/[Mac](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/mac-setup)/[Linux](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/linux-setup) 각 가이드 참조)
   - Docker (각 가이드에 따라 설치)
   - OpenAI API 키
 - 개발자:
@@ -51,9 +51,9 @@
 
 - 개발자가 아닌 분은 아래 사용자 가이드를 참조해 주세요:
 
-  - [Windows 환경 사용자 가이드](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/windows-setup)
-  - [Mac 환경 사용자 가이드](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/mac-setup)
-  - [Linux 환경 사용자 가이드](https://digitaldemocracy2030.github.io/kouchou-ai/getting-started/linux-setup)
+  - [Windows 환경 사용자 가이드](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/windows-setup)
+  - [Mac 환경 사용자 가이드](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/mac-setup)
+  - [Linux 환경 사용자 가이드](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/linux-setup)
 
 - 개발자:
   - 저장소를 클론
