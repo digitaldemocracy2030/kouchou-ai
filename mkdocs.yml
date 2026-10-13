@@ -49,6 +49,12 @@ not_in_nav: |
   /refactoring/**
   /misc/github-actions-status-update.md
 
+# nav に未登録のページを CI (mkdocs build --strict) で検知する。
+# not_in_nav で意図的に除外したページは警告されない。
+validation:
+  nav:
+    omitted_files: warn
+
 markdown_extensions:
   - admonition
   - pymdownx.details
@@ -100,6 +106,10 @@ nav:
       - コードレビューガイドライン: development/code-review-guidelines.md
       - Devinとの協働: development/devin-collaboration.md
       - Windows 実機セットアップ検証: development/windows-real-machine-setup-verification.md
+      - モデル一覧・検証状態・料金の更新: development/model-catalog.md
+      - OpenAI Flex Processing: development/openai-flex-processing.md
+      - 意見の分類ラベル: development/opinion-classification.md
+      - Web UI の Node runtime 依存インベントリ: development/web-ui-node-runtime-dependencies.md
   - リポジトリ内README:
       - アプリ:
           - admin: repo-readmes/apps/admin.md
@@ -124,6 +134,8 @@ nav:
       - Azure デプロイ: deployment/azure.md
       - Azure Blob Storage: deployment/azure-blob-storage.md
       - GitHub Pages: deployment/github-pages.md
+      - 静的ホスティング向け CSP 設定: deployment/static-hosting-csp.md
+      - ストレージスナップショット運用: deployment/storage-snapshot-operations.md
   - その他:
       - プロジェクト一覧: misc/projects.md
       - CLA: misc/cla.md
