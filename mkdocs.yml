@@ -92,6 +92,7 @@ nav:
       - レポートの読み方: user-guide/report-reading-guide.md
       - 導入を検討する方へ: user-guide/adoption-guide.md
       - 使い方: user-guide/how-to-use.md
+      - レポート作成者情報の設定: user-guide/metadata-setup.md
       - 濃いクラスタの初期値: user-guide/density-settings.md
       - レポート再利用: user-guide/reuse-report.md
       - ライセンスと結果の公開: user-guide/license.md
