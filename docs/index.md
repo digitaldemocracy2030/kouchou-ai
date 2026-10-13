@@ -12,8 +12,10 @@
 
 | あなたの目的 | まず見るページ |
 | --- | --- |
-| **レポートを読みたい・見せ方を知りたい**（閲覧者 / デモで見せる人） | [レポートの見方](user-guide/how-to-use.md)（散布図・クラスタの読み方・操作方法） |
+| **渡されたレポートを読みたい**（閲覧者 / デモで見せる人） | [レポートの読み方](user-guide/report-reading-guide.md)（図と数字の意味）・[使い方](user-guide/how-to-use.md)（画面操作） |
+| **結果をどこまで信じてよいか・用語を知りたい** | [よくあるご質問](user-guide/faq.md) / [結果の信頼性と責任の所在](user-guide/reliability-and-responsibility.md) |
 | **自分のデータで分析レポートを作りたい** | 下記「[レポートを作るには](#how-to-make-reports)」 |
+| **導入を検討している**（自治体・非技術者：費用・個人情報・相談先） | [導入を検討する方へ](user-guide/adoption-guide.md) |
 | **CLI・分析コアで分析／研究したい**（分析者・研究者） | [CLI クイックスタート](user-guide/cli-quickstart.md) |
 | **Web UI・本体を開発したい**（開発者） | [開発者向けガイド](development/contributing.md) |
 

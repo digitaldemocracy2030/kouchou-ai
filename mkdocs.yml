@@ -81,10 +81,13 @@ nav:
       - Macセットアップ: getting-started/mac-setup.md
       - Linuxセットアップ: getting-started/linux-setup.md
   - ユーザーガイド:
+      - レポートの読み方: user-guide/report-reading-guide.md
+      - 導入を検討する方へ: user-guide/adoption-guide.md
       - 使い方: user-guide/how-to-use.md
       - 濃いクラスタの初期値: user-guide/density-settings.md
       - レポート再利用: user-guide/reuse-report.md
       - ライセンスと結果の公開: user-guide/license.md
+      - 結果の信頼性と責任の所在: user-guide/reliability-and-responsibility.md
       - CLIクイックスタート: user-guide/cli-quickstart.md
       - インポート方法: user-guide/import-quickstart.md
       - FAQ: user-guide/faq.md
@@ -98,6 +101,7 @@ nav:
       - 狭い画面での閲覧: development/mobile-reading.md
       - 抽出プロンプトの調整: development/extraction-prompts.md
       - 抽出失敗の診断: development/extraction-diagnostics.md
+      - 管理画面のレポート取得失敗: development/admin-report-fetch-troubleshooting.md
       - npmではなくpnpmを使う理由: development/why-pnpm.md
       - プラグインガイド: development/plugin-guide.md
       - プラグイン出力データ構造: development/plugin-output-data-structures.md
