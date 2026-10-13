@@ -236,34 +236,17 @@ plt.show()
 ### クラスター付き散布図
 
 ```python
-import pickle
-import json
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from umap import UMAP
 
-# データ読み込み
-with open("outputs/my-analysis/hierarchical_result.json") as f:
-    data = json.load(f)
-
-with open("outputs/my-analysis/embeddings.pkl", "rb") as f:
-    embeddings = pickle.load(f)
-
-# クラスターCSVを読み込み
+# クラスターCSV（UMAP 座標 x, y と各階層のクラスタ ID が入っている）を読み込む
 clusters_df = pd.read_csv("outputs/my-analysis/hierarchical_clusters.csv")
 
-# 埋め込みとクラスターを結合
-arg_ids = list(embeddings.keys())
-vectors = np.array([embeddings[aid] for aid in arg_ids])
-
-# UMAP変換
-reducer = UMAP(n_components=2, random_state=42)
-coords = reducer.fit_transform(vectors)
-
-# クラスターラベルを取得
-cluster_map = dict(zip(clusters_df['arg-id'], clusters_df['cluster-id-lv1']))
-colors = [cluster_map.get(aid, -1) for aid in arg_ids]
+# 保存済みの UMAP 座標と第1階層クラスタ ID をそのまま使う
+# （レポートと同じ平面・同じクラスタになる。埋め込みから UMAP を測り直す必要はない）
+coords = clusters_df[["x", "y"]].to_numpy()
+# クラスタ ID は "1_..." のような文字列なので、色分け用に数値コードへ変換する
+colors = clusters_df["cluster-level-1-id"].astype("category").cat.codes
 
 # 描画
 plt.figure(figsize=(12, 10))

@@ -1,5 +1,8 @@
 # モデル一覧・検証状態・料金の更新
 
+!!! note "このページの対象読者"
+    本ページは **WebUI（管理画面）が参照するモデルカタログの保守手順** です。CLI / analysis-core で使うモデルやプロバイダの指定方法は [CLI クイックスタート](../user-guide/cli-quickstart.md) を参照してください。
+
 正本は `apps/api/src/services/model_catalog.json`。新規作成・複製画面は
 `GET /admin/models?provider=...` を同じhookで読み、料金APIと計算処理も同じデータを使う。
 フロントエンドにモデル一覧や説明のコピーを追加しない。

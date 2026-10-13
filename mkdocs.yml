@@ -86,7 +86,7 @@ nav:
       - レポート再利用: user-guide/reuse-report.md
       - ライセンスと結果の公開: user-guide/license.md
       - CLIクイックスタート: user-guide/cli-quickstart.md
-      - インポート方法: user-guide/import-quickstart.md
+      - Python API からの利用: user-guide/import-quickstart.md
       - FAQ: user-guide/faq.md
   - 開発者向け:
       - コントリビューション: development/contributing.md
@@ -109,7 +109,7 @@ nav:
       - モデル一覧・検証状態・料金の更新: development/model-catalog.md
       - OpenAI Flex Processing: development/openai-flex-processing.md
       - 意見の分類ラベル: development/opinion-classification.md
-      - Web UI の Node runtime 依存インベントリ: development/web-ui-node-runtime-dependencies.md
+      - Web UI の Node runtime 依存インベントリ（監査スナップショット/#885）: development/web-ui-node-runtime-dependencies.md
   - リポジトリ内README:
       - アプリ:
           - admin: repo-readmes/apps/admin.md
@@ -127,7 +127,7 @@ nav:
           - dummy-server: repo-readmes/utils/dummy-server.md
       - 実験:
           - experiments: repo-readmes/experiments/index.md
-          - direct_win: repo-readmes/experiments/direct-win.md
+          - Windows 非Docker セットアップ (direct_win): repo-readmes/experiments/direct-win.md
           - embvec_reduce_public_comment: repo-readmes/experiments/embvec-reduce-public-comment.md
           - evaluation_report: repo-readmes/experiments/evaluation-report.md
   - デプロイ:
@@ -137,7 +137,7 @@ nav:
       - 静的ホスティング向け CSP 設定: deployment/static-hosting-csp.md
       - ストレージスナップショット運用: deployment/storage-snapshot-operations.md
   - その他:
-      - プロジェクト一覧: misc/projects.md
+      - 開発ボード運用ポリシー: misc/projects.md
       - CLA: misc/cla.md
       - テスト: testing.md
 
