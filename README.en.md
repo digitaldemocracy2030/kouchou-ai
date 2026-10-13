@@ -223,7 +223,13 @@ make client-dev -j 3
 
 ## Disclaimer
 
+広聴 AI provides open-source software, born from the Digital Democracy 2030 project, without any warranty. The provider of the software is not responsible for the operation of individual deployment environments, nor for the content of the reports it generates.
+
+The content, input data, and framing of the questions in a report belong to the report's publisher. For questions or feedback about the content of a report, please contact the person responsible for publishing it. The operation of a running service (such as its availability and data handling) is the responsibility of the operator of that service.
+
 Large language models (LLMs) are known to have biases and to produce unreliable results. We are actively working on ways to mitigate these issues, but at this stage we cannot provide any guarantees. Especially when making important decisions, do not rely solely on the output of this app; always verify the content.
+
+For details on where responsibility lies (the three layers of OSS developers, service operators, and report creators), see [Reliability, Limits, and Responsibility](https://digitaldemocracy2030.github.io/kouchou-ai/user-guide/reliability-and-responsibility/) in the documentation (Japanese).
 
 ## Notes
 
