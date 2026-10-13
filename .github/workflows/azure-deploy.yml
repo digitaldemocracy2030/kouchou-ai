@@ -29,6 +29,11 @@ jobs:
     if: github.repository == 'digitaldemocracy2030/kouchou-ai'
     runs-on: ubuntu-latest
     environment: production
+    # OIDC (federated credential) ログインに id-token の発行権限が必要。
+    # checkout に contents:read のみ使い、他スコープは付与しない。
+    permissions:
+      id-token: write
+      contents: read
     timeout-minutes: 30
 
     steps:
@@ -38,7 +43,9 @@ jobs:
       - name: Azure CLI ログイン
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Docker ログイン (ACR)
         run: |
