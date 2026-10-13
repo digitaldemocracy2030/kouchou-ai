@@ -89,6 +89,7 @@ nav:
       - Macセットアップ: self-hosting/mac-setup.md
       - Linuxセットアップ: self-hosting/linux-setup.md
   - ユーザーガイド:
+      - 始め方の選び方: user-guide/choosing-how-to-start.md
       - レポートの読み方: user-guide/report-reading-guide.md
       - 導入を検討する方へ: user-guide/adoption-guide.md
       - 使い方: user-guide/how-to-use.md
