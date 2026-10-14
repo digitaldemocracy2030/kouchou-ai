@@ -42,6 +42,7 @@ jobs:
         run: python -m build packages/analysis-core
 
       - name: Publish to PyPI
+        if: github.repository == 'digitaldemocracy2030/kouchou-ai'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: packages/analysis-core/dist/
