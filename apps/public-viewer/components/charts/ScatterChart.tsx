@@ -610,13 +610,16 @@ export function ScatterChart({
         ? clusterDataSets
             .filter((dataSet) => dataSet.allClusterArguments.length > 0)
             .map((dataSet) => {
-              // フィルターされていても背景色を維持（灰色のクラスターでもラベルは元の色で表示）
+              // 全点がフィルタで除外されたクラスタは、ラベル背景を薄くして
+              // 「現在のフィルタに該当なし」を視覚的に示す。
               // @ts-ignore allFilteredプロパティが存在する前提で処理（TypeScript型定義に追加済み）
               const isAllFiltered =
                 filteredArgumentIds &&
                 (separateDataByFilter(dataSet.cluster).matching.length === 0 || dataSet.cluster.allFiltered);
               const bgColor = isAllFiltered
-                ? clusterColorMapA[dataSet.cluster.id].replace(/[0-9a-f]{2}$/i, "cc") // クラスター全体がフィルターされた場合も薄くする
+                ? // 末尾アルファを cc(0.8) → 66(0.4) に下げて薄くする。
+                  // clusterColorMapA は "#RRGGBBcc" 形式なので末尾2桁を置換する。
+                  clusterColorMapA[dataSet.cluster.id].replace(/[0-9a-f]{2}$/i, "66")
                 : clusterColorMapA[dataSet.cluster.id];
 
               return {
