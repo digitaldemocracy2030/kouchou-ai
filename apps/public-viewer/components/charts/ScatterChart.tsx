@@ -572,14 +572,10 @@ export function ScatterChart({
   // アノテーションの設定
   const annotations: Partial<Annotation>[] = showClusterLabels
     ? clusterDataSets.map((dataSet) => {
-        // フィルターされていても背景色を維持（灰色のクラスターでもラベルは元の色で表示）
-        // @ts-ignore allFilteredプロパティが存在する前提で処理（TypeScript型定義に追加済み）
-        const isAllFiltered =
-          filteredArgumentIds &&
-          (separateDataByFilter(dataSet.cluster).matching.length === 0 || dataSet.cluster.allFiltered);
-        const bgColor = isAllFiltered
-          ? clusterColorMapA[dataSet.cluster.id].replace(/[0-9a-f]{2}$/i, "cc") // クラスター全体がフィルターされた場合も薄くする
-          : clusterColorMapA[dataSet.cluster.id];
+        // 全点がフィルタで除外されたクラスタでも、ラベル背景は元の色（クラスタ配色）を維持する。
+        // （以前は all-filtered 時に薄くする分岐があったが、末尾アルファ cc→cc の no-op で
+        //  実際には効いておらず、意図も「元の色を維持」と矛盾していたため削除した。）
+        const bgColor = clusterColorMapA[dataSet.cluster.id];
 
         return {
           x: dataSet.centerX,
