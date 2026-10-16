@@ -162,4 +162,58 @@ describe("validateFormValues", () => {
       errorMessage: "LocalLLMのモデルリストが空です。自動取得に失敗した場合はモデル取得ボタンで再試行してください。",
     });
   });
+
+  test("embeddingModelErrorが設定されている場合はバリデーションエラーを返す", () => {
+    const result = validateFormValues({
+      input: "test-report",
+      question: "",
+      intro: "",
+      clusterLv1: 5,
+      clusterLv2: 10,
+      model: "gpt-4o",
+      extractionPrompt: "extract",
+      inputType: "file",
+      csv: new File(["id,comment\n1,test"], "test.csv", { type: "text/csv" }),
+      spreadsheetImported: false,
+      selectedCommentColumn: "comment",
+      csvColumns: ["id", "comment"],
+      provider: "openrouter",
+      modelOptions: [{ value: "gpt-4o", label: "gpt-4o" }],
+      modelError: "",
+      embeddingModelError:
+        "このプロバイダーでは選択可能な埋め込みモデルがありません。サーバ内埋め込みをご利用ください。",
+      pluginImported: false,
+      pluginSelectedCommentColumn: "",
+    });
+
+    expect(result).toEqual({
+      isValid: false,
+      errorMessage: "このプロバイダーでは選択可能な埋め込みモデルがありません。サーバ内埋め込みをご利用ください。",
+    });
+  });
+
+  test("embeddingModelErrorが空の場合はそれを理由にブロックしない", () => {
+    const result = validateFormValues({
+      input: "test-report",
+      question: "",
+      intro: "",
+      clusterLv1: 5,
+      clusterLv2: 10,
+      model: "gpt-4o",
+      extractionPrompt: "extract",
+      inputType: "file",
+      csv: new File(["id,comment\n1,test"], "test.csv", { type: "text/csv" }),
+      spreadsheetImported: false,
+      selectedCommentColumn: "comment",
+      csvColumns: ["id", "comment"],
+      provider: "openrouter",
+      modelOptions: [{ value: "gpt-4o", label: "gpt-4o" }],
+      modelError: "",
+      embeddingModelError: "",
+      pluginImported: false,
+      pluginSelectedCommentColumn: "",
+    });
+
+    expect(result).toEqual({ isValid: true });
+  });
 });

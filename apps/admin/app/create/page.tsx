@@ -85,6 +85,7 @@ export default function Page() {
       provider: aiSettings.provider,
       modelOptions: aiSettings.getCurrentModels(),
       modelError: aiSettings.modelError,
+      embeddingModelError: aiSettings.embeddingModelError,
       pluginImported,
       pluginSelectedCommentColumn: pluginData.pluginSelectedCommentColumn,
     });
