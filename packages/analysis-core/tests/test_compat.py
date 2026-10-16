@@ -43,7 +43,7 @@ class TestNormalizeConfig:
         result = normalize_config(config)
 
         assert "hierarchical_clustering" in result
-        assert "cluster_nums" not in result["hierarchical_clustering"]
+        assert result["hierarchical_clustering"]["cluster_nums"] is None
 
     def test_fills_llm_grouping_defaults(self):
         """Test that llm_grouping defaults are filled in."""

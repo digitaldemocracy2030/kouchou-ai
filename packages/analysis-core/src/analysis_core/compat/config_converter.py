@@ -113,6 +113,11 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
 
     # Hierarchical clustering defaults
     clustering = result.setdefault("hierarchical_clustering", {})
+    # cluster_nums=None は「auto-calculate」の意味。file パス (from_config ->
+    # initialization) は hierarchical_specs.json から None を入れるので、dict パス
+    # (from_dict -> normalize_config) でも同じ既定を入れ、workflow engine が
+    # ${config.hierarchical_clustering.cluster_nums} を解決できるようにする。
+    clustering.setdefault("cluster_nums", None)
     if "hierarchical_clustering" in source_codes:
         clustering.setdefault("source_code", source_codes["hierarchical_clustering"])
 
