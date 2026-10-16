@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import threading
 from datetime import UTC, datetime
 
@@ -40,31 +41,35 @@ def convert_old_format_status(status: dict) -> dict:
 
 def load_status() -> None:
     global _report_status
-    try:
-        with open(STATE_FILE, encoding="utf-8") as f:
-            _report_status = convert_old_format_status(json.load(f))
-    except FileNotFoundError:
-        _report_status = {}
-    except json.JSONDecodeError:
-        _report_status = {}
+    # 読み込みとグローバル再代入を _lock で保護し、save_status() の書き込みと競合させない
+    with _lock:
+        try:
+            with open(STATE_FILE, encoding="utf-8") as f:
+                _report_status = convert_old_format_status(json.load(f))
+        except FileNotFoundError:
+            _report_status = {}
+        except json.JSONDecodeError:
+            _report_status = {}
 
 
 def load_status_as_reports(include_deleted: bool = False) -> list[Report]:
     global _report_status
-    try:
-        with open(STATE_FILE, encoding="utf-8") as f:
-            _report_status = convert_old_format_status(json.load(f))
-    except FileNotFoundError:
-        _report_status = {}
-    except json.JSONDecodeError:
-        _report_status = {}
+    # 読み込み・グローバル再代入・一覧構築まで _lock 内で行い、書き込み途中の状態を読まない
+    with _lock:
+        try:
+            with open(STATE_FILE, encoding="utf-8") as f:
+                _report_status = convert_old_format_status(json.load(f))
+        except FileNotFoundError:
+            _report_status = {}
+        except json.JSONDecodeError:
+            _report_status = {}
 
-    reports = [Report(**report) for report in _report_status.values()]
+        reports = [Report(**report) for report in _report_status.values()]
 
-    if not include_deleted:
-        reports = [report for report in reports if report.status != ReportStatus.DELETED]
+        if not include_deleted:
+            reports = [report for report in reports if report.status != ReportStatus.DELETED]
 
-    return reports
+        return reports
 
 
 def save_status() -> None:
@@ -72,9 +77,19 @@ def save_status() -> None:
         # ディレクトリが存在しない場合は作成
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-        # ローカルに保存
-        with open(STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(_report_status, f, indent=4, ensure_ascii=False)
+        # 同じディレクトリの一時ファイルに書き込んでから os.replace で atomic に差し替える。
+        # open(STATE_FILE, "w") で直接書くと先に truncate されるため、書き込み途中に
+        # 読み手(例: GET /admin/reports)が空ファイルを読むおそれがある。
+        tmp_path = STATE_FILE.with_name(f"{STATE_FILE.name}.tmp")
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(_report_status, f, indent=4, ensure_ascii=False)
+            os.replace(tmp_path, STATE_FILE)
+        except Exception:
+            # 書き込みに失敗したら一時ファイルを掃除して既存ファイルは温存する
+            if tmp_path.exists():
+                tmp_path.unlink()
+            raise
 
 
 def add_new_report_to_status(report_input: ReportInput) -> None:

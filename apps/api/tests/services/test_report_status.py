@@ -267,3 +267,109 @@ class TestAddAnalysisData:
         updated = add_analysis_data(processing_report)
         assert updated == processing_report
         assert updated.analysis is None
+
+
+class TestSaveStatusAtomicity:
+    """save_status() の atomic 書き込み・round-trip のテスト"""
+
+    @pytest.fixture(autouse=True)
+    def _reset_global(self):
+        """各テストの前後でモジュールグローバルを掃除する"""
+        original = deepcopy(report_status._report_status)
+        report_status._report_status.clear()
+        yield
+        report_status._report_status.clear()
+        report_status._report_status.update(original)
+
+    def test_save_status_keeps_original_on_write_failure(self, tmp_path):
+        """書き込みが途中で失敗しても、既存の STATE_FILE が破損しないこと。
+
+        旧実装は open(STATE_FILE, "w") で先に truncate するため、json.dump が
+        失敗すると既存ファイルが空になり、同時に走る GET /admin/reports が
+        空の一覧を読んでしまう。atomic な書き込み(temp + os.replace)なら、
+        書き込み失敗時も元ファイルが丸ごと残る。
+        """
+        state_file = tmp_path / "report_status.json"
+        original_content = {
+            "existing-slug": {
+                "slug": "existing-slug",
+                "status": "ready",
+                "title": "既存レポート",
+                "description": "既存説明",
+                "is_pubcom": False,
+                "visibility": "public",
+                "created_at": "2025-05-13T07:56:58.405239+00:00",
+            }
+        }
+        state_file.write_text(
+            json.dumps(original_content, ensure_ascii=False, indent=4),
+            encoding="utf-8",
+        )
+
+        report_status._report_status.clear()
+        report_status._report_status.update({"new-slug": {"slug": "new-slug", "status": "processing"}})
+
+        with patch("src.services.report_status.STATE_FILE", state_file):
+            # 書き込みを途中で失敗させる
+            with patch("src.services.report_status.json.dump", side_effect=RuntimeError("boom")):
+                with pytest.raises(RuntimeError):
+                    report_status.save_status()
+
+        # 失敗後も元ファイルの内容がそのまま残っていること
+        raw = state_file.read_text(encoding="utf-8")
+        assert raw != "", "既存ファイルが truncate されて空になった (非 atomic な書き込み)"
+        assert json.loads(raw) == original_content
+        # temp ファイルが残っていないこと
+        leftovers = [p.name for p in tmp_path.iterdir() if p.name != "report_status.json"]
+        assert leftovers == [], f"temp ファイルが掃除されていない: {leftovers}"
+
+    def test_save_status_then_load_status_round_trip(self, tmp_path):
+        """save_status() した内容を load_status() で読み戻せること"""
+        state_file = tmp_path / "report_status.json"
+        data = {
+            "round-trip-slug": {
+                "slug": "round-trip-slug",
+                "status": "ready",
+                "title": "ラウンドトリップ",
+                "description": "説明",
+                "is_pubcom": False,
+                "visibility": "public",
+                "created_at": "2025-05-13T07:56:58.405239+00:00",
+            }
+        }
+
+        with patch("src.services.report_status.STATE_FILE", state_file):
+            report_status._report_status.clear()
+            report_status._report_status.update(deepcopy(data))
+            report_status.save_status()
+
+            # ディスクに書けていること
+            assert state_file.exists()
+
+            # グローバルをクリアしてからディスクから読み戻す
+            report_status._report_status.clear()
+            report_status.load_status()
+
+        assert report_status._report_status == data
+
+    def test_load_status_acquires_lock(self, tmp_path):
+        """load_status() が _lock を取得してから読み込むこと"""
+        state_file = tmp_path / "report_status.json"
+        state_file.write_text("{}", encoding="utf-8")
+
+        real_lock = report_status._lock
+        entered = {"value": False}
+
+        class _TrackingLock:
+            def __enter__(self):
+                entered["value"] = True
+                return real_lock.__enter__()
+
+            def __exit__(self, *args):
+                return real_lock.__exit__(*args)
+
+        with patch("src.services.report_status.STATE_FILE", state_file):
+            with patch("src.services.report_status._lock", _TrackingLock()):
+                report_status.load_status()
+
+        assert entered["value"] is True
