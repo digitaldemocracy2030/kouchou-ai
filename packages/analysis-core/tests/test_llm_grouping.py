@@ -72,6 +72,24 @@ def test_llm_grouping_specs_treat_prompt_changes_as_dependencies():
     assert "assignment_prompt" in llm_grouping_spec["dependencies"]["params"]
 
 
+def test_llm_grouping_specs_treat_supervised_options_as_dependencies():
+    """Supervised (predefined_groups) options must participate in rerun invalidation.
+
+    predefined_groups / other_group_label determine the category set and the
+    catch-all bucket, so changing them must re-run the step. If they are absent
+    from dependencies.params, an incremental rerun into the same output_dir is
+    classified as 'nothing changed' and silently keeps the old categories.
+    """
+    from analysis_core.core.orchestration import get_specs_path_for_mode
+
+    specs_path = get_specs_path_for_mode("llm_grouping")
+    specs = json.loads(specs_path.read_text(encoding="utf-8"))
+    llm_grouping_spec = next(spec for spec in specs if spec["step"] == "llm_grouping")
+
+    assert "predefined_groups" in llm_grouping_spec["dependencies"]["params"]
+    assert "other_group_label" in llm_grouping_spec["dependencies"]["params"]
+
+
 def test_llm_grouping_step_creates_viewer_compatible_outputs(tmp_path, monkeypatch):
     """The step should cluster arguments directly with LLM and preserve embedding-based coordinates."""
     llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
