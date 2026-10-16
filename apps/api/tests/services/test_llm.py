@@ -1163,7 +1163,15 @@ class TestLLMService:
         mock_client = MagicMock()
         mock_models = MagicMock()
         mock_client.models = mock_models
-        embed_content_mock = MagicMock(side_effect=[{"embedding": [0.1, 0.2]}, {"embedding": [0.3, 0.4]}])
+        # google-genai (>=1.0) の embed_content は EmbedContentResponse を返す。
+        # 実レスポンスは .embeddings(複数の ContentEmbedding, 各 .values)を持つので、
+        # 実物と同じ形で mock する（dict ではなく object）。
+        embed_content_mock = MagicMock(
+            side_effect=[
+                types.SimpleNamespace(embeddings=[types.SimpleNamespace(values=[0.1, 0.2])]),
+                types.SimpleNamespace(embeddings=[types.SimpleNamespace(values=[0.3, 0.4])]),
+            ]
+        )
         mock_models.embed_content = embed_content_mock
         genai_module.Client = MagicMock(return_value=mock_client)
 
@@ -1185,6 +1193,19 @@ class TestLLMService:
         response = MagicMock()
         response.embedding = emb_obj
 
+        values = extract_embedding_values(response)
+        assert values == [0.1, 0.2, 0.3]
+
+    def test_extract_embedding_values_genai_embeddings_object(self):
+        """extract_embedding_values: google-genai>=1.0 の EmbedContentResponse
+
+        実 SDK は .embedding(単数) ではなく .embeddings(複数の ContentEmbedding,
+        各 .values) を返す。SimpleNamespace は未設定属性を自動生成しないため、
+        実レスポンスと同じく .embedding を持たない object を再現できる。
+        """
+        response = types.SimpleNamespace(embeddings=[types.SimpleNamespace(values=[0.1, 0.2, 0.3])])
+        # 修正前はここが None になり request_to_gemini_embed が RuntimeError を投げていた
+        assert not hasattr(response, "embedding")
         values = extract_embedding_values(response)
         assert values == [0.1, 0.2, 0.3]
 

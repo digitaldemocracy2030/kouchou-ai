@@ -729,6 +729,17 @@ def extract_embedding_values(response: Any) -> list[float] | None:
         if isinstance(emb_obj, list):
             return emb_obj
 
+    # 1b) google-genai (>=1.0) の EmbedContentResponse は .embedding(単数)ではなく
+    #     .embeddings(複数の ContentEmbedding, 各 .values)を持つ。単一テキストでも
+    #     list で返るため先頭要素の values を取り出す。これが無いと Gemini 埋め込みが
+    #     常に None になり request_to_gemini_embed が RuntimeError を投げる。
+    emb_list = getattr(response, "embeddings", None)
+    if isinstance(emb_list, list) and emb_list:
+        first = emb_list[0]
+        vals = getattr(first, "values", None)
+        if isinstance(vals, list):
+            return vals
+
     # 2) dict 系
     if isinstance(response, dict):
         emb = response.get("embedding")
