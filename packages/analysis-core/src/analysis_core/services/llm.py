@@ -674,9 +674,21 @@ def request_to_local_llm_embed(args, model, address="localhost:11434"):
         embeds = [item.embedding for item in response.data]
         return embeds
     except Exception as e:
+        # 以前はここで別モデル (request_to_local_embed = sentence-transformers の
+        # mpnet, 768 次元) へ暗黙に fallback していたが、これはバッチ単位で埋め込み
+        # 次元を変えてしまう:
+        #   - 一部バッチだけ失敗 → 次元が混在し、下流 hierarchical_clustering の
+        #     np.asarray が ValueError(inhomogeneous shape) で落ちる（原因が追いにくい）
+        #   - 全バッチ失敗 → 次元は揃うが、設定と異なるモデルで silent に完走する
+        #     （wrong model のまま成果物が出る）
+        # 黙ってモデルを swap せず、原因の分かる形で fail-fast する。サーバー内蔵の
+        # 埋め込みモデルを使いたい場合は is_embedded_at_local を有効にすること。
         logging.error(f"LocalLLM embedding API error: {e}")
-        logging.warning("Falling back to local embedding")
-        return request_to_local_embed(args)
+        raise RuntimeError(
+            f"ローカルLLMの埋め込みAPI呼び出しに失敗しました (model={model!r}, address={address!r}): {e}. "
+            "エンドポイント・モデル設定を確認してください。"
+            "サーバー内蔵の埋め込みモデル(mpnet)を使う場合は is_embedded_at_local を有効にしてください。"
+        ) from e
 
 
 def request_to_embed(
