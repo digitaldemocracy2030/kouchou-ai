@@ -115,3 +115,30 @@ def test_duplicate_report_reuses_workflow_artifacts_and_launches_from_config(mon
     assert not (new_output_dir / "hierarchical_overview.txt").exists()
 
     assert status_calls == [(new_slug, written_config, source_slug)]
+
+
+def test_build_analysis_core_config_preserves_embedding_model():
+    """埋め込み config フォールバック経路でも source の embedding.model を引き継ぐ。
+
+    config ファイルが無く hierarchical_result.json 埋め込み config から複製する時、
+    embedding section が落ちると複製先が既定モデル(text-embedding-3-small)で
+    embeddings を再生成し、異なるベクトル空間になってしまう回帰を防ぐ。
+    normalize 済み config に混ざる source_code サブフィールドは再導入しない。
+    """
+    from src.services import report_duplicate
+
+    embedded_config = {
+        "input": "source",
+        "question": "Source title",
+        "intro": "Source description",
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "extraction": {"prompt": "extract"},
+        "hierarchical_overview": {"prompt": "overview"},
+        "hierarchical_aggregation": {},
+        "embedding": {"model": "text-embedding-3-large", "source_code": "some-normalized-code"},
+    }
+
+    config = report_duplicate._build_analysis_core_config_from_embedded_config(embedded_config)
+
+    assert config["embedding"] == {"model": "text-embedding-3-large"}

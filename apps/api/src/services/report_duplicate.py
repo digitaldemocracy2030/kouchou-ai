@@ -151,6 +151,14 @@ def _build_analysis_core_config_from_embedded_config(embedded_config: dict) -> d
     if isinstance(enable_source_link, bool):
         config["enable_source_link"] = enable_source_link
 
+    # Keep the source embedding model (ReportConfig has no embedding field, so model_dump() drops it).
+    # 引き継がないと複製先が既定モデルで embeddings を再生成し、異なるベクトル空間になる。
+    # model だけ取り出し、normalize 済みの source_code サブフィールドは再導入しない
+    # （analysis-core の step 別オプション検証で弾かれるため）。
+    embedding = embedded_config.get("embedding")
+    if isinstance(embedding, dict) and isinstance(embedding.get("model"), str):
+        config["embedding"] = {"model": embedding["model"]}
+
     return config
 
 
