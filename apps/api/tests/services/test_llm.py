@@ -819,6 +819,111 @@ class TestLLMService:
                 with pytest.raises(openai.RateLimitError):
                     request_to_azure_chatcompletion(messages)
 
+    @staticmethod
+    def _azure_env(deployment):
+        return {
+            "AZURE_CHATCOMPLETION_ENDPOINT": "https://example.azure.com",
+            "AZURE_CHATCOMPLETION_DEPLOYMENT_NAME": deployment,
+            "AZURE_CHATCOMPLETION_API_KEY": "test-api-key",
+            "AZURE_CHATCOMPLETION_VERSION": "2023-05-15",
+        }
+
+    @staticmethod
+    def _make_azure_parse_client():
+        """beta.chat.completions.parse の戻り値をモック化したAzureクライアントを返す"""
+        mock_client = MagicMock()
+        mock_parse_response = MagicMock()
+        mock_choice = MagicMock()
+        mock_message = MagicMock()
+        mock_parsed = MagicMock()
+        mock_parsed.model_dump.return_value = {"test": "This is a test response"}
+        mock_message.parsed = mock_parsed
+        mock_choice.message = mock_message
+        mock_parse_response.choices = [mock_choice]
+        mock_parse_response.usage.prompt_tokens = 10
+        mock_parse_response.usage.completion_tokens = 5
+        mock_parse_response.usage.total_tokens = 15
+        mock_client.beta.chat.completions.parse.return_value = mock_parse_response
+        return mock_client
+
+    @pytest.mark.parametrize("deployment", ["o3", "gpt-5", "o4-mini", "GPT-6-Astra"])
+    def test_request_to_azure_chatcompletion_omits_temperature_for_reasoning_deployment(
+        self, mock_openai_response, deployment
+    ):
+        """推論モデルのAzureデプロイ(o3/gpt-5等)ではtemperatureを送らない(400回避)。create経路。"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_openai_response
+        mock_openai_response.configure_mock(
+            **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
+        )
+
+        with patch.dict(os.environ, self._azure_env(deployment)):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
+                request_to_azure_chatcompletion(messages)
+
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert "temperature" not in kwargs
+        # temperature以外のパラメータはそのまま維持する
+        assert kwargs["seed"] == 0
+        assert kwargs["n"] == 1
+
+    def test_request_to_azure_chatcompletion_sets_temperature_for_normal_deployment(self, mock_openai_response):
+        """通常のAzureデプロイ(gpt-4o)ではtemperature=0を送る。create経路。"""
+        messages = [{"role": "user", "content": "Hello, world!"}]
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_openai_response
+        mock_openai_response.configure_mock(
+            **{"usage.prompt_tokens": 10, "usage.completion_tokens": 5, "usage.total_tokens": 15}
+        )
+
+        with patch.dict(os.environ, self._azure_env("gpt-4o")):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
+                request_to_azure_chatcompletion(messages)
+
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert kwargs["temperature"] == 0
+
+    @pytest.mark.parametrize("deployment", ["o3", "gpt-5"])
+    def test_request_to_azure_chatcompletion_omits_temperature_for_reasoning_deployment_parse(self, deployment):
+        """推論モデルのAzureデプロイではparse経路でもtemperatureを送らない。"""
+
+        class TestModel(BaseModel):
+            test: str = Field(..., description="テスト用フィールド")
+
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_azure_parse_client()
+
+        with patch.dict(os.environ, self._azure_env(deployment)):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
+                request_to_azure_chatcompletion(messages, json_schema=TestModel)
+
+        mock_client.beta.chat.completions.parse.assert_called_once()
+        _, kwargs = mock_client.beta.chat.completions.parse.call_args
+        assert "temperature" not in kwargs
+        # temperature以外のパラメータはそのまま維持する
+        assert kwargs["response_format"] == TestModel
+        assert kwargs["seed"] == 0
+        assert kwargs["n"] == 1
+
+    def test_request_to_azure_chatcompletion_sets_temperature_for_normal_deployment_parse(self):
+        """通常のAzureデプロイ(gpt-4o)ではparse経路でもtemperature=0を送る。"""
+
+        class TestModel(BaseModel):
+            test: str = Field(..., description="テスト用フィールド")
+
+        messages = [{"role": "user", "content": "Hello, world!"}]
+        mock_client = self._make_azure_parse_client()
+
+        with patch.dict(os.environ, self._azure_env("gpt-4o")):
+            with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
+                request_to_azure_chatcompletion(messages, json_schema=TestModel)
+
+        _, kwargs = mock_client.beta.chat.completions.parse.call_args
+        assert kwargs["temperature"] == 0
+
     def test_request_to_chat_openai_use_openai(self, mock_openai_response):
         """request_to_chat_openai: provider=openaiの場合はrequest_to_openaiを使用する"""
         messages = [

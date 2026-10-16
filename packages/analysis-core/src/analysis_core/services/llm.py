@@ -237,15 +237,19 @@ def request_to_azure_chatcompletion(
     try:
         if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
             # Use beta.chat.completions.create for Pydantic BaseModel (Azure)
-            response = client.beta.chat.completions.parse(
-                model=deployment,
-                messages=messages,
-                temperature=0,
-                n=1,
-                seed=0,
-                response_format=json_schema,
-                timeout=timeout_seconds,
-            )
+            parse_kwargs: dict[str, Any] = {
+                "model": deployment,
+                "messages": messages,
+                "n": 1,
+                "seed": 0,
+                "response_format": json_schema,
+                "timeout": timeout_seconds,
+            }
+            # 推論モデル(o系/GPT-5,6系)は temperature 指定を拒否するため、
+            # OpenAI 経路と同様に deployment 名で判定して temperature を外す。
+            if not _is_openai_reasoning_model(deployment):
+                parse_kwargs["temperature"] = 0
+            response = client.beta.chat.completions.parse(**parse_kwargs)
             if hasattr(response, "usage") and response.usage:
                 token_usage_input = response.usage.prompt_tokens or 0
                 token_usage_output = response.usage.completion_tokens or 0
@@ -266,11 +270,14 @@ def request_to_azure_chatcompletion(
             payload = {
                 "model": deployment,
                 "messages": messages,
-                "temperature": 0,
                 "n": 1,
                 "seed": 0,
                 "timeout": timeout_seconds,
             }
+            # 推論モデル(o系/GPT-5,6系)は temperature 指定を拒否するため、
+            # OpenAI 経路と同様に deployment 名で判定して temperature を外す。
+            if not _is_openai_reasoning_model(deployment):
+                payload["temperature"] = 0
             if response_format:
                 payload["response_format"] = response_format
 
