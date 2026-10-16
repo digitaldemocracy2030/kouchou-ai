@@ -82,6 +82,11 @@ async def get_reports(api_key: str = Depends(verify_admin_api_key)) -> list[Repo
 async def create_report(
     report: ReportInput, request: Request, api_key: str = Depends(verify_admin_api_key)
 ) -> ORJSONResponse:
+    # report.input はファイル名・パス構成要素として使われるため、
+    # 他エンドポイント同様に slug 検証でパストラバーサルを防ぐ。
+    # try の外で検証し、HTTPException(400) が下の except Exception に
+    # 握りつぶされて 500 になるのを避ける。
+    validate_slug(report.input)
     try:
         user_api_key = request.headers.get("x-user-api-key")
         launch_report_generation(report, user_api_key)

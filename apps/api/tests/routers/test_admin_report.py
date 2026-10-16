@@ -246,6 +246,55 @@ class TestDownloadReportJson:
         assert response.json()["detail"] == "JSON file not found"
 
 
+class TestCreateReport:
+    """create_report（POST /admin/reports）のテスト"""
+
+    @staticmethod
+    def _valid_body(input_slug: str) -> dict:
+        return {
+            "input": input_slug,
+            "question": "テスト質問",
+            "intro": "テスト概要",
+            "cluster": [3, 5],
+            "model": "gpt-4o-mini",
+            "workers": 1,
+            "prompt": {
+                "extraction": "ex",
+                "initial_labelling": "il",
+                "merge_labelling": "ml",
+                "overview": "ov",
+            },
+            "comments": [{"id": "1", "comment": "hello"}],
+        }
+
+    def test_create_report_rejects_path_traversal_input(self, client):
+        """異常系：input がパストラバーサル文字列なら400を返し、launchを呼ばない"""
+        with patch("src.routers.admin_report.launch_report_generation") as mock_launch:
+            response = client.post(
+                "/admin/reports",
+                json=self._valid_body("../../etc/pwn"),
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid slug format"
+        mock_launch.assert_not_called()
+
+    def test_create_report_valid_input_launches(self, client):
+        """正常系：有効なinputならslug検証を通過しlaunch_report_generationに到達する"""
+        with patch("src.routers.admin_report.launch_report_generation") as mock_launch:
+            response = client.post(
+                "/admin/reports",
+                json=self._valid_body("valid-slug"),
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        # 成功時はハンドラが自前の ORJSONResponse を返すため既定の 200
+        # （ルートの status_code=202 は上書きされる）。slug検証で弾かれないことを確認する。
+        assert response.status_code == 200
+        mock_launch.assert_called_once()
+
+
 class TestDuplicateReport:
     def _setup_duplicate_env(self, tmp_path: Path, source_slug: str) -> dict:
         config_dir = tmp_path / "configs"
