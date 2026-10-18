@@ -28,7 +28,9 @@ services:
         - ENVIRONMENT=${ENVIRONMENT}
         - WITH_GPU=${WITH_GPU:-false}
     ports:
-      - "8000:8000"
+      # 既定ではホストのループバック（127.0.0.1）だけに公開し、同じ LAN の他の端末からは接続できないようにする
+      # 他の端末から接続させたい場合だけ .env の HOST_BIND_ADDRESS を変える（admin の BASIC_AUTH_* も設定すること）
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:8000:8000"
     volumes:
       - ./apps/api:/app
     environment:
@@ -53,7 +55,7 @@ services:
       dockerfile: ./apps/public-viewer/Dockerfile
       <<: *frontend-build-args
     ports:
-      - "3000:3000"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:3000:3000"
 
   static-site-builder:
     <<: *frontend-common
@@ -78,7 +80,7 @@ services:
         - NEXT_PUBLIC_LOCAL_LLM_ADDRESS=${NEXT_PUBLIC_LOCAL_LLM_ADDRESS:-ollama:11434}
         - NEXT_PUBLIC_USE_AZURE=${NEXT_PUBLIC_USE_AZURE:-}
     ports:
-      - "4000:4000"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:4000:4000"
     environment:
       - API_BASEPATH=http://api:8000
 
@@ -87,7 +89,7 @@ services:
     ports:
       # ホスト側のポート。ホストで別の Ollama が 11434 を使っている場合は .env の OLLAMA_HOST_PORT で変える
       # （アプリはコンテナ間通信の ollama:11434 で接続するため、この値を変えてもアプリ側の設定は不要）
-      - "${OLLAMA_HOST_PORT:-11434}:11434"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${OLLAMA_HOST_PORT:-11434}:11434"
     volumes:
       - ollama-data:/root/.ollama
     restart: unless-stopped

@@ -11,22 +11,29 @@ fi
 read -p "Enter your OpenAI API key (optional): " OPENAI_API_KEY
 read -p "Enter your Gemini API key (optional): " GEMINI_API_KEY
 
+# 管理用のキーは固定値にせず、セットアップのたびにランダムに生成する
+generate_secret() {
+  od -An -tx1 -N24 /dev/urandom | tr -d ' \n'
+}
+ADMIN_API_KEY=$(generate_secret)
+REVALIDATE_SECRET=$(generate_secret)
+
 cat > .env << EOL
 OPENAI_API_KEY=${OPENAI_API_KEY}
 GEMINI_API_KEY=${GEMINI_API_KEY}
 PUBLIC_API_KEY=public
-ADMIN_API_KEY=admin
+ADMIN_API_KEY=${ADMIN_API_KEY}
 ENVIRONMENT=development
 NUMBA_CPU_NAME=generic
 STORAGE_TYPE=local
 NEXT_PUBLIC_PUBLIC_API_KEY=public
-NEXT_PUBLIC_ADMIN_API_KEY=admin
+NEXT_PUBLIC_ADMIN_API_KEY=${ADMIN_API_KEY}
 NEXT_PUBLIC_CLIENT_BASEPATH=http://localhost:3000
 NEXT_PUBLIC_API_BASEPATH=http://localhost:8000
 API_BASEPATH=http://api:8000
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 CLIENT_STATIC_BUILD_BASEPATH=http://static-site-builder:3200
-REVALIDATE_SECRET=revalidate-secret
+REVALIDATE_SECRET=${REVALIDATE_SECRET}
 REVALIDATE_URL=http://public-viewer:3000/api/revalidate
 EOL
 

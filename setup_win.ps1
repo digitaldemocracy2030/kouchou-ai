@@ -170,22 +170,37 @@ if (-not $SkipApiKeyValidation) {
   }
 }
 
+# Generate admin secrets randomly on every setup instead of using fixed values
+function New-Secret {
+  $bytes = New-Object byte[] 24
+  $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+  try {
+    $rng.GetBytes($bytes)
+  } finally {
+    $rng.Dispose()
+  }
+  return -join ($bytes | ForEach-Object { $_.ToString("x2") })
+}
+
+$adminApiKey = New-Secret
+$revalidateSecret = New-Secret
+
 $envLines = @(
   "# Auto-generated .env file",
   "OPENAI_API_KEY=$openAiKey",
   "GEMINI_API_KEY=$geminiKey",
   "PUBLIC_API_KEY=public",
-  "ADMIN_API_KEY=admin",
+  "ADMIN_API_KEY=$adminApiKey",
   "ENVIRONMENT=development",
   "STORAGE_TYPE=local",
   "NEXT_PUBLIC_PUBLIC_API_KEY=public",
-  "NEXT_PUBLIC_ADMIN_API_KEY=admin",
+  "NEXT_PUBLIC_ADMIN_API_KEY=$adminApiKey",
   "NEXT_PUBLIC_CLIENT_BASEPATH=http://localhost:3000",
   "NEXT_PUBLIC_API_BASEPATH=http://localhost:8000",
   "API_BASEPATH=http://api:8000",
   "NEXT_PUBLIC_SITE_URL=http://localhost:3000",
   "CLIENT_STATIC_BUILD_BASEPATH=http://static-site-builder:3200",
-  "REVALIDATE_SECRET=revalidate-secret",
+  "REVALIDATE_SECRET=$revalidateSecret",
   "REVALIDATE_URL=http://public-viewer:3000/api/revalidate"
 )
 

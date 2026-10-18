@@ -49,6 +49,9 @@
 | 管理画面 | http://localhost:4000 | レポートの作成・管理 |
 | API | http://localhost:8000 | バックエンド API |
 
+!!! note "他の端末からのアクセス"
+    既定では、各ポートはこの PC（127.0.0.1）からだけ接続できます。同じ LAN の他の端末から接続させたい場合は、`.env` の `HOST_BIND_ADDRESS` を `0.0.0.0` などに変更してください。その場合は、管理画面に `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` を設定し、`ADMIN_API_KEY` と `NEXT_PUBLIC_ADMIN_API_KEY` を推測されにくい同じ値に変更してください。
+
 ## ローカル開発（Dockerを使わずに起動）
 
 Dockerを使わずに `apps/api` と `apps/admin` を個別に起動する場合は、以下を実行します。

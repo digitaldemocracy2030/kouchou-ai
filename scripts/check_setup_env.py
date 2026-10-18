@@ -22,6 +22,7 @@ OPTIONAL_KEYS = {
     "BASIC_AUTH_PASSWORD",
     "NEXT_PUBLIC_LOCAL_LLM_ADDRESS",  # admin の既定値 ollama:11434
     "OLLAMA_HOST_PORT",  # compose の既定値 11434
+    "HOST_BIND_ADDRESS",  # compose の既定値 127.0.0.1
     "NEXT_PUBLIC_GA_MEASUREMENT_ID",  # 未設定なら計測なし
     "NEXT_PUBLIC_ADMIN_GA_MEASUREMENT_ID",
     "NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH",  # 既定値は空
@@ -42,6 +43,17 @@ OPTIONAL_KEYS = {
     "OPENAI_FLEX_TIMEOUT_SECONDS",  # analysis-core の既定値 900
 }
 
+# 既定のセットアップで固定値になっていてはいけない秘密値と、同じ値にそろえるべきキーの組
+# 固定値だと、到達できる第三者が既知の値で admin API や revalidate を呼べてしまう
+SECRET_KEYS = {
+    "ADMIN_API_KEY": {"admin", ""},
+    "REVALIDATE_SECRET": {"revalidate-secret", ""},
+}
+SECRET_KEY_PAIRS = [("ADMIN_API_KEY", "NEXT_PUBLIC_ADMIN_API_KEY")]
+
+# compose.yaml のポート公開は、既定でループバックだけにバインドする
+LOOPBACK_PORT_PREFIXES = ("127.0.0.1:", "${HOST_BIND_ADDRESS:-127.0.0.1}:")
+
 ENV_LINE = re.compile(r"^\s*([A-Z_][A-Z0-9_]*)=(.*)$")
 # compose.yaml の ${VAR} のうち、${VAR:-default} のような既定値がないもの
 COMPOSE_VAR_WITHOUT_DEFAULT = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)\}")
@@ -56,6 +68,49 @@ def read_env(path: Path) -> dict[str, str]:
     return values
 
 
+def find_compose_ports(text: str) -> list[str]:
+    """compose.yaml の ports: 配下のエントリを返す（PyYAML に依存しない簡易パーサ）。"""
+    entries = []
+    ports_indent = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+        if ports_indent is not None:
+            if indent > ports_indent and stripped.startswith("- "):
+                entries.append(stripped[2:].strip().strip("\"'"))
+                continue
+            ports_indent = None
+        if stripped == "ports:":
+            ports_indent = indent
+    return entries
+
+
+def check_secrets(generated: dict[str, str]) -> list[str]:
+    errors = []
+    for key, forbidden in SECRET_KEYS.items():
+        if generated.get(key, "") in forbidden:
+            errors.append(
+                f"{key} が固定値または空（{generated.get(key, '')!r}）。セットアップスクリプトでランダムに生成する"
+            )
+    for key, mirror in SECRET_KEY_PAIRS:
+        if generated.get(key) != generated.get(mirror):
+            errors.append(f"{mirror} は {key} と同じ値にする")
+    return errors
+
+
+def check_compose_ports(compose_text: str) -> list[str]:
+    errors = []
+    for entry in find_compose_ports(compose_text):
+        if not entry.startswith(LOOPBACK_PORT_PREFIXES):
+            errors.append(
+                f"compose.yaml のポート {entry!r} がループバックに限定されていない"
+                '（"${HOST_BIND_ADDRESS:-127.0.0.1}:..." の形にする）'
+            )
+    return errors
+
+
 def main() -> int:
     # Windows の CI でも日本語のメッセージを出力できるようにする
     sys.stdout.reconfigure(encoding="utf-8")
@@ -65,11 +120,8 @@ def main() -> int:
 
     generated = read_env(Path(sys.argv[1]))
     example_keys = set(read_env(REPO_ROOT / ".env.example"))
-    compose_keys = set(
-        COMPOSE_VAR_WITHOUT_DEFAULT.findall(
-            (REPO_ROOT / "compose.yaml").read_text(encoding="utf-8")
-        )
-    )
+    compose_text = (REPO_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    compose_keys = set(COMPOSE_VAR_WITHOUT_DEFAULT.findall(compose_text))
 
     errors = []
     for key in sorted(example_keys - OPTIONAL_KEYS):
@@ -86,6 +138,9 @@ def main() -> int:
         errors.append(
             f"{key} は OPTIONAL_KEYS にあるが、.env.example にない（OPTIONAL_KEYS から削除）"
         )
+
+    errors.extend(check_secrets(generated))
+    errors.extend(check_compose_ports(compose_text))
 
     if errors:
         print("\n".join(errors))
