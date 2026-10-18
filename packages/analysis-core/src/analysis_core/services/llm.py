@@ -810,18 +810,65 @@ def request_to_gemini_embed(args, model, user_api_key: str | None = None):
         args = [args]
 
     embeds: list[list[float]] = []
-    for text in args:
-        response = client.models.embed_content(model=model, contents=text)
-        values = extract_embedding_values(response)
-        if not isinstance(values, list):
+    # 1 テキスト 1 リクエストだと件数ぶんリクエストが増えて rate limit に当たりやすいため、
+    # API の上限件数ごとにまとめて送る
+    for start in range(0, len(args), GEMINI_EMBED_BATCH_SIZE):
+        chunk = args[start : start + GEMINI_EMBED_BATCH_SIZE]
+        response = _gemini_embed_with_retry(client, model, chunk)
+        values_list = _extract_gemini_embedding_values_list(response)
+        if values_list is None or len(values_list) != len(chunk):
             # ここでキー一覧などをログに残すと調査が楽
             keys = list(response.keys()) if isinstance(response, dict) else type(response).__name__
+            count = None if values_list is None else len(values_list)
             raise RuntimeError(
-                f"Gemini embedding response did not contain a 'values' list for text: {text[:50]}... (shape={keys})"
+                f"Gemini embedding response did not contain {len(chunk)} 'values' lists "
+                f"(got {count}) for text: {chunk[0][:50]}... (shape={keys})"
             )
-        embeds.append(values)
+        embeds.extend(values_list)
 
     return embeds
+
+
+# batchEmbedContents が 1 リクエストで受け付ける件数の上限
+GEMINI_EMBED_BATCH_SIZE = 100
+
+
+def _extract_gemini_embedding_values_list(response: Any) -> list[list[float]] | None:
+    """複数テキストを埋め込んだレスポンスから、入力順の values のリストを取り出す。"""
+    emb_list = response.get("embeddings") if isinstance(response, dict) else getattr(response, "embeddings", None)
+    if isinstance(emb_list, list):
+        values_list = [e.get("values") if isinstance(e, dict) else getattr(e, "values", None) for e in emb_list]
+        if all(isinstance(values, list) for values in values_list):
+            return values_list
+        return None
+    values = extract_embedding_values(response)
+    return [values] if isinstance(values, list) else None
+
+
+def _gemini_embed_with_retry(client, model: str, contents: list[str]):
+    """429 (rate limit) を chat 経路と同様に指数バックオフで再試行する。"""
+    max_retries = 5
+    base_wait = 8
+
+    for attempt in range(max_retries):
+        try:
+            return client.models.embed_content(model=model, contents=contents)
+        except Exception as e:
+            if getattr(e, "code", None) != 429:
+                raise
+
+        if attempt >= max_retries - 1:
+            logging.error(f"Gemini embedding API rate limit exceeded repeatedly after {max_retries} attempts.")
+            raise RuntimeError("Gemini embedding API rate limit exceeded after retries")
+        # ジッターを含む指数バックオフ: base * 2^attempt * (0.5 ~ 1.5)
+        jitter = 0.5 + random.random()
+        wait_time = min(int(base_wait * (2**attempt) * jitter), 60)
+        logging.info(
+            f"Gemini embedding rate limit hit, retrying after {wait_time} seconds (attempt {attempt + 1}/{max_retries})"
+        )
+        time.sleep(wait_time)
+
+    raise RuntimeError("Gemini embedding API call failed after retries")
 
 
 def request_to_azure_embed(args, model, user_api_key: str | None = None):

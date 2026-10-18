@@ -1273,10 +1273,9 @@ class TestLLMService:
         # 実レスポンスは .embeddings(複数の ContentEmbedding, 各 .values)を持つので、
         # 実物と同じ形で mock する（dict ではなく object）。
         embed_content_mock = MagicMock(
-            side_effect=[
-                types.SimpleNamespace(embeddings=[types.SimpleNamespace(values=[0.1, 0.2])]),
-                types.SimpleNamespace(embeddings=[types.SimpleNamespace(values=[0.3, 0.4])]),
-            ]
+            return_value=types.SimpleNamespace(
+                embeddings=[types.SimpleNamespace(values=[0.1, 0.2]), types.SimpleNamespace(values=[0.3, 0.4])]
+            )
         )
         mock_models.embed_content = embed_content_mock
         genai_module.Client = MagicMock(return_value=mock_client)
@@ -1288,9 +1287,8 @@ class TestLLMService:
 
         assert embeds == [[0.1, 0.2], [0.3, 0.4]]
         genai_module.Client.assert_called_once_with(api_key="test-api-key")
-        assert embed_content_mock.call_count == 2
-        embed_content_mock.assert_any_call(model=model, contents="hello")
-        embed_content_mock.assert_any_call(model=model, contents="world")
+        # 複数テキストは 1 リクエストにまとめて送る
+        embed_content_mock.assert_called_once_with(model=model, contents=["hello", "world"])
 
     def test_extract_embedding_values_genai_object(self):
         """extract_embedding_values: genai SDKオブジェクト（response.embedding.values）を抽出できる"""
