@@ -7,7 +7,7 @@ import re
 import polars as pl
 from pydantic import BaseModel, Field
 
-from analysis_core.services.llm import request_to_chat_ai
+from analysis_core.services.llm import _extract_json_text, request_to_chat_ai
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS
 
 OVERVIEW_TIMEOUT_SECONDS = DEFAULT_REQUEST_TIMEOUT_SECONDS
@@ -56,24 +56,45 @@ def hierarchical_overview(config):
     config["token_usage_output"] = config.get("token_usage_output", 0) + token_output
     print(f"Hierarchical overview: input={token_input}, output={token_output}, total={token_total} tokens")
 
+    summary = _extract_summary(response_text)
+    with open(path, "w", encoding="utf-8") as file:
+        file.write(summary)
+
+
+def _extract_summary(response_text) -> str:
+    """LLM 応答から overview として公開する要約文を取り出す。
+
+    JSON 文字列や途中で切れた JSON を、そのまま overview として公開しない。
+    """
+    # structured outputとしてパースできるなら処理する
+    if isinstance(response_text, dict):
+        summary = response_text.get("summary")
+        if isinstance(summary, str) and summary.strip():
+            return summary
+        raise RuntimeError("overview の応答に summary が含まれていません")
+    if not isinstance(response_text, str):
+        raise RuntimeError(f"overview の応答が文字列ではありません: {type(response_text).__name__}")
+
+    # thinkタグが出力されるReasoningモデル用に、thinkタグを除去する
+    thinking_removed = re.sub(
+        r"<think\b[^>]*>.*?</think>",
+        "",
+        response_text,
+        flags=re.DOTALL,
+    ).strip()
+
     try:
-        # structured outputとしてパースできるなら処理する
-        if isinstance(response_text, dict):
-            parsed_response = response_text
-        else:
-            parsed_response = json.loads(response_text)
+        parsed_response = json.loads(_extract_json_text(thinking_removed))
+    except (TypeError, ValueError):
+        parsed_response = None
+    if isinstance(parsed_response, dict):
+        summary = parsed_response.get("summary")
+        if isinstance(summary, str) and summary.strip():
+            return summary
+        raise RuntimeError("overview の応答に summary が含まれていません")
 
-        with open(path, "w", encoding="utf-8") as file:
-            file.write(parsed_response["summary"])
-
-    except Exception:
-        # thinkタグが出力されるReasoningモデル用に、thinkタグを除去する
-        thinking_removed = re.sub(
-            r"<think\b[^>]*>.*?</think>",
-            "",
-            response_text,
-            flags=re.DOTALL,
-        )
-
-        with open(path, "w", encoding="utf-8") as file:
-            file.write(thinking_removed)
+    # JSON を返さず要約文だけを返すモデル向けに、JSON らしくない本文はそのまま使う。
+    # 空の応答や途中で切れた JSON は公開しない。
+    if not thinking_removed or thinking_removed.startswith(("{", "[", "```")):
+        raise RuntimeError("overview の応答から summary を取り出せませんでした")
+    return thinking_removed
