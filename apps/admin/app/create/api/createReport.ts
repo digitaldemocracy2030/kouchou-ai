@@ -9,6 +9,31 @@ type CreateReportResult = {
   error?: string;
 };
 
+type ValidationErrorItem = {
+  loc?: unknown;
+  msg?: unknown;
+};
+
+// API のエラーレスポンスから表示用メッセージを取り出す。
+// detail は文字列（HTTPException）か、422 のときは { loc, msg } の配列になる。
+async function extractErrorMessage(response: Response): Promise<string> {
+  const errorData = await response.json().catch(() => ({}));
+  const detail = errorData?.detail;
+  if (typeof detail === "string" && detail) {
+    return detail;
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    return detail
+      .map((item: ValidationErrorItem) => {
+        const loc = Array.isArray(item?.loc) ? item.loc.join(".") : "";
+        const msg = typeof item?.msg === "string" ? item.msg : "";
+        return loc ? `${loc}: ${msg}` : msg;
+      })
+      .join(" / ");
+  }
+  return response.statusText || "レポート作成に失敗しました";
+}
+
 export async function createReport({
   input,
   question,
@@ -85,7 +110,7 @@ export async function createReport({
     }
 
     if (!response.ok) {
-      return { success: false, error: response.statusText };
+      return { success: false, error: await extractErrorMessage(response) };
     }
 
     return { success: true };
