@@ -98,7 +98,8 @@ async def get_spreadsheet_data(file_name: str, api_key: str = Depends(verify_adm
         if not os.path.exists(input_path):
             raise HTTPException(status_code=404, detail=f"ファイル {file_name}.csv が見つかりません")
 
-        df = pl.read_csv(input_path)
+        # 型推論すると数値に見える comment-id が int になり、属性値の先頭の 0 も消えるため全列を文字列で読む
+        df = pl.read_csv(input_path, infer_schema_length=0)
 
         # コメントデータをJSON形式に変換
         comments: list[dict[str, str | None]] = []

@@ -1,6 +1,7 @@
 import asyncio
 from unittest.mock import MagicMock, patch
 
+import polars as pl
 import pytest
 import requests
 from fastapi import FastAPI
@@ -64,3 +65,17 @@ class TestImportSpreadsheetEndpoint:
 
         assert response.status_code == 200
         assert seen == {"on_loop": False}
+
+
+def test_fetch_public_spreadsheet_reads_all_columns_as_strings():
+    """数値に見える comment-id や属性値も文字列として読み、先頭の 0 を保持する"""
+    with patch.object(
+        spreadsheet_service.requests,
+        "get",
+        return_value=_csv_response("comment-id,comment,zip\n1,hello,01234\n2,world,00999\n"),
+    ):
+        df = spreadsheet_service.fetch_public_spreadsheet("sheet-id")
+
+    assert df.schema["comment-id"] == pl.Utf8
+    assert df["comment-id"].to_list() == ["1", "2"]
+    assert df["zip"].to_list() == ["01234", "00999"]

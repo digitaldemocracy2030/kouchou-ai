@@ -50,7 +50,8 @@ def fetch_public_spreadsheet(sheet_id: str, sheet_name: str | None = None) -> pl
         response.raise_for_status()
         response.encoding = "utf-8"
         csv_data = StringIO(response.text)
-        df = pl.read_csv(csv_data)
+        # 型推論すると数値に見える comment-id が int になり、属性値の先頭の 0 も消えるため全列を文字列で読む
+        df = pl.read_csv(csv_data, infer_schema_length=0)
 
         if "comment" not in df.columns and "comment-body" not in df.columns:
             raise ValueError("スプレッドシートには 'comment' または 'comment-body' カラムが必要です")
