@@ -17,15 +17,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Tag is required" }, { status: 400 });
     }
 
-    // 指定されたタグのキャッシュを破棄
-    revalidateTag(tag, "max");
+    // 指定されたタグのキャッシュを即時に失効させる。
+    // "max" だと stale-while-revalidate になり、非公開化・削除の直後の最初のリクエストに
+    // 古いレポートが返ってしまうため、{ expire: 0 } を使う。
+    revalidateTag(tag, { expire: 0 });
     console.log(`Revalidated tag: ${tag}`);
 
     return NextResponse.json({
       revalidated: true,
       now: Date.now(),
       tag,
-      method: "force",
+      method: "expire",
     });
   } catch (error) {
     console.error("Revalidation error:", error);
