@@ -350,3 +350,44 @@ def test_duplicate_embedded_fallback_pruned_config_validates():
     pruned = prune_config_for_mode(built)
     assert "llm_grouping" not in pruned
     _validate_with_analysis_core(pruned)
+
+
+def test_update_json_preserves_keys_not_defined_in_report_config(tmp_path, monkeypatch):
+    # タイトル・説明の編集で ReportConfig に定義のないキー（enable_source_link・embedding）が
+    # 消えると、再集計で出典リンクや埋め込みモデルの指定が黙って失われる。
+    from src.repositories.config_repository import ConfigRepository
+    from src.schemas.report_config import ReportConfigUpdate
+
+    monkeypatch.setattr("src.repositories.config_repository.settings.CONFIG_DIR", tmp_path)
+    slug = "source-link"
+    (tmp_path / f"{slug}.json").write_text(
+        json.dumps(
+            {
+                "name": slug,
+                "input": slug,
+                "question": "old",
+                "intro": "i",
+                "model": "gpt-4o-mini",
+                "provider": "openai",
+                "analysis_mode": "hierarchical",
+                "extraction": {"prompt": "p", "workers": 1, "limit": 2},
+                "embedding": {"model": "text-embedding-3-large"},
+                "hierarchical_clustering": {"cluster_nums": [3, 6]},
+                "hierarchical_initial_labelling": {"prompt": "i", "sampling_num": 30, "workers": 1},
+                "hierarchical_merge_labelling": {"prompt": "m", "sampling_num": 30, "workers": 1},
+                "hierarchical_overview": {"prompt": "ov"},
+                "hierarchical_aggregation": {"sampling_num": 5000},
+                "enable_source_link": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert ConfigRepository(slug).update_json(ReportConfigUpdate(question="new title", intro="new intro")) is True
+
+    written = json.loads((tmp_path / f"{slug}.json").read_text(encoding="utf-8"))
+    assert written["question"] == "new title"
+    assert written["intro"] == "new intro"
+    assert written["enable_source_link"] is True
+    assert written["embedding"] == {"model": "text-embedding-3-large"}
+    _validate_with_analysis_core(written)

@@ -47,9 +47,14 @@ class ConfigRepository:
     def update_json(self, updated_config: ReportConfigUpdate) -> bool:
         """中間ファイル（CSVファイル）を更新する"""
         try:
-            # 現在のクラスタ情報を読み込む
-            current_config = self.read_from_json()
-            current_config = current_config.model_dump()
+            # 現在の設定を読み込む。configs/<slug>.json がある場合は生の dict をそのまま使い、
+            # ReportConfig に定義のないキー（enable_source_link・embedding など）を落とさない。
+            if self.config_path.exists():
+                with open(self.config_path, encoding="utf-8") as jsonfile:
+                    current_config = json.load(jsonfile)
+            else:
+                # 旧レポート（config が hierarchical_result.json に埋め込まれているもの）
+                current_config = self.read_from_json().model_dump()
 
             for key, value in updated_config.model_dump().items():
                 if value is not None:
