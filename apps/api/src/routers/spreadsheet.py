@@ -8,6 +8,7 @@ from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 
 from src.config import settings
+from src.services.report_status import report_slug_in_use
 from src.services.spreadsheet_service import delete_input_file, process_spreadsheet_url
 from src.utils.logger import setup_logger
 from src.utils.slug_utils import validate_slug
@@ -37,6 +38,18 @@ async def verify_admin_api_key(api_key: str = Security(api_key_header)) -> str:
     return api_key
 
 
+def ensure_not_existing_report(file_name: str) -> None:
+    """既存レポートの入力 CSV（inputs/<slug>.csv）を取り込み・クリアで上書き・削除させない。
+
+    作成前の取り込みで作られる inputs/<id>.csv だけの状態は、再取り込み・クリアを許すため衝突に含めない。
+    """
+    if report_slug_in_use(file_name):
+        raise HTTPException(
+            status_code=409,
+            detail=f"ID {file_name} は既存のレポートで使われています。別のIDを指定してください",
+        )
+
+
 class SpreadsheetInput(BaseModel):
     url: str
     file_name: str
@@ -59,6 +72,7 @@ async def import_spreadsheet(
     Raises:
         HTTPException: インポート処理中にエラーが発生した場合
     """
+    ensure_not_existing_report(input_data.file_name)
     try:
         # 外部 HTTP 取得を含む同期処理なので、イベントループを塞がないよう threadpool で実行する
         file_path = await run_in_threadpool(process_spreadsheet_url, input_data.url, input_data.file_name)
@@ -139,6 +153,7 @@ async def delete_input(file_name: str, api_key: str = Depends(verify_admin_api_k
     valid, message = validate_filename(file_name)
     if not valid:
         raise HTTPException(status_code=400, detail=message)
+    ensure_not_existing_report(file_name)
 
     try:
         delete_input_file(file_name)

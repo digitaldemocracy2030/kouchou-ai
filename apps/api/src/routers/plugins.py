@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from src.plugins.base import PluginConfigError
 from src.plugins.registry import PluginRegistry, load_builtin_plugins
 from src.routers.admin_report import verify_admin_api_key
+from src.services.report_status import report_slug_in_use
 from src.utils.slug_utils import validate_slug
 
 logger = logging.getLogger("uvicorn")
@@ -146,6 +147,17 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
     # fileName は INPUT_DIR 配下の CSV ファイル名に使われるため、パストラバーサルを防ぐ。
     # 下の try の広い except に握りつぶされないよう、try の外で検証する。
     validate_slug(request.fileName)
+
+    # 既存レポートの入力 CSV（inputs/<slug>.csv）を上書きさせない。
+    # 作成前の取り込みで作られる inputs/<id>.csv だけの状態は、再取り込みを許すため衝突に含めない。
+    if report_slug_in_use(request.fileName):
+        return ImportResponse(
+            success=False,
+            filePath=None,
+            commentCount=0,
+            comments=[],
+            error=f"ID {request.fileName} は既存のレポートで使われています。別のIDを指定してください",
+        )
 
     try:
         # Fetch data from source
