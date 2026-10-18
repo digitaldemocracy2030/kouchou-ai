@@ -46,14 +46,32 @@ class ReportSyncService:
     def __init__(self):
         self.storage_service = get_storage_service()
 
-    def sync_status_file_to_storage(self) -> None:
-        """ステータスファイルをストレージにアップロードする"""
+    def sync_status_file_to_storage(self) -> bool:
+        """ステータスファイルをストレージにアップロードする
+
+        Returns:
+            bool: アップロードに成功した場合はTrue
+        """
         if not self.LOCAL_STATUS_FILE_PATH.exists():
             logger.warning(f"Status file does not exist: {self.LOCAL_STATUS_FILE_PATH}")
-            return
+            return False
 
         remote_status_file_path = f"{self.REMOTE_STATUS_FILE_PREFIX}/report_status.json"
-        self.storage_service.upload_file(str(self.LOCAL_STATUS_FILE_PATH), remote_status_file_path)
+        return bool(self.storage_service.upload_file(str(self.LOCAL_STATUS_FILE_PATH), remote_status_file_path))
+
+    def sync_report_file_to_storage(self, slug: str, filename: str) -> bool:
+        """レポートディレクトリ内の単一ファイル（例: visualization_config.json）をストレージにアップロードする
+
+        Returns:
+            bool: アップロードに成功した場合はTrue
+        """
+        local_file_path = settings.REPORT_DIR / slug / filename
+        if not local_file_path.exists():
+            logger.warning(f"レポートファイルが存在しません: {local_file_path}")
+            return False
+
+        remote_file_path = f"{self.REMOTE_REPORT_DIR_PREFIX}/{slug}/{filename}"
+        return bool(self.storage_service.upload_file(str(local_file_path), remote_file_path))
 
     def _cleanup_report_files(self, report_dir: Path) -> bool:
         """レポートディレクトリから保持すべきファイル以外を削除する

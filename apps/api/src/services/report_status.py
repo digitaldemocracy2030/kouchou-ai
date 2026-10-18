@@ -12,6 +12,7 @@ from src.schemas.admin_report import ReportInput
 from src.schemas.report import AnalysisData, Report, ReportStatus, ReportVisibility
 from src.schemas.report_config import ReportConfigUpdate
 from src.services.llm_pricing import LLMPricing
+from src.services.report_sync import ReportSyncService
 
 # ロガーの設定
 logger = logging.getLogger("uvicorn")
@@ -19,6 +20,10 @@ logger = logging.getLogger("uvicorn")
 STATE_FILE = settings.DATA_DIR / "report_status.json"
 _lock = threading.RLock()
 _report_status = {}
+
+
+class StatusStorageSyncError(Exception):
+    """report_status.json のストレージへの同期に失敗したことを表す例外"""
 
 
 # FIXME: report_status.jsonのフォーマット変更に対応するためのコード。広聴AIをver3.0にした段階で削除する。
@@ -106,6 +111,26 @@ def save_status() -> None:
             if tmp_path.exists():
                 tmp_path.unlink()
             raise
+
+
+def sync_status_to_storage() -> None:
+    """report_status.json をストレージ（Azure Blob 等）へ同期する
+
+    ローカルが一時的なファイルシステムの運用では、起動時にストレージ上の
+    report_status.json が正として復元される。公開範囲の変更や削除をここで
+    同期しないと、再起動で元の状態（公開・未削除）に戻ってしまう。
+    _lock 内で呼ぶことで、並行する更新より古い内容が後から上書きアップロードされないようにする。
+
+    Raises:
+        StatusStorageSyncError: アップロードに失敗した場合
+    """
+    with _lock:
+        try:
+            synced = ReportSyncService().sync_status_file_to_storage()
+        except Exception as e:
+            raise StatusStorageSyncError(f"Failed to sync report status to storage: {e}") from e
+        if not synced:
+            raise StatusStorageSyncError("Failed to sync report status to storage")
 
 
 def add_new_report_to_status(report_input: ReportInput) -> None:
@@ -242,8 +267,13 @@ def update_report_visibility_state(slug: str, new_visibility: ReportVisibility) 
         _report_status[slug]["visibility"] = new_visibility.value
 
         save_status()
-    invalidate_report_cache(slug)
-    return _report_status[slug]["visibility"]
+        visibility = _report_status[slug]["visibility"]
+        try:
+            sync_status_to_storage()
+        finally:
+            # 同期に失敗してもローカルの変更は有効なので、キャッシュは破棄する
+            invalidate_report_cache(slug)
+    return visibility
 
 
 def update_token_usage(
@@ -331,9 +361,12 @@ def update_report_config(slug: str, updated_config: ReportConfigUpdate) -> dict:
             _report_status[slug]["description"] = updated_config.intro
 
         save_status()
-
-    invalidate_report_cache(slug)
-    return _report_status[slug]
+        updated_report = _report_status[slug]
+        try:
+            sync_status_to_storage()
+        finally:
+            invalidate_report_cache(slug)
+    return updated_report
 
 
 def add_analysis_data(report: Report) -> Report:
