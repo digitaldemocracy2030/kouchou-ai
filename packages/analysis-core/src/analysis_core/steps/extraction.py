@@ -126,16 +126,19 @@ def extraction(config):
 
         for comment_id, extracted_args in zip(batch, batch_results, strict=False):
             for j, arg in enumerate(extracted_args):
-                if arg not in argument_map:
+                # 同じ文面でも回答ごとに別の意見として扱う。回答をまたいでまとめると、
+                # 集計で意見1件に回答1件分の属性・URLしか残らず、他の回答者の帰属が消える。
+                key = (comment_id, arg)
+                if key not in argument_map:
                     # argumentテーブルに追加
                     arg_id = f"A{comment_id}_{j}"
                     argument = arg
-                    argument_map[arg] = {
+                    argument_map[key] = {
                         "arg-id": arg_id,
                         "argument": argument,
                     }
                 else:
-                    arg_id = argument_map[arg]["arg-id"]
+                    arg_id = argument_map[key]["arg-id"]
 
                 # relationテーブルにcommentとargの関係を追加
                 relation_row = {

@@ -11,7 +11,7 @@ aggregation = importlib.import_module("analysis_core.steps.hierarchical_aggregat
 def _write_report(tmp_path, comments: str, args: list[tuple[str, str]], relations: list[tuple[str, str]]):
     inputs = tmp_path / "inputs"
     report = tmp_path / "outputs" / "report"
-    inputs.mkdir()
+    inputs.mkdir(parents=True)
     report.mkdir(parents=True)
     (inputs / "input.csv").write_text(comments, encoding="utf-8")
     pl.DataFrame({"arg-id": [a for a, _ in args], "argument": [t for _, t in args]}).write_csv(report / "args.csv")
@@ -73,3 +73,44 @@ def test_zero_padded_comment_ids_keep_attributes_and_url(tmp_path):
     assert arguments["A001_0"]["url"] == "https://example.com/1"
     assert arguments["A002_0"]["comment_id"] == "002"
     assert arguments["A002_0"]["attributes"] == {"age": "30s"}
+
+
+def test_identical_opinions_from_different_comments_keep_each_respondent(tmp_path, monkeypatch):
+    extraction = importlib.import_module("analysis_core.steps.extraction")
+    inputs = tmp_path / "inputs"
+    report = tmp_path / "outputs" / "report"
+    inputs.mkdir()
+    report.mkdir(parents=True)
+    (inputs / "input.csv").write_text(
+        "comment-id,comment-body,attribute_age\nc1,賛成です,20s\nc2,賛成です。,30s\n", encoding="utf-8"
+    )
+    config = {
+        "input": "input",
+        "output_dir": "report",
+        "provider": "openai",
+        "_input_base_dir": str(inputs),
+        "_output_base_dir": str(tmp_path / "outputs"),
+        "extraction": {"model": "m", "prompt": "p", "workers": 2, "limit": 10, "properties": []},
+    }
+    monkeypatch.setattr(extraction, "update_progress", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        extraction, "request_to_chat_ai", lambda **kwargs: ('{"extractedOpinionList": ["賛成"]}', 1, 1, 2)
+    )
+    extraction.extraction(config)
+
+    args = pl.read_csv(report / "args.csv", infer_schema_length=0)
+    relations = pl.read_csv(report / "relations.csv", infer_schema_length=0)
+    assert sorted(args["arg-id"].to_list()) == ["Ac1_0", "Ac2_0"]
+    assert dict(zip(relations["arg-id"], relations["comment-id"], strict=True)) == {"Ac1_0": "c1", "Ac2_0": "c2"}
+
+    # Each argument now maps to exactly one respondent, so aggregation keeps both attributions.
+    arg_rows = list(zip(args["arg-id"], args["argument"], strict=True))
+    agg_report, agg_config = _write_report(
+        tmp_path / "agg",
+        "comment-id,comment-body,attribute_age\nc1,賛成です,20s\nc2,賛成です。,30s\n",
+        arg_rows,
+        list(zip(relations["arg-id"], relations["comment-id"], strict=True)),
+    )
+    result = _run(agg_report, agg_config)
+    ages = {arg["comment_id"]: arg["attributes"]["age"] for arg in result["arguments"]}
+    assert ages == {"c1": "20s", "c2": "30s"}

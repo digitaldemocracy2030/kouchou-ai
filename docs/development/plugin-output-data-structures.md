@@ -90,7 +90,7 @@ analysis-core の標準ワークフローは、次のステップでファイル
 | `arg-id` | string | 抽出意見ID |
 | `comment-id` | string | 元コメントID |
 
-`relations.csv` は **コメントと意見の対応表**です。1つのコメントから複数意見が抽出されるため、多対多になります。
+`relations.csv` は **コメントと意見の対応表**です。1つのコメントから複数意見が抽出されるため、1対多になります。別々のコメントから同じ文面の意見が抽出されても、コメントごとに別の `arg-id` を付けます（意見1件は常に1つのコメントに対応し、`arguments[].attributes` / `url` がそのコメントのものになる）。
 
 > 注: 追加の属性や分類結果を `args.csv` に付与したい場合は、
 > カスタムステップで `args.csv` を拡張してから `analysis.hierarchical_aggregation` に渡してください。
