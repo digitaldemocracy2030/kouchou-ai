@@ -225,3 +225,59 @@ class TestVisualizationConfigMerge:
         assert response.status_code == 200
         data = response.json()
         assert "visualizationConfig" not in data
+
+
+class TestReportsListEndpoint:
+    """Test cases for public /reports endpoint."""
+
+    def test_reports_does_not_expose_source_slug_or_internal_fields(self, client: TestClient, test_settings):
+        """公開一覧は複製元の slug（限定公開レポートの推測不能な slug を含みうる）や内部情報を返さない"""
+        from src.schemas.report import Report
+
+        reports = [
+            Report(
+                slug="public-copy",
+                source_slug="unlisted-secret-uuid",
+                title="複製",
+                description="説明",
+                status=ReportStatus.READY,
+                visibility=ReportVisibility.PUBLIC,
+                created_at="2025-05-13T07:56:58.405239+00:00",
+                token_usage=100,
+                token_usage_input=60,
+                token_usage_output=40,
+                estimated_cost=0.12,
+                provider="openai",
+                model="gpt-4o-mini",
+            ),
+            Report(
+                slug="unlisted-secret-uuid",
+                title="元",
+                description="説明",
+                status=ReportStatus.READY,
+                visibility=ReportVisibility.UNLISTED,
+            ),
+        ]
+        with patch("src.routers.report.load_status_as_reports", return_value=reports):
+            response = client.get("/reports", headers={"x-api-key": test_settings.PUBLIC_API_KEY})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [r["slug"] for r in body] == ["public-copy"]
+        assert "unlisted-secret-uuid" not in response.text
+        for key in (
+            "sourceSlug",
+            "tokenUsage",
+            "tokenUsageInput",
+            "tokenUsageOutput",
+            "estimatedCost",
+            "provider",
+            "model",
+        ):
+            assert key not in body[0]
+        # public-viewer が使う項目は残す
+        assert body[0]["title"] == "複製"
+        assert body[0]["visibility"] == "public"
+        assert body[0]["status"] == "ready"
+        assert body[0]["isPubcom"] is False
+        assert body[0]["createdAt"] == "2025-05-13T07:56:58.405239+00:00"
