@@ -10,8 +10,14 @@ import polars as pl
 
 from src.config import settings
 from src.schemas.admin_report import ReportInput
+from src.schemas.report import ReportStatus
 from src.services.analysis_config import prune_config_for_mode
-from src.services.report_status import add_new_report_to_status, set_status, update_token_usage
+from src.services.report_status import (
+    add_new_report_to_status,
+    load_status_as_reports,
+    set_status,
+    update_token_usage,
+)
 from src.services.report_sync import ReportSyncService
 from src.utils.logger import setup_logger
 
@@ -235,7 +241,7 @@ def _sync_report_artifacts_to_storage(slug: str) -> bool:
     return all(results)
 
 
-def _finalize_completed_report(slug: str) -> None:
+def _settle_completed_report(slug: str) -> None:
     """analysis-core が正常終了したレポートの成果物を同期し、成否に応じて status を確定する
 
     成果物のアップロードが一部でも失敗した状態で ready にすると、再起動後に結果ファイルの
@@ -247,7 +253,58 @@ def _finalize_completed_report(slug: str) -> None:
         logger.error(f"Failed to sync report artifacts for {slug}; marking report as error")
         _ensure_error_status_payload(slug, error_override=UPLOAD_FAILED_ERROR)
         set_status(slug, "error")
+
+
+def _finalize_completed_report(slug: str) -> None:
+    _settle_completed_report(slug)
     # ステータスファイルをストレージに同期
+    ReportSyncService().sync_status_file_to_storage()
+
+
+INTERRUPTED_ERROR = "Report generation was interrupted by an API server restart"
+
+
+def _is_workflow_completed(slug: str) -> bool:
+    report_dir = settings.REPORT_DIR / slug
+    status_file = report_dir / "hierarchical_status.json"
+    if not status_file.exists() or not (report_dir / "hierarchical_result.json").exists():
+        return False
+    try:
+        with open(status_file, encoding="utf-8") as f:
+            return json.load(f).get("status") == "completed"
+    except Exception as exc:
+        logger.warning(f"Failed to load status file for {slug}: {exc}")
+        return False
+
+
+def recover_interrupted_reports() -> None:
+    """サーバー起動時に processing のまま残ったレポートの status を確定する
+
+    analysis-core の終了を監視するスレッドはサーバープロセスと一緒に失われるため、
+    再起動前に processing だったレポートはそのままだと processing に固着し、再実行も
+    複製もできなくなる。成果物が完成していれば ready（同期失敗時は error）に、
+    それ以外は error に遷移させる。
+    """
+    try:
+        interrupted = [r.slug for r in load_status_as_reports() if r.status == ReportStatus.PROCESSING]
+    except Exception as e:
+        logger.error(f"Failed to load report status for recovery: {e}")
+        return
+    if not interrupted:
+        return
+
+    for slug in interrupted:
+        try:
+            if _is_workflow_completed(slug):
+                logger.info(f"Recovering interrupted report {slug}: workflow already completed")
+                _settle_completed_report(slug)
+            else:
+                logger.warning(f"Recovering interrupted report {slug}: marking as error")
+                _ensure_error_status_payload(slug, error_override=INTERRUPTED_ERROR)
+                set_status(slug, "error")
+        except Exception as e:
+            logger.error(f"Failed to recover interrupted report {slug}: {e}")
+
     ReportSyncService().sync_status_file_to_storage()
 
 

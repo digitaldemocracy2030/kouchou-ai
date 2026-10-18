@@ -948,3 +948,96 @@ def test_execute_aggregation_records_launch_error_payload(monkeypatch, tmp_path)
     assert status_data["error"] == "Failed to launch analysis-core: spawn blocked"
     assert status_data["error_log_path"] == "analysis.log"
     assert status_data["error_log_excerpt"] is None
+
+
+def test_recover_interrupted_reports_settles_processing_entries(monkeypatch, tmp_path):
+    # 再起動で監視スレッドが失われると processing に固着し、再実行も複製もできなくなる。
+    # 起動時に、成果物が完成していれば ready、それ以外は error に遷移させる。
+    import json
+
+    from src.services import report_launcher, report_status
+
+    report_dir = tmp_path / "reports"
+    report_dir.mkdir()
+    status_file = tmp_path / "report_status.json"
+
+    def entry(slug, status):
+        return {"slug": slug, "status": status, "title": "t", "description": "d", "visibility": "unlisted"}
+
+    status_file.write_text(
+        json.dumps(
+            {
+                "done": entry("done", "processing"),
+                "halfway": entry("halfway", "processing"),
+                "not-started": entry("not-started", "processing"),
+                "old": entry("old", "ready"),
+            }
+        ),
+        encoding="utf-8",
+    )
+    (report_dir / "done").mkdir()
+    (report_dir / "done" / "hierarchical_status.json").write_text(json.dumps({"status": "completed"}), "utf-8")
+    (report_dir / "done" / "hierarchical_result.json").write_text("{}", encoding="utf-8")
+    (report_dir / "halfway").mkdir()
+    (report_dir / "halfway" / "hierarchical_status.json").write_text(
+        json.dumps({"status": "running", "current_job": "embedding"}), "utf-8"
+    )
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_status, "STATE_FILE", status_file)
+
+    syncs = []
+
+    class DummyReportSyncService:
+        def sync_report_files_to_storage(self, value):
+            syncs.append(("report", value))
+            return True
+
+        def sync_input_file_to_storage(self, value):
+            syncs.append(("input", value))
+            return True
+
+        def sync_config_file_to_storage(self, value):
+            syncs.append(("config", value))
+            return True
+
+        def sync_status_file_to_storage(self):
+            syncs.append(("status", None))
+
+    monkeypatch.setattr(report_launcher, "ReportSyncService", DummyReportSyncService)
+
+    report_launcher.recover_interrupted_reports()
+
+    saved = json.loads(status_file.read_text(encoding="utf-8"))
+    assert saved["done"]["status"] == "ready"
+    assert saved["halfway"]["status"] == "error"
+    assert saved["not-started"]["status"] == "error"
+    assert saved["old"]["status"] == "ready"
+    for slug in ("halfway", "not-started"):
+        payload = json.loads((report_dir / slug / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert payload["status"] == "error"
+        assert payload["error"] == report_launcher.INTERRUPTED_ERROR
+    assert ("report", "done") in syncs
+    assert syncs[-1] == ("status", None)
+
+
+def test_recover_interrupted_reports_does_nothing_without_processing_entries(monkeypatch, tmp_path):
+    import json
+
+    from src.services import report_launcher, report_status
+
+    status_file = tmp_path / "report_status.json"
+    status_file.write_text(
+        json.dumps({"old": {"slug": "old", "status": "ready", "title": "t", "description": "d"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(report_status, "STATE_FILE", status_file)
+
+    def fail():
+        raise AssertionError("ReportSyncService must not be used")
+
+    monkeypatch.setattr(report_launcher, "ReportSyncService", fail)
+
+    report_launcher.recover_interrupted_reports()
+
+    assert json.loads(status_file.read_text(encoding="utf-8"))["old"]["status"] == "ready"
