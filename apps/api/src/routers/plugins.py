@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from src.plugins.base import PluginConfigError
 from src.plugins.registry import PluginRegistry, load_builtin_plugins
 from src.routers.admin_report import verify_admin_api_key
+from src.utils.slug_utils import validate_slug
 
 logger = logging.getLogger("uvicorn")
 
@@ -135,6 +136,10 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
     plugin = PluginRegistry.get_plugin(plugin_id)
     if plugin is None:
         raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+
+    # fileName は INPUT_DIR 配下の CSV ファイル名に使われるため、パストラバーサルを防ぐ。
+    # 下の try の広い except に握りつぶされないよう、try の外で検証する。
+    validate_slug(request.fileName)
 
     try:
         # Fetch data from source

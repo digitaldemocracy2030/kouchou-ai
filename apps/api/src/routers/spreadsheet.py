@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from src.config import settings
 from src.services.spreadsheet_service import delete_input_file, process_spreadsheet_url
 from src.utils.logger import setup_logger
+from src.utils.slug_utils import validate_slug
 from src.utils.validation import validate_filename
 
 slogger = setup_logger()
@@ -88,6 +89,8 @@ async def get_spreadsheet_data(file_name: str, api_key: str = Depends(verify_adm
     Raises:
         HTTPException: データ取得中にエラーが発生した場合
     """
+    # file_name はパス構成要素に使われるため、パストラバーサルを防ぐ
+    validate_slug(file_name)
     input_path = settings.INPUT_DIR / f"{file_name}.csv"
     try:
         if not os.path.exists(input_path):
