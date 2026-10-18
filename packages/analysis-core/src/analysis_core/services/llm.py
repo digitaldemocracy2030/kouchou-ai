@@ -6,6 +6,7 @@ import re
 import threading
 import time
 from typing import Any
+from urllib.parse import urlsplit
 
 import openai
 from dotenv import load_dotenv
@@ -506,17 +507,21 @@ def _resolve_local_llm_base_url(address: str) -> str:
         if not base_url.endswith("/v1"):
             base_url = base_url + "/v1"
         return base_url
+    # 解析できないアドレスを黙って localhost:11434 に差し替えると、意図しないサーバーに
+    # 接続したまま完走しうるため、呼び出し元にエラーとして伝える
+    error = ValueError(f"Invalid local LLM address: {address!r} (expected 'host:port', 'host' or a URL)")
     try:
-        if ":" in address:
-            host, port_str = address.split(":")
-            port = int(port_str)
-        else:
-            host = address
-            port = 11434  # デフォルトポート
-    except ValueError:
-        logging.warning(f"Invalid address format: {address}, using default")
-        host = "localhost"
-        port = 11434
+        parsed = urlsplit(f"//{address.strip().rstrip('/')}")
+        port = parsed.port
+    except ValueError as exc:
+        raise error from exc
+    host = parsed.hostname
+    if not host or parsed.path or parsed.query or parsed.fragment or parsed.username:
+        raise error
+    if port is None:
+        port = 11434  # デフォルトポート
+    if ":" in host:  # IPv6 リテラルは角括弧で囲む
+        host = f"[{host}]"
     return f"http://{host}:{port}/v1"
 
 
