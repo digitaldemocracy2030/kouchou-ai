@@ -20,7 +20,7 @@
     "start:static": "http-server out -p 3000",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "test": "jest",
+    "test": "jest && node --test scripts/copy-image.test.mjs",
     "typegen:chakra": "npx @chakra-ui/cli typegen ./components/theme/system.ts"
   },
   "dependencies": {
