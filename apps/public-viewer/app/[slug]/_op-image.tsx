@@ -12,7 +12,7 @@ export const contentType = "image/png";
 // フォントキャッシュ
 const fontCache: Record<number, Promise<ArrayBuffer> | null> = {};
 
-async function fetchFont(weight: number) {
+export async function fetchFont(weight: number) {
   // キャッシュにフォントがあれば再利用
   if (fontCache[weight]) {
     return fontCache[weight];
@@ -20,36 +20,39 @@ async function fetchFont(weight: number) {
 
   // キャッシュにない場合は取得してキャッシュに保存
   const fontPromise = (async () => {
-    const fontData = await fetch(`https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@${weight}`).then((res) =>
-      res.text(),
-    );
+    const cssResponse = await fetch(`https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@${weight}`);
+    if (!cssResponse.ok) throw new Error(`Failed to load font css: ${cssResponse.status}`);
+    const fontData = await cssResponse.text();
     const fontUrl = fontData.match(/url\((.*?)\)/)?.[1];
     if (!fontUrl) throw new Error("Failed to load font");
-    return fetch(fontUrl).then((res) => res.arrayBuffer());
+    const fontResponse = await fetch(fontUrl);
+    if (!fontResponse.ok) throw new Error(`Failed to load font: ${fontResponse.status}`);
+    return fontResponse.arrayBuffer();
   })();
 
   // キャッシュに保存
   fontCache[weight] = fontPromise;
+  // 失敗した Promise を残すと以降の OGP 生成がすべて失敗するので、失敗時はキャッシュを消す
+  fontPromise.catch(() => {
+    if (fontCache[weight] === fontPromise) {
+      fontCache[weight] = null;
+    }
+  });
 
   return fontPromise;
 }
 
 // 多数のAPIリクエストをリトライする関数
-async function fetchApiWithRetry(url: string, options: RequestInit, retries = 5, delay = 1000): Promise<Response> {
+export async function fetchApiWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 5,
+  delay = 1000,
+): Promise<Response> {
   for (let i = 0; i <= retries; i++) {
+    let response: Response;
     try {
-      const response = await fetch(url, options);
-      if (response.ok) {
-        return response;
-      }
-      console.warn(`API fetch failed with status ${response.status} for ${url}. Attempt ${i + 1}/${retries + 1}.`);
-      if (i < retries && (response.status >= 500 || response.status === 408)) {
-        // Retry on 5xx or Request Timeout 408
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        continue; // Retry
-      }
-      // 回復可能な状態でも最後の試行でもない場合は、エラーを投げる。
-      throw new Error(`API fetch failed with status ${response.status}`);
+      response = await fetch(url, options);
     } catch (error: unknown) {
       console.warn(
         `API fetch error for ${url}: ${error instanceof Error ? error.message : String(error)}. Attempt ${i + 1}/${retries + 1}.`,
@@ -62,6 +65,17 @@ async function fetchApiWithRetry(url: string, options: RequestInit, retries = 5,
       // If last attempt, re-throw the error
       throw error;
     }
+    if (response.ok) {
+      return response;
+    }
+    console.warn(`API fetch failed with status ${response.status} for ${url}. Attempt ${i + 1}/${retries + 1}.`);
+    if (i < retries && (response.status >= 500 || response.status === 408)) {
+      // Retry on 5xx or Request Timeout 408
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      continue; // Retry
+    }
+    // 回復できない状態（4xx など）か最後の試行なら、リトライせずにエラーを投げる。
+    throw new Error(`API fetch failed with status ${response.status}`);
   }
   // Should not reach here if loop conditions are correct, but good practice
   throw new Error(`API fetch failed after ${retries + 1} attempts for ${url}`);
