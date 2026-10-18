@@ -52,6 +52,8 @@
 !!! note "他の端末からのアクセス"
     既定では、各ポートはこの PC（127.0.0.1）からだけ接続できます。同じ LAN の他の端末から接続させたい場合は、`.env` の `HOST_BIND_ADDRESS` を `0.0.0.0` などに変更してください。その場合は、管理画面に `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` を設定し、`ADMIN_API_KEY` と `NEXT_PUBLIC_ADMIN_API_KEY` を推測されにくい同じ値に変更してください。
 
+    以前のバージョンでは各ポートがすべてのネットワークに公開されていました。他の端末やサーバー外から直接接続していた場合は、上記のとおり `HOST_BIND_ADDRESS` を設定してください。なお `PUBLIC_API_KEY`（公開ビューア用の API キー）はブラウザに配信される値なので秘密になりません。外部に公開する場合は、`ENVIRONMENT=production` に変更することも検討してください。
+
 ## ローカル開発（Dockerを使わずに起動）
 
 Dockerを使わずに `apps/api` と `apps/admin` を個別に起動する場合は、以下を実行します。
