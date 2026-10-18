@@ -29,6 +29,25 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["@chakra-ui/react"],
   },
+  async rewrites() {
+    if (isStaticExport) {
+      return [];
+    }
+
+    // サーバーモードでは public/meta をコピーしないので、/meta/* の画像（favicon・作成者画像・OGP）は API へ転送する。
+    // 静的書き出しでは copy-image が public/meta に画像を置く。
+    const apiBasePath = (process.env.API_BASEPATH || process.env.NEXT_PUBLIC_API_BASEPATH || "").replace(/\/+$/, "");
+    if (!apiBasePath) {
+      return [];
+    }
+
+    return [
+      {
+        source: "/meta/:path*",
+        destination: `${apiBasePath}/meta/:path*`,
+      },
+    ];
+  },
   async headers() {
     if (isStaticExport) {
       return [];
