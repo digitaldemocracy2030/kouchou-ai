@@ -143,6 +143,40 @@ describe("scatterPlugin", () => {
 
       expect(element).not.toBeNull();
     });
+
+    it("濃い意見の抽出が 0 件でも、一つ上の階層を targetLevel にしない", () => {
+      const level1 = {
+        id: "1",
+        level: 1,
+        label: "L1",
+        takeaway: "",
+        value: 10,
+        density_rank_percentile: 0.5,
+        parent: "",
+      };
+      const level2 = {
+        id: "2",
+        level: 2,
+        label: "L2",
+        takeaway: "",
+        value: 3,
+        density_rank_percentile: 0.9,
+        parent: "1",
+      };
+      const modeResult = { clusters: [level1, level2], arguments: [], config: { title: "Test" } } as unknown as Result;
+      // 密度フィルタで最深階層のクラスタがすべて除かれた結果
+      const result = { ...modeResult, clusters: [level1] } as unknown as Result;
+
+      const element = scatterPlugin.render({
+        result,
+        modeResult,
+        selectedChart: "scatterDensity",
+        isFullscreen: false,
+        showClusterLabels: true,
+      }) as React.ReactElement<{ targetLevel: number }>;
+
+      expect(element.props.targetLevel).toBe(2);
+    });
   });
 });
 

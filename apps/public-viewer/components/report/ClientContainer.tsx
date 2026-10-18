@@ -99,6 +99,13 @@ export function ClientContainer({ result }: Props) {
     return !isEmpty;
   }, [result.clusters, maxDensity, minValue]);
 
+  // 濃い意見の抽出結果が 0 件になったら、一つ上の階層を濃い意見として見せないよう全体表示へ戻す
+  useEffect(() => {
+    if (selectedChart === "scatterDensity" && !isDenseGroupEnabled) {
+      setSelectedChart("scatterAll");
+    }
+  }, [selectedChart, isDenseGroupEnabled]);
+
   // --- 属性・テキストフィルタの適用（密度変更時に再計算しないよう分離） ---
   const filteredArgIds = useMemo(
     () => filterArgumentIds(result.arguments, filterParams),
@@ -182,7 +189,8 @@ export function ClientContainer({ result }: Props) {
     if (selectedChart === "hierarchyList") return [];
     let c: Cluster[] = [];
     if (selectedChart === "scatterDensity" || selectedChart === "scatterDetail") {
-      const max = Math.max(...filteredResult.clusters.map((c) => c.level));
+      // 最深階層はフィルタ前の result で決める（抽出が 0 件でも一つ上の階層に繰り上げない）
+      const max = Math.max(...result.clusters.map((c) => c.level));
       c = filteredResult.clusters.filter((c) => c.level === max);
     } else {
       c = result.clusters.filter((c) => c.level === 1);

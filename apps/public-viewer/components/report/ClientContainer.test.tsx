@@ -63,8 +63,8 @@ async function flush() {
   });
 }
 
-async function renderViewer() {
-  const result = structuredClone(fixture) as unknown as Result;
+async function renderViewer(overrides: Partial<Result> = {}) {
+  const result = { ...(structuredClone(fixture) as unknown as Result), ...overrides };
   const utils = render(
     <Provider>
       <ClientContainer result={result} />
@@ -123,6 +123,23 @@ describe("全画面表示でのクラスタ粒度の切替", () => {
     await flush();
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await flush();
+  });
+});
+
+describe("濃い意見の抽出結果が 0 件のとき", () => {
+  it("一つ上の階層を濃い意見として表示せず、全体表示へ戻す", async () => {
+    await renderViewer({
+      visualizationConfig: {
+        defaultChart: "scatterDensity",
+        // どのクラスタも条件を満たさない最小件数
+        params: { scatterDensity: { maxDensity: 1, minValue: 1_000_000 } },
+      },
+    } as Partial<Result>);
+
+    expect(screen.getByRole("radio", { name: "全体" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "濃い意見" })).not.toBeChecked();
+    expect(screen.getByTestId("scatter")).toHaveAttribute("data-level", "1");
     await flush();
   });
 });

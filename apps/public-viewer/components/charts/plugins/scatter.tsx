@@ -53,13 +53,23 @@ export const scatterPlugin: ChartPlugin = {
   },
 
   render: (context: ChartRenderContext) => {
-    const { result, selectedChart, filteredArgumentIds, showClusterLabels, showConvexHull, onHover, onSelectCluster } =
-      context;
+    const {
+      result,
+      modeResult,
+      selectedChart,
+      filteredArgumentIds,
+      showClusterLabels,
+      showConvexHull,
+      onHover,
+      onSelectCluster,
+    } = context;
 
     // Calculate target level based on mode
     // scatterAll: top-level clusters (level 1)
     // scatterDetail / scatterDensity: deepest-level clusters
-    const targetLevel = selectedChart === "scatterAll" ? 1 : Math.max(1, ...result.clusters.map((c) => c.level));
+    // 濃い意見の抽出が 0 件でも一つ上の階層に繰り上げないよう、最深階層はフィルタ前の result で決める
+    const levelSource = modeResult ?? result;
+    const targetLevel = selectedChart === "scatterAll" ? 1 : Math.max(1, ...levelSource.clusters.map((c) => c.level));
 
     return (
       <ScatterChart

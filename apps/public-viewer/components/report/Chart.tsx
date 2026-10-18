@@ -58,6 +58,7 @@ export function Chart({
   // Create render context for plugins
   const renderContext: ChartRenderContext = {
     result,
+    modeResult,
     selectedChart,
     isFullscreen,
     filteredArgumentIds: result.filteredArgumentIds,

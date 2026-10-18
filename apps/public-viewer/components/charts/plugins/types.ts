@@ -96,6 +96,8 @@ export interface ChartMode {
 export interface ChartRenderContext {
   /** Full result data */
   result: Result;
+  /** Result before view filters (e.g. dense-group extraction); used to fix the deepest level */
+  modeResult?: Result;
   /** Currently selected chart mode */
   selectedChart: string;
   /** Whether chart is in fullscreen mode */
