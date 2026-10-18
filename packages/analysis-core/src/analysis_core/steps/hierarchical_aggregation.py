@@ -85,7 +85,10 @@ def hierarchical_aggregation(config) -> bool:
 
         arguments = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/args.csv")
         arg_num = len(arguments)
-        relation_df = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/relations.csv")
+        # comment-id は入力CSVの値そのもの（"001" など）なので、型推論で数値化させない
+        relation_df = pl.read_csv(
+            f"{output_base_dir}/{config['output_dir']}/relations.csv", schema_overrides={"comment-id": pl.Utf8}
+        )
         comments = read_input_csv(f"{input_base_dir}/{config['input']}.csv")
         clusters = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/hierarchical_clusters.csv")
         labels = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/hierarchical_merge_labels.csv")
