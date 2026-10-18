@@ -125,7 +125,9 @@ def hierarchical_aggregation(config) -> bool:
     except Exception as e:
         print("error")
         print(e)
-        return False
+        # 握り潰すと engine が成功扱いし、欠損/古い hierarchical_result.json のまま
+        # ready になる。失敗は呼び出し元へ伝播させる。
+        raise
 
 
 def create_custom_intro(config):

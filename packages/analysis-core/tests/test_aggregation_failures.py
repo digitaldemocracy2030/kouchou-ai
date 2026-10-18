@@ -1,0 +1,99 @@
+"""A failed aggregation must fail the run instead of being reported as success."""
+
+import importlib
+import json
+
+import pytest
+
+aggregation = importlib.import_module("analysis_core.steps.hierarchical_aggregation")
+
+AGGREGATION_PLAN = [
+    "extraction",
+    "embedding",
+    "hierarchical_clustering",
+    "hierarchical_initial_labelling",
+    "hierarchical_merge_labelling",
+    "hierarchical_overview",
+]
+
+
+def write_report(tmp_path, overview=True):
+    inputs = tmp_path / "inputs"
+    report = tmp_path / "outputs" / "report"
+    inputs.mkdir()
+    report.mkdir(parents=True)
+    (inputs / "input.csv").write_text("comment-id,comment-body\nc1,good\n")
+    (report / "args.csv").write_text("arg-id,argument\na1,opinion\n")
+    (report / "relations.csv").write_text("arg-id,comment-id\na1,c1\n")
+    (report / "hierarchical_clusters.csv").write_text(
+        "arg-id,argument,x,y,cluster-level-1-id\na1,opinion,0.1,0.2,1_0\n"
+    )
+    (report / "hierarchical_merge_labels.csv").write_text(
+        "level,id,label,description,value,parent,density_rank_percentile\n1,1_0,label,desc,1,0,0.5\n"
+    )
+    if overview:
+        (report / "hierarchical_overview.txt").write_text("overview")
+    config = {
+        "input": "input",
+        "output_dir": "report",
+        "provider": "openai",
+        "model": "m",
+        "_input_base_dir": str(inputs),
+        "_output_base_dir": str(tmp_path / "outputs"),
+        "hierarchical_aggregation": {"hidden_properties": {}},
+        "extraction": {"limit": 10, "categories": {}},
+        "intro": "intro",
+        "is_pubcom": False,
+    }
+    return report, config
+
+
+def test_success_still_returns_true(tmp_path):
+    report, config = write_report(tmp_path)
+    assert aggregation.hierarchical_aggregation(config) is True
+    result = json.loads((report / "hierarchical_result.json").read_text())
+    assert result["overview"] == "overview"
+    assert [a["arg_id"] for a in result["arguments"]] == ["a1"]
+
+
+def test_missing_input_raises(tmp_path):
+    report, config = write_report(tmp_path, overview=False)
+    with pytest.raises(FileNotFoundError):
+        aggregation.hierarchical_aggregation(config)
+    assert not (report / "hierarchical_result.json").exists()
+
+
+def test_missing_hidden_property_column_raises(tmp_path):
+    _, config = write_report(tmp_path)
+    config["hierarchical_aggregation"]["hidden_properties"] = {"age": ["10代"]}
+    with pytest.raises(ValueError, match="age"):
+        aggregation.hierarchical_aggregation(config)
+
+
+def test_failure_after_json_write_raises(tmp_path, monkeypatch):
+    """Missing pubcom CSV must not be hidden behind an already written JSON."""
+    _, config = write_report(tmp_path)
+    config["is_pubcom"] = True
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("pubcom export failed")
+
+    monkeypatch.setattr(aggregation, "add_original_comments", broken)
+    with pytest.raises(RuntimeError, match="pubcom export failed"):
+        aggregation.hierarchical_aggregation(config)
+
+
+def test_workflow_marks_run_failed(tmp_path):
+    from analysis_core.orchestrator import PipelineOrchestrator
+
+    report, config = write_report(tmp_path)
+    config["hierarchical_aggregation"]["hidden_properties"] = {"age": ["10代"]}
+    config["plan"] = [{"step": name, "run": False} for name in AGGREGATION_PLAN] + [
+        {"step": "hierarchical_aggregation", "run": True}
+    ]
+    result = PipelineOrchestrator(config).run_default()
+    assert not result.success
+    assert "age" in (result.error or "")
+    status = json.loads((report / "hierarchical_status.json").read_text())
+    assert status["status"] == "error"
+    assert "hierarchical_aggregation" not in [job["step"] for job in status.get("completed_jobs", [])]
