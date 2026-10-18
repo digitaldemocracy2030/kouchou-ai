@@ -113,6 +113,31 @@ class TestReportSyncService:
             f"{report_sync_service.REMOTE_REPORT_DIR_PREFIX}/test-slug",
         )
 
+    def test_sync_report_files_to_storage_returns_false_on_upload_failure(
+        self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock, mock_report_dir: Path
+    ):
+        """アップロードに失敗したら False を返し、ローカルの成果物は削除しない"""
+        mock_storage_service.upload_directory.return_value = False
+
+        with patch.object(report_sync_service, "_cleanup_report_files") as mock_cleanup:
+            assert report_sync_service.sync_report_files_to_storage("test-slug") is False
+        mock_cleanup.assert_not_called()
+
+    def test_sync_input_and_config_return_upload_result(
+        self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock, tmp_path: Path
+    ):
+        """入力・設定ファイルのアップロード結果を返す"""
+        (tmp_path / "test-slug.csv").write_text("comment-id,comment-body\n", encoding="utf-8")
+        (tmp_path / "test-slug.json").write_text("{}", encoding="utf-8")
+        mock_storage_service.upload_file.return_value = False
+
+        with patch.object(settings, "INPUT_DIR", tmp_path), patch.object(settings, "CONFIG_DIR", tmp_path):
+            assert report_sync_service.sync_input_file_to_storage("test-slug") is False
+            assert report_sync_service.sync_config_file_to_storage("test-slug") is False
+            mock_storage_service.upload_file.return_value = True
+            assert report_sync_service.sync_input_file_to_storage("test-slug") is True
+            assert report_sync_service.sync_config_file_to_storage("test-slug") is True
+
     def test_download_status_file_from_storage_success(
         self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock, mock_status_file_empty: Path
     ):

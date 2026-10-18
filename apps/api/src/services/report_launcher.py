@@ -212,6 +212,45 @@ def _ensure_error_status_payload(slug: str, error_override: str | None = None) -
         json.dump(status_data, f, indent=2, ensure_ascii=False)
 
 
+UPLOAD_FAILED_ERROR = "Failed to upload report artifacts to storage"
+
+
+def _sync_report_artifacts_to_storage(slug: str) -> bool:
+    """成果物・入力・設定ファイルをストレージに同期し、全て成功したかを返す"""
+    logger.info(f"Syncing files for {slug} to storage")
+    report_sync_service = ReportSyncService()
+    try:
+        # 1つが失敗しても残りは試み、結果を集約する
+        results = [
+            # レポートファイルをストレージに同期し、JSONファイル以外を削除
+            report_sync_service.sync_report_files_to_storage(slug),
+            # 入力ファイルをストレージに同期
+            report_sync_service.sync_input_file_to_storage(slug),
+            # 設定ファイルをストレージに同期
+            report_sync_service.sync_config_file_to_storage(slug),
+        ]
+    except Exception as e:
+        logger.error(f"Error syncing files for {slug} to storage: {e}")
+        return False
+    return all(results)
+
+
+def _finalize_completed_report(slug: str) -> None:
+    """analysis-core が正常終了したレポートの成果物を同期し、成否に応じて status を確定する
+
+    成果物のアップロードが一部でも失敗した状態で ready にすると、再起動後に結果ファイルの
+    無い ready レポートが残るため、全て成功した場合だけ ready にする。
+    """
+    if _sync_report_artifacts_to_storage(slug):
+        set_status(slug, "ready")
+    else:
+        logger.error(f"Failed to sync report artifacts for {slug}; marking report as error")
+        _ensure_error_status_payload(slug, error_override=UPLOAD_FAILED_ERROR)
+        set_status(slug, "error")
+    # ステータスファイルをストレージに同期
+    ReportSyncService().sync_status_file_to_storage()
+
+
 def _monitor_process(process: subprocess.Popen, slug: str, log_file: Any | None = None) -> None:
     """
     サブプロセスの実行を監視し、完了時にステータスを更新する
@@ -257,18 +296,7 @@ def _monitor_process(process: subprocess.Popen, slug: str, log_file: Any | None 
             except Exception as e:
                 logger.error(f"Error updating token usage for {slug}: {e}")
 
-            set_status(slug, "ready")
-
-            logger.info(f"Syncing files for {slug} to storage")
-            report_sync_service = ReportSyncService()
-            # レポートファイルをストレージに同期し、JSONファイル以外を削除
-            report_sync_service.sync_report_files_to_storage(slug)
-            # 入力ファイルをストレージに同期し、ローカルファイルを削除
-            report_sync_service.sync_input_file_to_storage(slug)
-            # 設定ファイルをストレージに同期
-            report_sync_service.sync_config_file_to_storage(slug)
-            # ステータスファイルをストレージに同期
-            report_sync_service.sync_status_file_to_storage()
+            _finalize_completed_report(slug)
 
         else:
             _ensure_error_status_payload(slug)

@@ -85,13 +85,17 @@ class ReportSyncService:
             logger.error(f"ローカルファイルの削除に失敗しました: {file_path} エラー: {str(e)}")
             return False
 
-    def sync_report_files_to_storage(self, slug: str) -> None:
-        """レポートの中間ファイルと結果ファイルをストレージにアップロードし、保持すべきファイル以外を削除する"""
+    def sync_report_files_to_storage(self, slug: str) -> bool:
+        """レポートの中間ファイルと結果ファイルをストレージにアップロードし、保持すべきファイル以外を削除する
+
+        Returns:
+            bool: アップロードに成功した場合はTrue、失敗した場合（ディレクトリが無い場合を含む）はFalse
+        """
 
         report_dir = settings.REPORT_DIR / slug
         if not report_dir.exists():
             logger.warning(f"レポートディレクトリが存在しません: {report_dir}")
-            return
+            return False
 
         local_dir = settings.REPORT_DIR / slug
         remote_dir_prefix = f"{self.REMOTE_REPORT_DIR_PREFIX}/{slug}"
@@ -102,28 +106,37 @@ class ReportSyncService:
         # アップロードが成功した場合、保持すべきファイル以外を削除
         if upload_success:
             self._cleanup_report_files(local_dir)
+        return bool(upload_success)
 
-    def sync_input_file_to_storage(self, slug: str) -> None:
-        """入力ファイルをストレージにアップロードし、アップロード後にローカルファイルを削除する"""
+    def sync_input_file_to_storage(self, slug: str) -> bool:
+        """入力ファイルをストレージにアップロードし、アップロード後にローカルファイルを削除する
+
+        Returns:
+            bool: アップロードに失敗した場合はFalse（ローカルにファイルが無くアップロード対象が無い場合はTrue）
+        """
         input_file_path = settings.INPUT_DIR / f"{slug}.csv"
         if not input_file_path.exists():
             logger.warning(f"入力ファイルが存在しません: {input_file_path}")
-            return
+            return True
 
         remote_input_file_path = f"{self.REMOTE_INPUT_DIR_PREFIX}/{slug}.csv"
 
         # ファイルをストレージにアップロード
-        self.storage_service.upload_file(str(input_file_path), remote_input_file_path)
+        return bool(self.storage_service.upload_file(str(input_file_path), remote_input_file_path))
 
-    def sync_config_file_to_storage(self, slug: str) -> None:
-        """設定ファイルをストレージにアップロードする"""
+    def sync_config_file_to_storage(self, slug: str) -> bool:
+        """設定ファイルをストレージにアップロードする
+
+        Returns:
+            bool: アップロードに失敗した場合はFalse（ローカルにファイルが無くアップロード対象が無い場合はTrue）
+        """
         config_file_path = settings.CONFIG_DIR / f"{slug}.json"
         if not config_file_path.exists():
             logger.warning(f"設定ファイルが存在しません: {config_file_path}")
-            return
+            return True
 
         remote_config_file_path = f"{self.REMOTE_CONFIG_DIR_PREFIX}/{slug}.json"
-        self.storage_service.upload_file(str(config_file_path), remote_config_file_path)
+        return bool(self.storage_service.upload_file(str(config_file_path), remote_config_file_path))
 
     def download_status_file_from_storage(self) -> bool:
         """ステータスファイルをストレージからダウンロードする

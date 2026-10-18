@@ -289,12 +289,15 @@ def test_launch_report_generation_from_config_runs_full_service_flow(monkeypatch
     class DummyReportSyncService:
         def sync_report_files_to_storage(self, value):
             calls["syncs"].append(("report", value))
+            return True
 
         def sync_input_file_to_storage(self, value):
             calls["syncs"].append(("input", value))
+            return True
 
         def sync_config_file_to_storage(self, value):
             calls["syncs"].append(("config", value))
+            return True
 
         def sync_status_file_to_storage(self):
             calls["syncs"].append(("status", None))
@@ -392,12 +395,15 @@ def test_launch_report_generation_runs_full_service_flow(monkeypatch, tmp_path):
     class DummyReportSyncService:
         def sync_report_files_to_storage(self, value):
             calls["syncs"].append(("report", value))
+            return True
 
         def sync_input_file_to_storage(self, value):
             calls["syncs"].append(("input", value))
+            return True
 
         def sync_config_file_to_storage(self, value):
             calls["syncs"].append(("config", value))
+            return True
 
         def sync_status_file_to_storage(self):
             calls["syncs"].append(("status", None))
@@ -550,12 +556,15 @@ def test_monitor_process_reads_workflow_status_and_syncs_outputs(monkeypatch, tm
     class DummyReportSyncService:
         def sync_report_files_to_storage(self, value):
             calls["syncs"].append(("report", value))
+            return True
 
         def sync_input_file_to_storage(self, value):
             calls["syncs"].append(("input", value))
+            return True
 
         def sync_config_file_to_storage(self, value):
             calls["syncs"].append(("config", value))
+            return True
 
         def sync_status_file_to_storage(self):
             calls["syncs"].append(("status", None))
@@ -580,6 +589,69 @@ def test_monitor_process_reads_workflow_status_and_syncs_outputs(monkeypatch, tm
         ("config", slug),
         ("status", None),
     ]
+
+
+def test_monitor_process_marks_error_when_artifact_upload_fails(monkeypatch, tmp_path):
+    # 成果物のアップロードが一部でも失敗したら ready にしない。ready のまま status だけが
+    # リモートに上がると、再起動後に結果ファイルの無い ready レポートが残る。
+    import json
+
+    from src.services import report_launcher
+
+    slug = "demo"
+    report_dir = tmp_path / "reports"
+    config_dir = tmp_path / "configs"
+    (report_dir / slug).mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+    (report_dir / slug / "hierarchical_status.json").write_text(
+        json.dumps({"status": "completed", "completed_jobs": []}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_launcher.settings, "CONFIG_DIR", config_dir)
+
+    calls = {"statuses": [], "syncs": []}
+
+    class DummyProcess:
+        def wait(self):
+            return 0
+
+    class DummyReportSyncService:
+        def sync_report_files_to_storage(self, value):
+            calls["syncs"].append(("report", value))
+            return False
+
+        def sync_input_file_to_storage(self, value):
+            calls["syncs"].append(("input", value))
+            return True
+
+        def sync_config_file_to_storage(self, value):
+            calls["syncs"].append(("config", value))
+            return True
+
+        def sync_status_file_to_storage(self):
+            calls["syncs"].append(("status", None))
+
+    monkeypatch.setattr(
+        report_launcher, "set_status", lambda current_slug, status: calls["statuses"].append((current_slug, status))
+    )
+    monkeypatch.setattr(report_launcher, "update_token_usage", lambda *args: None)
+    monkeypatch.setattr(report_launcher, "ReportSyncService", DummyReportSyncService)
+
+    report_launcher._monitor_process(DummyProcess(), slug)
+
+    assert calls["statuses"] == [(slug, "error")]
+    # 失敗しても残りのアップロードは試み、最後に error になった status を同期する
+    assert calls["syncs"] == [
+        ("report", slug),
+        ("input", slug),
+        ("config", slug),
+        ("status", None),
+    ]
+    status_data = json.loads((report_dir / slug / "hierarchical_status.json").read_text(encoding="utf-8"))
+    assert status_data["status"] == "error"
+    assert status_data["error"] == report_launcher.UPLOAD_FAILED_ERROR
 
 
 def test_monitor_process_preserves_existing_report_status_during_aggregation_rerun(monkeypatch, tmp_path):
@@ -651,12 +723,15 @@ def test_monitor_process_preserves_existing_report_status_during_aggregation_rer
     class DummyReportSyncService:
         def sync_report_files_to_storage(self, value):
             syncs.append(("report", value))
+            return True
 
         def sync_input_file_to_storage(self, value):
             syncs.append(("input", value))
+            return True
 
         def sync_config_file_to_storage(self, value):
             syncs.append(("config", value))
+            return True
 
         def sync_status_file_to_storage(self):
             syncs.append(("status", None))
@@ -805,12 +880,15 @@ def test_execute_aggregation_runs_monitor_flow_and_preserves_existing_status(mon
     class DummyReportSyncService:
         def sync_report_files_to_storage(self, value):
             calls["syncs"].append(("report", value))
+            return True
 
         def sync_input_file_to_storage(self, value):
             calls["syncs"].append(("input", value))
+            return True
 
         def sync_config_file_to_storage(self, value):
             calls["syncs"].append(("config", value))
+            return True
 
         def sync_status_file_to_storage(self):
             calls["syncs"].append(("status", None))
