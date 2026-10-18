@@ -3,6 +3,7 @@ from typing import Any
 
 import polars as pl
 from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi.concurrency import run_in_threadpool
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 
@@ -58,7 +59,8 @@ async def import_spreadsheet(
         HTTPException: インポート処理中にエラーが発生した場合
     """
     try:
-        file_path = process_spreadsheet_url(input_data.url, input_data.file_name)
+        # 外部 HTTP 取得を含む同期処理なので、イベントループを塞がないよう threadpool で実行する
+        file_path = await run_in_threadpool(process_spreadsheet_url, input_data.url, input_data.file_name)
         return {
             "status": "success",
             "message": "スプレッドシートのインポートが完了しました",

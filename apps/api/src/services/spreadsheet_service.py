@@ -12,6 +12,9 @@ from src.utils.validation import validate_filename
 
 slogger = setup_logger()
 
+# (接続, 読み取り) タイムアウト秒。未指定だと応答しない相手に無期限でブロックされる
+SPREADSHEET_FETCH_TIMEOUT_SECONDS = (10, 60)
+
 
 def parse_spreadsheet_url(url: str) -> tuple[str, str | None]:
     # スプレッドシートIDのパターン
@@ -43,7 +46,7 @@ def fetch_public_spreadsheet(sheet_id: str, sheet_name: str | None = None) -> pl
         params["gid"] = sheet_name
 
     try:
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params, timeout=SPREADSHEET_FETCH_TIMEOUT_SECONDS)
         response.raise_for_status()
         response.encoding = "utf-8"
         csv_data = StringIO(response.text)

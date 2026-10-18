@@ -9,6 +9,7 @@ except Exception:  # pragma: no cover
     google_exceptions = None
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Security
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.security.api_key import APIKeyHeader
 
@@ -287,7 +288,8 @@ async def update_report_visibility(
 ) -> dict:
     validate_slug(slug)
     try:
-        visibility = update_report_visibility_state(slug, visibility_update.visibility)
+        # Next.js revalidate の同期 HTTP 呼び出しを含むため、イベントループを塞がないよう threadpool で実行する
+        visibility = await run_in_threadpool(update_report_visibility_state, slug, visibility_update.visibility)
 
         return {"success": True, "visibility": visibility}
     except ValueError as e:
@@ -331,7 +333,9 @@ async def update_report_config_endpoint(
             raise Exception(f"Failed to execute aggregation for {slug}")
 
         # report_status.json を更新
-        updated_report = update_report_config(
+        # Next.js revalidate の同期 HTTP 呼び出しを含むため threadpool で実行する
+        updated_report = await run_in_threadpool(
+            update_report_config,
             slug=slug,
             updated_config=config,
         )
@@ -401,7 +405,7 @@ async def update_cluster_label(
     if not is_aggregation_executed:
         raise HTTPException(status_code=500, detail="意見グループ更新の集計に失敗しました")
 
-    invalidate_report_cache(slug)
+    await run_in_threadpool(invalidate_report_cache, slug)
 
     return {"success": True}
 
@@ -458,7 +462,7 @@ async def update_visualization_config(
         with open(visualization_config_path, mode="w", encoding="utf-8") as f:
             json.dump(config.model_dump(), f, ensure_ascii=False, indent=2)
 
-        invalidate_report_cache(slug)
+        await run_in_threadpool(invalidate_report_cache, slug)
 
         return {
             "success": True,
@@ -532,7 +536,9 @@ async def verify_api_key(
         model = model or model_map.get(provider, "gpt-4o-mini")
         user_api_key = request.headers.get("x-user-api-key")
 
-        response = request_to_chat_ai(
+        # request_to_chat_ai は同期 I/O（timeout + リトライ）なので、イベントループを塞がないよう threadpool で実行する
+        response = await run_in_threadpool(
+            request_to_chat_ai,
             messages=test_messages,
             model=model,
             provider=provider,

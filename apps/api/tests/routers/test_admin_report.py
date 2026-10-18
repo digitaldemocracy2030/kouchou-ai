@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import tempfile
@@ -13,6 +14,15 @@ from src.routers import admin_report
 from src.routers.admin_report import router, verify_admin_api_key
 from src.schemas.report import Report, ReportStatus, ReportVisibility
 from src.services import report_duplicate, report_launcher, report_status, report_sync
+
+
+def _has_running_event_loop() -> bool:
+    """呼び出し元スレッドでイベントループが動いているか（=async 関数から直接呼ばれたか）"""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
 
 
 @pytest.fixture
@@ -92,6 +102,24 @@ class TestUpdateReportVisibility:
 
             # モック関数が正しく呼び出されたことを確認
             mock_toggle.assert_called_once_with("test-slug", ReportVisibility.PUBLIC)
+
+    def test_update_report_visibility_runs_off_event_loop(self, client):
+        """revalidate の同期 HTTP を含む処理がイベントループ上で直接実行されないこと"""
+        seen = {}
+
+        def fake_update(slug, visibility):
+            seen["on_loop"] = _has_running_event_loop()
+            return visibility.value
+
+        with patch("src.routers.admin_report.update_report_visibility_state", side_effect=fake_update):
+            response = client.patch(
+                "/admin/reports/test-slug/visibility",
+                json={"visibility": ReportVisibility.PUBLIC.value},
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 200
+        assert seen == {"on_loop": False}
 
     def test_update_report_visibility_not_found(self, client):
         """異常系：存在しないスラッグで404エラーが発生するケース"""
@@ -204,6 +232,21 @@ class TestVerifyApiKey:
             response = client.get("/admin/environment/verify?provider=openai", headers={"x-api-key": "test-api-key"})
             assert response.json()["success"] is False
             assert response.json()["error_type"] == "unknown_error"
+
+    def test_verify_api_key_runs_chat_request_off_event_loop(self, client):
+        """同期の request_to_chat_ai（timeout + リトライ）がイベントループを塞がないこと"""
+        seen = {}
+
+        def fake_request(**kwargs):
+            seen["on_loop"] = _has_running_event_loop()
+            return ("ok", 0, 0, 0)
+
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=fake_request):
+            response = client.get("/admin/environment/verify?provider=openai", headers={"x-api-key": "test-api-key"})
+
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        assert seen == {"on_loop": False}
 
     def test_verify_api_key_does_not_expose_exception_detail(self, client):
         with patch("analysis_core.services.llm.request_to_chat_ai") as mock_request:
