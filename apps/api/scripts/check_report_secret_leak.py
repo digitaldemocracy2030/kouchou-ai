@@ -5,6 +5,8 @@ PR #868 (2026-05-29 merge) から PR #1026 の修正までの間に生成・再�
 管理画面で入力した「ユーザー API キー」が hierarchical_result.json の
 ``config.user_api_key`` に平文で書き出されていた。公開ビューアはレポート全体を
 クライアントに渡すため、ページの HTML にも埋め込まれる。
+また抽出・意見分類の実行中は hierarchical_status.json にも ``user_api_key`` が書かれ、
+異常終了するとそのまま残っていた（公開 API では返らないが、サーバー・ストレージ上に残る）。
 
 このスクリプトは標準ライブラリだけで動き、次のいずれかを対象にできる。
 
@@ -17,7 +19,7 @@ PR #868 (2026-05-29 merge) から PR #1026 の修正までの間に生成・再�
 
     # サーバー上のファイル / レポートディレクトリ
     python check_report_secret_leak.py path/to/hierarchical_result.json
-    python check_report_secret_leak.py --report-dir path/to/outputs
+    python check_report_secret_leak.py --report-dir path/to/outputs  # result と status の両方
 
 キーは先頭と末尾の数文字だけを表示する。漏洩が 1 件でも見つかれば終了コード 1 を返す。
 """
@@ -36,6 +38,7 @@ from pathlib import Path
 from typing import Any
 
 SECRET_KEYS = ("user_api_key",)
+REPORT_DIR_FILES = ("hierarchical_result.json", "hierarchical_status.json")
 # HTML（Next.js の RSC payload）では JSON が JS 文字列に埋め込まれ、引用符が \" にエスケープされる
 HTML_SECRET_RE = re.compile(r'user_api_key\\*"\s*:\s*\\*"([^"\\]*)')
 HTML_PATH_RE = re.compile(r'_(?:output|input)_base_dir\\*"\s*:\s*\\*"([^"\\]*)')
@@ -156,7 +159,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--api-base", help="公開 API のベース URL（指定時、targets は slug として扱う）")
     parser.add_argument("--api-key", help="公開 API の x-api-key（PUBLIC_API_KEY）")
     parser.add_argument("--all", action="store_true", help="--api-base の公開レポート一覧を全件確認")
-    parser.add_argument("--report-dir", type=Path, help="<report-dir>/<slug>/hierarchical_result.json を全件確認")
+    parser.add_argument(
+        "--report-dir",
+        type=Path,
+        help="<report-dir>/<slug>/ の hierarchical_result.json と hierarchical_status.json を全件確認",
+    )
     parser.add_argument("--show-internal-paths", action="store_true", help="config に残るサーバー内部パスも表示")
     args = parser.parse_args(argv)
 
@@ -175,7 +182,8 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 findings.append(check_file(Path(target)))
     if args.report_dir:
-        findings += [check_file(p) for p in sorted(args.report_dir.glob("*/hierarchical_result.json"))]
+        for name in REPORT_DIR_FILES:
+            findings += [check_file(p) for p in sorted(args.report_dir.glob(f"*/{name}"))]
 
     if not findings:
         parser.error("確認対象がありません")

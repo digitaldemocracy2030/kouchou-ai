@@ -150,3 +150,66 @@ def test_scrub_refuses_backup_inside_report_dir(report_dir):
 def test_scrub_sync_requires_apply(report_dir):
     with pytest.raises(SystemExit):
         scrub.main(["--report-dir", str(report_dir), "--sync-storage"])
+
+
+def _leaked_status():
+    return {
+        "output_dir": "leaked",
+        "_output_base_dir": "/app/broadlistening/pipeline/outputs",
+        "status": "error",
+        "user_api_key": SECRET,
+        "error_stack_trace": "Traceback ...",
+        "previous": {"user_api_key": SECRET, "status": "completed"},
+        "completed_jobs": [{"step": "extraction"}],
+    }
+
+
+@pytest.fixture
+def report_dir_with_status(report_dir):
+    (report_dir / "leaked" / "hierarchical_status.json").write_text(
+        json.dumps(_leaked_status(), indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (report_dir / "clean" / "hierarchical_status.json").write_text(
+        json.dumps({"output_dir": "clean", "status": "completed"}), encoding="utf-8"
+    )
+    return report_dir
+
+
+def test_check_report_dir_also_scans_status_files(report_dir_with_status, capsys):
+    (report_dir_with_status / "leaked" / "hierarchical_result.json").write_text(
+        json.dumps({"config": {"question": "q"}}), encoding="utf-8"
+    )
+    assert check.main(["--report-dir", str(report_dir_with_status)]) == 1
+    out = capsys.readouterr().out
+    assert f"[LEAK]  {report_dir_with_status / 'leaked' / 'hierarchical_status.json'}" in out
+    assert SECRET not in out
+
+
+def test_scrub_apply_removes_user_api_key_from_status(report_dir_with_status, tmp_path, capsys):
+    backup = tmp_path / "backup"
+    assert scrub.main(["--report-dir", str(report_dir_with_status), "--apply", "--backup-dir", str(backup)]) == 0
+    assert "要修正 2 件" in capsys.readouterr().out
+
+    status_path = report_dir_with_status / "leaked" / "hierarchical_status.json"
+    after = json.loads(status_path.read_text(encoding="utf-8"))
+    expected = _leaked_status()
+    del expected["user_api_key"]
+    del expected["previous"]["user_api_key"]
+    # status では実行時の情報（内部パス・スタックトレース）は残し、キーだけを消す
+    assert after == expected
+    assert list(after.keys()) == list(expected.keys())
+
+    backups = list(backup.glob("*/leaked/hierarchical_status.json"))
+    assert len(backups) == 1
+    assert SECRET in backups[0].read_text(encoding="utf-8")
+    assert check.main(["--report-dir", str(report_dir_with_status)]) == 0
+
+
+def test_scrub_slug_covers_status_without_result(tmp_path):
+    root = tmp_path / "outputs"
+    (root / "running").mkdir(parents=True)
+    status_path = root / "running" / "hierarchical_status.json"
+    status_path.write_text(json.dumps(_leaked_status()), encoding="utf-8")
+
+    assert scrub.main(["--report-dir", str(root), "--slug", "running", "--apply", "--no-backup"]) == 0
+    assert SECRET not in status_path.read_text(encoding="utf-8")

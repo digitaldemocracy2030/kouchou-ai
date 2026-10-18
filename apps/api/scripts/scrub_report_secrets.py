@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""既存レポートの hierarchical_result.json から非公開キーを取り除く（レポートは温存）。
+"""既存レポートの hierarchical_result.json / hierarchical_status.json から非公開キーを取り除く（レポートは温存）。
 
 PR #868 (2026-05-29 merge) から PR #1026 の修正までの間に生成・再集計されたレポートでは、
 ``config.user_api_key``（管理画面で入力したユーザー API キー）、サーバー内部パス
 （``_output_base_dir`` などの ``_`` 始まりのキー）、前回 status の ``error_stack_trace`` が
 hierarchical_result.json に書き出されていた。
 
-このスクリプトは ``config`` 配下からそれらのキーだけを再帰的に削除し、意見・クラスタ・ラベル・
-概要などレポートの中身には触れない。再生成や LLM の再実行は行わない。
+また抽出・意見分類の実行中は hierarchical_status.json にも ``user_api_key`` が書かれ、
+異常終了するとそのまま残っていた。
+
+このスクリプトは hierarchical_result.json の ``config`` 配下からそれらのキーだけを再帰的に削除し、
+意見・クラスタ・ラベル・概要などレポートの中身には触れない。hierarchical_status.json からは
+``user_api_key`` だけを削除する（内部パスやスタックトレースは実行状態として残す）。
+再生成や LLM の再実行は行わない。
 
 API サーバーのコンテナ（作業ディレクトリ apps/api）で実行する想定:
 
@@ -43,7 +48,9 @@ from pathlib import Path
 from typing import Any
 
 NON_PUBLIC_CONFIG_KEYS = {"user_api_key", "error_stack_trace"}
+STATUS_SECRET_KEYS = {"user_api_key"}
 RESULT_FILE = "hierarchical_result.json"
+STATUS_FILE = "hierarchical_status.json"
 REMOTE_REPORT_DIR_PREFIX = "outputs"  # src.services.report_sync.ReportSyncService と同じ
 
 
@@ -51,23 +58,27 @@ def _is_non_public(key: Any) -> bool:
     return isinstance(key, str) and (key.startswith("_") or key in NON_PUBLIC_CONFIG_KEYS)
 
 
-def scrub_config(obj: Any, path: str = "config") -> tuple[Any, list[str]]:
+def _is_status_secret(key: Any) -> bool:
+    return key in STATUS_SECRET_KEYS
+
+
+def scrub_config(obj: Any, path: str = "config", is_removed=_is_non_public) -> tuple[Any, list[str]]:
     """非公開キーを除いたコピーと、削除したキーの JSON パス一覧を返す。"""
     removed: list[str] = []
     if isinstance(obj, dict):
         cleaned = {}
         for key, value in obj.items():
             child = f"{path}.{key}"
-            if _is_non_public(key):
+            if is_removed(key):
                 removed.append(child)
                 continue
-            cleaned[key], sub = scrub_config(value, child)
+            cleaned[key], sub = scrub_config(value, child, is_removed)
             removed += sub
         return cleaned, removed
     if isinstance(obj, list):
         cleaned_list = []
         for i, item in enumerate(obj):
-            cleaned_item, sub = scrub_config(item, f"{path}[{i}]")
+            cleaned_item, sub = scrub_config(item, f"{path}[{i}]", is_removed)
             cleaned_list.append(cleaned_item)
             removed += sub
         return cleaned_list, removed
@@ -83,6 +94,19 @@ def scrub_result(result: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     if not removed:
         return result, []
     return {**result, "config": cleaned}, removed
+
+
+def scrub_status(status: Any) -> tuple[Any, list[str]]:
+    """status からユーザー API キーだけを再帰的に除く。"""
+    if not isinstance(status, dict):
+        return status, []
+    cleaned, removed = scrub_config(status, "$", _is_status_secret)
+    if not removed:
+        return status, []
+    return cleaned, removed
+
+
+SCRUBBERS = {RESULT_FILE: scrub_result, STATUS_FILE: scrub_status}
 
 
 def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
@@ -111,7 +135,7 @@ def _default_report_dir() -> Path | None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "--report-dir", type=Path, help="レポートの親ディレクトリ（<dir>/<slug>/hierarchical_result.json）"
+        "--report-dir", type=Path, help="レポートの親ディレクトリ（<dir>/<slug>/hierarchical_result.json など）"
     )
     parser.add_argument("--slug", action="append", default=[], help="対象 slug（複数指定可。省略時は全件）")
     parser.add_argument("--apply", action="store_true", help="実際に書き換える（省略時は確認のみ）")
@@ -149,48 +173,56 @@ def main(argv: list[str] | None = None) -> int:
 
         invalidate = invalidate_report_cache
 
-    paths = (
-        [report_dir / s / RESULT_FILE for s in args.slug] if args.slug else sorted(report_dir.glob(f"*/{RESULT_FILE}"))
-    )
+    paths: list[Path] = []
+    if args.slug:
+        for s in args.slug:
+            # status は結果ファイルの無い実行中・異常終了のレポートにもあるので、存在するものを対象にする
+            found = [report_dir / s / name for name in SCRUBBERS if (report_dir / s / name).exists()]
+            paths += found or [report_dir / s / RESULT_FILE]
+    else:
+        for name in SCRUBBERS:
+            paths += sorted(report_dir.glob(f"*/{name}"))
 
     affected = 0
     failed = 0
     for path in paths:
         slug = path.parent.name
+        name = path.name
+        target = slug if name == RESULT_FILE else f"{slug}/{name}"
         try:
-            result = json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as e:
-            print(f"[ERROR] {slug}: 読み込めません: {e}")
+            print(f"[ERROR] {target}: 読み込めません: {e}")
             failed += 1
             continue
-        cleaned, removed = scrub_result(result)
+        cleaned, removed = SCRUBBERS[name](data)
         if not removed:
-            print(f"[OK]    {slug}")
+            print(f"[OK]    {target}")
             continue
         affected += 1
         has_key = any(p.endswith(".user_api_key") for p in removed)
         label = "LEAK " if has_key else "PATH "
-        print(f"[{label}] {slug}: {', '.join(removed)}")
+        print(f"[{label}] {target}: {', '.join(removed)}")
         if not args.apply:
             continue
         try:
             if not args.no_backup:
-                dest = backup_root / slug / RESULT_FILE
+                dest = backup_root / slug / name
                 dest.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
                 shutil.copy2(path, dest)
                 os.chmod(dest, 0o600)
             _atomic_write_json(path, cleaned)
             print("          -> 修正済み")
             if storage is not None:
-                remote = f"{REMOTE_REPORT_DIR_PREFIX}/{slug}/{RESULT_FILE}"
+                remote = f"{REMOTE_REPORT_DIR_PREFIX}/{slug}/{name}"
                 if storage.upload_file(str(path), remote) is False:
                     raise RuntimeError(f"ストレージへのアップロードに失敗: {remote}")
                 print(f"          -> ストレージへ反映: {remote}")
-            if invalidate is not None:
+            if invalidate is not None and name == RESULT_FILE:
                 invalidate(slug)
                 print("          -> キャッシュ破棄を要求")
         except Exception as e:
-            print(f"[ERROR] {slug}: {e}")
+            print(f"[ERROR] {target}: {e}")
             failed += 1
 
     mode = "修正" if args.apply else "確認のみ（--apply で修正）"
