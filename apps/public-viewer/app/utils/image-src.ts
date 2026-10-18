@@ -44,3 +44,27 @@ export const getImageFromServerSrc = (src: string): string => {
     return getRelativeUrl(src);
   }
 };
+
+/**
+ * metadata の相対 URL（og:image など）を絶対 URL にするための metadataBase を返す
+ * NEXT_PUBLIC_SITE_URL（ホスト部分）に静的エクスポート時のベースパスを付けたもの。
+ * 静的エクスポートで NEXT_PUBLIC_SITE_URL が未設定のときは警告して undefined を返す
+ * （Next は http://localhost:3000 にフォールバックするので、SNS では画像が表示されない）。
+ *
+ * metadataBase にベースパスを含めるので、metadata に渡すパスにはベースパスを付けないこと
+ * （Next は metadataBase のパスとつなげて解決する）。
+ */
+export const getMetadataBase = (): URL | undefined => {
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "");
+  if (siteUrl) {
+    return new URL(siteUrl + getBasePath());
+  }
+  if (process.env.NEXT_PUBLIC_OUTPUT_MODE === "export") {
+    console.warn(
+      "NEXT_PUBLIC_SITE_URL が未設定のため、静的HTML出力の og:image などが絶対 URL になりません。公開先の URL を設定してください。",
+    );
+    return undefined;
+  }
+  // 開発環境やSSR時の既定値
+  return new URL(`http://localhost:3000${getBasePath()}`);
+};

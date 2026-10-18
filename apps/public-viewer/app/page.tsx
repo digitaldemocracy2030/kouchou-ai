@@ -25,21 +25,21 @@ export async function generateMetadata(): Promise<Metadata> {
     const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`);
     const meta: Meta = await metaResponse.json();
 
-    const { getBasePath, getRelativeUrl } = await import("@/app/utils/image-src");
+    const { getMetadataBase } = await import("@/app/utils/image-src");
 
     const metadata: Metadata = {
       title: `${meta.reporter}のレポート一覧 - 広聴AI`,
       description: meta.message || "",
       openGraph: {
-        images: [getRelativeUrl("/meta/ogp.png")],
+        // metadataBase がベースパスを含むので、ここではベースパスを付けない
+        images: ["/meta/ogp.png"],
       },
     };
 
-    // 静的エクスポート時はmetadataBaseを設定しない（相対パスを使用するため）
-    if (process.env.NEXT_PUBLIC_OUTPUT_MODE !== "export") {
-      // 開発環境やSSR時のみmetadataBaseを設定
-      const defaultHost = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-      metadata.metadataBase = new URL(defaultHost + getBasePath());
+    // og:image などの相対 URL を公開先の絶対 URL に解決させる（静的エクスポート時も必要）
+    const metadataBase = getMetadataBase();
+    if (metadataBase) {
+      metadata.metadataBase = metadataBase;
     }
 
     return metadata;

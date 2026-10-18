@@ -88,7 +88,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       return {};
     }
 
-    const { getBasePath } = await import("@/app/utils/image-src");
+    const { getMetadataBase } = await import("@/app/utils/image-src");
 
     const meta: Meta = await metaResponse.json();
     const result: Result = await resultResponse.json();
@@ -105,16 +105,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       };
     }
 
-    // 静的エクスポート時はmetadataBaseを設定しない（相対パスを使用するため）
-    if (process.env.NEXT_PUBLIC_OUTPUT_MODE !== "export") {
-      // 開発環境やSSR時のみmetadataBaseを設定
-      const defaultHost = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-      metaData.metadataBase = new URL(defaultHost + getBasePath());
+    // og:image などの相対 URL を公開先の絶対 URL に解決させる（静的エクスポート時も必要）
+    const metadataBase = getMetadataBase();
+    if (metadataBase) {
+      metaData.metadataBase = metadataBase;
     }
 
     if (process.env.NEXT_PUBLIC_OUTPUT_MODE === "export") {
+      // metadataBase がベースパスを含むので、ここではベースパスを付けない
       metaData.openGraph = {
-        images: [`${slug}/opengraph-image.png`],
+        images: [`/${slug}/opengraph-image.png`],
       };
     }
 
