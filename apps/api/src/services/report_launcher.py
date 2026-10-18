@@ -284,6 +284,10 @@ def recover_interrupted_reports() -> None:
     再起動前に processing だったレポートはそのままだと processing に固着し、再実行も
     複製もできなくなる。成果物が完成していれば ready（同期失敗時は error）に、
     それ以外は error に遷移させる。
+
+    制約: サーバープロセスだけが再起動し analysis-core のサブプロセスが生き残る場合
+    （開発用の uvicorn --reload、ストレージを共有する複数インスタンスなど）も、実行中の
+    レポートは error になる。その後ジョブが完了しても監視するものがないため error のまま残る。
     """
     try:
         interrupted = [r.slug for r in load_status_as_reports() if r.status == ReportStatus.PROCESSING]
