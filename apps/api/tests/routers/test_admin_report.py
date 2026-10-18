@@ -348,6 +348,22 @@ class TestCreateReport:
         assert response.status_code == 409
         mock_launch.assert_not_called()
 
+    def test_create_report_allows_preimported_input_csv(self, client, tmp_path):
+        """正常系：取り込み済みの inputs/<slug>.csv だけがある slug は 409 にしない
+        （スプレッドシート・プラグイン取り込みは作成前に inputs/<slug>.csv を書き出す）"""
+        with ExitStack() as stack:
+            dirs = self._isolated_dirs(stack, tmp_path, {})
+            (dirs["inputs"] / "imported-slug.csv").write_text("comment-id,comment-body\n1,a\n", encoding="utf-8")
+            mock_launch = stack.enter_context(patch("src.routers.admin_report.launch_report_generation"))
+            response = client.post(
+                "/admin/reports",
+                json=self._valid_body("imported-slug"),
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 200
+        mock_launch.assert_called_once()
+
 
 class TestDuplicateReport:
     def _setup_duplicate_env(self, tmp_path: Path, source_slug: str) -> dict:

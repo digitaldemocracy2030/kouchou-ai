@@ -136,12 +136,12 @@ def release_duplicate_lock(lock_path: Path) -> None:
         logger.warning(f"Failed to release duplicate lock: {lock_path} error={e}")
 
 
-def slug_exists_anywhere(slug: str) -> bool:
+def slug_exists_anywhere(slug: str, include_input: bool = True) -> bool:
     if slug_exists(slug):
         return True
     if (settings.CONFIG_DIR / f"{slug}.json").exists():
         return True
-    if (settings.INPUT_DIR / f"{slug}.csv").exists():
+    if include_input and (settings.INPUT_DIR / f"{slug}.csv").exists():
         return True
     if (settings.REPORT_DIR / slug).exists():
         return True

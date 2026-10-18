@@ -89,7 +89,9 @@ async def create_report(
     validate_slug(report.input)
     # 既存（削除済みを含む）の slug や成果物が残る slug で作成すると、旧レポートの status・
     # 成果物を黙って上書き・再利用してしまうため、作成前に拒否する。
-    if slug_exists_anywhere(report.input):
+    # inputs/<slug>.csv は作成画面のスプレッドシート・プラグイン取り込みが作成前に書き出し、
+    # launch_report_generation が report.comments から書き直すため、衝突として扱わない。
+    if slug_exists_anywhere(report.input, include_input=False):
         raise HTTPException(status_code=409, detail="Report ID already exists")
     try:
         user_api_key = request.headers.get("x-user-api-key")
