@@ -1175,6 +1175,7 @@ class TestLLMService:
         usage_metadata = MagicMock()
         usage_metadata.prompt_token_count = 20
         usage_metadata.candidates_token_count = 10
+        usage_metadata.thoughts_token_count = None
         usage_metadata.total_token_count = 30
         mock_response.usage_metadata = usage_metadata
         mock_models.generate_content.return_value = mock_response

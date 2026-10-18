@@ -403,7 +403,10 @@ def request_to_gemini_chatcompletion(
             usage = getattr(response, "usage_metadata", None)
             if usage:
                 token_usage_input = getattr(usage, "prompt_token_count", 0) or 0
-                token_usage_output = getattr(usage, "candidates_token_count", 0) or 0
+                # thinking トークンは出力単価で課金されるため出力トークンに含める
+                token_usage_output = (getattr(usage, "candidates_token_count", 0) or 0) + (
+                    getattr(usage, "thoughts_token_count", 0) or 0
+                )
                 token_usage_total = getattr(usage, "total_token_count", 0) or 0
 
             try:
