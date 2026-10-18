@@ -29,7 +29,7 @@ from src.schemas.visualization_config import ReportDisplayConfig, parse_saved_vi
 from src.services.analysis_config import prune_config_for_mode
 from src.services.llm_models import get_models_by_provider
 from src.services.llm_pricing import LLMPricing
-from src.services.report_duplicate import duplicate_report
+from src.services.report_duplicate import duplicate_report, slug_exists_anywhere
 from src.services.report_launcher import execute_aggregation, launch_report_generation
 from src.services.report_status import (
     add_analysis_data,
@@ -87,6 +87,10 @@ async def create_report(
     # try の外で検証し、HTTPException(400) が下の except Exception に
     # 握りつぶされて 500 になるのを避ける。
     validate_slug(report.input)
+    # 既存（削除済みを含む）の slug や成果物が残る slug で作成すると、旧レポートの status・
+    # 成果物を黙って上書き・再利用してしまうため、作成前に拒否する。
+    if slug_exists_anywhere(report.input):
+        raise HTTPException(status_code=409, detail="Report ID already exists")
     try:
         user_api_key = request.headers.get("x-user-api-key")
         launch_report_generation(report, user_api_key)

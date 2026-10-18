@@ -111,7 +111,7 @@ def release_duplicate_lock(lock_path: Path) -> None:
         logger.warning(f"Failed to release duplicate lock: {lock_path} error={e}")
 
 
-def _slug_exists_anywhere(slug: str) -> bool:
+def slug_exists_anywhere(slug: str) -> bool:
     if slug_exists(slug):
         return True
     if (settings.CONFIG_DIR / f"{slug}.json").exists():
@@ -197,11 +197,11 @@ def _write_input_csv_from_arguments(arguments: list, output_path: Path) -> int:
 def _generate_slug(source_slug: str) -> str:
     date_str = datetime.now(UTC).strftime("%Y%m%d")
     base = f"{source_slug}-copy-{date_str}"
-    if not _slug_exists_anywhere(base):
+    if not slug_exists_anywhere(base):
         return base
     for i in range(1, 1000):
         candidate = f"{base}-{i}"
-        if not _slug_exists_anywhere(candidate):
+        if not slug_exists_anywhere(candidate):
             return candidate
     raise HTTPException(status_code=409, detail="Failed to generate unique slug")
 
@@ -283,7 +283,7 @@ def duplicate_report(
     created_any = False
     cleanup_on_failure = True
     try:
-        if _slug_exists_anywhere(new_slug):
+        if slug_exists_anywhere(new_slug):
             raise HTTPException(status_code=409, detail="newSlug already exists")
 
         source_result: dict | None = None

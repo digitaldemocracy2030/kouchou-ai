@@ -280,9 +280,11 @@ class TestCreateReport:
         assert response.json()["detail"] == "Invalid slug format"
         mock_launch.assert_not_called()
 
-    def test_create_report_valid_input_launches(self, client):
+    def test_create_report_valid_input_launches(self, client, tmp_path):
         """正常系：有効なinputならslug検証を通過しlaunch_report_generationに到達する"""
-        with patch("src.routers.admin_report.launch_report_generation") as mock_launch:
+        with ExitStack() as stack:
+            self._isolated_dirs(stack, tmp_path, {})
+            mock_launch = stack.enter_context(patch("src.routers.admin_report.launch_report_generation"))
             response = client.post(
                 "/admin/reports",
                 json=self._valid_body("valid-slug"),
@@ -293,6 +295,58 @@ class TestCreateReport:
         # （ルートの status_code=202 は上書きされる）。slug検証で弾かれないことを確認する。
         assert response.status_code == 200
         mock_launch.assert_called_once()
+
+    @staticmethod
+    def _isolated_dirs(stack: ExitStack, tmp_path: Path, status: dict) -> dict:
+        dirs = {name: tmp_path / name for name in ("configs", "inputs", "outputs", "data")}
+        for d in dirs.values():
+            d.mkdir(parents=True)
+        status_file = dirs["data"] / "report_status.json"
+        status_file.write_text(json.dumps(status), encoding="utf-8")
+        stack.enter_context(patch.object(report_duplicate.settings, "CONFIG_DIR", dirs["configs"]))
+        stack.enter_context(patch.object(report_duplicate.settings, "INPUT_DIR", dirs["inputs"]))
+        stack.enter_context(patch.object(report_duplicate.settings, "REPORT_DIR", dirs["outputs"]))
+        stack.enter_context(patch.object(report_status, "STATE_FILE", status_file))
+        return dirs
+
+    @pytest.mark.parametrize("status", ["ready", "deleted"])
+    def test_create_report_rejects_existing_slug_in_status(self, client, tmp_path, status):
+        """異常系：status に既存（削除済みを含む）の slug があれば 409 を返し、上書きしない"""
+        existing = {
+            "existing-slug": {
+                "slug": "existing-slug",
+                "status": status,
+                "title": "old",
+                "description": "old",
+                "visibility": "public",
+            }
+        }
+        with ExitStack() as stack:
+            self._isolated_dirs(stack, tmp_path, existing)
+            mock_launch = stack.enter_context(patch("src.routers.admin_report.launch_report_generation"))
+            response = client.post(
+                "/admin/reports",
+                json=self._valid_body("existing-slug"),
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 409
+        mock_launch.assert_not_called()
+
+    def test_create_report_rejects_slug_with_leftover_outputs(self, client, tmp_path):
+        """異常系：status に無くても outputs/<slug> が残っていれば 409 を返す（旧成果物の再利用を防ぐ）"""
+        with ExitStack() as stack:
+            dirs = self._isolated_dirs(stack, tmp_path, {})
+            (dirs["outputs"] / "leftover-slug").mkdir()
+            mock_launch = stack.enter_context(patch("src.routers.admin_report.launch_report_generation"))
+            response = client.post(
+                "/admin/reports",
+                json=self._valid_body("leftover-slug"),
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 409
+        mock_launch.assert_not_called()
 
 
 class TestDuplicateReport:

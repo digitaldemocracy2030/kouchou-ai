@@ -79,6 +79,11 @@ export async function createReport({
       }),
     });
 
+    if (response.status === 409) {
+      // 既存（削除済みを含む）のレポートと同じ ID は API 側で拒否される
+      return { success: false, error: "同じIDのレポートが既に存在します。別のIDを指定してください" };
+    }
+
     if (!response.ok) {
       return { success: false, error: response.statusText };
     }
