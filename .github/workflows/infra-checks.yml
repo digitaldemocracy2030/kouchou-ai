@@ -1,0 +1,36 @@
+name: Infra checks
+
+on:
+  pull_request:
+    paths:
+      - .dockerignore
+      - .github/workflows/status-update-command.yml
+      - scripts/check_docker_context.py
+      - scripts/check_comment_commands.py
+      - .github/workflows/infra-checks.yml
+  push:
+    branches: [main]
+    paths:
+      - .dockerignore
+      - .github/workflows/status-update-command.yml
+      - scripts/check_docker_context.py
+      - scripts/check_comment_commands.py
+      - .github/workflows/infra-checks.yml
+
+permissions:
+  contents: read
+
+jobs:
+  infra-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Check root .dockerignore excludes local secrets
+        run: python3 scripts/check_docker_context.py
+
+      - name: Check maintainer-only comment commands
+        run: python3 scripts/check_comment_commands.py

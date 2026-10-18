@@ -37,6 +37,11 @@ test/
 *.spec.tsx
 
 # Development
+# ビルドはリポジトリのルートを context にするため、apps/*/.dockerignore は使われない。
+# どの階層の .env / ログも、ここでまとめて除外する（API キーなどがイメージに焼き込まれないように）
+**/.env
+**/.env.*
+**/*.log
 .env.example
 .env.local
 .env.*.local
@@ -89,6 +94,11 @@ apps/api/data/*.csv
 apps/api/data/*.json
 apps/api/data/raw/
 apps/api/data/processed/
+
+# public-viewer の生成物（copy-image や静的エクスポートの出力。ビルド時に作り直す）
+apps/public-viewer/public/meta/
+apps/public-viewer/out-root/
+apps/public-viewer/out-subdir/
 
 # Package virtual environments
 packages/*/.venv/
