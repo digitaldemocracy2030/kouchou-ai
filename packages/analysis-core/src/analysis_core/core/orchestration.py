@@ -45,6 +45,27 @@ def sync_without_html_keys(config: dict[str, Any]) -> None:
     config["without_html"] = canonical
 
 
+# ステップに渡すために config に入りうるが、ファイルや応答には書き出さないキー
+SECRET_CONFIG_KEYS = frozenset({"user_api_key"})
+
+
+def strip_secret_keys(obj: Any) -> Any:
+    """``SECRET_CONFIG_KEYS`` を再帰的に除いたコピーを返す（元の dict は変更しない）。"""
+    if isinstance(obj, dict):
+        return {k: strip_secret_keys(v) for k, v in obj.items() if k not in SECRET_CONFIG_KEYS}
+    if isinstance(obj, list):
+        return [strip_secret_keys(item) for item in obj]
+    return obj
+
+
+def plan_requires_api_key(plan: list[dict[str, Any]] | None, specs: list[dict[str, Any]]) -> bool:
+    """Return True when the plan runs a step that calls the LLM / embedding API."""
+    if not plan:
+        return True
+    api_steps = {spec["step"] for spec in specs if spec.get("use_llm", False)} | {"embedding"}
+    return any(step.get("run", True) and step.get("step") in api_steps for step in plan)
+
+
 def resolve_user_api_key(config: dict[str, Any] | None = None) -> str | None:
     """Resolve the runtime user-provided API key without persisting it."""
     if config:
@@ -687,7 +708,7 @@ def update_status(
     status = {key: value for key, value in config.items() if key != "previous"}
     if "previous" in config:
         status["previously_completed_jobs"] = collect_previous_jobs(config["previous"])
-    _write_json_atomic(status_file, status)
+    _write_json_atomic(status_file, strip_secret_keys(status))
 
 
 def update_progress(
@@ -706,9 +727,29 @@ def update_progress(
         output_base_dir: Base directory for outputs
     """
     if total is not None:
-        update_status(config, {"current_job_progress": 0, "current_jop_tasks": total}, output_base_dir)
+        updates = {"current_job_progress": 0, "current_jop_tasks": total}
     elif incr is not None:
-        update_status(config, {"current_job_progress": config["current_job_progress"] + incr}, output_base_dir)
+        updates = {"current_job_progress": config["current_job_progress"] + incr}
+    else:
+        return
+
+    if output_base_dir is None:
+        output_base_dir = Path(config.get("_output_base_dir") or "outputs")
+    status_file = output_base_dir / config["output_dir"] / "hierarchical_status.json"
+    try:
+        current_status = json.loads(status_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        current_status = None
+    if not isinstance(current_status, dict):
+        update_status(config, updates, output_base_dir)
+        return
+
+    # workflow 経路のステップは本体 config ではなく縮小版の設定 dict を渡してくるので、
+    # status ファイルを丸ごと置き換えず、進捗のキーだけを書き込む。
+    config.update(updates)
+    current_status.update(updates)
+    current_status["lock_until"] = (datetime.now() + timedelta(minutes=5)).isoformat()
+    _write_json_atomic(status_file, strip_secret_keys(current_status))
 
 
 def run_step(
@@ -858,12 +899,6 @@ def initialization(
     if not config.get("provider"):
         config["provider"] = "openai"
 
-    # Validate API keys early (fail-fast)
-    # This ensures we catch missing API keys before starting any pipeline steps
-    provider = config["provider"]
-    if validate_api_keys_early:
-        validate_api_keys(provider, resolve_user_api_key(config))
-
     # Set output directory
     config["output_dir"] = job_name
 
@@ -974,6 +1009,12 @@ def initialization(
         only_plan = next(step_plan for step_plan in plan if step_plan["step"] == only)
         if not only_plan["run"]:
             raise ValueError(f"Step '{only}' given to --only will not run: {only_plan['reason']}")
+
+    # Validate API keys early (fail-fast), before any step starts.
+    # Re-runs that only use non-LLM steps (e.g. --only hierarchical_aggregation after a label edit)
+    # do not need provider credentials.
+    if validate_api_keys_early and plan_requires_api_key(plan, specs):
+        validate_api_keys(config["provider"], resolve_user_api_key(config))
 
     # Interactive confirmation (unless skipped)
     if "skip-interaction" not in config:

@@ -342,16 +342,12 @@ class PipelineOrchestrator:
             decide_what_to_run,
             get_specs_path_for_mode,
             load_specs,
+            plan_requires_api_key,
             validate_api_keys,
         )
 
         # Normalize config with defaults
         normalized = normalize_config(config.copy())
-
-        # Validate API keys early (fail-fast)
-        provider = normalized.get("provider", "openai")
-        user_api_key = normalized.get("user_api_key")
-        validate_api_keys(provider, user_api_key)
 
         # Set output directory
         normalized["output_dir"] = output_dir or config.get("name", "analysis")
@@ -379,6 +375,10 @@ class PipelineOrchestrator:
             normalized["plan"] = config["plan"]
         else:
             normalized["plan"] = decide_what_to_run(normalized, previous, specs, output_base)
+
+        # Validate API keys early (fail-fast) when the plan calls the LLM / embedding API
+        if plan_requires_api_key(normalized["plan"], specs):
+            validate_api_keys(normalized.get("provider", "openai"), normalized.get("user_api_key"))
 
         return cls(
             config=normalized,

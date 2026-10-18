@@ -236,7 +236,7 @@ def _discover_groups(
         provider=provider,
         json_schema=GroupDiscoveryResponse,
         local_llm_address=local_llm_address,
-        user_api_key=os.getenv("USER_API_KEY"),
+        user_api_key=config.get("user_api_key") or os.getenv("USER_API_KEY"),
         timeout_seconds=LLM_GROUPING_TIMEOUT_SECONDS,
     )
     _accumulate_token_usage(config, token_input, token_output, token_total)
@@ -316,7 +316,7 @@ def _assign_groups(
             provider=provider,
             json_schema=GroupAssignmentResponse,
             local_llm_address=local_llm_address,
-            user_api_key=os.getenv("USER_API_KEY"),
+            user_api_key=config.get("user_api_key") or os.getenv("USER_API_KEY"),
             timeout_seconds=LLM_GROUPING_TIMEOUT_SECONDS,
         )
         response_json = json.loads(response_text) if isinstance(response_text, str) else response_text
