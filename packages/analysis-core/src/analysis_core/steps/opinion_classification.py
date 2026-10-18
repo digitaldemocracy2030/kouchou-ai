@@ -109,16 +109,13 @@ def classify_batch(
             )
             for text in texts
         ]
-        done, not_done = concurrent.futures.wait(futures, timeout=timeout_seconds)
-        for future in not_done:
-            future.cancel()
+        # 1 リクエストの上限は SDK に渡す timeout_seconds が担う。バッチ側で同じ値の
+        # 待機上限を重ねると、遅れて成功した応答まで TimeoutError として捨ててしまう。
+        concurrent.futures.wait(futures)
 
         results: list[dict[str, bool]] = [{} for _ in texts]
         failures: dict[str, str] = {}
         for arg_id, future in zip(arg_ids, futures, strict=True):
-            if future not in done:
-                failures[arg_id] = "TimeoutError"
-                continue
             try:
                 labels, token_input, token_output, token_total = future.result()
             except InvalidClassificationResponse:

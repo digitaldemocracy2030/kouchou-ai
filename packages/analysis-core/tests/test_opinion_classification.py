@@ -323,3 +323,21 @@ class TestPipelineWiring:
         assert "hate_or_insult" in seen["opinion_classification"]["prompt"]
         assert outputs.artifacts["classifications"] == output_dir / "opinion_classifications.csv"
         assert outputs.token_usage == 5
+
+
+def test_classify_batch_keeps_slow_success_beyond_request_timeout(monkeypatch):
+    """1 リクエストの上限は SDK の timeout に任せ、遅れて成功した応答を TimeoutError にしない。"""
+    import time
+
+    def classify(text, *args):
+        if text == "slow":
+            time.sleep(0.3)
+        return {"hate_or_insult": False}, 2, 1, 3
+
+    monkeypatch.setattr(classification, "classify_argument", classify)
+    config: dict = {}
+    rows = classification.classify_batch(
+        ["a1", "a2"], ["fast", "slow"], "p", ("hate_or_insult",), "m", 2, config=config, timeout_seconds=0.05
+    )
+    assert rows == [{"hate_or_insult": False}, {"hate_or_insult": False}]
+    assert config["total_token_usage"] == 6

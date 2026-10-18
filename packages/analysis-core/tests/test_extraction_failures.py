@@ -1,8 +1,8 @@
 """A failed extraction must not silently remove an input from the analysis (#905)."""
 
-import concurrent.futures
 import importlib
 import json
+import time
 
 import pytest
 
@@ -36,29 +36,26 @@ def test_batch_failure_counts_and_retains_successful_usage(monkeypatch):
     assert config == {"total_token_usage": 13, "token_usage_input": 9, "token_usage_output": 4}
 
 
-def test_unfinished_future_is_reported_as_timeout(monkeypatch):
-    completed = concurrent.futures.Future()
-    completed.set_result((["done"], 2, 1, 3))
-    unfinished = concurrent.futures.Future()
+def test_slow_success_beyond_request_timeout_is_not_reported_as_timeout(monkeypatch):
+    """Flex や SDK 内部リトライで timeout_seconds を超えて成功した応答を捨てない。
 
-    class Executor:
-        def __init__(self, **kwargs):
-            self.futures = iter([completed, unfinished])
+    1 リクエストの上限は各プロバイダの SDK に渡す timeout が担う。バッチ側で同じ値の
+    待機上限を重ねると、遅れて成功した応答まで TimeoutError として分析を中断していた。
+    """
 
-        def __enter__(self):
-            return self
+    def extract(text, *args):
+        if text == "slow":
+            time.sleep(0.3)
+        return [text], 2, 1, 3
 
-        def __exit__(self, *args):
-            pass
-
-        def submit(self, *args):
-            return next(self.futures)
-
-    monkeypatch.setattr(extraction.concurrent.futures, "ThreadPoolExecutor", Executor)
-    with pytest.raises(extraction.ExtractionBatchError) as error:
-        extraction.extract_batch(["one", "two"], "p", "m", 2, timeout_seconds=0)
-    assert error.value.failures == {1: "TimeoutError"}
-    assert unfinished.cancelled()
+    monkeypatch.setattr(extraction, "extract_arguments", extract)
+    config = {}
+    assert extraction.extract_batch(["fast", "slow"], "p", "m", 2, config=config, timeout_seconds=0.05) == [
+        ["fast"],
+        ["slow"],
+    ]
+    # 遅れて完了した応答のトークンも集計する
+    assert config["total_token_usage"] == 6
 
 
 @pytest.mark.parametrize("response", ["broken JSON", "{}", '{"extractedOpinionList": null}'])

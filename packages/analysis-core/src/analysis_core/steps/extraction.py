@@ -190,33 +190,31 @@ def extract_batch(
             for i, input in enumerate(batch)
         ]
 
-        done, not_done = concurrent.futures.wait([f for _, f in futures_with_index], timeout=timeout_seconds)
+        # 1 リクエストの上限は各プロバイダの SDK に渡す timeout_seconds が担う。
+        # バッチ側で同じ値の待機上限を重ねると、Flex (最大 900 秒) や SDK 内部の再試行で
+        # timeout_seconds を超えて成功した応答まで TimeoutError として捨ててしまう。
+        # 実行中の future は cancel できず executor の終了時に待つことになるため、
+        # バッチ側の待機上限は所要時間も短くしない。
+        concurrent.futures.wait([f for _, f in futures_with_index])
         results = [[] for _ in range(len(batch))]
         failures = {}
         total_token_input = 0
         total_token_output = 0
         total_token_usage = 0
 
-        for _, future in futures_with_index:
-            if future in not_done and not future.cancelled():
-                future.cancel()
-
         for i, future in futures_with_index:
-            if future in done:
-                try:
-                    result = future.result()
-                    if isinstance(result, tuple) and len(result) == 4:
-                        items, token_input, token_output, token_total = result
-                        results[i] = items
-                        total_token_input += token_input
-                        total_token_output += token_output
-                        total_token_usage += token_total
-                    else:
-                        results[i] = result
-                except Exception as e:
-                    failures[i] = type(e).__name__
-            else:
-                failures[i] = "TimeoutError"
+            try:
+                result = future.result()
+                if isinstance(result, tuple) and len(result) == 4:
+                    items, token_input, token_output, token_total = result
+                    results[i] = items
+                    total_token_input += token_input
+                    total_token_output += token_output
+                    total_token_usage += token_total
+                else:
+                    results[i] = result
+            except Exception as e:
+                failures[i] = type(e).__name__
 
         if config is not None:
             config["total_token_usage"] = config.get("total_token_usage", 0) + total_token_usage
