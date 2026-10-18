@@ -33,6 +33,7 @@ import zipfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 PLOTLY_CDN = "https://cdn.plot.ly/plotly-2.35.2.min.js"
 
@@ -129,6 +130,12 @@ def build_html(
             for a in args
         ]
         args = data["arguments"]
+
+    # Source URLs come from the input CSV and end up in <a href> and
+    # window.open(); drop anything that is not http(s) (e.g. javascript:).
+    data = dict(data)
+    data["arguments"] = [{**a, "url": _safe_source_url(a.get("url"))} for a in args]
+    args = data["arguments"]
 
     tree_html = _render_tree(data)
     embedded = _safe_inline_json(data)
@@ -239,6 +246,20 @@ python hierarchical_visualization.py hierarchical_result.json -o report.html
     )
 
 
+def _safe_source_url(url: Any) -> str | None:
+    """Return ``url`` only when it is an absolute http(s) URL, else ``None``."""
+    if not isinstance(url, str):
+        return None
+    url = url.strip()
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return None
+    if parsed.scheme.lower() not in ("http", "https") or not parsed.netloc:
+        return None
+    return url
+
+
 def _safe_inline_json(data: Any) -> str:
     """Serialize JSON safely for embedding inside a ``<script>`` tag."""
     return json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
@@ -280,7 +301,7 @@ def _render_tree(data: dict[str, Any]) -> str:
         for a in members:
             comment_id = html.escape(str(a.get("comment_id", "")))
             argument = html.escape(a.get("argument", ""))
-            url = a.get("url")
+            url = _safe_source_url(a.get("url"))
             link = f' <a href="{html.escape(url)}" target="_blank" rel="noopener" class="src-link">↗</a>' if url else ""
             lines.append(f'<li><span class="comment-id">#{comment_id}</span> {argument}{link}</li>')
         lines.append("</ul>")
