@@ -111,6 +111,9 @@ def test_duplicate_report_reuses_workflow_artifacts_and_launches_from_config(mon
     copied_status = json.loads((new_output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
     assert copied_status["completed_jobs"][0]["step"] == "extraction"
     assert copied_status["previously_completed_jobs"][0]["step"] == "hierarchical_clustering"
+    # 元レポートの completed をそのまま引き継ぐと、新しいカードの進捗ポーリングが即座に止まる
+    assert copied_status["status"] != "completed"
+    assert not copied_status.get("current_job")
     assert not (new_output_dir / "hierarchical_result.json").exists()
     assert not (new_output_dir / "hierarchical_overview.txt").exists()
 
