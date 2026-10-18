@@ -16,8 +16,10 @@ from typing import Any, Callable
 
 from analysis_core.core.orchestration import (
     carried_over_token_usage,
+    collect_previous_jobs,
     initialization,
     run_step,
+    snapshot_global_params,
     sync_without_html_keys,
     termination,
     update_status,
@@ -285,9 +287,7 @@ class PipelineOrchestrator:
         if "previous" not in self.config:
             return
 
-        old_jobs = self.config["previous"].get("completed_jobs", []) + self.config["previous"].get(
-            "previously_completed_jobs", []
-        )
+        old_jobs = collect_previous_jobs(self.config["previous"])
         newly_completed = [job["step"] for job in self.config.get("completed_jobs", [])]
         self.config["previously_completed_jobs"] = [job for job in old_jobs if job["step"] not in newly_completed]
         del self.config["previous"]
@@ -451,6 +451,7 @@ class PipelineOrchestrator:
                         "completed": datetime.now().isoformat(),
                         "duration": 0.0,
                         "params": self.config.get(legacy_step_name, {}),
+                        "global_params": snapshot_global_params(self.config),
                         "token_usage": step_token_usage,
                         "token_input": step_token_input,
                         "token_output": step_token_output,
@@ -581,3 +582,17 @@ class PipelineOrchestrator:
                 error=str(e),
                 output_dir=None,
             )
+        except BaseException as e:
+            # KeyboardInterrupt / SystemExit: record the interruption so reruns are not
+            # blocked by a stale "running" status, then propagate.
+            self._carry_forward_previous_jobs()
+            update_status(
+                self.config,
+                {
+                    "status": "error",
+                    "end_time": datetime.now().isoformat(),
+                    "error": f"Interrupted: {type(e).__name__}",
+                },
+                self.output_base_dir,
+            )
+            raise

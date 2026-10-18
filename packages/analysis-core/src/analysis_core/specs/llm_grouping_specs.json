@@ -2,7 +2,7 @@
   {
     "step": "extraction",
     "filename": "args.csv",
-    "dependencies": { "params": ["limit"], "steps": [] },
+    "dependencies": { "params": ["limit", "properties"], "global_params": ["input"], "steps": [] },
     "options": {
       "limit": 1000,
       "workers": 1,
@@ -24,6 +24,7 @@
     "filename": "hierarchical_clusters.csv",
     "dependencies": {
       "params": ["group_count", "discovery_sample_size", "assignment_batch_size", "discovery_prompt", "assignment_prompt", "predefined_groups", "other_group_label"],
+      "global_params": ["question"],
       "steps": ["extraction", "embedding"]
     },
     "options": {
@@ -49,7 +50,8 @@
     "step": "hierarchical_aggregation",
     "filename": "hierarchical_result.json",
     "dependencies": {
-      "params": [],
+      "params": ["sampling_num", "hidden_properties"],
+      "global_params": ["input", "question", "intro", "is_pubcom", "enable_source_link"],
       "steps": ["extraction", "llm_grouping", "hierarchical_overview"]
     },
     "options": {

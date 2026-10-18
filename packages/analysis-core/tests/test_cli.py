@@ -166,9 +166,12 @@ class TestCLI:
         )
 
         assert result.returncode == 0
-        assert "Seeded outputs for test_config from baseline: extraction, embedding" in result.stdout
+        assert "Would seed outputs for test_config from baseline: extraction, embedding" in result.stdout
         assert "[SKIP] extraction: nothing changed" in result.stdout
         assert "[SKIP] embedding: nothing changed" in result.stdout
+        # --dry-run must not copy artifacts or write a seeded status file.
+        assert not (output_dir / "test_config" / "hierarchical_status.json").exists()
+        assert not (output_dir / "test_config" / "args.csv").exists()
 
     def test_cli_validate_config(self, tmp_path):
         """Test standalone config validation mode."""

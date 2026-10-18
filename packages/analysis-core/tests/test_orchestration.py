@@ -327,7 +327,8 @@ class TestInitialization:
         assert (seeded_dir / "args.csv").exists()
         assert (seeded_dir / "relations.csv").exists()
         assert (seeded_dir / "embeddings.pkl").exists()
-        assert (seeded_dir / "report" / "index.html").exists()
+        # Visualization embeds the source job's config, so it is regenerated instead of reused.
+        assert not (seeded_dir / "report").exists()
         assert config["previous"]["reused_from"].endswith("source_job")
 
         plan_by_step = {item["step"]: item for item in config["plan"]}

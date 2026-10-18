@@ -32,7 +32,7 @@ def main() -> int:
         "--force",
         "-f",
         action="store_true",
-        help="Force re-run all steps even if already completed",
+        help="Force re-run all steps even if already completed (with --only, only that step)",
     )
     parser.add_argument(
         "--only",

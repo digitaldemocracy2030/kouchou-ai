@@ -55,6 +55,38 @@ def resolve_user_api_key(config: dict[str, Any] | None = None) -> str | None:
     return os.getenv("USER_API_KEY") or None
 
 
+# Top-level config keys that steps may depend on (see "global_params" in specs).
+GLOBAL_PARAM_KEYS = ("input", "question", "intro", "is_pubcom", "enable_source_link")
+
+# Steps whose outputs embed the job's own config and must be regenerated instead of reused.
+_NON_REUSABLE_STEPS = {"hierarchical_aggregation", "hierarchical_visualization"}
+
+
+def snapshot_global_params(config: dict[str, Any]) -> dict[str, Any]:
+    """Return the top-level params recorded with each completed job."""
+    return {key: config.get(key) for key in GLOBAL_PARAM_KEYS}
+
+
+def collect_previous_jobs(previous: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Return completed jobs from a status dict, newest record first, one per step.
+
+    ``completed_jobs`` of a status file are newer than its ``previously_completed_jobs``,
+    which are newer than anything in a nested ``previous`` (left behind by interrupted runs
+    of older versions).
+    """
+    jobs: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    current = previous
+    while current:
+        for job in current.get("completed_jobs", []) + current.get("previously_completed_jobs", []):
+            step = job.get("step")
+            if step and step not in seen:
+                seen.add(step)
+                jobs.append(job)
+        current = current.get("previous")
+    return jobs
+
+
 def _resolve_reuse_source(output_base_dir: Path, reuse_from: str) -> Path:
     """Resolve a reusable output directory from a job name or explicit path."""
     candidate = Path(reuse_from).expanduser()
@@ -68,18 +100,33 @@ def _seed_reused_outputs(
     config: dict[str, Any],
     output_base_dir: Path,
     specs: list[dict[str, Any]],
-) -> None:
-    """Copy reusable step outputs from another job into the current output dir."""
+    persist: bool = True,
+) -> tuple[dict[str, Any], set[str]] | None:
+    """Copy reusable step outputs from another job into the current output dir.
+
+    With ``persist=False`` nothing is copied or written; the seeded status and the
+    artifact filenames that would be copied are returned so the plan can be computed.
+    """
     reuse_from = config.get("reuse_from")
     if not reuse_from:
-        return
+        return None
 
     dest_dir = output_base_dir / config["output_dir"]
     status_file = dest_dir / "hierarchical_status.json"
-    if status_file.exists():
-        return
-
     source_dir = _resolve_reuse_source(output_base_dir, reuse_from)
+    if status_file.exists():
+        try:
+            with open(status_file, encoding="utf-8") as f:
+                reused_from = json.load(f).get("reused_from")
+        except (OSError, ValueError):
+            reused_from = None
+        if reused_from != str(source_dir):
+            print(
+                f"Warning: reuse_from '{reuse_from}' is ignored because {status_file} already exists"
+                f" (reused_from: {reused_from}). Remove the output directory to seed from {source_dir}."
+            )
+        return None
+
     if not source_dir.exists():
         raise RuntimeError(f"reuse_from source not found: {reuse_from}")
     if not source_dir.is_dir():
@@ -94,8 +141,11 @@ def _seed_reused_outputs(
     completed_jobs = source_status.get("completed_jobs", []) + source_status.get("previously_completed_jobs", [])
     status_by_step = {job.get("step"): job for job in completed_jobs if job.get("step")}
     reusable_steps = []
+    seeded_files: set[str] = set()
     for step_spec in specs:
         step_name = step_spec["step"]
+        if step_name in _NON_REUSABLE_STEPS:
+            continue
         source_job = status_by_step.get(step_name)
         if not source_job:
             continue
@@ -112,6 +162,9 @@ def _seed_reused_outputs(
             copied_files.append(relations)
 
         for artifact in copied_files:
+            seeded_files.add(artifact.name)
+            if not persist:
+                continue
             target = dest_dir / artifact.name
             if artifact.is_dir():
                 shutil.copytree(artifact, target, dirs_exist_ok=True)
@@ -128,12 +181,14 @@ def _seed_reused_outputs(
         if step_name not in reusable_steps:
             continue
         source_job = status_by_step.get(step_name, {})
-        seeded_jobs.append(
-            {
-                "step": step_name,
-                "params": source_job.get("params", {}),
-            }
-        )
+        seeded_job = {
+            "step": step_name,
+            "params": source_job.get("params", {}),
+        }
+        for key in ("completed", "global_params"):
+            if key in source_job:
+                seeded_job[key] = source_job[key]
+        seeded_jobs.append(seeded_job)
 
     seeded_status = {
         "status": "completed",
@@ -141,10 +196,29 @@ def _seed_reused_outputs(
         "previously_completed_jobs": [],
         "reused_from": str(source_dir),
     }
-    with open(status_file, "w", encoding="utf-8") as f:
-        json.dump(seeded_status, f, indent=2, ensure_ascii=False)
+    if not persist:
+        print(
+            f"Would seed outputs for {config['output_dir']} from {source_dir.name}: {', '.join(reusable_steps)}"
+            " (nothing is copied without persisting status)"
+        )
+        return seeded_status, seeded_files
+
+    _write_json_atomic(status_file, seeded_status)
 
     print(f"Seeded outputs for {config['output_dir']} from {source_dir.name}: {', '.join(reusable_steps)}")
+    return None
+
+
+def _write_json_atomic(path: Path, data: dict[str, Any]) -> None:
+    """Write JSON via a temp file + os.replace so readers never see a partial file."""
+    tmp_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
 
 
 def load_specs(specs_path: Path) -> list[dict[str, Any]]:
@@ -322,6 +396,7 @@ def decide_what_to_run(
     previous: dict[str, Any] | None,
     specs: list[dict[str, Any]] | None = None,
     output_base_dir: Path | None = None,
+    seeded_files: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Determine which pipeline steps need to be executed.
@@ -331,6 +406,7 @@ def decide_what_to_run(
         previous: Previous run status (if any)
         specs: Step specifications
         output_base_dir: Base directory for outputs
+        seeded_files: Artifact filenames treated as present (reuse_from without persisting)
 
     Returns:
         List of step plans with run/skip decisions
@@ -340,30 +416,53 @@ def decide_what_to_run(
     if output_base_dir is None:
         output_base_dir = Path("outputs")
 
-    # Find last previously tracked jobs
-    previous_jobs: list[dict[str, Any]] = []
-    _previous = config.get("previous", None)
-    while _previous and _previous.get("previous", None) is not None:
-        _previous = _previous["previous"]
-    if _previous:
-        previous_jobs = _previous.get("completed_jobs", []) + _previous.get("previously_completed_jobs", [])
+    # Latest tracked record of each step (newest wins, including interrupted runs)
+    previous_jobs = collect_previous_jobs(config.get("previous", None))
+    previous_by_step = {job["step"]: job for job in previous_jobs}
 
     def different_params(step: dict[str, Any]) -> list[str]:
         """Check if step parameters changed from previous run."""
         keys = step["dependencies"]["params"]
         if step.get("use_llm", False):
             keys = keys + ["prompt", "model"]
-        match = [x for x in previous_jobs if x["step"] == step["step"]]
+        match = previous_by_step.get(step["step"])
         if not match:
             return []
-        prev = match[0]["params"]
+        prev = match["params"]
         next_params = config.get(step["step"], {})
-        diff = [key for key in keys if prev.get(key, None) != next_params.get(key, None)]
+        defaults = step.get("options", {})
+
+        def unchanged_default(key: str) -> bool:
+            # A key missing from an older record was at its default value back then.
+            return key not in prev and key in defaults and next_params.get(key, None) == defaults[key]
+
+        diff = [key for key in keys if prev.get(key, None) != next_params.get(key, None) and not unchanged_default(key)]
         for key in diff:
             print(
                 f"(!) {step['step']} step parameter '{key}' changed from '{prev.get(key)}' to '{next_params.get(key)}'"
             )
+        # Records written before global params were tracked are not compared.
+        prev_globals = match.get("global_params")
+        if prev_globals is not None:
+            for key in step["dependencies"].get("global_params", []):
+                if prev_globals.get(key) != config.get(key):
+                    print(
+                        f"(!) {step['step']} global parameter '{key}' changed from '{prev_globals.get(key)}' to '{config.get(key)}'"
+                    )
+                    diff.append(key)
         return diff
+
+    def newer_deps(step: dict[str, Any]) -> list[str]:
+        """Dependencies whose latest output is newer than this step's output."""
+        completed = previous_by_step.get(step["step"], {}).get("completed")
+        if not completed:
+            return []
+        newer = []
+        for dep in step["dependencies"]["steps"]:
+            dep_completed = previous_by_step.get(dep, {}).get("completed")
+            if dep_completed and datetime.fromisoformat(dep_completed) > datetime.fromisoformat(completed):
+                newer.append(dep)
+        return newer
 
     # Figure out which steps need to run
     plan: list[dict[str, Any]] = []
@@ -371,7 +470,10 @@ def decide_what_to_run(
         stepname = step["step"]
         run = True
         reason = None
-        found_prev = len([x for x in previous_jobs if x["step"] == step["step"]]) > 0
+        found_prev = stepname in previous_by_step
+        artifact_exists = (seeded_files is not None and step["filename"] in seeded_files) or os.path.exists(
+            output_base_dir / config["output_dir"] / step["filename"]
+        )
 
         if stepname == "hierarchical_visualization" and config.get("without-html", False):
             reason = "skipping html output"
@@ -379,22 +481,25 @@ def decide_what_to_run(
         elif stepname == "opinion_classification" and not config.get(stepname, {}).get("enabled", False):
             reason = "opinion_classification is disabled (set opinion_classification.enabled to true)"
             run = False
-        elif config.get("force", False):
-            reason = "forced with -f"
         elif config.get("only", None) is not None and config["only"] != stepname:
             run = False
             reason = "forced another step with -o"
+        elif config.get("force", False):
+            reason = "forced with -f"
         elif config.get("only") == stepname:
             reason = "forced this step with -o"
         elif not found_prev:
             reason = "no trace of previous run"
-        elif not os.path.exists(output_base_dir / config["output_dir"] / step["filename"]):
+        elif not artifact_exists:
             reason = "previous data not found"
         else:
             deps = step["dependencies"]["steps"]
             changing_deps = [x["step"] for x in plan if (x["step"] in deps and x["run"])]
+            stale_deps = newer_deps(step)
             if len(changing_deps) > 0:
                 reason = "some dependent steps will re-run: " + (", ".join(changing_deps))
+            elif len(stale_deps) > 0:
+                reason = "some dependent steps have newer outputs: " + (", ".join(stale_deps))
             else:
                 diff_params = different_params(step)
                 if len(diff_params) > 0:
@@ -510,8 +615,12 @@ def update_status(
     config["lock_until"] = (datetime.now() + timedelta(minutes=5)).isoformat()
 
     status_file = output_base_dir / output_dir / "hierarchical_status.json"
-    with open(status_file, "w", encoding="utf-8") as file:
-        json.dump(config, file, indent=2, ensure_ascii=False)
+    # Do not nest "previous" in the file; keep its jobs in previously_completed_jobs instead
+    # so an interrupted run still leaves the full history for the next run.
+    status = {key: value for key, value in config.items() if key != "previous"}
+    if "previous" in config:
+        status["previously_completed_jobs"] = collect_previous_jobs(config["previous"])
+    _write_json_atomic(status_file, status)
 
 
 def update_progress(
@@ -606,6 +715,7 @@ def run_step(
                         datetime.now() - datetime.fromisoformat(config["current_job_started"])
                     ).total_seconds(),
                     "params": config[step],
+                    "global_params": snapshot_global_params(config),
                     "token_usage": token_usage_step,
                     "token_input": token_input_step,
                     "token_output": token_output_step,
@@ -671,6 +781,9 @@ def initialization(
 
     # Validate config
     validate_config(config, specs)
+    step_names = [step_spec["step"] for step_spec in specs]
+    if only and only not in step_names:
+        raise ValueError(f"Unknown step for --only: '{only}'. Valid steps: {', '.join(step_names)}")
 
     # Validate API keys early (fail-fast)
     # This ensures we catch missing API keys before starting any pipeline steps
@@ -753,17 +866,21 @@ def initialization(
 
     # Create output directory if needed
     output_path = output_base_dir / output_dir
-    if not output_path.exists():
+    if persist_status and not output_path.exists():
         output_path.mkdir(parents=True, exist_ok=True)
 
-    _seed_reused_outputs(config=config, output_base_dir=output_base_dir, specs=specs)
+    seeded = _seed_reused_outputs(config=config, output_base_dir=output_base_dir, specs=specs, persist=persist_status)
+    seeded_files: set[str] | None = None
 
     # Check if job has run before
     previous: dict[str, Any] | bool = False
     status_file = output_base_dir / output_dir / "hierarchical_status.json"
-    if status_file.exists():
+    if seeded is not None:
+        previous, seeded_files = seeded
+    elif status_file.exists():
         with open(status_file, "r", encoding="utf-8") as f:
             previous = json.load(f)
+    if previous:
         config["previous"] = previous
 
     # Crash if job is already running and locked
@@ -776,8 +893,14 @@ def initialization(
             print("Hum, the last Job crashed a while ago...Proceeding!")
 
     # Decide what to run
-    plan = decide_what_to_run(config, previous if isinstance(previous, dict) else None, specs, output_base_dir)
+    plan = decide_what_to_run(
+        config, previous if isinstance(previous, dict) else None, specs, output_base_dir, seeded_files
+    )
     config["plan"] = plan
+    if only:
+        only_plan = next(step_plan for step_plan in plan if step_plan["step"] == only)
+        if not only_plan["run"]:
+            raise ValueError(f"Step '{only}' given to --only will not run: {only_plan['reason']}")
 
     # Interactive confirmation (unless skipped)
     if "skip-interaction" not in config:
@@ -824,9 +947,7 @@ def termination(
     """
     if "previous" in config:
         # Remember all previously completed jobs
-        old_jobs = config["previous"].get("completed_jobs", []) + config["previous"].get(
-            "previously_completed_jobs", []
-        )
+        old_jobs = collect_previous_jobs(config["previous"])
         newly_completed = [j["step"] for j in config.get("completed_jobs", [])]
         config["previously_completed_jobs"] = [o for o in old_jobs if o["step"] not in newly_completed]
         del config["previous"]

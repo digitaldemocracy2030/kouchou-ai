@@ -2,7 +2,7 @@
     {
         "step": "extraction",
         "filename": "args.csv",
-        "dependencies": {"params": ["limit"], "steps": []},
+        "dependencies": {"params": ["limit", "properties"], "global_params": ["input"], "steps": []},
         "options": {
             "limit": 1000,
             "workers": 1,
@@ -68,7 +68,8 @@
         "step": "hierarchical_aggregation",
         "filename": "hierarchical_result.json",
         "dependencies": {
-            "params": [],
+            "params": ["sampling_num", "hidden_properties"],
+            "global_params": ["input", "question", "intro", "is_pubcom", "enable_source_link"],
             "steps": [
                 "extraction",
                 "opinion_classification",
