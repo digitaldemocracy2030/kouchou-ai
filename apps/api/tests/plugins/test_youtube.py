@@ -1,5 +1,7 @@
 """Test cases for YouTube plugin."""
 
+import pytest
+
 from src.plugins.youtube import YouTubePlugin, parse_youtube_url
 
 
@@ -164,3 +166,25 @@ class TestYouTubeErrorMessagesDoNotLeakApiKey:
         assert SECRET_KEY not in message
         assert "key=" not in message
         assert "500" in message
+
+    @pytest.mark.parametrize(
+        ("method", "failing_call", "status"),
+        [
+            ("_fetch_video_comments", "videos", 400),
+            ("_fetch_video_comments", "videos", 403),
+            ("_fetch_video_comments", "videos", 404),
+            ("_fetch_playlist_comments", "playlistItems", 404),
+            ("_fetch_playlist_comments", "playlistItems", 500),
+        ],
+    )
+    def test_traceback_does_not_chain_http_error(self, monkeypatch, method, failing_call, status):
+        """logger.exception などでトレースバックを出しても、連鎖した HttpError からキーが出ない"""
+        import traceback
+
+        _install_fake_googleapiclient(monkeypatch, failing_call, status)
+        with pytest.raises(ValueError) as exc_info:
+            getattr(YouTubePlugin(), method)("dQw4w9WgXcQ", SECRET_KEY, 10, False)
+
+        rendered = "".join(traceback.format_exception(exc_info.value))
+        assert SECRET_KEY not in rendered
+        assert exc_info.value.__cause__ is None

@@ -123,6 +123,14 @@ class TestBuildHtml:
             assert 'href="https://example.com/ok"' in out
             assert '"url":"https://example.com/ok"' in out
 
+    def test_url_pattern_fills_in_for_rejected_source_url(self) -> None:
+        payload = _minimal_payload()
+        payload["arguments"][0]["url"] = "javascript:alert(1)"
+        out = build_html(payload, url_pattern="https://example.com/r/{comment_id}")
+        assert "javascript:" not in out.lower()
+        # The unsafe url is dropped first, so the url_pattern link is used instead
+        assert '"url":"https://example.com/r/1"' in out
+
     def test_no_url_pattern_disables_source_link(self) -> None:
         out = build_html(_minimal_payload())
         assert "const ENABLE_SOURCE_LINK = false;" in out

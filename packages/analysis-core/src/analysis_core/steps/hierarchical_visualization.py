@@ -121,20 +121,19 @@ def build_html(
     levels = sorted({c["level"] for c in data["clusters"] if c["level"] > 0})
     default_level = levels[0] if levels else 1
 
-    if url_pattern:
-        # Inject the resolved URL onto each argument so the JS click handler
-        # has it at hand. Mutates a shallow copy so the original isn't touched.
-        data = dict(data)
-        data["arguments"] = [
-            {**a, "url": a.get("url") or url_pattern.format(comment_id=a.get("comment_id"))}
-            for a in args
-        ]
-        args = data["arguments"]
-
     # Source URLs come from the input CSV and end up in <a href> and
     # window.open(); drop anything that is not http(s) (e.g. javascript:).
+    # When url_pattern is given, it fills in for missing or rejected URLs so
+    # the JS click handler has one at hand. Works on a shallow copy so the
+    # original isn't touched.
+    def _resolve_url(a: dict[str, Any]) -> str | None:
+        url = _safe_source_url(a.get("url"))
+        if url is None and url_pattern:
+            url = _safe_source_url(url_pattern.format(comment_id=a.get("comment_id")))
+        return url
+
     data = dict(data)
-    data["arguments"] = [{**a, "url": _safe_source_url(a.get("url"))} for a in args]
+    data["arguments"] = [{**a, "url": _resolve_url(a)} for a in args]
     args = data["arguments"]
 
     tree_html = _render_tree(data)

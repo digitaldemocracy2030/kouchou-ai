@@ -235,15 +235,16 @@ class YouTubePlugin(InputPlugin):
                 request = youtube.commentThreads().list_next(request, response)
 
         except HttpError as e:
+            # HttpError の文字列と属性にはキー入りの URI があるので、例外の連鎖を切る
             if e.resp.status == 403:
                 raise ValueError(
                     "YouTube APIへのアクセスが拒否されました。APIキーを確認してください。"
                     "また、この動画のコメントが無効になっている可能性があります。"
-                ) from e
+                ) from None
             elif e.resp.status == 404:
-                raise ValueError(f"動画が見つかりません: {video_id}") from e
+                raise ValueError(f"動画が見つかりません: {video_id}") from None
             else:
-                raise ValueError(_describe_http_error(e, api_key)) from e
+                raise ValueError(_describe_http_error(e, api_key)) from None
 
         logger.info(f"Fetched {len(comments)} comments from YouTube video {video_id}")
         return pl.DataFrame(comments)
@@ -293,10 +294,11 @@ class YouTubePlugin(InputPlugin):
                     continue
 
         except HttpError as e:
+            # HttpError の文字列と属性にはキー入りの URI があるので、例外の連鎖を切る
             if e.resp.status == 404:
-                raise ValueError(f"プレイリストが見つかりません: {playlist_id}") from e
+                raise ValueError(f"プレイリストが見つかりません: {playlist_id}") from None
             else:
-                raise ValueError(_describe_http_error(e, api_key)) from e
+                raise ValueError(_describe_http_error(e, api_key)) from None
 
         expected_columns: list[tuple[str, pl.DataType, object]] = [
             ("comment-id", pl.Utf8, ""),
