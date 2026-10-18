@@ -117,8 +117,8 @@ export default function Page({ params }: PageProps) {
       aiSettings.handleModelChange(toSelectEvent(nextConfig.model));
     }
     if (nextConfig.analysis_mode) {
-      // 複製元の分析方式を引き継いで表示する（複製時の config は元設定を再利用するため、
-      // analysis_mode の切り替え自体は現状 duplicate フローでは未対応）
+      // 複製元の分析方式を引き継いで表示する（duplicate の override は analysis_mode に対応しないため、
+      // 画面上でも変更不可にしている）
       aiSettings.handleAnalysisModeChange(toSelectEvent(nextConfig.analysis_mode));
     }
     if (typeof nextConfig.extraction?.workers === "number") {
@@ -405,6 +405,7 @@ export default function Page({ params }: PageProps) {
               localLLMAddress={aiSettings.localLLMAddress}
               userApiKey={aiSettings.userApiKey}
               onAnalysisModeChange={aiSettings.handleAnalysisModeChange}
+              analysisModeLocked
               onProviderChange={aiSettings.handleProviderChange}
               onModelChange={aiSettings.handleModelChange}
               fetchLocalLLMModels={aiSettings.fetchLocalLLMModels}

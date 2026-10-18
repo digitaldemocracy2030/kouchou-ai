@@ -13,6 +13,7 @@ export function AISettingsSection({
   enableSourceLink,
   analysisMode,
   onAnalysisModeChange,
+  analysisModeLocked = false,
   onProviderChange,
   onModelChange,
   onWorkersChange,
@@ -46,6 +47,8 @@ export function AISettingsSection({
   enableSourceLink: boolean;
   analysisMode: string;
   onAnalysisModeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  /** true のとき分析方式を変更不可にする（再利用時は元レポートの方式を引き継ぐため） */
+  analysisModeLocked?: boolean;
   onProviderChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onModelChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onWorkersChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -106,7 +109,7 @@ export function AISettingsSection({
         </Field.HelperText>
       </Field.Root>
 
-      <Field.Root>
+      <Field.Root disabled={analysisModeLocked}>
         <Field.Label>分析方式</Field.Label>
         <NativeSelect.Root w={"60%"}>
           <NativeSelect.Field value={analysisMode} onChange={onAnalysisModeChange}>
@@ -115,6 +118,9 @@ export function AISettingsSection({
           </NativeSelect.Field>
           <NativeSelect.Indicator />
         </NativeSelect.Root>
+        {analysisModeLocked && (
+          <Field.HelperText>再利用元レポートの分析方式を引き継ぎます（再利用時は変更できません）。</Field.HelperText>
+        )}
         <Field.HelperText>
           {analysisMode === "llm_grouping"
             ? "LLMがコメントから直接グループを発見し、各コメントをグループへ割り当てます（LLM直接グルーピング）。クラスタ数設定・初期/統合ラベリングプロンプトは使用されません。"

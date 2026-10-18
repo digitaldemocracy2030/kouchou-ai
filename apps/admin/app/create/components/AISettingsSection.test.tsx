@@ -7,7 +7,7 @@ import { AISettingsSection } from "./AISettingsSection";
 
 jest.mock("@/components/ui/toaster", () => ({ toaster: { create: jest.fn() } }));
 
-function Settings() {
+function Settings({ analysisModeLocked }: { analysisModeLocked?: boolean } = {}) {
   const ai = useAISettings();
   const noop = () => {};
   return (
@@ -20,6 +20,7 @@ function Settings() {
         enableSourceLink={false}
         analysisMode={ai.analysisMode}
         onAnalysisModeChange={ai.handleAnalysisModeChange}
+        analysisModeLocked={analysisModeLocked}
         onProviderChange={ai.handleProviderChange}
         onModelChange={ai.handleModelChange}
         onWorkersChange={noop}
@@ -130,4 +131,16 @@ it("Geminiは従来どおりモデルを選択できる", async () => {
   await screen.findByRole("option", { name: "Gemini 3.8 Flash（動作未確認）" });
   await user.selectOptions(model, "gemini-3.8-flash");
   expect(model).toHaveValue("gemini-3.8-flash");
+});
+
+it("分析方式を固定すると選択できず、引き継ぐ旨を表示する", async () => {
+  render(<Settings analysisModeLocked />);
+  const mode = screen.getByRole("combobox", { name: "分析方式" });
+  expect(mode).toBeDisabled();
+  expect(screen.getByText(/再利用元レポートの分析方式を引き継ぎます/)).toBeInTheDocument();
+});
+
+it("通常は分析方式を選択できる", async () => {
+  render(<Settings />);
+  expect(screen.getByRole("combobox", { name: "分析方式" })).toBeEnabled();
 });
