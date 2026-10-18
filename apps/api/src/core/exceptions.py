@@ -10,6 +10,10 @@ class ClusterCSVParseError(ClusterRepoError):
     """クラスタのCSVファイルのパースに失敗したケース"""
 
 
+class ClusterNotFound(ClusterRepoError):
+    """更新対象のクラスタIDがCSVファイルに存在しないケース"""
+
+
 class ConfigRepoError(Exception):
     """ConfigRepository の基底例外"""
 

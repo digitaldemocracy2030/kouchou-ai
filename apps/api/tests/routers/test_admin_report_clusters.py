@@ -4,7 +4,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.core.exceptions import ClusterCSVParseError, ClusterFileNotFound
+from src.core.exceptions import ClusterCSVParseError, ClusterFileNotFound, ClusterNotFound
 from src.routers.admin_report import router, verify_admin_api_key
 from src.schemas.cluster import ClusterResponse
 
@@ -228,3 +228,26 @@ class TestUpdateClusterLabel:
             # レスポンスを検証
             assert response.status_code == 500
             assert "意見グループ更新の集計に失敗しました" in response.json()["detail"]
+
+    def test_update_cluster_label_unknown_id_returns_404(self, client):
+        """異常系：更新対象のクラスタIDが存在しない場合は404を返し、集計を実行しない"""
+        update_data = {
+            "id": "missing",
+            "label": "更新されたラベル",
+            "description": "更新された説明",
+        }
+
+        with (
+            patch("src.routers.admin_report.ClusterRepository") as mock_repo,
+            patch("src.routers.admin_report.execute_aggregation") as mock_execute,
+        ):
+            mock_repo.return_value.update_csv.side_effect = ClusterNotFound("Cluster not found: missing")
+
+            response = client.patch(
+                "/admin/reports/test-slug/cluster-label",
+                json=update_data,
+                headers={"x-api-key": "test-api-key"},
+            )
+
+            assert response.status_code == 404
+            mock_execute.assert_not_called()

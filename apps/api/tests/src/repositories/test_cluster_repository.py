@@ -1,9 +1,10 @@
+import csv
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import mock_open, patch
 
 import pytest
 
-from src.core.exceptions import ClusterCSVParseError, ClusterFileNotFound
+from src.core.exceptions import ClusterCSVParseError, ClusterFileNotFound, ClusterNotFound
 from src.repositories.cluster_repository import ClusterRepository
 from src.schemas.cluster import ClusterResponse, ClusterUpdate
 
@@ -181,8 +182,8 @@ class TestClusterRepository:
         # 検証
         assert "一般的なエラー" in str(excinfo.value)
 
-    def test_update_csv_success(self, cluster_repository, mock_csv_data, expected_clusters):
-        """CSVファイルの更新が成功することを確認"""
+    def test_update_csv_success(self, cluster_repository, mock_csv_data, tmp_path):
+        """CSVファイルの更新が成功し、対象クラスタだけが書き換わることを確認"""
         # 更新するクラスタ
         updated_cluster = ClusterUpdate(
             id="cluster-2",
@@ -190,24 +191,26 @@ class TestClusterRepository:
             description="更新された説明",
         )
 
-        # read_from_csvの結果をモック
-        with patch.object(ClusterRepository, "read_from_csv", return_value=expected_clusters):
-            # ファイルの書き込みをモック
-            mock_csv_writer = MagicMock()
-            with patch("builtins.open", mock_open()):
-                with patch("csv.DictWriter", return_value=mock_csv_writer):
-                    result = cluster_repository.update_csv(updated_cluster)
+        cluster_repository.labels_path = tmp_path / "hierarchical_merge_labels.csv"
+        with open(cluster_repository.labels_path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=list(mock_csv_data[0].keys()))
+            writer.writeheader()
+            writer.writerows(mock_csv_data)
+
+        result = cluster_repository.update_csv(updated_cluster)
 
         # 検証
         assert result is True
-        # writeheaderが呼ばれたことを確認
-        mock_csv_writer.writeheader.assert_called_once()
-        # writerowが3回呼ばれたことを確認（3つのクラスタがある）
-        assert mock_csv_writer.writerow.call_count == 3
+        with open(cluster_repository.labels_path, encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 3
         # 2番目のクラスタが更新されていることを確認
-        updated_data = mock_csv_writer.writerow.call_args_list[1][0][0]
-        assert updated_data["label"] == "更新されたラベル"
-        assert updated_data["description"] == "更新された説明"
+        assert rows[1]["label"] == "更新されたラベル"
+        assert rows[1]["description"] == "更新された説明"
+        # 他のクラスタ・列は変更されないことを確認
+        assert rows[0] == mock_csv_data[0]
+        assert rows[2] == mock_csv_data[2]
+        assert rows[1]["density"] == "0.6"
 
     def test_update_csv_exception(self, cluster_repository, expected_clusters):
         """CSVファイルの更新中に例外が発生した場合、Falseが返されることを確認"""
@@ -226,3 +229,48 @@ class TestClusterRepository:
 
         # 検証
         assert result is False
+
+
+class TestClusterRepositoryLlmGroupingCsv:
+    """llm_grouping が出力する density / density_rank 列の無い CSV を扱えることを確認"""
+
+    LLM_GROUPING_CSV = (
+        "level,id,label,description,value,parent,density_rank_percentile\n"
+        "1,g1,グループ1,説明1,5,0,1.0\n"
+        "1,other,その他,,2,0,0.0\n"
+    )
+
+    @pytest.fixture
+    def repo(self, tmp_path):
+        repo = ClusterRepository("test-slug")
+        repo.labels_path = tmp_path / "hierarchical_merge_labels.csv"
+        repo.labels_path.write_text(self.LLM_GROUPING_CSV, encoding="utf-8")
+        return repo
+
+    def test_read_from_csv_without_density_columns(self, repo):
+        clusters = repo.read_from_csv()
+
+        assert [c.id for c in clusters] == ["g1", "other"]
+        assert clusters[0].density is None
+        assert clusters[0].density_rank is None
+        assert clusters[0].density_rank_percentile == 1.0
+
+    def test_update_csv_keeps_original_columns_and_rows(self, repo):
+        result = repo.update_csv(ClusterUpdate(id="g1", label="新ラベル", description="新説明"))
+
+        assert result is True
+        lines = repo.labels_path.read_text(encoding="utf-8").splitlines()
+        assert lines[0] == "level,id,label,description,value,parent,density_rank_percentile"
+        assert lines[1:] == ["1,g1,新ラベル,新説明,5,0,1.0", "1,other,その他,,2,0,0.0"]
+
+    def test_update_csv_unknown_id_raises_and_keeps_file(self, repo):
+        with pytest.raises(ClusterNotFound):
+            repo.update_csv(ClusterUpdate(id="missing", label="x", description="y"))
+
+        assert repo.labels_path.read_text(encoding="utf-8") == self.LLM_GROUPING_CSV
+
+    def test_update_csv_empty_file_returns_false_and_keeps_file(self, repo):
+        repo.labels_path.write_text("level,id,label,description,value,parent\n", encoding="utf-8")
+
+        assert repo.update_csv(ClusterUpdate(id="g1", label="x", description="y")) is False
+        assert repo.labels_path.read_text(encoding="utf-8") == "level,id,label,description,value,parent\n"

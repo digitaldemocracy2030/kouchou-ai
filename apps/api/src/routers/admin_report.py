@@ -16,6 +16,7 @@ from src.config import settings
 from src.core.exceptions import (
     ClusterCSVParseError,
     ClusterFileNotFound,
+    ClusterNotFound,
     ConfigFileNotFound,
     ConfigJSONParseError,
 )
@@ -392,7 +393,10 @@ async def update_cluster_label(
     # FIXME: error handlingを共通化するタイミングで、error handlingを切り出す
     # issue: https://github.com/digitaldemocracy2030/kouchou-ai/issues/546
     repo = ClusterRepository(slug)
-    is_csv_updated = repo.update_csv(updated_cluster)
+    try:
+        is_csv_updated = repo.update_csv(updated_cluster)
+    except ClusterNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     if not is_csv_updated:
         raise HTTPException(status_code=500, detail="意見グループの更新に失敗しました")
 
