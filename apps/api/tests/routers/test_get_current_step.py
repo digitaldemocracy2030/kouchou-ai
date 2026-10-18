@@ -208,3 +208,19 @@ async def test_get_current_step_exception(async_client, test_slug):
         assert data["token_usage_input"] == 0
         assert data["token_usage_output"] == 0
         assert data["error_message"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("partial_content", ["", '{"status": "running", "current_job": "extr'])
+async def test_get_current_step_partial_status_file_is_loading(async_client, test_slug, tmp_path, partial_content):
+    """書き込み途中のステータスファイルを読んでも、ポーリングを止める error を返さないことをテスト"""
+    (tmp_path / test_slug).mkdir()
+    (tmp_path / test_slug / "hierarchical_status.json").write_text(partial_content, encoding="utf-8")
+
+    with patch("src.routers.admin_report.settings") as mock_settings:
+        mock_settings.REPORT_DIR = tmp_path
+        response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["current_step"] == "loading"
+        assert data["status"] != "error"

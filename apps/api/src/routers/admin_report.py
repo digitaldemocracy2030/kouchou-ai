@@ -206,8 +206,12 @@ async def get_current_step(slug: str) -> dict:
         if not status_file.exists():
             return {"current_step": "loading"}
 
-        with open(status_file, encoding="utf-8") as f:
-            status = json.load(f)
+        try:
+            with open(status_file, encoding="utf-8") as f:
+                status = json.load(f)
+        except json.JSONDecodeError:
+            # 書き込み途中のファイルを読んだ可能性があるため、失敗扱いにせず次回のポーリングに任せる
+            return {"current_step": "loading", "status": "running"}
 
         response = {
             "status": status.get("status", "running"),
