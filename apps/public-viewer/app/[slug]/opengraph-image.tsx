@@ -2,6 +2,7 @@ import { OpImage, contentType, size } from "./_op-image";
 
 export { size, contentType };
 
-export default async function Image({ params }: { params: { slug: string } }) {
-  return OpImage(params.slug);
+export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  return OpImage(slug);
 }
