@@ -23,6 +23,24 @@ from src.plugins.registry import PluginRegistry
 
 logger = logging.getLogger("uvicorn")
 
+
+def _describe_http_error(e: Any, api_key: str) -> str:
+    """Build a user-facing message from a googleapiclient HttpError.
+
+    ``str(HttpError)`` includes the request URI, which carries the API key as the
+    ``key=`` query parameter. Use only the status and reason, and mask the key
+    in case it still appears.
+    """
+    status = getattr(getattr(e, "resp", None), "status", None)
+    reason = getattr(e, "reason", "") or ""
+    message = f"YouTube APIエラー (HTTP {status})"
+    if reason:
+        message += f": {reason}"
+    if api_key:
+        message = message.replace(api_key, "***")
+    return message
+
+
 # YouTube URL patterns
 VIDEO_PATTERNS = [
     r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})",
@@ -225,7 +243,7 @@ class YouTubePlugin(InputPlugin):
             elif e.resp.status == 404:
                 raise ValueError(f"動画が見つかりません: {video_id}") from e
             else:
-                raise ValueError(f"YouTube APIエラー: {e}") from e
+                raise ValueError(_describe_http_error(e, api_key)) from e
 
         logger.info(f"Fetched {len(comments)} comments from YouTube video {video_id}")
         return pl.DataFrame(comments)
@@ -278,7 +296,7 @@ class YouTubePlugin(InputPlugin):
             if e.resp.status == 404:
                 raise ValueError(f"プレイリストが見つかりません: {playlist_id}") from e
             else:
-                raise ValueError(f"YouTube APIエラー: {e}") from e
+                raise ValueError(_describe_http_error(e, api_key)) from e
 
         expected_columns: list[tuple[str, pl.DataType, object]] = [
             ("comment-id", pl.Utf8, ""),
