@@ -21,9 +21,7 @@ def _genai_with_client(models):
 
 
 def _embed_response(texts):
-    return types.SimpleNamespace(
-        embeddings=[types.SimpleNamespace(values=[float(len(t)), 0.0]) for t in texts]
-    )
+    return types.SimpleNamespace(embeddings=[types.SimpleNamespace(values=[float(len(t)), 0.0]) for t in texts])
 
 
 def test_embed_sends_texts_in_batches(monkeypatch):
