@@ -96,9 +96,11 @@ def hierarchical_aggregation(config) -> bool:
         hidden_properties_map: dict[str, list[str]] = config["hierarchical_aggregation"]["hidden_properties"]
 
         results["arguments"] = _build_arguments(clusters, comments, relation_df, config)
-        _merge_opinion_classifications(
-            results["arguments"], f"{output_base_dir}/{config['output_dir']}/opinion_classifications.csv"
-        )
+        # 無効化した後に前回の分類結果が残っていても混ぜない
+        if config.get("opinion_classification", {}).get("enabled", False):
+            _merge_opinion_classifications(
+                results["arguments"], f"{output_base_dir}/{config['output_dir']}/opinion_classifications.csv"
+            )
         results["clusters"] = _build_cluster_value(labels, arg_num)
 
         # results["comments"] = _build_comments_value(

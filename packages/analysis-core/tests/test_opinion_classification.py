@@ -197,6 +197,21 @@ class TestStep:
         assert not (out / "opinion_classifications.csv").exists()
         assert not (out / "opinion_classification_summary.json").exists()
 
+    def test_failure_removes_previous_run_output(self, tmp_path, monkeypatch):
+        out = _write_args(tmp_path, ["x"])
+        (out / "opinion_classifications.csv").write_text("arg-id,hate_or_insult\nOLD_0,yes\n", encoding="utf-8")
+        (out / "opinion_classification_summary.json").write_text("{}", encoding="utf-8")
+
+        def fake_request(**kwargs):
+            raise RuntimeError("private API failure")
+
+        monkeypatch.setattr(classification, "request_to_chat_ai", fake_request)
+        monkeypatch.setattr(classification, "update_progress", lambda *args, **kwargs: None)
+        with pytest.raises(classification.ClassificationBatchError):
+            classification.opinion_classification(_config(tmp_path))
+        assert not (out / "opinion_classifications.csv").exists()
+        assert not (out / "opinion_classification_summary.json").exists()
+
     def test_exception_type_is_reported(self, tmp_path, monkeypatch):
         _write_args(tmp_path, ["x"])
 
@@ -274,7 +289,9 @@ class TestPipelineWiring:
         step = workflow.get_step("opinion_classification")
         assert step is not None
         assert step.plugin == "analysis.opinion_classification"
-        assert step.optional is True
+        # enabled=true で明示的に要求された分類が失敗したら、パイプライン全体を失敗させる
+        assert step.optional is False
+        assert step.condition == "${config.opinion_classification.enabled}"
         assert "opinion_classification" in workflow.get_step("aggregation").depends_on
 
         registry = get_registry()

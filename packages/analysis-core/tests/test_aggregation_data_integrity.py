@@ -114,3 +114,72 @@ def test_identical_opinions_from_different_comments_keep_each_respondent(tmp_pat
     result = _run(agg_report, agg_config)
     ages = {arg["comment_id"]: arg["attributes"]["age"] for arg in result["arguments"]}
     assert ages == {"c1": "20s", "c2": "30s"}
+
+
+def _write_classifications(report):
+    pl.DataFrame({"arg-id": ["A1_0"], "hate_or_insult": ["yes"]}).write_csv(report / "opinion_classifications.csv")
+
+
+def test_stale_opinion_classifications_are_ignored_when_disabled(tmp_path):
+    report, config = _write_report(
+        tmp_path, "comment-id,comment-body,attribute_age\n1,body,20s\n", [("A1_0", "body")], [("A1_0", "1")]
+    )
+    _write_classifications(report)  # left over from an earlier run with the step enabled
+    config["opinion_classification"] = {"enabled": False}
+    result = _run(report, config)
+    assert result["arguments"][0]["attributes"] == {"age": "20s"}
+
+    del config["opinion_classification"]
+    result = _run(report, config)
+    assert result["arguments"][0]["attributes"] == {"age": "20s"}
+
+
+def test_opinion_classifications_are_merged_when_enabled(tmp_path):
+    report, config = _write_report(
+        tmp_path, "comment-id,comment-body,attribute_age\n1,body,20s\n", [("A1_0", "body")], [("A1_0", "1")]
+    )
+    _write_classifications(report)
+    config["opinion_classification"] = {"enabled": True}
+    result = _run(report, config)
+    assert result["arguments"][0]["attributes"] == {"age": "20s", "hate_or_insult": "yes"}
+
+
+def test_failed_classification_fails_the_workflow_when_enabled(tmp_path):
+    from analysis_core.compat import normalize_config
+    from analysis_core.plugin import PluginRegistry, StepContext, StepOutputs, step_plugin
+    from analysis_core.workflow import WorkflowEngine
+    from analysis_core.workflows.hierarchical_default import create_hierarchical_workflow
+
+    workflow = create_hierarchical_workflow(include_visualization=False)
+    registry = PluginRegistry()
+    registry.register_builtin_plugins()
+    calls = []
+
+    def make_plugin(step_id, plugin_id):
+        @step_plugin(id=plugin_id, version="1.0.0")
+        def plugin(ctx, inputs, config):
+            calls.append(step_id)
+            if step_id == "opinion_classification":
+                raise RuntimeError("classification failed")
+            return StepOutputs()
+
+        return plugin
+
+    for step in workflow.steps:
+        registry.register_or_replace(make_plugin(step.id, step.plugin))
+    engine = WorkflowEngine(registry=registry)
+    assert engine.registry is registry
+
+    ctx = StepContext(output_dir=tmp_path, input_dir=tmp_path, dataset="report", provider="openai", model="m")
+    config = normalize_config({"model": "m"}, include_source_code=False)
+    config["opinion_classification"]["enabled"] = True
+    result = engine.run(workflow, config, ctx)
+    assert result.success is False
+    assert "aggregation" not in calls
+
+    calls.clear()
+    config["opinion_classification"]["enabled"] = False
+    result = engine.run(workflow, config, ctx)
+    assert result.success is True
+    assert "opinion_classification" not in calls
+    assert "aggregation" in calls

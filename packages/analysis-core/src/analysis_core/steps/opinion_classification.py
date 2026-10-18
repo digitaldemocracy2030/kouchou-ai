@@ -173,6 +173,12 @@ def opinion_classification(config: dict) -> None:
         raise RuntimeError("provider is not set")
     provider = config["provider"]
 
+    # 失敗したときに前回の結果（古い arg-id のラベル）が集計へ混ざらないよう、先に消しておく
+    for filename in (CLASSIFICATIONS_FILENAME, SUMMARY_FILENAME):
+        stale_path = f"{output_base_dir}/{dataset}/{filename}"
+        if os.path.exists(stale_path):
+            os.remove(stale_path)
+
     arguments = pl.read_csv(f"{output_base_dir}/{dataset}/args.csv", infer_schema_length=0)
     arg_ids = [str(value) for value in arguments["arg-id"].to_list()]
     texts = [str(value) for value in arguments["argument"].to_list()]

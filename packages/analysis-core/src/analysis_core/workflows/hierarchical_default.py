@@ -43,7 +43,7 @@ def create_hierarchical_workflow(
             id="opinion_classification",
             plugin="analysis.opinion_classification",
             depends_on=["extraction"],
-            optional=True,
+            # enabled=true で明示的に要求された分類が失敗したら、ラベルなしで完了させずパイプラインを失敗させる
             condition="${config.opinion_classification.enabled}",
             config={
                 "workers": "${config.opinion_classification.workers}",

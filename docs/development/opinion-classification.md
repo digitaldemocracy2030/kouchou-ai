@@ -8,7 +8,7 @@
 
 1. `args.csv` の意見1件ごとにLLMへ問い合わせ、各ラベルに該当するかを `true` / `false` で受け取る。
 2. `opinion_classifications.csv`（`arg-id` と、ラベルごとの `yes` / `no` 列）と、件数・比率をまとめた `opinion_classification_summary.json` を書く。
-3. `hierarchical_aggregation` が `opinion_classifications.csv` を見つけると、`hierarchical_result.json` の `arguments[].attributes` にラベルを追加する。元コメントの `attribute_*` 列と同じ場所なので、公開ビューアの属性フィルタ（`AttributeFilterDialog`）でそのまま絞り込める。ビューア側の変更は不要。
+3. `opinion_classification.enabled` が `true` のとき、`hierarchical_aggregation` が `opinion_classifications.csv` を見つけると、`hierarchical_result.json` の `arguments[].attributes` にラベルを追加する。元コメントの `attribute_*` 列と同じ場所なので、公開ビューアの属性フィルタ（`AttributeFilterDialog`）でそのまま絞り込める。ビューア側の変更は不要。
 
 ラベルはコメント単位ではなく **意見（argument）単位** です。1つのコメントから抽出された複数の意見がそれぞれ別のラベルを持ちます。
 
@@ -79,7 +79,9 @@
 
 ## 失敗の扱い
 
-応答がJSONでない、ラベルが欠けている、真偽値でない、通信に失敗した、といった場合は「どちらにも該当しない」と見なさず、ステップ全体を失敗させます（`ClassificationBatchError`）。失敗した意見の `arg-id` と例外の種類だけをログに出し、意見本文は出しません。部分的な出力ファイルは書きません。
+応答がJSONでない、ラベルが欠けている、真偽値でない、通信に失敗した、といった場合は「どちらにも該当しない」と見なさず、ステップ全体を失敗させます（`ClassificationBatchError`）。失敗した意見の `arg-id` と例外の種類だけをログに出し、意見本文は出しません。部分的な出力ファイルは書きません。前回の実行で書いた `opinion_classifications.csv` / `opinion_classification_summary.json` はステップの開始時に削除するので、失敗したときに古いラベルが集計に混ざることもありません。`enabled: true` で有効にしたこのステップが失敗すると、パイプライン全体が失敗します（ラベルなしで完了扱いにはしません）。
+
+`enabled` を `false` に戻した場合、出力ディレクトリに前回の `opinion_classifications.csv` が残っていても `hierarchical_aggregation` はラベルを付けません。
 
 ## 読み方の注意
 
