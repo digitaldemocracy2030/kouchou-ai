@@ -183,3 +183,14 @@ def test_failed_classification_fails_the_workflow_when_enabled(tmp_path):
     assert result.success is True
     assert "opinion_classification" not in calls
     assert "aggregation" in calls
+
+
+def test_custom_intro_counts_comments_after_empty_filter_and_limit(tmp_path):
+    comments = "comment-id,comment-body\n1,first\n2,\n3,   \n4,second\n5,third\n"
+    report, config = _write_report(tmp_path, comments, [("A1_0", "first")], [("A1_0", "1")])
+    result = _run(report, config)
+    assert "分析対象となったデータの件数は3件" in result["config"]["intro"]
+
+    config["extraction"]["limit"] = 2
+    result = _run(report, config)
+    assert "分析対象となったデータの件数は2件" in result["config"]["intro"]

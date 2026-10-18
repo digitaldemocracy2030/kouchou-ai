@@ -9,6 +9,7 @@ import numpy as np
 import polars as pl
 
 from analysis_core.core.utils import read_input_csv
+from analysis_core.steps.extraction import filter_empty_comments
 
 
 def json_serialize_numpy(obj: Any) -> Any:
@@ -144,7 +145,8 @@ def create_custom_intro(config):
 
     input_count = len(comments)
     args_count = len(pl.read_csv(args_path))
-    processed_num = min(input_count, config["extraction"]["limit"])
+    # extraction と同じく、空・空白のみのコメントを除いてから limit を適用した件数を表示する
+    processed_num = min(len(filter_empty_comments(comments)), config["extraction"]["limit"])
 
     print(f"Input count: {input_count}")
     print(f"Args count: {args_count}")
