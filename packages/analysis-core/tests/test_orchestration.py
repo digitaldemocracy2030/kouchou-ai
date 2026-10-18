@@ -1128,3 +1128,215 @@ def test_run_step_preserves_unknown_cost(monkeypatch):
     }
     orchestration.run_step("test", lambda config: None, config, pricing_calculator=lambda *args: None)
     assert updates[-1]["estimated_cost"] is None
+
+
+class TestTokenUsageCarryOver:
+    """Token usage must survive partial reruns (e.g. aggregation-only after a label edit)."""
+
+    PREVIOUS_STATUS = {
+        "status": "completed",
+        "total_token_usage": 1000,
+        "token_usage_input": 600,
+        "token_usage_output": 400,
+        "completed_jobs": [
+            {"step": "hierarchical_initial_labelling", "params": {}, "token_usage": 300},
+            {"step": "hierarchical_aggregation", "params": {}, "token_usage": 0},
+        ],
+        "previously_completed_jobs": [
+            {
+                "step": "extraction",
+                "params": {},
+                "token_usage": 700,
+                "token_input": 420,
+                "token_output": 280,
+            },
+        ],
+    }
+
+    @staticmethod
+    def _plan(run_steps):
+        steps = [
+            "extraction",
+            "embedding",
+            "hierarchical_clustering",
+            "hierarchical_initial_labelling",
+            "hierarchical_merge_labelling",
+            "hierarchical_overview",
+            "hierarchical_aggregation",
+        ]
+        return [{"step": step, "run": step in run_steps, "reason": None} for step in steps]
+
+    def test_carried_over_token_usage_without_previous(self):
+        from analysis_core.core.orchestration import carried_over_token_usage
+
+        assert carried_over_token_usage(None, self._plan({"extraction"})) == {
+            "total_token_usage": 0,
+            "token_usage_input": 0,
+            "token_usage_output": 0,
+        }
+
+    def test_carried_over_token_usage_keeps_totals_when_only_aggregation_runs(self):
+        from analysis_core.core.orchestration import carried_over_token_usage
+
+        carried = carried_over_token_usage(self.PREVIOUS_STATUS, self._plan({"hierarchical_aggregation"}))
+        assert carried == {"total_token_usage": 1000, "token_usage_input": 600, "token_usage_output": 400}
+
+    def test_carried_over_token_usage_drops_rerun_steps(self):
+        from analysis_core.core.orchestration import carried_over_token_usage
+
+        # Labelling job has no input/output split (older status) -> apportioned 60/40.
+        carried = carried_over_token_usage(
+            self.PREVIOUS_STATUS, self._plan({"hierarchical_initial_labelling", "hierarchical_aggregation"})
+        )
+        assert carried == {"total_token_usage": 700, "token_usage_input": 420, "token_usage_output": 280}
+
+        # Full rerun (e.g. --force) starts from zero.
+        all_steps = {step["step"] for step in self._plan(set())}
+        assert carried_over_token_usage(self.PREVIOUS_STATUS, self._plan(all_steps)) == {
+            "total_token_usage": 0,
+            "token_usage_input": 0,
+            "token_usage_output": 0,
+        }
+
+    def test_run_workflow_aggregation_only_preserves_token_usage(self, tmp_path, monkeypatch):
+        """Regression: admin label/config edits rerun aggregation only and used to reset tokens to 0."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+        (output_dir / "hierarchical_status.json").write_text(json.dumps(self.PREVIOUS_STATUS), encoding="utf-8")
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+                "plan": self._plan({"hierarchical_aggregation"}),
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                result = WorkflowResult(workflow_id="test")
+                step_result = WorkflowStepResult(
+                    step_id="aggregation",
+                    success=True,
+                    outputs=StepOutputs(artifacts={"result": ctx.output_dir / "hierarchical_result.json"}),
+                )
+                if on_step_start:
+                    on_step_start("aggregation")
+                if on_step_complete:
+                    on_step_complete("aggregation", step_result)
+                result.step_results["aggregation"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.success is True
+        assert result.total_token_usage == 1000
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["status"] == "completed"
+        assert status_data["total_token_usage"] == 1000
+        assert status_data["token_usage_input"] == 600
+        assert status_data["token_usage_output"] == 400
+
+    def test_run_workflow_rerun_step_replaces_its_previous_tokens(self, tmp_path, monkeypatch):
+        """A re-run step's new tokens replace its old ones; skipped steps keep theirs."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        output_dir = tmp_path / "outputs" / "demo"
+        output_dir.mkdir(parents=True)
+        (output_dir / "hierarchical_status.json").write_text(json.dumps(self.PREVIOUS_STATUS), encoding="utf-8")
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={
+                "name": "demo",
+                "input": "demo",
+                "question": "Test?",
+                "provider": "local",
+                "model": "dummy",
+                "plan": self._plan({"hierarchical_initial_labelling"}),
+            },
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                result = WorkflowResult(
+                    workflow_id="test", total_token_usage=250, total_token_input=150, total_token_output=100
+                )
+                step_result = WorkflowStepResult(
+                    step_id="initial_labelling",
+                    success=True,
+                    outputs=StepOutputs(
+                        artifacts={"labels": ctx.output_dir / "hierarchical_initial_labels.csv"},
+                        token_usage=250,
+                        token_input=150,
+                        token_output=100,
+                    ),
+                )
+                if on_step_start:
+                    on_step_start("initial_labelling")
+                if on_step_complete:
+                    on_step_complete("initial_labelling", step_result)
+                result.step_results["initial_labelling"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.total_token_usage == 950
+        status_data = json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status_data["total_token_usage"] == 950
+        assert status_data["token_usage_input"] == 570
+        assert status_data["token_usage_output"] == 380
+        labelling_job = next(
+            job for job in status_data["completed_jobs"] if job["step"] == "hierarchical_initial_labelling"
+        )
+        assert labelling_job["token_usage"] == 250
+        assert labelling_job["token_input"] == 150
+        assert labelling_job["token_output"] == 100
+
+    def test_initialization_only_step_keeps_previous_token_usage_in_status(self, tmp_path):
+        """The CLI path (--only) must not zero the persisted totals while the run starts."""
+        from analysis_core.core import initialization
+
+        config_path = tmp_path / "job.json"
+        config_path.write_text(json.dumps({"input": "test", "question": "Test?", "provider": "local"}))
+        input_dir = tmp_path / "inputs"
+        input_dir.mkdir()
+        output_base = tmp_path / "outputs"
+        (output_base / "job").mkdir(parents=True)
+        status_path = output_base / "job" / "hierarchical_status.json"
+        status_path.write_text(json.dumps(self.PREVIOUS_STATUS), encoding="utf-8")
+
+        config = initialization(
+            config_path=config_path,
+            only="hierarchical_aggregation",
+            skip_interaction=True,
+            output_base_dir=output_base,
+            input_base_dir=input_dir,
+        )
+
+        assert config["total_token_usage"] == 1000
+        status_data = json.loads(status_path.read_text(encoding="utf-8"))
+        assert status_data["status"] == "running"
+        assert status_data["total_token_usage"] == 1000
+        assert status_data["token_usage_input"] == 600
+        assert status_data["token_usage_output"] == 400

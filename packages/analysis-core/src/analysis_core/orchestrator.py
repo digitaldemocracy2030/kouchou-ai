@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from analysis_core.core.orchestration import (
+    carried_over_token_usage,
     initialization,
     run_step,
     sync_without_html_keys,
@@ -451,6 +452,8 @@ class PipelineOrchestrator:
                         "duration": 0.0,
                         "params": self.config.get(legacy_step_name, {}),
                         "token_usage": step_token_usage,
+                        "token_input": step_token_input,
+                        "token_output": step_token_output,
                     }
                 )
                 total_token_usage += step_token_usage
@@ -471,6 +474,10 @@ class PipelineOrchestrator:
                 self.output_base_dir,
             )
 
+        # Tokens spent on steps skipped this time (e.g. aggregation-only reruns
+        # after a label edit) still belong to the report; keep them in the totals.
+        carried_over = carried_over_token_usage(self.config.get("previous"), self.config.get("plan"))
+
         try:
             # Create step context
             ctx = create_step_context_from_config(
@@ -487,9 +494,7 @@ class PipelineOrchestrator:
                     "status": "running",
                     "start_time": start_time.isoformat(),
                     "completed_jobs": [],
-                    "total_token_usage": 0,
-                    "token_usage_input": 0,
-                    "token_usage_output": 0,
+                    **carried_over,
                     "provider": self.config.get("provider"),
                     "model": self.config.get("model"),
                 },
@@ -507,9 +512,12 @@ class PipelineOrchestrator:
                 skip_steps=skip_steps,
             )
 
-            self.config["total_token_usage"] = workflow_result.total_token_usage
-            self.config["token_usage_input"] = workflow_result.total_token_input
-            self.config["token_usage_output"] = workflow_result.total_token_output
+            total_token_usage = carried_over["total_token_usage"] + workflow_result.total_token_usage
+            total_token_input = carried_over["token_usage_input"] + workflow_result.total_token_input
+            total_token_output = carried_over["token_usage_output"] + workflow_result.total_token_output
+            self.config["total_token_usage"] = total_token_usage
+            self.config["token_usage_input"] = total_token_input
+            self.config["token_usage_output"] = total_token_output
 
             # Convert to PipelineResult
             step_results = [
@@ -535,9 +543,9 @@ class PipelineOrchestrator:
                 {
                     "status": "completed" if workflow_result.success else "error",
                     "end_time": datetime.now().isoformat(),
-                    "total_token_usage": workflow_result.total_token_usage,
-                    "token_usage_input": workflow_result.total_token_input,
-                    "token_usage_output": workflow_result.total_token_output,
+                    "total_token_usage": total_token_usage,
+                    "token_usage_input": total_token_input,
+                    "token_usage_output": total_token_output,
                     "error": None if workflow_result.success else workflow_error,
                 },
                 self.output_base_dir,
@@ -547,7 +555,7 @@ class PipelineOrchestrator:
                 success=workflow_result.success,
                 steps=step_results,
                 total_duration_seconds=total_duration,
-                total_token_usage=workflow_result.total_token_usage,
+                total_token_usage=total_token_usage,
                 error=None if workflow_result.success else workflow_error,
                 output_dir=output_path if output_path.exists() else None,
             )

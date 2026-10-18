@@ -408,6 +408,69 @@ def decide_what_to_run(
     return plan
 
 
+def carried_over_token_usage(
+    previous: dict[str, Any] | None,
+    plan: list[dict[str, Any]] | None,
+) -> dict[str, int]:
+    """
+    Compute the token usage to carry over from the previous run.
+
+    When only a subset of steps is (re)run (e.g. ``--only hierarchical_aggregation``
+    after a label edit), the outputs of skipped steps are kept, so the tokens spent
+    on them still belong to the report. Start from the previous totals and remove
+    the contribution of steps that will run again (their tokens are re-counted).
+
+    Returns:
+        Dict with ``total_token_usage``, ``token_usage_input`` and ``token_usage_output``.
+    """
+    zero = {"total_token_usage": 0, "token_usage_input": 0, "token_usage_output": 0}
+    if not isinstance(previous, dict):
+        return zero
+
+    prev_total = int(previous.get("total_token_usage") or 0)
+    prev_input = int(previous.get("token_usage_input") or 0)
+    prev_output = int(previous.get("token_usage_output") or 0)
+    if prev_total <= 0 and prev_input <= 0 and prev_output <= 0:
+        return zero
+
+    # Latest job record per step. A crashed run leaves a nested "previous" whose
+    # jobs are not yet merged into previously_completed_jobs, so walk the chain.
+    jobs_by_step: dict[str, dict[str, Any]] = {}
+    status: Any = previous
+    while isinstance(status, dict):
+        for job in status.get("completed_jobs", []) + status.get("previously_completed_jobs", []):
+            step = job.get("step") if isinstance(job, dict) else None
+            if step and step not in jobs_by_step:
+                jobs_by_step[step] = job
+        status = status.get("previous")
+
+    rerun_steps = {step["step"] for step in (plan or []) if step.get("run", True)}
+    total, token_input, token_output = prev_total, prev_input, prev_output
+    for step in rerun_steps:
+        job = jobs_by_step.get(step)
+        if not job:
+            continue
+        step_total = int(job.get("token_usage") or 0)
+        if step_total <= 0:
+            continue
+        total -= step_total
+        if "token_input" in job or "token_output" in job:
+            token_input -= int(job.get("token_input") or 0)
+            token_output -= int(job.get("token_output") or 0)
+        elif prev_total > 0:
+            # Older status files do not record the per-step input/output split.
+            token_input -= round(step_total * prev_input / prev_total)
+            token_output -= round(step_total * prev_output / prev_total)
+
+    if total <= 0:
+        return zero
+    return {
+        "total_token_usage": total,
+        "token_usage_input": max(token_input, 0),
+        "token_usage_output": max(token_output, 0),
+    }
+
+
 def update_status(
     config: dict[str, Any],
     updates: dict[str, Any],
@@ -508,9 +571,13 @@ def run_step(
 
     # Run the step
     token_usage_before = config.get("total_token_usage", 0)
+    token_input_before = config.get("token_usage_input", 0)
+    token_output_before = config.get("token_usage_output", 0)
     func(config)
     token_usage_after = config.get("total_token_usage", token_usage_before)
     token_usage_step = token_usage_after - token_usage_before
+    token_input_step = config.get("token_usage_input", token_input_before) - token_input_before
+    token_output_step = config.get("token_usage_output", token_output_before) - token_output_before
 
     # Calculate estimated cost
     estimated_cost = None
@@ -540,6 +607,8 @@ def run_step(
                     ).total_seconds(),
                     "params": config[step],
                     "token_usage": token_usage_step,
+                    "token_input": token_input_step,
+                    "token_output": token_output_step,
                 }
             ],
             "estimated_cost": estimated_cost,
@@ -727,9 +796,7 @@ def initialization(
                 "status": "running",
                 "start_time": datetime.now().isoformat(),
                 "completed_jobs": [],
-                "total_token_usage": 0,
-                "token_usage_input": 0,
-                "token_usage_output": 0,
+                **carried_over_token_usage(previous if isinstance(previous, dict) else None, plan),
                 "provider": config.get("provider"),
                 "model": config.get("model"),
             },
