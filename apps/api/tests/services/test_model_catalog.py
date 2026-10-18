@@ -137,3 +137,29 @@ def test_report_status_persists_unknown_cost(monkeypatch):
     monkeypatch.setattr(report_status, "save_status", lambda: None)
     report_status.update_token_usage("test", 20, 10, 10, "new-provider", "new-model")
     assert state["test"]["estimated_cost"] is None
+
+
+@pytest.mark.parametrize(
+    ("address", "expected_base_url"),
+    [
+        ("https://gateway.example.com", "https://gateway.example.com/v1"),
+        ("https://gateway.example.com:8443/", "https://gateway.example.com:8443/v1"),
+        ("ollama", "http://ollama:11434/v1"),
+        ("ollama:11434", "http://ollama:11434/v1"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_local_models_use_pipeline_address_resolution(monkeypatch, address, expected_base_url):
+    """モデル一覧はパイプライン (request_to_local_llm) と同じ接続先・認証で取得する"""
+    from unittest.mock import MagicMock
+
+    from src.services.llm_models import get_local_llm_models
+
+    monkeypatch.setenv("LOCAL_LLM_API_KEY", "gateway-token")
+    client = MagicMock()
+    client.models.list.return_value = MagicMock(data=[MagicMock(id="llama3")])
+    with patch("src.services.llm_models.OpenAI", return_value=client) as openai_cls:
+        models = await get_local_llm_models(address)
+
+    assert models == [{"value": "llama3", "label": "llama3"}]
+    openai_cls.assert_called_once_with(base_url=expected_base_url, api_key="gateway-token")
