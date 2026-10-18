@@ -4,9 +4,9 @@ from pathlib import Path
 import openai
 
 try:  # pragma: no cover - optional dependency
-    from google.api_core import exceptions as google_exceptions
+    from google.genai import errors as genai_errors
 except Exception:  # pragma: no cover
-    google_exceptions = None
+    genai_errors = None
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Security
 from fastapi.responses import FileResponse, ORJSONResponse
@@ -573,14 +573,20 @@ async def verify_api_key(
             "rate_limit_error",
         )
     except Exception as e:
-        if google_exceptions is not None and isinstance(e, google_exceptions.Unauthenticated):
-            slogger.warning(f"Google authentication error while verifying API key: {e}")
+        gemini_code = (
+            getattr(e, "code", None) if genai_errors is not None and isinstance(e, genai_errors.APIError) else None
+        )
+        if gemini_code in (401, 403) or (gemini_code == 400 and "API_KEY_INVALID" in str(e)):
+            slogger.warning(f"Gemini authentication error while verifying API key: {e}")
             return _api_key_verification_error_response(
                 "認証エラー: APIキーが無効または期限切れです",
                 "authentication_error",
             )
-        if google_exceptions is not None and isinstance(e, google_exceptions.ResourceExhausted):
-            slogger.warning(f"Google rate limit while verifying API key: {e}")
+        # request_to_gemini_chatcompletion は 429 のリトライを使い切ると RuntimeError を投げる
+        if gemini_code == 429 or (
+            provider == "gemini" and isinstance(e, RuntimeError) and "rate limit exceeded" in str(e).lower()
+        ):
+            slogger.warning(f"Gemini rate limit while verifying API key: {e}")
             return _api_key_verification_error_response(
                 "レート制限エラー: APIリクエストの制限を超えました。しばらく待ってから再試行してください。",
                 "rate_limit_error",

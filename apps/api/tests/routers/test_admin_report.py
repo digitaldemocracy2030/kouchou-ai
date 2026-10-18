@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from google.genai import errors as genai_errors
 
 from src.routers import admin_report
 from src.routers.admin_report import router, verify_admin_api_key
@@ -183,6 +184,48 @@ class TestVerifyApiKey:
             _, kwargs = mock_request.call_args
             assert kwargs["provider"] == "gemini"
             assert kwargs["model"] == "gemini-2.5-flash"
+
+    @pytest.mark.parametrize(
+        ("error", "expected_type"),
+        [
+            (
+                genai_errors.ClientError(
+                    400,
+                    {
+                        "error": {
+                            "code": 400,
+                            "message": "API key not valid. Please pass a valid API key.",
+                            "status": "INVALID_ARGUMENT",
+                            "details": [{"reason": "API_KEY_INVALID"}],
+                        }
+                    },
+                ),
+                "authentication_error",
+            ),
+            (
+                genai_errors.ClientError(401, {"error": {"code": 401, "status": "UNAUTHENTICATED"}}),
+                "authentication_error",
+            ),
+            (
+                genai_errors.ClientError(403, {"error": {"code": 403, "status": "PERMISSION_DENIED"}}),
+                "authentication_error",
+            ),
+            (
+                genai_errors.ClientError(429, {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED"}}),
+                "rate_limit_error",
+            ),
+            (RuntimeError("Gemini API rate limit exceeded after retries"), "rate_limit_error"),
+            (genai_errors.ClientError(400, {"error": {"code": 400, "status": "INVALID_ARGUMENT"}}), "unknown_error"),
+        ],
+    )
+    def test_verify_api_key_gemini_classifies_errors(self, client, error, expected_type):
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get("/admin/environment/verify?provider=gemini", headers={"x-api-key": "test-api-key"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error_type"] == expected_type
 
     def test_verify_api_key_uses_user_provided_key_header(self, client):
         with patch("analysis_core.services.llm.request_to_chat_ai") as mock_request:
