@@ -1,6 +1,7 @@
 import { constants } from "node:fs";
 import { access, copyFile, rename, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 let ignoreFiles = [];
 
@@ -32,7 +33,7 @@ async function renameWithFallback(oldPath, newPath) {
   }
 }
 
-async function renameFiles() {
+export async function renameFiles() {
   for (const file of ignoreFiles) {
     const filePath = resolve(file);
     const renamedPath = resolve(file.replace(/([^/]+)$/, "_$1"));
@@ -47,7 +48,7 @@ async function renameFiles() {
   }
 }
 
-async function restoreFiles() {
+export async function restoreFiles() {
   for (const file of ignoreFiles) {
     const filePath = resolve(file);
     const renamedPath = resolve(file.replace(/([^/]+)$/, "_$1"));
@@ -62,19 +63,23 @@ async function restoreFiles() {
   }
 }
 
-const action = process.argv[2];
+// ビルドを包むスクリプト（with-renamed-files.mjs）から関数として読み込めるよう、
+// 直接実行されたときだけ CLI として動く
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const action = process.argv[2];
 
-if (action !== "rename" && action !== "restore") {
-  console.error("Invalid action:", action);
-  process.exit(1);
-}
+  if (action !== "rename" && action !== "restore") {
+    console.error("Invalid action:", action);
+    process.exit(1);
+  }
 
-if (action === "rename") {
-  await renameFiles();
-  process.exit(0);
-}
+  if (action === "rename") {
+    await renameFiles();
+    process.exit(0);
+  }
 
-if (action === "restore") {
-  await restoreFiles();
-  process.exit(0);
+  if (action === "restore") {
+    await restoreFiles();
+    process.exit(0);
+  }
 }
