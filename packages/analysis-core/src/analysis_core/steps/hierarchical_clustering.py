@@ -56,6 +56,41 @@ def calculate_recommended_cluster_nums(argument_count: int) -> list[int]:
     return sorted(set([lv1, lv2]))
 
 
+def normalize_cluster_nums(cluster_nums, argument_count: int) -> list[int]:
+    """Return a normalized copy of ``cluster_nums`` for hierarchical clustering.
+
+    - 各要素は正の整数でなければならない (それ以外は ValueError)
+    - 意見 (argument) 件数を超えるクラスタ数は件数に clamp し、warning を出す
+      (``calculate_recommended_cluster_nums`` や LLM grouping と同じく件数で上限を切る)
+    - 昇順に並べ、重複を取り除く
+    - 入力のリストは書き換えない (config の params-diff / 再実行判定に影響させない)
+    """
+    if not cluster_nums:
+        raise ValueError("cluster_nums must be a non-empty list of positive integers")
+    if argument_count < 1:
+        raise ValueError("argument_count must be at least 1")
+
+    values: list[int] = []
+    for value in cluster_nums:
+        if isinstance(value, bool) or not isinstance(value, int | np.integer):
+            raise ValueError(f"cluster_nums must contain positive integers only: {list(cluster_nums)}")
+        if value < 1:
+            raise ValueError(f"cluster_nums must contain positive integers only: {list(cluster_nums)}")
+        values.append(int(value))
+
+    clamped = [min(value, argument_count) for value in values]
+    if clamped != values:
+        print(
+            f"Warning: cluster_nums {values} exceed the number of arguments ({argument_count}); "
+            f"clamping to {argument_count}"
+        )
+
+    normalized = sorted(set(clamped))
+    if normalized != values:
+        print(f"cluster_nums normalized: {list(cluster_nums)} -> {normalized}")
+    return normalized
+
+
 def save_umap_model(path: str, model, n_features_in: int, n_components: int) -> None:
     """fit 済み UMAP model を metadata 付きで永続化する。
 
@@ -245,6 +280,8 @@ def hierarchical_clustering(config):
         cluster_nums = calculate_recommended_cluster_nums(len(arg_ids))
         config["hierarchical_clustering"]["cluster_nums"] = cluster_nums
         print(f"cluster_nums not provided; using recommended cluster counts based on arg count: {cluster_nums}")
+    # UMAP の前に検証・正規化しておく (config 自体は書き換えない)
+    cluster_nums = normalize_cluster_nums(cluster_nums, len(arg_ids))
 
     n_samples = embeddings_array.shape[0]
     # デフォルト設定は15
@@ -361,6 +398,10 @@ def hierarchical_clustering_embeddings(
     if kmeans_class is None:
         _, _, kmeans_class = _load_clustering_dependencies()
 
+    # 呼び出し元の config を書き換えないよう、正規化したコピーを使う。
+    # 最大分割数は必ず正規化 (昇順・重複除去・件数で clamp) 後の末尾から取る。
+    cluster_nums = normalize_cluster_nums(cluster_nums, len(umap_embeds))
+
     # 最大分割数でクラスタリングを実施
     print("start initial clustering")
     initial_cluster_num = cluster_nums[-1]
@@ -370,7 +411,6 @@ def hierarchical_clustering_embeddings(
 
     results = {}
     print("start hierarchical clustering")
-    cluster_nums.sort()
     print(cluster_nums)
     for n_cluster_cut in cluster_nums[:-1]:
         print("n_cluster_cut: ", n_cluster_cut)
