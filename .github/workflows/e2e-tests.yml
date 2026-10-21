@@ -13,6 +13,7 @@ on:
       - 'apps/api/src/services/model_catalog.json'
       - 'apps/api/src/services/shell_export.py'
       - 'apps/public-viewer/**'
+      - 'apps/shared/**'
       - 'apps/admin/**/*.ts'
       - 'apps/admin/**/*.tsx'
       - 'apps/admin/**/*.js'

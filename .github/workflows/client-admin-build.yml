@@ -9,6 +9,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'apps/api/src/services/model_catalog.json'
+      - 'apps/shared/**'
       - 'apps/admin/**'
       - '!apps/admin/**/*.md'
   pull_request:
@@ -19,6 +20,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'apps/api/src/services/model_catalog.json'
+      - 'apps/shared/**'
       - 'apps/admin/**'
       - '!apps/admin/**/*.md'
   workflow_dispatch:
