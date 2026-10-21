@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import openai
 from dotenv import load_dotenv
 from openai import AzureOpenAI, OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from tenacity import retry, retry_if_exception, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, positive_timeout
@@ -1250,8 +1250,10 @@ def request_to_openrouter_chatcompletion(
             if not prefer_json_fallback:
                 try:
                     return _openrouter_structured_parse(client, model, messages, json_schema, timeout_seconds)
-                except openai.BadRequestError as e:
-                    # structured outputs 非対応モデルは 400 で落ちるため JSON モードへ切り替える
+                except (openai.BadRequestError, ValidationError) as e:
+                    # structured outputs 非対応モデルは 400 で落ちるため JSON モードへ切り替える。
+                    # 400 にならず response_format を無視するモデルもあり、コードフェンス付きの JSON を
+                    # 返すと SDK の parse が ValidationError を投げる。これも JSON モードで取り直す
                     logging.warning(
                         f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {e}"
                     )

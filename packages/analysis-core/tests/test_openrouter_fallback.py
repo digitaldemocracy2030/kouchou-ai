@@ -263,3 +263,43 @@ def test_is_json_request_uses_json_object(recorder):
     )
     assert content == '{"answer": "from-create"}'
     assert recorder["create_calls"][0]["response_format"] == {"type": "json_object"}
+
+
+def test_non_free_model_falls_back_when_real_sdk_rejects_fenced_json(monkeypatch):
+    """response_format を無視してフェンス付き JSON を返すモデル。偽 client ではなく実 SDK の parse で確かめる"""
+    seen_formats = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        seen_formats.append((body.get("response_format") or {}).get("type"))
+        content = '```json\n{"answer": "fenced"}\n```'
+        return httpx.Response(
+            200,
+            json={
+                "id": "x",
+                "object": "chat.completion",
+                "created": 0,
+                "model": body["model"],
+                "choices": [
+                    {"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": content}}
+                ],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            },
+        )
+
+    real_openai = llm.OpenAI
+
+    def _factory(**kwargs):
+        return real_openai(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    monkeypatch.setattr(llm, "OpenAI", _factory)
+    monkeypatch.delenv("OPENROUTER_FORCE_JSON_FALLBACK", raising=False)
+
+    content, *_ = request_to_openrouter_chatcompletion(
+        messages=[{"role": "user", "content": "q"}],
+        model="anthropic/claude-3.5-haiku",
+        json_schema=_Schema,
+        user_api_key="test-key",
+    )
+    assert json.loads(content) == {"answer": "fenced"}
+    assert seen_formats == ["json_schema", "json_object"]
