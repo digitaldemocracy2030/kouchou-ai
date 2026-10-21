@@ -143,8 +143,9 @@ def _seed_reused_outputs(
         with open(source_status_file, encoding="utf-8") as f:
             source_status = json.load(f)
 
-    completed_jobs = source_status.get("completed_jobs", []) + source_status.get("previously_completed_jobs", [])
-    status_by_step = {job.get("step"): job for job in completed_jobs if job.get("step")}
+    # Newest record of each step: a source killed mid-run also lists the older records of the
+    # steps it re-ran, while its artifacts are the new ones.
+    status_by_step = {job["step"]: job for job in collect_previous_jobs(source_status)}
     reusable_steps = []
     seeded_files: set[str] = set()
     for step_spec in specs:

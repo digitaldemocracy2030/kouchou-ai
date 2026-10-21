@@ -493,3 +493,65 @@ class TestSecondaryArtifacts:
         plan = _plan_with_previous(tmp_path, config, previous, specs)
         assert plan[step]["run"] is True
         assert plan[step]["reason"] == "previous data not found"
+
+
+class TestReuseFromInterruptedSource:
+    """A source killed mid-run lists a re-run step twice; the newest record matches its artifact."""
+
+    def test_reuse_from_uses_latest_record_of_each_step(self, tmp_path):
+        specs = load_specs(HIERARCHICAL_SPECS)
+        config = _initialized_config(tmp_path, hierarchical_clustering={"cluster_nums": [2, 4]})
+        finished = _completed_status(config, specs, completed="2026-01-01T00:00:00")
+        source_dir = tmp_path / "outputs" / "source_job"
+        source_dir.mkdir(parents=True)
+        for spec in specs:
+            if spec["filename"] != "report":
+                (source_dir / spec["filename"]).write_text("x", encoding="utf-8")
+        (source_dir / "relations.csv").write_text("x", encoding="utf-8")
+        (source_dir / "hierarchical_clusters.csv").write_text("clusters for [3, 6]", encoding="utf-8")
+        # The re-run with [3, 6] was killed right after clustering: the status written while
+        # running holds the new record in completed_jobs and the older ones next to it.
+        clustering = next(job for job in finished["completed_jobs"] if job["step"] == "hierarchical_clustering")
+        rerun_clustering = {
+            **clustering,
+            "completed": "2026-02-01T00:00:00",
+            "params": {**clustering["params"], "cluster_nums": [3, 6]},
+        }
+        (source_dir / "hierarchical_status.json").write_text(
+            json.dumps(
+                {
+                    "status": "running",
+                    "completed_jobs": [rerun_clustering],
+                    "previously_completed_jobs": finished["completed_jobs"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        config_path = tmp_path / "compare_job.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "comments",
+                    "question": "Q?",
+                    "provider": "local",
+                    "hierarchical_clustering": {"cluster_nums": [2, 4]},
+                }
+            ),
+            encoding="utf-8",
+        )
+        new_config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+            reuse_from="source_job",
+        )
+
+        plan = {p["step"]: p for p in new_config["plan"]}
+        assert plan["hierarchical_clustering"]["run"] is True
+        assert "cluster_nums" in plan["hierarchical_clustering"]["reason"]
+        assert plan["hierarchical_initial_labelling"]["run"] is True
+        seeded = new_config["previous"]["completed_jobs"]
+        seeded_clustering = next(job for job in seeded if job["step"] == "hierarchical_clustering")
+        assert seeded_clustering["params"]["cluster_nums"] == [3, 6]
