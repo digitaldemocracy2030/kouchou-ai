@@ -16,6 +16,8 @@ x-frontend-build-args: &frontend-build-args
     - API_BASEPATH=${API_BASEPATH}
     - NEXT_PUBLIC_PUBLIC_API_KEY=${NEXT_PUBLIC_PUBLIC_API_KEY}
     - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+    # CSP はビルド時に決まるので、GA を使うならビルド時にも渡す
+    - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
 
 services:
   api:
@@ -71,6 +73,7 @@ services:
         - NEXT_PUBLIC_ADMIN_API_KEY=${NEXT_PUBLIC_ADMIN_API_KEY}
         - API_BASEPATH=http://api:8000
         - CLIENT_STATIC_BUILD_BASEPATH=${CLIENT_STATIC_BUILD_BASEPATH}
+        - NEXT_PUBLIC_ADMIN_GA_MEASUREMENT_ID=${NEXT_PUBLIC_ADMIN_GA_MEASUREMENT_ID:-}
     ports:
       - "4000:4000"
     environment:
