@@ -53,8 +53,9 @@ test.describe("Client Static - レポート詳細", () => {
     await backButton.click();
 
     // トップページに戻ることを確認
-    await page.waitForURL("**/");
-    expect(page.url()).toMatch(/\/$/);
+    // trailingSlash: true なので詳細ページの URL も "/" で終わる。末尾ではなくパス全体で判定する
+    await page.waitForURL((url) => url.pathname === "/");
+    expect(new URL(page.url()).pathname).toBe("/");
   });
 
   test("異常系 - 存在しないレポートで404エラーが表示される", async ({ page }) => {
