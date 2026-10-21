@@ -393,10 +393,20 @@ kouchou-analyze --config report_october.json
 
 ### Azure OpenAI を使用する
 
+チャット用と埋め込み用の 2 組の環境変数が必要です（`AZURE_OPENAI_*` ではありません）。
+
 ```bash
-export AZURE_OPENAI_API_KEY="your-key"
-export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-export AZURE_OPENAI_DEPLOYMENT="your-deployment-name"
+# チャット（意見の抽出・ラベル付け・要約）
+export AZURE_CHATCOMPLETION_ENDPOINT="https://your-resource.openai.azure.com"
+export AZURE_CHATCOMPLETION_DEPLOYMENT_NAME="your-chat-deployment-name"
+export AZURE_CHATCOMPLETION_VERSION="2024-10-21"
+export AZURE_CHATCOMPLETION_API_KEY="your-key"
+
+# 埋め込み（"is_embedded_at_local": true なら不要）
+export AZURE_EMBEDDING_ENDPOINT="https://your-resource.openai.azure.com"
+export AZURE_EMBEDDING_DEPLOYMENT_NAME="your-embedding-deployment-name"
+export AZURE_EMBEDDING_VERSION="2023-05-15"
+export AZURE_EMBEDDING_API_KEY="your-key"
 ```
 
 ```json
@@ -406,17 +416,19 @@ export AZURE_OPENAI_DEPLOYMENT="your-deployment-name"
 }
 ```
 
+Azure では、実際に使うモデルは `model` ではなく、環境変数のデプロイ名で決まります。
+
 ### Gemini を使用する
 
 ```bash
 pip install 'kouchou-ai-analysis-core[gemini,embeddings,clustering]'
-export GOOGLE_API_KEY="your-key"
+export GEMINI_API_KEY="your-key"
 ```
 
 ```json
 {
   "provider": "gemini",
-  "model": "gemini-1.5-flash"
+  "model": "gemini-2.5-flash"
 }
 ```
 
