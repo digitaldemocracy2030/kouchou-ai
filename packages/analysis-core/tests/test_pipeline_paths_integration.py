@@ -138,8 +138,15 @@ class TestPipelinePathsIntegration:
             read_csv_calls.append(str(path))
             return original_read_csv(path, *args, **kwargs)
 
-        # Patch read_csv in the extraction module's namespace
-        with patch("analysis_core.steps.extraction.pl.read_csv", side_effect=tracking_read_csv):
+        # Patch read_csv in the extraction module's namespace, and mock the LLM call
+        # so the test never sends a request with a key from the developer's .env
+        with (
+            patch("analysis_core.steps.extraction.pl.read_csv", side_effect=tracking_read_csv),
+            patch(
+                "analysis_core.steps.extraction.request_to_chat_ai",
+                return_value=('{"extractedOpinionList": ["AI"]}', 1, 1, 2),
+            ) as mock_llm,
+        ):
             # Import after patching
             from analysis_core.steps.extraction import extraction
 
@@ -150,12 +157,10 @@ class TestPipelinePathsIntegration:
             with open(status_file, "w") as f:
                 json.dump(sample_config, f)
 
-            # The function will fail when trying to call LLM, but that's OK
-            # We just want to verify it reads from the correct path
-            try:
-                extraction(sample_config)
-            except Exception:
-                pass  # Expected - we're not mocking LLM
+            extraction(sample_config)
+
+        assert mock_llm.call_count == 3
+        assert (output_subdir / "args.csv").exists()
 
         # Verify input file was read from config path
         expected_input_path = f"{temp_dirs['input_dir']}/test_input.csv"
