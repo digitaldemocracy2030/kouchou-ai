@@ -2,9 +2,9 @@
 
 import os
 
-from dotenv import load_dotenv
+from analysis_core.env_file import load_env_file
 
-load_dotenv()
+load_env_file()
 
 
 def positive_timeout(value: object) -> int:

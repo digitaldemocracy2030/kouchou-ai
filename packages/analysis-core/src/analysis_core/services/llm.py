@@ -9,11 +9,11 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import openai
-from dotenv import load_dotenv
 from openai import AzureOpenAI, OpenAI
 from pydantic import BaseModel
 from tenacity import retry, retry_if_exception, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from analysis_core.env_file import load_env_file
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, positive_timeout
 
 try:  # Optional dependency
@@ -25,7 +25,7 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover - library might b
 
 # Load environment variables from .env file if present
 # Look in current directory first, then parent directories
-load_dotenv()
+load_env_file()
 
 
 # Flex Processing (https://developers.openai.com/api/docs/guides/flex-processing)
