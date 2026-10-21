@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { stepKeys } from "./progressStepsConfig";
 
 type Progress = (typeof stepKeys)[number] | "loading" | "completed" | "error";
@@ -110,5 +110,8 @@ export function useReportProgressPoll(slug: string) {
     };
   }, [slug, isPolling]);
 
-  return { progress, isError, errorMessage, errorLogExcerpt };
+  // completed / error で止めたポーリングをもう一度始める（completed の後にレポートが error になった時に理由を取り直す）
+  const restartPolling = useCallback(() => setIsPolling(true), []);
+
+  return { progress, isError, errorMessage, errorLogExcerpt, restartPolling };
 }

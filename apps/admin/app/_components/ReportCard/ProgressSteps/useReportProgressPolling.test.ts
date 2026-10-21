@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { useReportProgressPoll } from "./useReportProgressPolling";
 
 // Mock fetch
@@ -101,6 +101,39 @@ describe("useReportProgressPoll", () => {
 
     // 完了後に追加の呼び出しがないことを確認
     expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("completedで停止した後もrestartPollingでstep-jsonを取り直し、エラー理由を取得できる", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ current_step: "completed", status: "completed" }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          current_step: "hierarchical_visualization",
+          status: "error",
+          error_message: "Failed to upload report artifacts to storage",
+        }),
+      } as Response);
+
+    const { result } = renderHook(() => useReportProgressPoll("test-slug"));
+
+    await waitFor(() => {
+      expect(result.current.progress).toBe("completed");
+    });
+
+    act(() => {
+      result.current.restartPolling();
+    });
+
+    await waitFor(() => {
+      expect(result.current.progress).toBe("hierarchical_visualization");
+      expect(result.current.isError).toBe(true);
+      expect(result.current.errorMessage).toBe("Failed to upload report artifacts to storage");
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
   it("current_stepがerrorの時にprogressがerrorに設定される", async () => {

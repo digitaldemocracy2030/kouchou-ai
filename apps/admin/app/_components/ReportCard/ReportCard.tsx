@@ -154,7 +154,7 @@ export function ReportCard({ report }: Props) {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, height: 0 }}
           >
-            <ProgressSteps slug={report.slug} />
+            <ProgressSteps slug={report.slug} reportStatus={report.status} />
           </motion.div>
         )}
       </AnimatePresence>
