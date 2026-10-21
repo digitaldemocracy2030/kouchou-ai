@@ -393,7 +393,7 @@ kouchou-analyze --config report_october.json
 
 ### Azure OpenAI を使用する
 
-チャット用と埋め込み用の 2 組の環境変数が必要です（`AZURE_OPENAI_*` ではありません）。
+チャット用の環境変数が必要です。埋め込みも Azure で行う場合（`"is_embedded_at_local": false`）は、埋め込み用も必要です。どちらも `AZURE_OPENAI_*` ではありません。
 
 ```bash
 # チャット（意見の抽出・ラベル付け・要約）
