@@ -33,13 +33,23 @@ REUSE_ARTIFACTS = (
 )
 
 
-def _write_reuse_status(status_src: Path, status_dest: Path) -> None:
+def _write_reuse_status(
+    status_src: Path,
+    status_dest: Path,
+    renamed_input: tuple[str, str] | None = None,
+) -> None:
     """複製先に、元レポートの完了済みジョブだけを引き継いだ status ファイルを書く
 
     元の status（status=completed）をそのままコピーすると、analysis-core が running に
     書き換えるまでの間に進捗ポーリングが completed を受け取り、止まってしまう。
     analysis-core のスキップ判定に必要な completed_jobs / previously_completed_jobs だけを
     残し、status は pending にする（running にすると lock_until の判定にかかる）。
+
+    完了記録の global_params.input には実行時の入力名が残り、analysis-core はこれが config の
+    input と違うと抽出から全段を再実行する。renamed_input=(複製元の入力名, 複製先の入力名) を
+    渡すと、複製元の入力名で記録されたジョブの input を複製先の入力名に読み替える。入力 CSV を
+    そのままコピーした（中身が同じ）場合に限って渡すこと。global_params の無い古い形式の記録は
+    analysis-core が比較しないので、そのまま残す。
     """
     try:
         with open(status_src, encoding="utf-8") as f:
@@ -54,6 +64,13 @@ def _write_reuse_status(status_src: Path, status_dest: Path) -> None:
         "completed_jobs": source_status.get("completed_jobs", []),
         "previously_completed_jobs": source_status.get("previously_completed_jobs", []),
     }
+    if renamed_input is not None:
+        source_input, new_input = renamed_input
+        for key in ("completed_jobs", "previously_completed_jobs"):
+            for job in reuse_status[key] or []:
+                global_params = job.get("global_params") if isinstance(job, dict) else None
+                if isinstance(global_params, dict) and global_params.get("input") == source_input:
+                    global_params["input"] = new_input
     with open(status_dest, "w", encoding="utf-8") as f:
         json.dump(reuse_status, f, ensure_ascii=False, indent=2)
 
@@ -334,7 +351,8 @@ def duplicate_report(
             ReportSyncService().download_input_file(source_slug)
 
         input_limit_override: int | None = None
-        if source_input_path.exists():
+        input_copied = source_input_path.exists()
+        if input_copied:
             shutil.copy2(source_input_path, new_input_path)
         else:
             if source_result is None:
@@ -378,7 +396,10 @@ def duplicate_report(
 
             status_src = source_output_dir / "hierarchical_status.json"
             if status_src.exists():
-                _write_reuse_status(status_src, output_dir / "hierarchical_status.json")
+                # 入力 CSV をそのままコピーした場合だけ、記録上の入力名を新しい slug に読み替える。
+                # arguments から作り直した入力は中身が違うので、抽出からやり直させる。
+                renamed_input = (source_slug, new_slug) if input_copied else None
+                _write_reuse_status(status_src, output_dir / "hierarchical_status.json", renamed_input)
             else:
                 logger.warning(f"hierarchical_status.json not found for {source_slug}")
 
