@@ -75,7 +75,7 @@ export const ClusterOverview = memo(function ClusterOverview({
         <Text fontWeight={"bold"} display={"flex"} gap={1} mt={2}>
           <MessagesSquareIcon size={20} />
           {messages.opinionCount(displayCount)}
-          {isFiltering ? "（フィルター後）" : ""}
+          {isFiltering ? messages.filteredCountSuffix : ""}
         </Text>
       </Box>
       <Text>{cluster.takeaway}</Text>

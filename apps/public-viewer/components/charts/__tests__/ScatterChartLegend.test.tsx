@@ -1,7 +1,8 @@
 import "@testing-library/jest-dom";
 import { Provider } from "@/components/ui/provider";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import type { Argument, Cluster } from "@/type";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { ScatterChart } from "../ScatterChart";
 
 // jsdom には structuredClone が無く、Chakra v3 の recipe 処理が必要とするため補う
@@ -66,5 +67,31 @@ describe("ScatterChart attribution legend", () => {
   it("フィルタ未適用時はどのグループにも「（非表示）」を付さない", () => {
     renderChart();
     expect(screen.queryByText(/（非表示）/)).not.toBeInTheDocument();
+  });
+
+  it("表示言語が英語なら、凡例の見出し・非表示の印・操作ヒントのボタン名も英語になる", async () => {
+    window.history.replaceState(null, "", "/report-1?lang=en");
+    try {
+      await act(async () => {
+        render(
+          <Provider>
+            <LanguageProvider>
+              <ScatterChart
+                clusterList={clusters}
+                argumentList={args}
+                targetLevel={2}
+                showParentAttribution
+                filteredArgumentIds={["a1"]}
+              />
+            </LanguageProvider>
+          </Provider>,
+        );
+      });
+      expect(screen.getByText("Top-level cluster of each dense opinion group")).toBeInTheDocument();
+      expect(screen.getByText("cluster-c2 (hidden)")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Show how to use the scatter plot" })).toBeInTheDocument();
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
   });
 });

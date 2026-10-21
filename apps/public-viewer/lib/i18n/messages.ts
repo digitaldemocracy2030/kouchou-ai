@@ -18,6 +18,8 @@ const ja = {
   // Overview
   report: "レポート",
   opinionCount: (n: number) => `${n.toLocaleString()}件`,
+  /** 意見グループ一覧の件数の後ろに付ける（属性フィルターの適用中） */
+  filteredCountSuffix: "（フィルター後）",
 
   // ReadingGuide（本体・serverless で文言を揃える #696。日本語は変更しない）
   readingGuideLabel: "レポートの読み方",
@@ -48,6 +50,8 @@ const ja = {
   displaySettings: "表示設定",
   fullscreen: "全画面表示",
   exitFullscreen: "全画面終了",
+  /** 全画面ツールバーのクラスタ粒度切替（全体 / 詳細クラスタ / 濃い意見） */
+  clusterLevelSwitcher: "クラスタの粒度",
 
   // 散布図・ツリーマップ
   clickToViewSource: "クリックしてソースを見る",
@@ -55,6 +59,22 @@ const ja = {
   afterFilterCount: "フィルター後",
   treemapText: "%{label}<br>%{value:,}件<br>全意見の %{percentRoot:.2%}",
   treemapTextFiltered: "%{label}<br>%{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}",
+
+  // 散布図の操作ヒントと、濃い意見グループの第一階層クラスタへの帰属表示
+  scatterHelpButton: "散布図の操作方法を表示",
+  scatterHelpTitle: "散布図の操作方法",
+  scatterHelpItems: [
+    "・ドラッグ: 表示位置を移動（パン）",
+    "・マウスホイール / ピンチ: 拡大・縮小",
+    "・右上ツールバー: 拡大・移動・初期表示へリセット",
+    "・点にカーソルを合わせる: 意見の内容を表示",
+  ],
+  /** ソースリンクが有効なときだけ操作ヒントに足す */
+  scatterHelpSourceLink: "・点をクリック: 元のソースを開く",
+  parentCluster: (label: string) => `所属: ${label}`,
+  unknownParentCluster: "不明",
+  parentAttributionHeading: "濃い意見グループの第一階層クラスタへの帰属",
+  hiddenInLegend: "（非表示）",
 
   // 表示設定ダイアログ
   displaySettingsDescription: "「全体図」「詳細クラスタ」および「濃い意見グループ」に関する設定項目です。",
@@ -184,6 +204,7 @@ const en: Messages = {
 
   report: "Report",
   opinionCount: (n) => `${n.toLocaleString()} opinions`,
+  filteredCountSuffix: " (filtered)",
 
   readingGuideLabel: "How to read this report",
   readingGuideLead:
@@ -212,12 +233,27 @@ const en: Messages = {
   displaySettings: "Display settings",
   fullscreen: "Fullscreen",
   exitFullscreen: "Exit fullscreen",
+  clusterLevelSwitcher: "Cluster granularity",
 
   clickToViewSource: "Click to view the source",
   originalCount: "Original count",
   afterFilterCount: "After filter",
   treemapText: "%{label}<br>%{value:,} opinions<br>%{percentRoot:.2%} of all",
   treemapTextFiltered: "%{label}<br>%{value:,} opinions (filtered)<br>%{percentRoot:.2%} of all",
+
+  scatterHelpButton: "Show how to use the scatter plot",
+  scatterHelpTitle: "How to use the scatter plot",
+  scatterHelpItems: [
+    "• Drag: move the view (pan)",
+    "• Mouse wheel / pinch: zoom in and out",
+    "• Toolbar at the top right: zoom, pan, reset to the initial view",
+    "• Hover over a point: show the opinion",
+  ],
+  scatterHelpSourceLink: "• Click a point: open the original source",
+  parentCluster: (label) => `Top-level cluster: ${label}`,
+  unknownParentCluster: "Unknown",
+  parentAttributionHeading: "Top-level cluster of each dense opinion group",
+  hiddenInLegend: " (hidden)",
 
   displaySettingsDescription: 'Settings for the "Overview", "Detailed clusters" and "Dense opinions" views.',
   showClusterLabels: "Show group names",
@@ -340,6 +376,7 @@ const ko: Messages = {
 
   report: "보고서",
   opinionCount: (n) => `${n.toLocaleString()}건`,
+  filteredCountSuffix: " (필터 후)",
 
   readingGuideLabel: "보고서 읽는 법",
   readingGuideLead:
@@ -368,12 +405,27 @@ const ko: Messages = {
   displaySettings: "표시 설정",
   fullscreen: "전체 화면",
   exitFullscreen: "전체 화면 종료",
+  clusterLevelSwitcher: "클러스터 단위",
 
   clickToViewSource: "클릭하여 출처 보기",
   originalCount: "원래 건수",
   afterFilterCount: "필터 후",
   treemapText: "%{label}<br>%{value:,}건<br>전체 의견의 %{percentRoot:.2%}",
   treemapTextFiltered: "%{label}<br>%{value:,}건 (필터 후)<br>전체 의견의 %{percentRoot:.2%}",
+
+  scatterHelpButton: "산점도 조작 방법 보기",
+  scatterHelpTitle: "산점도 조작 방법",
+  scatterHelpItems: [
+    "• 드래그: 표시 위치 이동(팬)",
+    "• 마우스 휠 / 핀치: 확대·축소",
+    "• 오른쪽 위 도구 모음: 확대·이동·초기 화면으로 되돌리기",
+    "• 점에 커서 올리기: 의견 내용 표시",
+  ],
+  scatterHelpSourceLink: "• 점 클릭: 원래 출처 열기",
+  parentCluster: (label) => `소속: ${label}`,
+  unknownParentCluster: "알 수 없음",
+  parentAttributionHeading: "밀집 의견 그룹이 속한 제1계층 클러스터",
+  hiddenInLegend: " (숨김)",
 
   displaySettingsDescription: "「전체」「세부 클러스터」「밀집 의견 그룹」에 관한 설정 항목입니다.",
   showClusterLabels: "의견 그룹 이름 표시",

@@ -135,4 +135,34 @@ describe("全画面ツールバーの言語切替", () => {
     expect(screen.getByTestId("scatter")).toBeInTheDocument();
     expect(window.location.search).toBe("?lang=ko");
   });
+
+  it("全画面の粒度切替のボタン名も、全画面のまま表示言語に合わせて変わる", async () => {
+    render(
+      <Provider>
+        <LanguageProvider>
+          <Chart
+            result={structuredClone(fixture) as unknown as Result}
+            selectedChart="scatterAll"
+            isFullscreen
+            onExitFullscreen={() => {}}
+            onChangeChart={() => {}}
+            showClusterLabels
+            onToggleClusterLabels={() => {}}
+            showConvexHull
+            treemapLevel="0"
+            onTreeZoom={() => {}}
+          />
+        </LanguageProvider>
+      </Provider>,
+    );
+    await flush();
+    expect(screen.getByRole("group", { name: "クラスタの粒度" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "詳細クラスタ" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.getByRole("group", { name: "Cluster granularity" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Detailed clusters" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "詳細クラスタ" })).not.toBeInTheDocument();
+  });
 });

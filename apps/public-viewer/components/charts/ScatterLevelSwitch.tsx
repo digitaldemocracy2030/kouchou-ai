@@ -1,9 +1,10 @@
 import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { ChartType, Result } from "@/type";
 import { Button, HStack, Icon } from "@chakra-ui/react";
 import { useMemo } from "react";
-import { resolveChartModes } from "./SelectChartButton";
+import { localizeChartMode, resolveChartModes } from "./SelectChartButton";
 
 // Ensure plugins are loaded
 ensurePluginsLoaded();
@@ -35,16 +36,19 @@ export function ScatterLevelSwitch({
   chartOrder,
   disabledModeOverrides = {},
 }: Props) {
+  const messages = useMessages();
   const modes = useMemo(
     () =>
-      resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides).filter((m) => isScatterMode(m.id)),
-    [result, enabledCharts, chartOrder, disabledModeOverrides],
+      resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides)
+        .filter((m) => isScatterMode(m.id))
+        .map((m) => localizeChartMode(m, messages)),
+    [result, enabledCharts, chartOrder, disabledModeOverrides, messages],
   );
 
   if (!isScatterMode(selected) || modes.length < 2) return null;
 
   return (
-    <HStack as="fieldset" aria-label="クラスタの粒度" gap={1} border="none" p={0} m={0} minW={0}>
+    <HStack as="fieldset" aria-label={messages.clusterLevelSwitcher} gap={1} border="none" p={0} m={0} minW={0}>
       {modes.map((mode) => {
         const isSelected = mode.id === selected;
         const button = (

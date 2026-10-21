@@ -1,6 +1,7 @@
 import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useMessages } from "@/lib/i18n/LanguageContext";
+import type { Messages } from "@/lib/i18n/messages";
 import type { ChartType, Result } from "@/type";
 import { Box, Button, HStack, Icon, SegmentGroup, Stack } from "@chakra-ui/react";
 import { CogIcon, Filter, FullscreenIcon } from "lucide-react";
@@ -81,6 +82,18 @@ export function resolveChartModes(
   });
 }
 
+/**
+ * モード名と無効時の説明を表示言語の辞書で上書きする。通常のモード選択と全画面の粒度切替で共有する。
+ * 組み込みモードは messages を優先し、外部プラグインは manifest の文言（mode.label / mode.tooltip）をそのまま使う。
+ */
+export function localizeChartMode(mode: ResolvedChartMode, messages: Messages): ResolvedChartMode {
+  return {
+    ...mode,
+    label: messages.chartModes[mode.id] ?? mode.label,
+    tooltip: mode.isDisabled ? (messages.chartModeDisabled[mode.id] ?? mode.tooltip) : undefined,
+  };
+}
+
 const SegmentItemWithIcon = (icon: ComponentType, text: string, selected: boolean) => {
   return (
     <Stack
@@ -121,14 +134,15 @@ export function SelectChartButton({
   const messages = useMessages();
   // Generate items from plugin registry, filtered by enabledCharts
   const items = useMemo(() => {
-    // #961 の resolveChartModes で並び順・無効判定を一元化し、文言だけ表示言語の辞書で上書きする。
-    // 組み込みモードは messages を優先し、外部プラグインは manifest の文言（mode.label / mode.tooltip）をそのまま使う。
-    return resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides).map((mode) => ({
-      value: mode.id,
-      label: SegmentItemWithIcon(mode.icon, messages.chartModes[mode.id] ?? mode.label, selected === mode.id),
-      isDisabled: mode.isDisabled,
-      tooltip: mode.isDisabled ? (messages.chartModeDisabled[mode.id] ?? mode.tooltip) : undefined,
-    }));
+    // resolveChartModes で並び順・無効判定を一元化し、文言だけ表示言語の辞書で上書きする。
+    return resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides)
+      .map((mode) => localizeChartMode(mode, messages))
+      .map((mode) => ({
+        value: mode.id,
+        label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id),
+        isDisabled: mode.isDisabled,
+        tooltip: mode.tooltip,
+      }));
   }, [selected, result, disabledModeOverrides, enabledCharts, chartOrder, messages]);
 
   // Calculate dynamic tab width based on mode count

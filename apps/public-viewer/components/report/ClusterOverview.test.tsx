@@ -1,7 +1,8 @@
 import "@testing-library/jest-dom";
 import { Provider } from "@/components/ui/provider";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import type { Cluster } from "@/type";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { ClusterOverview } from "./ClusterOverview";
 
 // jsdom には structuredClone が無く、Chakra v3 の recipe 処理が必要とするため補う
@@ -36,6 +37,24 @@ it("フィルター未適用なら元の件数を表示する", () => {
 it("フィルター適用中は渡された件数とフィルター後ラベルを表示する", () => {
   renderOverview({ count: 3, isFiltering: true });
   expect(screen.getByText("3件（フィルター後）")).toBeInTheDocument();
+});
+
+it("表示言語が英語なら、フィルター後の件数とラベルも英語で表示する", async () => {
+  window.history.replaceState(null, "", "/report-1?lang=en");
+  try {
+    await act(async () => {
+      render(
+        <Provider>
+          <LanguageProvider>
+            <ClusterOverview cluster={cluster} count={3} isFiltering />
+          </LanguageProvider>
+        </Provider>,
+      );
+    });
+    expect(screen.getByText("3 opinions (filtered)")).toBeInTheDocument();
+  } finally {
+    window.history.replaceState(null, "", "/");
+  }
 });
 
 it("散布図で選択中のクラスタは aria-current でハイライトし、スクロールする", () => {
