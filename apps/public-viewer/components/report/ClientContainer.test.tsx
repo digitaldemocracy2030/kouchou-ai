@@ -142,4 +142,56 @@ describe("濃い意見の抽出結果が 0 件のとき", () => {
     expect(screen.getByTestId("scatter")).toHaveAttribute("data-level", "1");
     await flush();
   });
+
+  it("管理者が「全体」を外していれば、有効な表示の中から選び直す", async () => {
+    await renderViewer({
+      visualizationConfig: {
+        enabledCharts: ["scatterDensity", "treemap"],
+        defaultChart: "scatterDensity",
+        params: { scatterDensity: { maxDensity: 1, minValue: 1_000_000 } },
+      },
+    } as Partial<Result>);
+
+    expect(screen.queryByRole("radio", { name: "全体" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "階層" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "濃い意見" })).not.toBeChecked();
+    expect(screen.getByTestId("treemap")).toBeInTheDocument();
+    expect(screen.queryByTestId("scatter")).not.toBeInTheDocument();
+    await flush();
+  });
+
+  it("「全体」が無いときは、表示順で先頭の選べる表示へ戻す", async () => {
+    await renderViewer({
+      visualizationConfig: {
+        enabledCharts: ["scatterDensity", "treemap", "hierarchyList"],
+        chartOrder: ["scatterDensity", "hierarchyList", "treemap"],
+        defaultChart: "scatterDensity",
+        params: { scatterDensity: { maxDensity: 1, minValue: 1_000_000 } },
+      },
+    } as Partial<Result>);
+
+    expect(screen.getByRole("radio", { name: "リスト" })).toBeChecked();
+    expect(screen.getByTestId("hierarchy-list")).toBeInTheDocument();
+    await flush();
+  });
+
+  it("他に選べる表示が無ければ、外された「全体」へは切り替えず濃い意見のまま（最深階層）にする", async () => {
+    await renderViewer({
+      visualizationConfig: {
+        enabledCharts: ["scatterDensity"],
+        defaultChart: "scatterDensity",
+        params: { scatterDensity: { maxDensity: 1, minValue: 1_000_000 } },
+      },
+    } as Partial<Result>);
+    const deepest = Math.max(...fixture.clusters.map((c) => c.level));
+
+    expect(screen.queryByRole("radio", { name: "全体" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "濃い意見" })).toBeChecked();
+    expect(screen.getByTestId("scatter")).toHaveAttribute("data-level", String(deepest));
+    // 一つ上の階層のクラスタを濃い意見として一覧に出さない
+    for (const c of fixture.clusters.filter((c) => c.level === deepest - 1)) {
+      expect(screen.queryByText(c.label)).not.toBeInTheDocument();
+    }
+    await flush();
+  });
 });

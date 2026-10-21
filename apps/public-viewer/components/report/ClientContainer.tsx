@@ -1,6 +1,6 @@
 "use client";
 
-import { DEFAULT_ENABLED_CHARTS, SelectChartButton } from "@/components/charts/SelectChartButton";
+import { DEFAULT_ENABLED_CHARTS, SelectChartButton, resolveChartModes } from "@/components/charts/SelectChartButton";
 import {
   chartRegistry,
   ensurePluginsLoaded,
@@ -99,12 +99,16 @@ export function ClientContainer({ result }: Props) {
     return !isEmpty;
   }, [result.clusters, maxDensity, minValue]);
 
-  // 濃い意見の抽出結果が 0 件になったら、一つ上の階層を濃い意見として見せないよう全体表示へ戻す
+  // 濃い意見の抽出結果が 0 件になったら、一つ上の階層を濃い意見として見せないよう全体表示へ戻す。
+  // 管理者が外した表示へは切り替えない（全体表示が無ければ表示順で先頭の選べる表示、それも無ければそのまま）
   useEffect(() => {
-    if (selectedChart === "scatterDensity" && !isDenseGroupEnabled) {
-      setSelectedChart("scatterAll");
-    }
-  }, [selectedChart, isDenseGroupEnabled]);
+    if (selectedChart !== "scatterDensity" || isDenseGroupEnabled) return;
+    const selectable = resolveChartModes(result, enabledCharts, chartOrder, {
+      scatterDensity: !isDenseGroupEnabled,
+    }).filter((mode) => !mode.isDisabled);
+    const fallback = selectable.find((mode) => mode.id === "scatterAll") ?? selectable[0];
+    if (fallback) setSelectedChart(fallback.id);
+  }, [selectedChart, isDenseGroupEnabled, result, enabledCharts, chartOrder]);
 
   // --- 属性・テキストフィルタの適用（密度変更時に再計算しないよう分離） ---
   const filteredArgIds = useMemo(
