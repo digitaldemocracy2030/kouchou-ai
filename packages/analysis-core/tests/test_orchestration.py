@@ -1200,6 +1200,111 @@ class TestTokenUsageCarryOver:
             "token_usage_output": 0,
         }
 
+    def test_carried_over_token_usage_after_failed_partial_rerun(self):
+        """A failed partial rerun already left the steps it re-ran out of its totals."""
+        from analysis_core.core.orchestration import carried_over_token_usage
+
+        # Labelling was re-run after PREVIOUS_STATUS and failed: that run started from
+        # 1000 - 300 and completed nothing, so labelling's latest record is still the old one.
+        failed_rerun = {
+            "status": "error",
+            "total_token_usage": 700,
+            "token_usage_input": 420,
+            "token_usage_output": 280,
+            "completed_jobs": [],
+            "previously_completed_jobs": self.PREVIOUS_STATUS["completed_jobs"]
+            + self.PREVIOUS_STATUS["previously_completed_jobs"],
+        }
+
+        carried = carried_over_token_usage(
+            failed_rerun, self._plan({"hierarchical_initial_labelling", "hierarchical_aggregation"})
+        )
+        assert carried == {"total_token_usage": 700, "token_usage_input": 420, "token_usage_output": 280}
+
+    def test_carried_over_token_usage_skips_steps_no_longer_in_the_report(self):
+        """Tokens of disabled steps and of steps outside the current plan are not carried."""
+        from analysis_core.core.orchestration import carried_over_token_usage
+
+        def job(step, tokens):
+            return {
+                "step": step,
+                "params": {},
+                "token_usage": tokens,
+                "token_input": tokens * 3 // 5,
+                "token_output": tokens * 2 // 5,
+            }
+
+        previous = {
+            "status": "completed",
+            "total_token_usage": 500,
+            "token_usage_input": 300,
+            "token_usage_output": 200,
+            "completed_jobs": [
+                job("extraction", 100),
+                job("opinion_classification", 100),
+                job("embedding", 0),
+                job("hierarchical_clustering", 0),
+                job("hierarchical_initial_labelling", 100),
+                job("hierarchical_merge_labelling", 100),
+                job("hierarchical_overview", 100),
+                job("hierarchical_aggregation", 0),
+            ],
+        }
+        hierarchical = [j["step"] for j in previous["completed_jobs"]]
+        disabled = {"opinion_classification": {"enabled": False}}
+
+        # opinion_classification turned off and everything else forced to re-run
+        forced = [{"step": s, "run": s != "opinion_classification"} for s in hierarchical]
+        assert carried_over_token_usage(previous, forced, disabled) == {
+            "total_token_usage": 0,
+            "token_usage_input": 0,
+            "token_usage_output": 0,
+        }
+
+        # opinion_classification turned off and only aggregation re-runs
+        aggregation_only = [{"step": s, "run": s == "hierarchical_aggregation"} for s in hierarchical]
+        assert carried_over_token_usage(previous, aggregation_only, disabled) == {
+            "total_token_usage": 400,
+            "token_usage_input": 240,
+            "token_usage_output": 160,
+        }
+
+        # Switched to llm_grouping in the same output dir: only extraction / embedding are kept
+        llm_grouping = ["extraction", "embedding", "llm_grouping", "hierarchical_overview", "hierarchical_aggregation"]
+        plan = [{"step": s, "run": s not in ("extraction", "embedding")} for s in llm_grouping]
+        assert carried_over_token_usage(previous, plan, {}) == {
+            "total_token_usage": 100,
+            "token_usage_input": 60,
+            "token_usage_output": 40,
+        }
+
+    def test_carried_over_token_usage_never_exceeds_previous_totals(self):
+        """Job records copied from another report (admin duplicate) were never counted here."""
+        from analysis_core.core.orchestration import carried_over_token_usage
+
+        duplicated = {
+            "status": "completed",
+            # The duplicate started from zero and only re-ran the overview.
+            "total_token_usage": 100,
+            "token_usage_input": 60,
+            "token_usage_output": 40,
+            "completed_jobs": [
+                {
+                    "step": "hierarchical_overview",
+                    "params": {},
+                    "token_usage": 100,
+                    "token_input": 60,
+                    "token_output": 40,
+                },
+                {"step": "hierarchical_aggregation", "params": {}, "token_usage": 0},
+            ],
+            "previously_completed_jobs": self.PREVIOUS_STATUS["previously_completed_jobs"]
+            + [self.PREVIOUS_STATUS["completed_jobs"][0]],
+        }
+
+        carried = carried_over_token_usage(duplicated, self._plan({"hierarchical_aggregation"}))
+        assert carried == {"total_token_usage": 100, "token_usage_input": 60, "token_usage_output": 40}
+
     def test_run_workflow_aggregation_only_preserves_token_usage(self, tmp_path, monkeypatch):
         """Regression: admin label/config edits rerun aggregation only and used to reset tokens to 0."""
         from analysis_core import PipelineOrchestrator
@@ -1342,3 +1447,98 @@ class TestTokenUsageCarryOver:
         assert status_data["total_token_usage"] == 1000
         assert status_data["token_usage_input"] == 600
         assert status_data["token_usage_output"] == 400
+
+    LLM_WORKFLOW_STEPS = {"extraction", "opinion_classification", "initial_labelling", "merge_labelling", "overview"}
+
+    def _run_cli_job(self, tmp_path, monkeypatch, step_configs, fail_step=None, force=False):
+        """Run job "job" the way the CLI does; each LLM step uses 100 tokens (60 in / 40 out)."""
+        from analysis_core import PipelineOrchestrator
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        llm_steps = self.LLM_WORKFLOW_STEPS
+        output_dir = tmp_path / "outputs" / "job"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        for filename in (
+            "args.csv",
+            "relations.csv",
+            "opinion_classifications.csv",
+            "embeddings.pkl",
+            "hierarchical_clusters.csv",
+            "hierarchical_initial_labels.csv",
+            "hierarchical_merge_labels.csv",
+            "hierarchical_overview.txt",
+            "hierarchical_result.json",
+        ):
+            (output_dir / filename).write_text("x", encoding="utf-8")
+        config_path = tmp_path / "job.json"
+        config_path.write_text(
+            json.dumps({"input": "job", "question": "Q?", "provider": "local", **step_configs}), encoding="utf-8"
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                result = WorkflowResult(workflow_id=workflow.id)
+                for step in workflow.steps:
+                    if step.id in skip_steps:
+                        continue
+                    on_step_start(step.id)
+                    if step.id == fail_step:
+                        step_result = WorkflowStepResult(step_id=step.id, success=False, error="simulated failure")
+                        on_step_complete(step.id, step_result)
+                        result.step_results[step.id] = step_result
+                        result.success = False
+                        break
+                    tokens = 100 if step.id in llm_steps else 0
+                    outputs = StepOutputs(token_usage=tokens, token_input=tokens * 3 // 5, token_output=tokens * 2 // 5)
+                    result.total_token_usage += outputs.token_usage
+                    result.total_token_input += outputs.token_input
+                    result.total_token_output += outputs.token_output
+                    step_result = WorkflowStepResult(step_id=step.id, success=True, outputs=outputs)
+                    on_step_complete(step.id, step_result)
+                    result.step_results[step.id] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+        orchestrator = PipelineOrchestrator.from_config(
+            config_path,
+            force=force,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+        orchestrator.run_default()
+        return json.loads((output_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+
+    def test_cli_retry_after_failed_partial_rerun_counts_every_kept_step(self, tmp_path, monkeypatch):
+        first = self._run_cli_job(tmp_path, monkeypatch, {"hierarchical_overview": {"prompt": "v1"}})
+        assert first["total_token_usage"] == 400
+
+        failed = self._run_cli_job(
+            tmp_path, monkeypatch, {"hierarchical_overview": {"prompt": "v2"}}, fail_step="overview"
+        )
+        assert failed["status"] == "error"
+        assert failed["total_token_usage"] == 300
+
+        retried = self._run_cli_job(tmp_path, monkeypatch, {"hierarchical_overview": {"prompt": "v2"}})
+        assert retried["status"] == "completed"
+        assert [job["step"] for job in retried["completed_jobs"]] == [
+            "hierarchical_overview",
+            "hierarchical_aggregation",
+        ]
+        assert (retried["total_token_usage"], retried["token_usage_input"], retried["token_usage_output"]) == (
+            400,
+            240,
+            160,
+        )
+
+    def test_cli_force_after_disabling_a_step_drops_its_tokens(self, tmp_path, monkeypatch):
+        first = self._run_cli_job(tmp_path, monkeypatch, {"opinion_classification": {"enabled": True}})
+        assert first["total_token_usage"] == 500
+
+        forced = self._run_cli_job(tmp_path, monkeypatch, {"opinion_classification": {"enabled": False}}, force=True)
+        assert (forced["total_token_usage"], forced["token_usage_input"], forced["token_usage_output"]) == (
+            400,
+            240,
+            160,
+        )

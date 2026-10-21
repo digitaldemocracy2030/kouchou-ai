@@ -477,7 +477,7 @@ class PipelineOrchestrator:
 
         # Tokens spent on steps skipped this time (e.g. aggregation-only reruns
         # after a label edit) still belong to the report; keep them in the totals.
-        carried_over = carried_over_token_usage(self.config.get("previous"), self.config.get("plan"))
+        carried_over = carried_over_token_usage(self.config.get("previous"), self.config.get("plan"), self.config)
 
         try:
             # Create step context

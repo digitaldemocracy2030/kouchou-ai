@@ -390,6 +390,15 @@ def validate_input_file(config: dict[str, Any], input_base_dir: Path, plan: list
     return input_path
 
 
+def _disabled_reason(stepname: str, config: dict[str, Any]) -> str | None:
+    """Return why the config turns a step off (its output is not part of the report), if it does."""
+    if stepname == "hierarchical_visualization" and config.get("without-html", False):
+        return "skipping html output"
+    if stepname == "opinion_classification" and not config.get(stepname, {}).get("enabled", False):
+        return "opinion_classification is disabled (set opinion_classification.enabled to true)"
+    return None
+
+
 def decide_what_to_run(
     config: dict[str, Any],
     previous: dict[str, Any] | None,
@@ -475,12 +484,10 @@ def decide_what_to_run(
             or os.path.exists(output_base_dir / config["output_dir"] / filename)
             for filename in _step_files(step)
         )
+        disabled_reason = _disabled_reason(stepname, config)
 
-        if stepname == "hierarchical_visualization" and config.get("without-html", False):
-            reason = "skipping html output"
-            run = False
-        elif stepname == "opinion_classification" and not config.get(stepname, {}).get("enabled", False):
-            reason = "opinion_classification is disabled (set opinion_classification.enabled to true)"
+        if disabled_reason:
+            reason = disabled_reason
             run = False
         elif config.get("only", None) is not None and config["only"] != stepname:
             run = False
@@ -517,14 +524,22 @@ def decide_what_to_run(
 def carried_over_token_usage(
     previous: dict[str, Any] | None,
     plan: list[dict[str, Any]] | None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, int]:
     """
     Compute the token usage to carry over from the previous run.
 
     When only a subset of steps is (re)run (e.g. ``--only hierarchical_aggregation``
     after a label edit), the outputs of skipped steps are kept, so the tokens spent
-    on them still belong to the report. Start from the previous totals and remove
-    the contribution of steps that will run again (their tokens are re-counted).
+    on them still belong to the report. Add up the latest recorded tokens of those
+    steps: steps that run again are re-counted, and steps the config turns off (e.g. a
+    disabled opinion_classification) or that are not in the plan (another analysis_mode)
+    are no longer part of the report. Subtracting the re-run steps from the previous
+    totals instead would subtract them twice after a failed partial rerun, whose totals
+    already left them out.
+
+    The previous totals stay an upper bound: job records copied from another report
+    (admin duplicate) were never counted in them.
 
     Returns:
         Dict with ``total_token_usage``, ``token_usage_input`` and ``token_usage_output``.
@@ -550,30 +565,35 @@ def carried_over_token_usage(
                 jobs_by_step[step] = job
         status = status.get("previous")
 
-    rerun_steps = {step["step"] for step in (plan or []) if step.get("run", True)}
-    total, token_input, token_output = prev_total, prev_input, prev_output
-    for step in rerun_steps:
+    kept_steps = {
+        step["step"]
+        for step in (plan or [])
+        if not step.get("run", True) and (config is None or not _disabled_reason(step["step"], config))
+    }
+    total, token_input, token_output = 0, 0, 0
+    for step in kept_steps:
         job = jobs_by_step.get(step)
         if not job:
             continue
         step_total = int(job.get("token_usage") or 0)
         if step_total <= 0:
             continue
-        total -= step_total
+        total += step_total
         if "token_input" in job or "token_output" in job:
-            token_input -= int(job.get("token_input") or 0)
-            token_output -= int(job.get("token_output") or 0)
+            token_input += int(job.get("token_input") or 0)
+            token_output += int(job.get("token_output") or 0)
         elif prev_total > 0:
             # Older status files do not record the per-step input/output split.
-            token_input -= round(step_total * prev_input / prev_total)
-            token_output -= round(step_total * prev_output / prev_total)
+            token_input += round(step_total * prev_input / prev_total)
+            token_output += round(step_total * prev_output / prev_total)
 
+    total = min(total, prev_total)
     if total <= 0:
         return zero
     return {
         "total_token_usage": total,
-        "token_usage_input": max(token_input, 0),
-        "token_usage_output": max(token_output, 0),
+        "token_usage_input": min(token_input, prev_input),
+        "token_usage_output": min(token_output, prev_output),
     }
 
 
@@ -920,7 +940,7 @@ def initialization(
                 "status": "running",
                 "start_time": datetime.now().isoformat(),
                 "completed_jobs": [],
-                **carried_over_token_usage(previous if isinstance(previous, dict) else None, plan),
+                **carried_over_token_usage(previous if isinstance(previous, dict) else None, plan, config),
                 "provider": config.get("provider"),
                 "model": config.get("model"),
             },
