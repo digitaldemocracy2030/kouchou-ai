@@ -246,9 +246,9 @@ def _run_analysis_core(env, config_path, only=None) -> None:
 
     def fake_step(spec):
         def run(_config):
-            (output_dir / spec["filename"]).write_text(spec["step"], encoding="utf-8")
-            if spec["step"] == "extraction":
-                (output_dir / "relations.csv").write_text("relations", encoding="utf-8")
+            # 本物のステップと同じく、spec が宣言する成果物（filename と extra_files）をすべて書く
+            for name in (spec["filename"], *spec.get("extra_files", [])):
+                (output_dir / name).write_text(spec["step"], encoding="utf-8")
 
         return run
 
