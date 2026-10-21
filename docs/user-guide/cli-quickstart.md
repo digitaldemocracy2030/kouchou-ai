@@ -288,13 +288,14 @@ rm -rf outputs/config
   "input": "report_october",
   "question": "10月のデータ",
   "hierarchical_clustering": {
-    "cluster_nums": [3, 6],
     "reuse_umap_model": "report_september"
   }
 }
 ```
 
-指定できる値（上から順に探索し、最初に見つかったファイルを使います）:
+`cluster_nums` は省略できます。省略した場合は「3. 設定ファイルの作成」と同じく、このレポートの argument 数からおすすめ値が自動計算されます（元レポートのクラスタ数は引き継ぎません）。元レポートと粒度をそろえたいときだけ明示してください。
+
+`reuse_umap_model` に指定できる値（上から順に探索し、最初に見つかったファイルを使います）:
 
 | 書き方 | 解決されるパス | 用途 |
 |--------|----------------|------|
