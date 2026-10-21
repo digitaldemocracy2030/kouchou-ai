@@ -17,7 +17,8 @@ StorageType = Literal["local", "azure_blob"]
 class Settings(BaseSettings):
     ADMIN_API_KEY: str = Field(env="ADMIN_API_KEY")
     PUBLIC_API_KEY: str = Field(env="PUBLIC_API_KEY")
-    OPENAI_API_KEY: str = Field(env="OPENAI_API_KEY")
+    # Gemini・Azure などだけで運用する構成もあるので、OpenAI のキーは任意
+    OPENAI_API_KEY: str | None = Field(env="OPENAI_API_KEY", default=None)
     GEMINI_API_KEY: str | None = Field(env="GEMINI_API_KEY", default=None)
     ENVIRONMENT: Environment = Field(env="ENVIRONMENT", default="production")
 
@@ -50,6 +51,7 @@ class Settings(BaseSettings):
 env_file = os.environ.get("ENV_FILE", ".env")
 settings = Settings(_env_file=env_file)
 # レポート出力ツール側でOpenAI APIを利用できるように、環境変数にセットする
-os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+if settings.OPENAI_API_KEY:
+    os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
 if settings.GEMINI_API_KEY:
     os.environ["GEMINI_API_KEY"] = settings.GEMINI_API_KEY
