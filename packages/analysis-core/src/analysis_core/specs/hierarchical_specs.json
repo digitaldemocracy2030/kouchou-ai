@@ -2,6 +2,7 @@
     {
         "step": "extraction",
         "filename": "args.csv",
+        "extra_files": ["relations.csv"],
         "dependencies": {"params": ["limit", "properties"], "global_params": ["input"], "steps": []},
         "options": {
             "limit": 1000,

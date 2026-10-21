@@ -750,6 +750,7 @@ class TestPipelineOrchestrator:
         output_dir = tmp_path / "outputs" / "demo"
         output_dir.mkdir(parents=True)
         (output_dir / "args.csv").write_text("arg-id,argument\nA1,test\n", encoding="utf-8")
+        (output_dir / "relations.csv").write_text("arg-id,comment-id\nA1,1\n", encoding="utf-8")
         (output_dir / "hierarchical_status.json").write_text(
             json.dumps(
                 {

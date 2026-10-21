@@ -2,6 +2,7 @@
   {
     "step": "extraction",
     "filename": "args.csv",
+    "extra_files": ["relations.csv"],
     "dependencies": { "params": ["limit", "properties"], "global_params": ["input"], "steps": [] },
     "options": {
       "limit": 1000,
@@ -22,6 +23,7 @@
   {
     "step": "llm_grouping",
     "filename": "hierarchical_clusters.csv",
+    "extra_files": ["hierarchical_merge_labels.csv"],
     "dependencies": {
       "params": ["group_count", "discovery_sample_size", "assignment_batch_size", "discovery_prompt", "assignment_prompt", "predefined_groups", "other_group_label"],
       "global_params": ["question"],

@@ -370,6 +370,7 @@ class TestOrchestratorPathsIntegration:
             output_subdir.mkdir()
             for filename in (
                 "args.csv",
+                "relations.csv",
                 "embeddings.pkl",
                 "hierarchical_clusters.csv",
                 "hierarchical_initial_labels.csv",

@@ -67,6 +67,11 @@ def snapshot_global_params(config: dict[str, Any]) -> dict[str, Any]:
     return {key: config.get(key) for key in GLOBAL_PARAM_KEYS}
 
 
+def _step_files(step_spec: dict[str, Any]) -> list[str]:
+    """Return the files a step leaves for later steps: its spec filename plus its extra_files."""
+    return [step_spec["filename"], *step_spec.get("extra_files", [])]
+
+
 def collect_previous_jobs(previous: dict[str, Any] | None) -> list[dict[str, Any]]:
     """Return completed jobs from a status dict, newest record first, one per step.
 
@@ -150,16 +155,9 @@ def _seed_reused_outputs(
         if not source_job:
             continue
 
-        source_artifact = source_dir / step_spec["filename"]
-        if not source_artifact.exists():
+        copied_files = [source_dir / filename for filename in _step_files(step_spec)]
+        if not all(artifact.exists() for artifact in copied_files):
             continue
-
-        copied_files = [source_artifact]
-        if step_name == "extraction":
-            relations = source_dir / "relations.csv"
-            if not relations.exists():
-                continue
-            copied_files.append(relations)
 
         for artifact in copied_files:
             seeded_files.add(artifact.name)
@@ -471,8 +469,10 @@ def decide_what_to_run(
         run = True
         reason = None
         found_prev = stepname in previous_by_step
-        artifact_exists = (seeded_files is not None and step["filename"] in seeded_files) or os.path.exists(
-            output_base_dir / config["output_dir"] / step["filename"]
+        artifact_exists = all(
+            (seeded_files is not None and filename in seeded_files)
+            or os.path.exists(output_base_dir / config["output_dir"] / filename)
+            for filename in _step_files(step)
         )
 
         if stepname == "hierarchical_visualization" and config.get("without-html", False):

@@ -309,6 +309,7 @@ class TestCLI:
         output_subdir = output_dir / "demo"
         output_subdir.mkdir(parents=True)
         (output_subdir / "args.csv").write_text("arg-id,argument\nA1,test\n", encoding="utf-8")
+        (output_subdir / "relations.csv").write_text("arg-id,comment-id\nA1,1\n", encoding="utf-8")
         (output_subdir / "hierarchical_status.json").write_text(
             json.dumps(
                 {
@@ -442,6 +443,7 @@ class TestCLI:
         output_subdir.mkdir(parents=True)
         for filename in (
             "args.csv",
+            "relations.csv",
             "embeddings.pkl",
             "hierarchical_clusters.csv",
             "hierarchical_initial_labels.csv",

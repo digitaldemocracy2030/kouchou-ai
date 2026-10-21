@@ -57,7 +57,8 @@ def _touch_artifacts(tmp_path, config, specs):
     out = tmp_path / "outputs" / config["output_dir"]
     out.mkdir(parents=True, exist_ok=True)
     for spec in specs:
-        (out / spec["filename"]).write_text("x", encoding="utf-8")
+        for filename in [spec["filename"], *spec.get("extra_files", [])]:
+            (out / filename).write_text("x", encoding="utf-8")
 
 
 def _plan_with_previous(tmp_path, config, previous, specs):
@@ -395,3 +396,100 @@ class TestDryRunWithReuseFrom:
         capsys.readouterr()
         initialization(reuse_from="source_b", persist_status=False, **kwargs)
         assert "source_b" in capsys.readouterr().out
+
+
+def _write_llm_grouping_outputs(out_dir):
+    """Minimal artifacts of a finished llm_grouping job that the real aggregation can read."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "args.csv").write_text("arg-id,argument\nA1_0,aaa\nA2_0,bbb\n", encoding="utf-8")
+    (out_dir / "relations.csv").write_text("arg-id,comment-id\nA1_0,1\nA2_0,2\n", encoding="utf-8")
+    (out_dir / "embeddings.pkl").write_bytes(b"not read when embedding is reused")
+    (out_dir / "hierarchical_clusters.csv").write_text(
+        "arg-id,argument,x,y,cluster-level-1-id\nA1_0,aaa,0.0,0.0,g1\nA2_0,bbb,1.0,1.0,g2\n", encoding="utf-8"
+    )
+    (out_dir / "hierarchical_merge_labels.csv").write_text(
+        "level,id,label,description,value,parent,density_rank_percentile\n1,g1,L1,D1,1,0,1.0\n1,g2,L2,D2,1,0,0.0\n",
+        encoding="utf-8",
+    )
+    (out_dir / "hierarchical_overview.txt").write_text("overview", encoding="utf-8")
+
+
+class TestSecondaryArtifacts:
+    """Files a step writes besides its spec filename are seeded and checked like the main one."""
+
+    def _make_llm_grouping_source(self, tmp_path):
+        specs = load_specs(LLM_GROUPING_SPECS)
+        source_config = _initialized_config(tmp_path, specs_path=LLM_GROUPING_SPECS)
+        source_dir = tmp_path / "outputs" / "source_job"
+        _write_llm_grouping_outputs(source_dir)
+        (source_dir / "hierarchical_status.json").write_text(
+            json.dumps(_completed_status(source_config, specs)), encoding="utf-8"
+        )
+        input_dir = tmp_path / "inputs"
+        input_dir.mkdir()
+        (input_dir / "comments.csv").write_text("comment-id,comment-body\n1,aaa\n2,bbb\n", encoding="utf-8")
+        config_path = tmp_path / "compare_job.json"
+        config_path.write_text(
+            json.dumps({"input": "comments", "question": "Q?", "provider": "local", "analysis_mode": "llm_grouping"}),
+            encoding="utf-8",
+        )
+        return config_path
+
+    def test_reuse_from_seeds_llm_grouping_merge_labels(self, tmp_path):
+        config_path = self._make_llm_grouping_source(tmp_path)
+        kwargs = dict(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+            reuse_from="source_job",
+        )
+
+        dry_run = initialization(persist_status=False, **kwargs)
+        assert {p["step"]: p["run"] for p in dry_run["plan"]}["llm_grouping"] is False
+
+        config = initialization(**kwargs)
+        assert (tmp_path / "outputs" / "compare_job" / "hierarchical_merge_labels.csv").exists()
+        plan = {p["step"]: p["run"] for p in config["plan"]}
+        assert plan["llm_grouping"] is False
+        assert plan["hierarchical_aggregation"] is True
+
+    def test_reused_llm_grouping_job_runs_aggregation(self, tmp_path):
+        """Through the CLI path (workflow engine input checks + the real aggregation step)."""
+        from analysis_core import PipelineOrchestrator
+
+        config_path = self._make_llm_grouping_source(tmp_path)
+        orchestrator = PipelineOrchestrator.from_config(
+            config_path,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+            reuse_from="source_job",
+        )
+        assert [p["step"] for p in orchestrator.get_plan() if p["run"]] == ["hierarchical_aggregation"]
+
+        result = orchestrator.run_default()
+
+        assert result.success, result.error
+        dest = tmp_path / "outputs" / "compare_job"
+        aggregated = json.loads((dest / "hierarchical_result.json").read_text(encoding="utf-8"))
+        assert aggregated["config"]["output_dir"] == "compare_job"
+        assert {cluster["label"] for cluster in aggregated["clusters"] if cluster["level"] == 1} == {"L1", "L2"}
+
+    @pytest.mark.parametrize(
+        ("specs_path", "step", "missing"),
+        [
+            (LLM_GROUPING_SPECS, "llm_grouping", "hierarchical_merge_labels.csv"),
+            (HIERARCHICAL_SPECS, "extraction", "relations.csv"),
+        ],
+    )
+    def test_missing_secondary_artifact_reruns_step(self, tmp_path, specs_path, step, missing):
+        config = _initialized_config(tmp_path, specs_path=specs_path)
+        specs = load_specs(specs_path)
+        previous = _completed_status(config, specs)
+        _touch_artifacts(tmp_path, config, specs)
+        assert _plan_with_previous(tmp_path, config, previous, specs)[step]["run"] is False
+
+        (tmp_path / "outputs" / config["output_dir"] / missing).unlink(missing_ok=True)
+        plan = _plan_with_previous(tmp_path, config, previous, specs)
+        assert plan[step]["run"] is True
+        assert plan[step]["reason"] == "previous data not found"

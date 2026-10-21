@@ -201,7 +201,7 @@ class TestReuseModelReRunDecision:
         specs = load_specs(get_specs_path_for_mode("hierarchical"))
         outdir = tmp_path / "report_x"
         outdir.mkdir(parents=True, exist_ok=True)
-        for fn in ("args.csv", "embeddings.pkl", "hierarchical_clusters.csv"):
+        for fn in ("args.csv", "relations.csv", "embeddings.pkl", "hierarchical_clusters.csv"):
             (outdir / fn).write_text("x")
         prev_jobs = [
             {"step": "extraction", "params": {"limit": 10, "workers": 1, "properties": []}},
