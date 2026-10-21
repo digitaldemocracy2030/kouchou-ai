@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -7,7 +8,18 @@ from src.services.llm_pricing import LLMPricing
 from src.services.model_catalog import CATALOG, enrich_models, models_for_provider, price_for_model
 
 
-def test_requested_models_are_selectable_but_unverified():
+def _fixed_today(year, month, day):
+    class FixedDate(date):
+        @classmethod
+        def today(cls):
+            return cls(year, month, day)
+
+    return FixedDate
+
+
+def test_requested_models_are_selectable_but_unverified(monkeypatch):
+    # 単価には適用期限 (valid_until) があるので、単価を確認した日に固定して実行日に依存させない
+    monkeypatch.setattr("src.services.model_catalog.date", _fixed_today(2026, 9, 8))
     for provider, ids in (
         ("openai", ["gpt-5.6-terra", "gpt-5.6-luna"]),
         ("gemini", ["gemini-3.8-flash", "gemini-3.5-flash-lite"]),
@@ -102,6 +114,27 @@ def test_expired_price_is_unknown(monkeypatch):
     )
     assert price_for_model("test", "old") is None
     assert LLMPricing.calculate_cost("test", "old", 1000, 1000) is None
+
+
+def test_model_stays_selectable_after_price_expires(monkeypatch):
+    monkeypatch.setattr(
+        "src.services.model_catalog.CATALOG",
+        [
+            {
+                "provider": "test",
+                "value": "priced",
+                "available": True,
+                "verified": False,
+                "price": {"input": 1, "output": 2, "source": "https://example.com", "valid_until": "2026-12-31"},
+            }
+        ],
+    )
+    monkeypatch.setattr("src.services.model_catalog.date", _fixed_today(2026, 12, 31))
+    assert models_for_provider("test")[0]["price"]["source"]
+    monkeypatch.setattr("src.services.model_catalog.date", _fixed_today(2027, 1, 1))
+    row = models_for_provider("test")[0]
+    assert row["available"] is True
+    assert row["price"] is None
 
 
 def test_api_delivers_verification_and_nullable_price(client):
