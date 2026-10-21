@@ -20,7 +20,18 @@ def positive_timeout(value: object) -> int:
     return seconds
 
 
-DEFAULT_REQUEST_TIMEOUT_SECONDS = positive_timeout(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "300"))
+def _request_timeout_from_env() -> int:
+    # 空欄は未設定として扱う (OPENAI_FLEX_TIMEOUT_SECONDS と同じ)
+    raw = (os.getenv("LLM_REQUEST_TIMEOUT_SECONDS") or "").strip() or "300"
+    try:
+        return positive_timeout(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"LLM_REQUEST_TIMEOUT_SECONDS must be a positive integer number of seconds (got {raw!r})"
+        ) from exc
+
+
+DEFAULT_REQUEST_TIMEOUT_SECONDS = _request_timeout_from_env()
 
 
 def resolve_timeout(value: object = None) -> int:

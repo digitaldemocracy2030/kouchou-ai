@@ -30,6 +30,26 @@ for name in ("request_to_chat_ai", "request_to_openai", "request_to_azure_chatco
     subprocess.run([sys.executable, "-c", code], env=env, check=True)
 
 
+def _import_default_timeout(value):
+    env = {**os.environ, "LLM_REQUEST_TIMEOUT_SECONDS": value}
+    code = "from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS as d; print(d)"
+    return subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True)
+
+
+@pytest.mark.parametrize("value", ["", "  "])
+def test_blank_environment_timeout_uses_default(value):
+    result = _import_default_timeout(value)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "300"
+
+
+def test_invalid_environment_timeout_names_the_variable():
+    result = _import_default_timeout("300.0")
+    assert result.returncode != 0
+    message = result.stderr.strip().splitlines()[-1]
+    assert message.startswith("ValueError: LLM_REQUEST_TIMEOUT_SECONDS"), message
+
+
 @pytest.mark.parametrize("override", [None, 919])
 def test_workflow_extraction_passes_timeout_to_llm(tmp_path, monkeypatch, override):
     module = importlib.import_module("analysis_core.steps.extraction")
