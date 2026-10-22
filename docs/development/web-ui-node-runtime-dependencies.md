@@ -4,7 +4,7 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 
 ## 結論（先に）
 
-- **`apps/admin`**: Node runtime 依存はほぼ「FastAPI への薄い proxy」と「static export を阻害する設定」だけ。**Node 固有処理（ファイル生成 / zip / build）を行う箇所は 0**。→ client fetch + `output:"export"` 化で runtime Node をほぼ外せる（残課題は API key の threat model）。
+- **`apps/admin`**: Node runtime 依存はほぼ「FastAPI への薄い proxy」と「static export を阻害する設定」だけ。**Node 固有処理（ファイル生成 / zip / build）を行う箇所は 0**（CSV / JSON ダウンロードの Server Action が応答を `Buffer` で base64 化する程度）。→ client fetch + `output:"export"` 化で runtime Node をほぼ外せる（残課題は API key の threat model）。
 - **`apps/public-viewer`**: 既に `NEXT_PUBLIC_OUTPUT_MODE=export` モードを持ち、**runtime の Node 依存（ISR / `connection()` / server fetch）は export ビルドで build 時処理に倒れて解決済**。残るのは「export ビルドそのものに Node + Next + API 到達が必要」という **build 時依存**。
 - **`apps/static-site-builder`**: ⭐ **単一exe化の最大の障壁**。`/build` を叩くたびに **runtime で `next build`（`pnpm run build:static`）を子プロセス実行**して `out/` を zip 返却する設計。「静的ファイルを生成する行為そのもの」が runtime の Node/Next build に依存している。
 
@@ -14,10 +14,12 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 
 ## 1. `apps/admin`（Next.js 管理画面）
 
-### 1-1. Server Actions（計 15・全て FastAPI proxy）
+### 1-1. Server Actions（11 ファイル・計 17・全て FastAPI proxy）
 
 | ファイル | action | 内容 | 除去難易度 |
 |---|---|---|---|
+| `_components/ReportCard/ActionMenu/csvDownloadCommon.ts` | `csvDownloadCommon` | `/admin/comments/{slug}/csv` GET proxy。応答を `Buffer` で base64 化して返す（`csvDownload.ts` / `csvDownloadForWindows.ts` から呼ばれる） | 低 |
+| `_components/ReportCard/ActionMenu/jsonDownload.ts` | `jsonDownload` | `/admin/reports/{slug}/json` GET proxy。応答を `Buffer` で base64 化して返す | 低 |
 | `_components/ReportCard/ClusterEditDialog/actions.ts` | `fetchClusters`, `updateCluster` | `/admin/reports/{slug}/cluster-labels` GET, `/cluster-label` PATCH の proxy | 低 |
 | `_components/ReportCard/DeleteDialog/action.ts` | `reportDelete` | `/admin/reports/{slug}` DELETE proxy | 低 |
 | `_components/ReportCard/DuplicateReportDialog/actions.ts` | `duplicateReport` | `/admin/reports/{slug}/duplicate` POST。**`process.env.ADMIN_API_KEY`（非PUBLIC）使用** | 中（key 露出判断） |
@@ -28,7 +30,9 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 | `create/api/plugins.ts` | `getPlugins`, `validatePluginSource`, `previewPluginData`, `importPluginData` | `/admin/plugins` 系 GET/POST 4本 proxy | 低 |
 | `create/components/EnvironmentCheckDialog/verifyApiKey.ts` | `verifyApiKey`, `verifyChatGptApiKeyWithProvider` | `/admin/environment/verify`, `/verify-chatgpt` GET proxy | 低 |
 
-すべて `getApiBaseUrl()` + `x-api-key` で内部 API を中継するだけ。サーバ専用シークレットを使うのは `duplicateReport`（`ADMIN_API_KEY`）のみ、他は `NEXT_PUBLIC_ADMIN_API_KEY`（client 露出可）。
+すべて `getApiBaseUrl()` + `x-api-key` で内部 API を中継するだけ（`csvDownloadCommon` / `jsonDownload` は加えて応答を base64 文字列に変換）。サーバ専用シークレットを使うのは `duplicateReport`（`ADMIN_API_KEY`）のみ、他の 16 本は `NEXT_PUBLIC_ADMIN_API_KEY`（client 露出可）。
+
+初版のこの表は `ActionMenu/` の 2 ファイル（`csvDownloadCommon.ts` / `jsonDownload.ts`）を漏らしていた（どちらも `d5c9ece` 時点で存在）。追記し、§1-5・§4 の本数も合わせて訂正した。
 
 ### 1-2. Route Handlers（3本）
 
@@ -53,7 +57,7 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 
 | 依存 | 難易度 | 方針 |
 |---|---|---|
-| Server Action 14本（proxy） | 低 | 両モードで動く client API モジュールへ置換 |
+| Server Action 16本（proxy） | 低 | 両モードで動く client API モジュールへ置換（CSV / JSON ダウンロードは base64 で返す代わりに client 側で `Blob` を作る） |
 | `duplicateReport` / `config` route（`ADMIN_API_KEY`） | 中 | local desktop の threat model で client 露出許容 or FastAPI 直 |
 | `healthcheck` route | 低 | export で不要化 |
 | `page.tsx` server fetch | 中 | client fetch + loading 化 |
@@ -75,8 +79,8 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 
 ### 2-2. runtime Node 依存 → export で解決済（SSR モード専用に残存）
 
-- **ISR / revalidate**: `app/[slug]/page.tsx:25` `export const revalidate = 300`、`app/page.tsx:13` 同。`fetch(..., { next:{ tags:["meta"] } })` 等のタグ付きキャッシュ + `api/revalidate` の `revalidateTag` がペア。→ **export では無効**（静的化）。SSR モードでのみ Node 必須。
-- **`connection()` による動的レンダリング強制**: `app/page.tsx:9` / `app/faq/page.tsx:6` で `import { connection } from "next/server"`、`if (!isStaticExportBuild()) { await connection(); }`。→ export ビルドで**スキップ**されるため阻害しない。
+- **ISR / revalidate**: `app/[slug]/page.tsx:25` `export const revalidate = 300`、`app/page.tsx:11` 同。`fetch(..., { next:{ tags:["meta"] } })` 等のタグ付きキャッシュ + `api/revalidate` の `revalidateTag` がペア。→ **export では無効**（静的化）。SSR モードでのみ Node 必須。
+- **`connection()` による動的レンダリング強制**: `app/page.tsx:7` / `app/faq/page.tsx:6` で `import { connection } from "next/server"`、`if (!isStaticExportBuild()) { await connection(); }`。→ export ビルドで**スキップ**されるため阻害しない。
 - **Server Component server fetch**: `app/[slug]/page.tsx` / `app/page.tsx` が server 側で `/meta/metadata.json`・`/reports` を fetch。export では `generateStaticParams()`（`isStaticExportBuild()` 真のとき `/reports` を fetch し `status==="ready"` の slug を静的生成）に倒れ、**build 時 fetch**になる。
 - **middleware**: `apps/public-viewer/middleware.ts` は**存在しない**（阻害なし）。
 
@@ -96,21 +100,23 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 | endpoint | 処理 | runtime build | 入出力 |
 |---|---|---|---|
 | `POST /build` (`src/index.ts:35`) | rate limit（60s/5req）後、`req.body.slugs` を `BUILD_SLUGS` に渡し **`execAsync("pnpm run build:static")` を子プロセス実行**。完了後 `archiver` で `out/` を zip 化し `application/zip`（`kouchou-ai.zip`）でストリーム返却 | **あり** | 入力 `clientDir=../../public-viewer`／出力 `clientDir/out` を zip |
-| `GET /healthcheck` (`:78`) | `{status:"ok"}` | なし | なし |
+| `GET /healthcheck` (`:71`) | `{status:"ok"}` | なし | なし |
 
-- `build:static` の実体 = public-viewer `package.json` の `"build:static": "NEXT_PUBLIC_OUTPUT_MODE=export next build"`。子プロセスへ `{ ...process.env, NODE_ENV:"production", BUILD_SLUGS }` を渡す。listen `PORT=3200`。依存: `archiver` / `express` / `express-rate-limit`。
+- `build:static` の実体 = public-viewer `package.json` の `"build:static": "NEXT_PUBLIC_OUTPUT_MODE=export node scripts/with-renamed-files.mjs next build"`。子プロセスへ `{ ...process.env, NODE_ENV:"production", BUILD_SLUGS }` を渡す。listen `PORT=3200`。依存: `archiver` / `express` / `express-rate-limit`。
 - Dockerfile も runner stage に corepack/pnpm・node_modules・public-viewer ソース一式を同梱（`CMD ["node","dist/index.js"]`）＝**runtime に Next.js ビルド環境を丸ごと必要とする**。
 
 **事実**: ユーザーが `/build`（admin の「ダウンロード」）を叩くたびに、コンテナ内で pnpm + Next.js full build が走り `out/` を zip 配布する。public-viewer を export に寄せても **「export 静的ファイルを生成する行為」自体が runtime の Node/Next build に依存**しており、ここを runtime から外さない限り単一 exe には Node が戻ってくる。
 
-（注: `package.json` の `dev` script が参照する `src/server.ts` は実在せず、実体は `src/index.ts` のみ＝dev script と不一致。別件の軽微な掃除候補。）
+（注: 初版で挙げた `dev` script と `src/index.ts` の不一致は解消済み。現在の `dev` は `tsx watch src/index.ts`。）
+
+レポートのデータに依存しない shell ビルド（public-viewer の `build:shell`）と、Python 標準ライブラリだけで配布物を組み立てる `apps/api/src/services/shell_export.py`（`package_shell`）が main に入っている（手順は [static-shell-export.md](./static-shell-export.md)）。ただし admin の `/api/download` は今も上記の `/build` を中継しており、`package_shell` はまだ FastAPI のダウンロード経路につながっていない。
 
 ---
 
 ## 4. 総括 — 完了条件への含意
 
 1. **runtime Node 依存一覧（第1項）**: 上記の通り棚卸し完了。admin は proxy + 設定、public-viewer は export 済、builder は runtime build。
-2. **admin を static serve する最小方針（第2項）の素材**: §1-5 の通り、proxy 14本の client 化 + `output:export` + API key threat model 決定でほぼ完了。
+2. **admin を static serve する最小方針（第2項）の素材**: §1-5 の通り、proxy 16本の client 化 + `output:export` + API key threat model 決定でほぼ完了。
 3. **static-site-builder の責務（第3項）**: ここが本丸。runtime `next build` を ① 事前ビルド済み成果物の配布、② FastAPI/Python 側での静的レポート生成、のどちらに倒すかが単一exe化の成否を決める。
 
 次のステップは、§1-5 の admin export 化を prototype branch で実装し、`apps/admin` が Node server なしでビルド・起動できることを検証することです（完了条件の prototype 項に対応）。
