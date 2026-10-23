@@ -11,7 +11,7 @@ import type { Argument, Cluster } from "@/type";
 import { Box, Icon, Text, VStack } from "@chakra-ui/react";
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface HierarchyListChartProps {
   clusterList: Cluster[];
@@ -31,6 +31,19 @@ interface ClusterNode {
   isExpanded: boolean;
   isChildrenExpanded: boolean;
   arguments: Argument[];
+}
+
+function collectExpansion(
+  nodes: ClusterNode[],
+  expansion = new Map<string, Pick<ClusterNode, "isExpanded" | "isChildrenExpanded">>(),
+) {
+  for (const node of nodes) {
+    if (node.isExpanded || node.isChildrenExpanded) {
+      expansion.set(node.id, { isExpanded: node.isExpanded, isChildrenExpanded: node.isChildrenExpanded });
+    }
+    collectExpansion(node.children, expansion);
+  }
+  return expansion;
 }
 
 function ArgumentsDisplay({
@@ -97,10 +110,17 @@ export function HierarchyListChart({
   onHover,
 }: HierarchyListChartProps) {
   const [treeData, setTreeData] = useState<ClusterNode[]>([]);
+  // ツリーを作り直すときに、直前の展開状態をクラスタ ID で引き継ぐための参照（下の effect より先に更新する）
+  const treeDataRef = useRef(treeData);
+  useEffect(() => {
+    treeDataRef.current = treeData;
+  }, [treeData]);
 
   // Build tree structure from flat cluster list
   useEffect(() => {
     const clusterMap = new Map<string, ClusterNode>();
+    // フィルタの適用・変更・解除のたびに clusterList は新しい配列になる。作り直しても開いていたクラスタは閉じない
+    const previousExpansion = collectExpansion(treeDataRef.current);
 
     // Create nodes for all clusters
     for (const cluster of clusterList) {
@@ -112,8 +132,8 @@ export function HierarchyListChart({
       clusterMap.set(cluster.id, {
         ...cluster,
         children: [],
-        isExpanded: false,
-        isChildrenExpanded: false,
+        isExpanded: previousExpansion.get(cluster.id)?.isExpanded ?? false,
+        isChildrenExpanded: previousExpansion.get(cluster.id)?.isChildrenExpanded ?? false,
         arguments: clusterArguments,
       });
     }
