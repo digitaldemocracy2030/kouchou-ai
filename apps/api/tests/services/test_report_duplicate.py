@@ -168,6 +168,54 @@ def test_build_analysis_core_config_preserves_embedding_model():
     assert config["embedding"] == {"model": "text-embedding-3-large"}
 
 
+def test_apply_overrides_workers_reaches_labelling_steps():
+    """複製で並列実行数を変えると、抽出だけでなく初期・統合ラベリングにも効く。
+
+    作成時 (report_launcher._build_config) は workers を extraction と 2 つのラベリングに
+    入れるので、複製でも同じ 3 か所に反映しないと、ラベリングが複製元の並列数で走る。
+    """
+    from src.schemas.admin_report import ReportDuplicateOverrides
+    from src.services import report_duplicate
+
+    config = {
+        "analysis_mode": "hierarchical",
+        "extraction": {"prompt": "extract", "workers": 30},
+        "hierarchical_clustering": {"cluster_nums": [3, 6]},
+        "hierarchical_initial_labelling": {"prompt": "initial", "sampling_num": 30, "workers": 30},
+        "hierarchical_merge_labelling": {"prompt": "merge", "sampling_num": 30, "workers": 30},
+        "hierarchical_overview": {"prompt": "overview"},
+        "hierarchical_aggregation": {"sampling_num": 30},
+    }
+
+    result = report_duplicate._apply_overrides(config, ReportDuplicateOverrides(workers=2))
+
+    assert result["extraction"]["workers"] == 2
+    assert result["hierarchical_initial_labelling"]["workers"] == 2
+    assert result["hierarchical_merge_labelling"]["workers"] == 2
+    # sampling_num はラベリング・集計のサンプル数で、並列数とは別物なので変えない。
+    assert result["hierarchical_initial_labelling"]["sampling_num"] == 30
+    assert result["hierarchical_aggregation"]["sampling_num"] == 30
+
+
+def test_apply_overrides_workers_does_not_create_labelling_sections_for_llm_grouping():
+    """llm_grouping の config にはラベリングのセクションが無いので、workers の変更で作らない。"""
+    from src.schemas.admin_report import ReportDuplicateOverrides
+    from src.services import report_duplicate
+
+    config = {
+        "analysis_mode": "llm_grouping",
+        "extraction": {"prompt": "extract", "workers": 30},
+        "hierarchical_overview": {"prompt": "overview"},
+        "hierarchical_aggregation": {"sampling_num": 30},
+    }
+
+    result = report_duplicate._apply_overrides(config, ReportDuplicateOverrides(workers=2))
+
+    assert result["extraction"]["workers"] == 2
+    assert "hierarchical_initial_labelling" not in result
+    assert "hierarchical_merge_labelling" not in result
+
+
 # ---------------------------------------------------------------------------
 # 再利用での複製後に、analysis-core が中間成果物を本当に再利用するか
 # ---------------------------------------------------------------------------

@@ -264,6 +264,13 @@ def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -
         config["provider"] = overrides.provider
     if overrides.workers is not None:
         config.setdefault("extraction", {})["workers"] = overrides.workers
+        # 作成時 (report_launcher._build_config) と同じく、LLM を並列に呼ぶ初期・統合ラベリングにも
+        # 反映する。ラベリングのセクションが無い llm_grouping では、セクションを新しく作らない。
+        # hierarchical_aggregation.sampling_num は作成時に workers と同じ値を入れているが、
+        # 並列数ではなく集計のサンプル数で、aggregation の再実行判定 params にも入っているため連動させない。
+        for section in ("hierarchical_initial_labelling", "hierarchical_merge_labelling"):
+            if isinstance(config.get(section), dict):
+                config[section]["workers"] = overrides.workers
     if overrides.is_pubcom is not None:
         config["is_pubcom"] = overrides.is_pubcom
     if overrides.enable_source_link is not None:
