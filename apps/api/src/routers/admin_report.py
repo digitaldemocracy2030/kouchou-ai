@@ -204,6 +204,21 @@ def _api_key_verification_error_response(message: str, error_type: str) -> dict:
     }
 
 
+def _planned_steps(plan: object) -> list[str] | None:
+    """status の plan から、今回の実行で走る工程名を順に返す（分析方式ごとに工程が違うため）。
+
+    plan が無い・壊れている古い status では None を返し、管理画面の既定の工程表示に任せる。
+    """
+    if not isinstance(plan, list):
+        return None
+    steps = [
+        item["step"]
+        for item in plan
+        if isinstance(item, dict) and isinstance(item.get("step"), str) and item.get("run", True)
+    ]
+    return steps or None
+
+
 @router.get("/admin/reports/{slug}/status/step-json", dependencies=[Depends(verify_admin_api_key)])
 async def get_current_step(slug: str) -> dict:
     validate_slug(slug)
@@ -223,6 +238,7 @@ async def get_current_step(slug: str) -> dict:
         response = {
             "status": status.get("status", "running"),
             "current_step": status.get("current_job", "loading"),
+            "steps": _planned_steps(status.get("plan")),
             "token_usage": status.get("total_token_usage", 0),
             "token_usage_input": status.get("token_usage_input", 0),
             "token_usage_output": status.get("token_usage_output", 0),

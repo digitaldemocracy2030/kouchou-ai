@@ -5,7 +5,7 @@ import { useIsPresent } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { Processing } from "./Processing";
-import { stepKeys, steps } from "./progressStepsConfig";
+import { resolveDisplaySteps } from "./progressStepsConfig";
 import { useReportProgressPoll } from "./useReportProgressPolling";
 
 const stepItemstyle = {
@@ -33,12 +33,21 @@ type Props = {
 };
 
 export const ProgressSteps = ({ slug, reportStatus }: Props) => {
-  const { progress, isError, errorMessage, errorLogExcerpt, restartPolling } = useReportProgressPoll(slug);
+  const { progress, plannedSteps, isError, errorMessage, errorLogExcerpt, restartPolling } =
+    useReportProgressPoll(slug);
 
   const isLoading = progress === "loading";
   const isCompleted = progress === "completed";
-  const resolvedStepIndex = isLoading || isCompleted || progress === "error" ? -1 : stepKeys.indexOf(progress);
-  const currentStepIndex = isCompleted ? steps.length : Math.max(resolvedStepIndex, 0);
+  const currentStep = isLoading || isCompleted || progress === "error" ? null : progress;
+  const steps = resolveDisplaySteps(plannedSteps, currentStep);
+  // 工程を受け取る前に失敗した（状況の取得自体の失敗など）ときは、どの工程にも失敗マークを付けない
+  const currentStepIndex = isCompleted
+    ? steps.length
+    : currentStep
+      ? steps.findIndex((step) => step.key === currentStep)
+      : isError
+        ? -1
+        : 0;
   const status = isError ? "error" : "processing";
   const router = useRouter();
   // カードが ready になっても、退場アニメーションの間は古い reportStatus（processing）のまま残る。
@@ -80,7 +89,24 @@ export const ProgressSteps = ({ slug, reportStatus }: Props) => {
       <Steps.Root step={currentStepIndex} count={steps.length} bg={stepItemstyle[status].processing} mt="2" p="6">
         <Steps.List gap="2">
           {steps.map((step, index) => (
-            <Steps.Item key={step.key} index={index} gap="2" flex="auto" textStyle="body/sm">
+            <Steps.Item
+              key={step.key}
+              index={index}
+              gap="2"
+              flex="auto"
+              textStyle="body/sm"
+              data-testid="progress-step"
+              data-step-key={step.key}
+              data-step-state={
+                index < currentStepIndex
+                  ? "completed"
+                  : index === currentStepIndex
+                    ? isError
+                      ? "failed"
+                      : "current"
+                    : "pending"
+              }
+            >
               {index < currentStepIndex ? (
                 <>
                   <Center w="6" h="6" bg={stepItemstyle[status].completed} borderRadius="full">

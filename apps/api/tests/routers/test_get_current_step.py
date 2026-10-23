@@ -224,3 +224,63 @@ async def test_get_current_step_partial_status_file_is_loading(async_client, tes
         data = response.json()
         assert data["current_step"] == "loading"
         assert data["status"] != "error"
+
+
+LLM_GROUPING_PLAN = [
+    {"step": "extraction", "run": True, "reason": "no trace of previous run"},
+    {"step": "embedding", "run": True, "reason": "no trace of previous run"},
+    {"step": "llm_grouping", "run": True, "reason": "no trace of previous run"},
+    {"step": "hierarchical_overview", "run": True, "reason": "no trace of previous run"},
+    {"step": "hierarchical_aggregation", "run": True, "reason": "no trace of previous run"},
+    {"step": "hierarchical_visualization", "run": False, "reason": "skipping html output"},
+]
+
+
+@pytest.mark.asyncio
+async def test_get_current_step_returns_steps_planned_to_run(async_client, test_slug):
+    """管理画面が分析方式ごとの工程を表示できるよう、plan のうち実行する工程を順に返す."""
+    status_data = {"status": "running", "current_job": "llm_grouping", "plan": LLM_GROUPING_PLAN}
+
+    with mock_status_response(status_data):
+        response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+        data = response.json()
+        assert data["current_step"] == "llm_grouping"
+        assert data["steps"] == [
+            "extraction",
+            "embedding",
+            "llm_grouping",
+            "hierarchical_overview",
+            "hierarchical_aggregation",
+        ]
+
+
+@pytest.mark.asyncio
+async def test_get_current_step_returns_steps_on_error(async_client, test_slug):
+    """失敗時も、失敗した工程を正しい位置に示せるよう steps を返す."""
+    status_data = {
+        "status": "error",
+        "current_job": "llm_grouping",
+        "error": "Step 'llm_grouping' failed: llm_grouping group discovery returned no groups",
+        "plan": LLM_GROUPING_PLAN,
+    }
+
+    with mock_status_response(status_data):
+        response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+        data = response.json()
+        assert data["current_step"] == "llm_grouping"
+        assert "llm_grouping" in data["steps"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("plan", [None, [], "broken", [{"run": True}]])
+async def test_get_current_step_steps_is_null_without_usable_plan(async_client, test_slug, plan):
+    """plan が無い・壊れている古い status ファイルでは steps を null にし、管理画面の既定の工程に任せる."""
+    status_data = {"status": "running", "current_job": "extraction"}
+    if plan is not None:
+        status_data["plan"] = plan
+
+    with mock_status_response(status_data):
+        response = await async_client.get(f"/admin/reports/{test_slug}/status/step-json")
+        data = response.json()
+        assert data["current_step"] == "extraction"
+        assert data["steps"] is None

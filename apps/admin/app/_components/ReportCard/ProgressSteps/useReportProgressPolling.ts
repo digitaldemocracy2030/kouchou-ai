@@ -1,25 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
-import { stepKeys } from "./progressStepsConfig";
 
-type Progress = (typeof stepKeys)[number] | "loading" | "completed" | "error";
+// "loading" / "completed" / "error" 以外は analysis-core の工程名（分析方式によって変わるので string で持つ）
+type Progress = string;
 type StepJsonResponse = {
   status?: string;
   current_step?: string;
+  steps?: string[] | null;
   error_message?: string | null;
   error_log_excerpt?: string | null;
 };
 
-function isProgress(value: string): value is Progress {
-  return (
-    value === "loading" ||
-    value === "completed" ||
-    value === "error" ||
-    stepKeys.includes(value as (typeof stepKeys)[number])
-  );
+function toPlannedSteps(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const steps = value.filter((step): step is string => typeof step === "string" && step.length > 0);
+  return steps.length > 0 ? steps : null;
 }
 
 export function useReportProgressPoll(slug: string) {
   const [progress, setProgress] = useState<Progress>("loading");
+  const [plannedSteps, setPlannedSteps] = useState<string[] | null>(null);
   const [isError, setIsError] = useState<boolean>(false);
   const [isPolling, setIsPolling] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -59,8 +58,10 @@ export function useReportProgressPoll(slug: string) {
             return;
           }
 
-          if (isProgress(data.current_step)) {
-            setProgress(data.current_step);
+          setProgress(data.current_step);
+          const steps = toPlannedSteps(data.steps);
+          if (steps) {
+            setPlannedSteps(steps);
           }
 
           if (data.status === "error") {
@@ -113,5 +114,5 @@ export function useReportProgressPoll(slug: string) {
   // completed / error で止めたポーリングをもう一度始める（completed の後にレポートが error になった時に理由を取り直す）
   const restartPolling = useCallback(() => setIsPolling(true), []);
 
-  return { progress, isError, errorMessage, errorLogExcerpt, restartPolling };
+  return { progress, plannedSteps, isError, errorMessage, errorLogExcerpt, restartPolling };
 }
