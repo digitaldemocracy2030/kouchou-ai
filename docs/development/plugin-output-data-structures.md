@@ -123,16 +123,30 @@ analysis-core の標準ワークフローは、次のステップでファイル
 
 - Pythonのpickle形式
 - **list[dict]** として保存
-- 各要素は `{ "arg-id": str, "embedding": list[float] }`
+- 各要素は `{ "arg-id": str, "embedding": numpy.ndarray }`（`embedding` は 1 次元・float32 の numpy 配列）
 
 例（概念）:
 
 ```python
+import numpy as np
+
 [
-  {"arg-id": "A1_0", "embedding": [0.12, -0.01, ...]},
-  {"arg-id": "A2_0", "embedding": [0.08, 0.03, ...]},
+  {"arg-id": "A1_0", "embedding": np.array([0.12, -0.01, ...], dtype=np.float32)},
+  {"arg-id": "A2_0", "embedding": np.array([0.08, 0.03, ...], dtype=np.float32)},
 ]
 ```
+
+古いレポートの `embeddings.pkl`（`--reuse-from`・複製・ストレージ同期で残ったもの）は、別の形式のことがあります。
+
+- `embedding` が Python の `list[float]` の `list[dict]`
+- `arg-id` を持たない `list[dict]`（行の順序で `args.csv` と対応）
+- pandas DataFrame（`embedding` 列）
+
+読む側の注意:
+
+- `list[dict]` の形式なら、`embedding` が ndarray でも list でも、`np.asarray([item["embedding"] for item in records], dtype=np.float32)` で同じ 2 次元配列にそろえられます
+- `embedding` は list ではないので、`+` は連結ではなく要素ごとの和になり、`==` で比べると例外になります
+- JSON に書き出すときは `.tolist()` で list にしてください（ndarray のままでは `json.dumps` が `TypeError` になります）。float32 由来の誤差で、`0.1` が `0.10000000149011612` のように出ます
 
 ---
 
