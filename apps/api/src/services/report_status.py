@@ -5,6 +5,7 @@ import threading
 from datetime import UTC, datetime
 
 import requests
+from pydantic import ValidationError
 
 from src.config import settings
 from src.schemas.admin_report import ReportInput
@@ -25,8 +26,14 @@ _report_status = {}
 def convert_old_format_status(status: dict) -> dict:
     """旧形式のレポートのステータスを新形式に変換する
     旧形式では公開/非公開をis_publicで管理していたが、新形式ではvisibilityで管理している
+
+    v1.0.x のエントリ（と、v2.0.x で公開設定を一度も切り替えていないエントリ）は
+    visibility も is_public も持たない。visibility は必須項目なので、補わないと一覧の
+    読み込み全体が失敗する。公開範囲が記録されていないので、非公開として扱う。
     """
     for slug, report_status in status.items():
+        if not isinstance(report_status, dict):
+            continue
         if "slug" not in report_status:
             report_status["slug"] = slug
 
@@ -36,6 +43,8 @@ def convert_old_format_status(status: dict) -> dict:
             )
             report_status.pop("is_public")
             status[slug] = report_status
+        elif "visibility" not in report_status:
+            report_status["visibility"] = ReportVisibility.PRIVATE.value
     return status
 
 
@@ -64,7 +73,14 @@ def load_status_as_reports(include_deleted: bool = False) -> list[Report]:
         except json.JSONDecodeError:
             _report_status = {}
 
-        reports = [Report(**report) for report in _report_status.values()]
+        # 1 件の不正なエントリで一覧全体（と公開ページ・起動時の復旧）を失敗させないよう、
+        # 検証に通らないエントリは警告して飛ばす。保存時に消えないよう、生データは書き換えない。
+        reports = []
+        for key, report in _report_status.items():
+            try:
+                reports.append(Report(**report))
+            except (ValidationError, TypeError) as e:
+                logger.warning(f"Skipping invalid report status entry {key!r}: {e}")
 
         if not include_deleted:
             reports = [report for report in reports if report.status != ReportStatus.DELETED]

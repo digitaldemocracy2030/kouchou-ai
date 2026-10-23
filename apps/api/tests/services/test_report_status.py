@@ -373,3 +373,134 @@ class TestSaveStatusAtomicity:
                 report_status.load_status()
 
         assert entered["value"] is True
+
+
+class TestLegacyStatusEntries:
+    """古いバージョンで作られた report_status.json のエントリを読めること
+
+    v1.0.x の add_new_report_to_status は slug・status・title・description の 4 キーしか書かず、
+    v2.0.x も公開設定を切り替えない限り is_public をファイルに書かなかった。
+    このようなエントリが 1 件でもあると、一覧の読み込み全体が ValidationError で失敗していた。
+    """
+
+    # v1.0.0 の add_new_report_to_status が書く形（visibility も is_public も無い）
+    V1_ENTRY = {"slug": "v100a", "status": "ready", "title": "Q v100a", "description": "intro"}
+    # v2.0.0 で公開設定を切り替えたエントリ（is_public だけを持つ）
+    V2_ENTRY = {
+        "slug": "v200b",
+        "status": "ready",
+        "title": "Q v200b",
+        "description": "intro",
+        "is_pubcom": True,
+        "is_public": True,
+        "created_at": "2026-10-23T12:19:04.341019+00:00",
+    }
+    CURRENT_ENTRY = {
+        "slug": "v410a",
+        "status": "ready",
+        "title": "Q v410a",
+        "description": "intro",
+        "is_pubcom": True,
+        "visibility": "public",
+        "created_at": "2026-10-23T12:30:00+00:00",
+    }
+
+    @pytest.fixture(autouse=True)
+    def _reset_global(self):
+        original = deepcopy(report_status._report_status)
+        report_status._report_status.clear()
+        yield
+        report_status._report_status.clear()
+        report_status._report_status.update(original)
+
+    @pytest.fixture
+    def state_file(self, tmp_path, monkeypatch):
+        path = tmp_path / "report_status.json"
+        path.write_text(
+            json.dumps({"v100a": self.V1_ENTRY, "v200b": self.V2_ENTRY, "v410a": self.CURRENT_ENTRY}),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(report_status, "STATE_FILE", path)
+        return path
+
+    def test_convert_entry_without_visibility_and_is_public_to_private(self):
+        """visibility も is_public も無いエントリは非公開として扱う"""
+        result = convert_old_format_status({"v100a": deepcopy(self.V1_ENTRY)})
+
+        assert result["v100a"]["visibility"] == ReportVisibility.PRIVATE.value
+
+    def test_load_status_as_reports_reads_v1_entry(self, state_file):
+        reports = {r.slug: r for r in report_status.load_status_as_reports()}
+
+        assert set(reports) == {"v100a", "v200b", "v410a"}
+        assert reports["v100a"].visibility == ReportVisibility.PRIVATE
+        assert reports["v200b"].visibility == ReportVisibility.PUBLIC
+        assert reports["v410a"].visibility == ReportVisibility.PUBLIC
+
+    def test_load_status_as_reports_skips_invalid_entry(self, tmp_path, monkeypatch):
+        """検証に通らないエントリが 1 件あっても、他のレポートは読める"""
+        path = tmp_path / "report_status.json"
+        broken = {
+            "slug": "broken",
+            "status": "unknown-status",
+            "title": "t",
+            "description": "d",
+            "visibility": "public",
+        }
+        path.write_text(json.dumps({"broken": broken, "v410a": self.CURRENT_ENTRY}), encoding="utf-8")
+        monkeypatch.setattr(report_status, "STATE_FILE", path)
+
+        warnings: list[str] = []
+        monkeypatch.setattr(report_status.logger, "warning", lambda msg, *a, **k: warnings.append(msg))
+
+        reports = report_status.load_status_as_reports(include_deleted=True)
+
+        assert [r.slug for r in reports] == ["v410a"]
+        assert any("broken" in w for w in warnings)
+        # 飛ばしたエントリは保存時に消えないよう、メモリ上の生データには残す
+        assert report_status._report_status["broken"]["status"] == "unknown-status"
+
+    def test_public_and_admin_endpoints_with_v1_entry(self, state_file, client, test_settings):
+        """v1 のエントリがあっても一覧・公開ページが 500 にならない"""
+        public_headers = {"x-api-key": test_settings.PUBLIC_API_KEY}
+        admin_headers = {"x-api-key": test_settings.ADMIN_API_KEY}
+
+        public_list = client.get("/reports", headers=public_headers)
+        assert public_list.status_code == 200
+        # 非公開扱いなので、公開一覧には出ない
+        assert [r["slug"] for r in public_list.json()] == ["v200b", "v410a"]
+
+        admin_list = client.get("/admin/reports", headers=admin_headers)
+        assert admin_list.status_code == 200
+        assert {r["slug"]: r["visibility"] for r in admin_list.json()}["v100a"] == "private"
+
+        # 他のレポートの公開ページは、成果物が無いので 404（500 ではない）
+        assert client.get("/reports/v410a", headers=public_headers).status_code == 404
+        # v1 のレポートは非公開扱いなので 404
+        response = client.get("/reports/v100a", headers=public_headers)
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Report is private"
+
+    def test_recover_interrupted_reports_with_v1_entry(self, tmp_path, monkeypatch):
+        """v1 のエントリがあっても、起動時の復旧処理が processing のレポートを確定する"""
+        from src.services import report_launcher
+
+        report_dir = tmp_path / "reports"
+        report_dir.mkdir()
+        path = tmp_path / "report_status.json"
+        processing = {**self.CURRENT_ENTRY, "slug": "running", "status": "processing"}
+        path.write_text(json.dumps({"v100a": self.V1_ENTRY, "running": processing}), encoding="utf-8")
+        monkeypatch.setattr(report_status, "STATE_FILE", path)
+        monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+
+        class DummyReportSyncService:
+            def sync_status_file_to_storage(self):
+                return True
+
+        monkeypatch.setattr(report_launcher, "ReportSyncService", DummyReportSyncService)
+
+        report_launcher.recover_interrupted_reports()
+
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        assert saved["running"]["status"] == "error"
+        assert saved["v100a"]["status"] == "ready"
