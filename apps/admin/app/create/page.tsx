@@ -23,6 +23,7 @@ import { usePluginData } from "./hooks/usePluginData";
 import { usePromptSettings } from "./hooks/usePromptSettings";
 import { type CsvData, parseCsv } from "./parseCsv";
 import type { InputType } from "./types";
+import { toAttributeKey } from "./utils/attributeKey";
 import { validateFormValues } from "./utils/validation";
 
 /**
@@ -118,8 +119,8 @@ export default function Page() {
           // 選択された属性カラムの値を直接追加（"attribute" プレフィックス付き）
           for (const attrCol of inputData.selectedAttributeColumns) {
             if (rowData[attrCol] !== undefined && rowData[attrCol] !== null) {
-              // 属性カラムの名前に "attribute" プレフィックスを追加
-              const attributeKey = `attribute_${attrCol}`;
+              // 属性カラムの名前に "attribute_" プレフィックスを追加（既に付いていれば付けない）
+              const attributeKey = toAttributeKey(attrCol);
               comment[attributeKey] = rowData[attrCol] as string;
             }
           }
@@ -141,8 +142,8 @@ export default function Page() {
           // 選択された属性カラムの値を直接追加（"attribute" プレフィックス付き）
           for (const attrCol of inputData.selectedAttributeColumns) {
             if (rowData[attrCol] !== undefined && rowData[attrCol] !== null) {
-              // 属性カラムの名前に "attribute" プレフィックスを追加
-              const attributeKey = `attribute_${attrCol}`;
+              // 属性カラムの名前に "attribute_" プレフィックスを追加（既に付いていれば付けない）
+              const attributeKey = toAttributeKey(attrCol);
               comment[attributeKey] = rowData[attrCol] as string;
             }
           }
@@ -178,8 +179,8 @@ export default function Page() {
           // 選択された属性カラムの値を直接追加（"attribute" プレフィックス付き）
           for (const attrCol of pluginData.pluginSelectedAttributeColumns) {
             if (rowData[attrCol] !== undefined && rowData[attrCol] !== null) {
-              // 属性カラムの名前に "attribute" プレフィックスを追加
-              const attributeKey = `attribute_${attrCol}`;
+              // 属性カラムの名前に "attribute_" プレフィックスを追加（既に付いていれば付けない）
+              const attributeKey = toAttributeKey(attrCol);
               comment[attributeKey] = rowData[attrCol] as string;
             }
           }

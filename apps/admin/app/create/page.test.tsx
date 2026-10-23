@@ -102,3 +102,48 @@ it.each(["file", "spreadsheet", "plugin:source"])(
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   },
 );
+
+// 本番では、スプレッドシート API とプラグインが属性列を attribute_<列名> の形で返す。
+// 選択した列名に attribute_ を重ねて付けると、公開レポートの属性名が「attribute_地域」になる。
+it.each([
+  ["file", "attribute_地域"],
+  ["spreadsheet", "attribute_地域"],
+  ["plugin:source", "attribute_地域"],
+  ["file", "地域"],
+])("%s経路で属性列 %s を選ぶと、attribute_ を二重に付けずに送信する", async (inputType, attrCol) => {
+  const row = { id: "1", answer: "意見", [attrCol]: "東京" };
+  jest.mocked(useInputData).mockReturnValue({
+    inputType,
+    csv: new File(["csv"], "test.csv"),
+    spreadsheetImported: true,
+    spreadsheetData: [row],
+    selectedCommentColumn: "answer",
+    csvColumns: ["answer", attrCol],
+    selectedAttributeColumns: [attrCol],
+  } as unknown as ReturnType<typeof useInputData>);
+  jest.mocked(usePluginData).mockReturnValue({
+    plugins: [],
+    pluginSelectedCommentColumn: "answer",
+    pluginSelectedAttributeColumns: [attrCol],
+    getPluginState: () => ({ imported: true, data: [row] }),
+  } as unknown as ReturnType<typeof usePluginData>);
+  const parseCsv = jest.requireMock("./parseCsv") as { parseCsv: () => Promise<unknown[]> };
+  const originalParseCsv = parseCsv.parseCsv;
+  parseCsv.parseCsv = async () => [row];
+  jest.mocked(createReport).mockResolvedValue({ success: true } as Awaited<ReturnType<typeof createReport>>);
+  try {
+    render(
+      <ChakraProvider value={system}>
+        <Page />
+      </ChakraProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "作成前の確認へ" }));
+    await user.click(await screen.findByRole("button", { name: "未確認のまま作成を開始" }));
+    await waitFor(() => expect(createReport).toHaveBeenCalledTimes(1));
+    const [{ comments }] = jest.mocked(createReport).mock.calls[0];
+    expect(comments).toEqual([{ id: "1", comment: "意見", source: null, url: null, attribute_地域: "東京" }]);
+  } finally {
+    parseCsv.parseCsv = originalParseCsv;
+  }
+});
