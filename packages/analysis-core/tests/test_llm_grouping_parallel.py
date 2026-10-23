@@ -156,9 +156,17 @@ def test_assign_groups_stops_sending_when_a_later_batch_fails_while_the_first_is
 
 def test_assign_groups_counts_tokens_of_batches_that_finished_after_a_failure(monkeypatch):
     """失敗の時点で実行中だったバッチも送信済みで課金されているので、成功した分のトークンは計上する。"""
-    # バッチ 0 は即座に失敗、バッチ 1 は少し遅れて成功する（失敗の時点では実行中）
+    # バッチ 0 は即座に失敗、バッチ 1 は少し遅れて成功する（失敗の時点では実行中）。
+    # バッチ 1 が始まる前にバッチ 0 が失敗すると、バッチ 1 が取り消されて送られないので、
+    # 2 本とも呼び出しに入ってから失敗させる
+    started = threading.Barrier(2)
+
+    def delay_for(first):
+        started.wait(timeout=5)
+        return 0.0 if first == 0 else 0.3
+
     probe = _ConcurrencyProbe(
-        delay_for=lambda first: 0.0 if first == 0 else 0.3,
+        delay_for=delay_for,
         fail_for=lambda first: first == 0,
     )
     monkeypatch.setattr(llm_grouping_step, "request_to_chat_ai", probe)
