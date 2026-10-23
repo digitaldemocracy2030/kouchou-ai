@@ -5,7 +5,7 @@ import { useIsPresent } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { Processing } from "./Processing";
-import { resolveDisplaySteps } from "./progressStepsConfig";
+import { isFailureAfterPlannedSteps, resolveDisplaySteps } from "./progressStepsConfig";
 import { useReportProgressPoll } from "./useReportProgressPolling";
 
 const stepItemstyle = {
@@ -39,15 +39,17 @@ export const ProgressSteps = ({ slug, reportStatus }: Props) => {
   const isLoading = progress === "loading";
   const isCompleted = progress === "completed";
   const currentStep = isLoading || isCompleted || progress === "error" ? null : progress;
-  const steps = resolveDisplaySteps(plannedSteps, currentStep);
-  // 工程を受け取る前に失敗した（状況の取得自体の失敗など）ときは、どの工程にも失敗マークを付けない
-  const currentStepIndex = isCompleted
-    ? steps.length
-    : currentStep
-      ? steps.findIndex((step) => step.key === currentStep)
-      : isError
-        ? -1
-        : 0;
+  const steps = resolveDisplaySteps(plannedSteps, currentStep, isError);
+  // 全工程を終えた後の失敗（成果物のアップロード失敗など）は、工程を完了済みで示し、失敗マークは付けない（理由はエラー文で示す）。
+  // 工程を受け取る前に失敗した（状況の取得自体の失敗など）ときも、どの工程にも失敗マークを付けない
+  const currentStepIndex =
+    isCompleted || isFailureAfterPlannedSteps(plannedSteps, currentStep, isError)
+      ? steps.length
+      : currentStep
+        ? steps.findIndex((step) => step.key === currentStep)
+        : isError
+          ? -1
+          : 0;
   const status = isError ? "error" : "processing";
   const router = useRouter();
   // カードが ready になっても、退場アニメーションの間は古い reportStatus（processing）のまま残る。

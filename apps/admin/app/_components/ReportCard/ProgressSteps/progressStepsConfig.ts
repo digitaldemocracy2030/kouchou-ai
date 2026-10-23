@@ -31,9 +31,32 @@ export function stepTitle(key: string): string {
   return stepTitles[key] ?? key;
 }
 
-export function resolveDisplaySteps(plannedSteps: string[] | null, currentStep: string | null): DisplayStep[] {
+// 失敗した status の current_step が、今回実行する工程（steps）に無いときは、全工程を終えた後の失敗とみなす。
+// analysis-core は実行しない工程（Web 経路の可視化など）でも current_job を書き換えるので、完了後に API 側で
+// 失敗すると（成果物のアップロード失敗など）、current_step は実行していない工程名のまま error になる
+export function isFailureAfterPlannedSteps(
+  plannedSteps: string[] | null,
+  currentStep: string | null,
+  isError: boolean,
+): boolean {
+  return (
+    isError &&
+    currentStep !== null &&
+    plannedSteps !== null &&
+    plannedSteps.length > 0 &&
+    !plannedSteps.includes(currentStep)
+  );
+}
+
+export function resolveDisplaySteps(
+  plannedSteps: string[] | null,
+  currentStep: string | null,
+  isError = false,
+): DisplayStep[] {
   const keys = plannedSteps && plannedSteps.length > 0 ? [...plannedSteps] : [...defaultStepKeys];
-  if (currentStep && !keys.includes(currentStep)) {
+  // 知らない工程名を足すのは、実行中と、steps の無い古い status のときだけ。
+  // 全工程の後の失敗で足すと、実行していない工程に失敗マークが付く
+  if (currentStep && !keys.includes(currentStep) && !isFailureAfterPlannedSteps(plannedSteps, currentStep, isError)) {
     keys.push(currentStep);
   }
   return keys.map((key) => ({ key, title: stepTitle(key) }));

@@ -6,6 +6,17 @@ import { ProgressSteps } from "./ProgressSteps";
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("lucide-react", () => new Proxy({}, { get: (_, name) => (name === "__esModule" ? true : () => null) }));
 
+// Web 経路は --without-html で実行するので、可視化は plan に入っても実行しない（steps に含まれない）
+const HIERARCHICAL_STEPS = [
+  "extraction",
+  "embedding",
+  "hierarchical_clustering",
+  "hierarchical_initial_labelling",
+  "hierarchical_merge_labelling",
+  "hierarchical_overview",
+  "hierarchical_aggregation",
+];
+
 const LLM_GROUPING_STEPS = [
   "extraction",
   "embedding",
@@ -126,6 +137,90 @@ describe("ProgressSteps の工程表示", () => {
     expect(screen.getByText("意見グループ化")).toBeInTheDocument();
     expect(screen.getByText("custom_step")).toBeInTheDocument();
     expect(stepStates().custom_step).toBe("current");
+  });
+
+  // analysis-core は実行しない工程でも current_job を書き換えるので、正常に完了した時点の current_job は
+  // 「可視化」のまま残る。その後に API 側で失敗する（成果物のアップロード失敗など）と、current_step は可視化になる
+  it.each([
+    ["階層クラスタリング", HIERARCHICAL_STEPS],
+    ["LLM 直接グルーピング", LLM_GROUPING_STEPS],
+  ])(
+    "%s: 全工程の完了後に失敗したら、実行していない「可視化」を足さず、どの工程にも失敗マークを付けない",
+    async (_, steps) => {
+      renderSteps(
+        [
+          {
+            status: "error",
+            current_step: "hierarchical_visualization",
+            steps,
+            error_message: "Failed to upload report artifacts to storage",
+          },
+        ],
+        "error",
+      );
+      await advance(500);
+
+      expect(screen.queryByText("可視化")).not.toBeInTheDocument();
+      expect(stepStates()).toEqual(Object.fromEntries(steps.map((step) => [step, "completed"])));
+      expect(screen.getByRole("alert")).toHaveTextContent("Failed to upload report artifacts to storage");
+    },
+  );
+
+  it("completed の後にカードが error になったときも、取り直した工程表で実行していない工程に失敗マークを付けない", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(stepJson({ status: "completed", current_step: "completed", steps: HIERARCHICAL_STEPS }))
+      .mockResolvedValue(
+        stepJson({
+          status: "error",
+          current_step: "hierarchical_visualization",
+          steps: HIERARCHICAL_STEPS,
+          error_message: "Failed to upload report artifacts to storage",
+        }),
+      );
+    global.fetch = fetchMock;
+    const { rerender } = render(
+      <ChakraProvider value={system}>
+        <ProgressSteps slug="demo" reportStatus="processing" />
+      </ChakraProvider>,
+    );
+    await advance(500);
+    expect(Object.values(stepStates()).every((state) => state === "completed")).toBe(true);
+
+    rerender(
+      <ChakraProvider value={system}>
+        <ProgressSteps slug="demo" reportStatus="error" />
+      </ChakraProvider>,
+    );
+    await advance(500);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Failed to upload report artifacts to storage");
+    expect(screen.queryByText("可視化")).not.toBeInTheDocument();
+    expect(Object.values(stepStates())).not.toContain("failed");
+  });
+
+  it("実行する工程（集約）で失敗したときは、引き続きその工程に失敗マークを付ける", async () => {
+    renderSteps(
+      [
+        {
+          status: "error",
+          current_step: "hierarchical_aggregation",
+          steps: HIERARCHICAL_STEPS,
+          error_message: "Step 'hierarchical_aggregation' failed",
+        },
+      ],
+      "error",
+    );
+    await advance(500);
+
+    expect(stepStates()).toMatchObject({ hierarchical_overview: "completed", hierarchical_aggregation: "failed" });
+  });
+
+  it("steps を返さない古い status では、従来どおり返った工程に失敗マークを付ける", async () => {
+    renderSteps([{ status: "error", current_step: "custom_step", error_message: "failed" }], "error");
+    await advance(500);
+
+    expect(stepStates().custom_step).toBe("failed");
   });
 
   it("工程を受け取る前に状況の取得自体が失敗したら、どの工程にも失敗マークを付けない", async () => {
