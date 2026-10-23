@@ -1,8 +1,16 @@
 import { toIdSet } from "@/lib/argumentIndex";
 import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster } from "@/type";
-import type { TreemapData } from "plotly.js";
+import type { Layout, TreemapData } from "plotly.js";
+import { useCallback, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
+
+// Plotly の設定。参照を安定させて、再描画のたびに Plotly.react が走らないようにする
+const PLOTLY_CONFIG = {
+  responsive: true,
+  displayModeBar: false,
+  locale: "ja",
+};
 
 type Props = {
   clusterList: Cluster[];
@@ -14,11 +22,15 @@ type Props = {
 };
 
 /**
- * クラスタと意見を、指定された表示階層を起点にツリーマップで描画する。
- * 絞り込み結果を件数と色に反映し、クリックやパスバーでの階層移動を
- * onTreeZoomへ通知して、React側の表示階層と説明を同期する。
+ * ツリーマップに渡す trace と layout を作る（純関数）。
+ * TreemapChart は入力が変わったときだけこれを呼び、無関係な再描画で全意見を加工し直さない。
  */
-export function TreemapChart({ clusterList, argumentList, onHover, level, onTreeZoom, filteredArgumentIds }: Props) {
+export function buildTreemapFigure(
+  clusterList: Cluster[],
+  argumentList: Argument[],
+  level: string,
+  filteredArgumentIds: string[] | undefined,
+): { data: Partial<TreemapData>; layout: Partial<Layout> } {
   // フィルタリングが有効かどうかをチェック
   const isFilteringActive = !!filteredArgumentIds;
   // フィルタ判定は Set で行う（配列の includes だと全意見 N 件 × フィルタ ID |F| 件の比較になる）
@@ -136,7 +148,7 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
     },
   };
 
-  const layout = {
+  const layout: Partial<Layout> = {
     margin: { l: 10, r: 10, b: 10, t: 30 },
     colorway: [
       "#b3daa1",
@@ -152,28 +164,48 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
     ],
   };
 
+  return { data, layout };
+}
+
+/**
+ * クラスタと意見を、指定された表示階層を起点にツリーマップで描画する。
+ * 絞り込み結果を件数と色に反映し、クリックやパスバーでの階層移動を
+ * onTreeZoomへ通知して、React側の表示階層と説明を同期する。
+ */
+export function TreemapChart({ clusterList, argumentList, onHover, level, onTreeZoom, filteredArgumentIds }: Props) {
+  // react-plotly は data・layout・config のどれかの参照が変わると Plotly.react で描き直すので、どれも memo して渡す
+  const figure = useMemo(
+    () => buildTreemapFigure(clusterList, argumentList, level, filteredArgumentIds),
+    [clusterList, argumentList, level, filteredArgumentIds],
+  );
+  const data = useMemo(() => [figure.data], [figure]);
+
+  // react-plotly はイベントハンドラを、描画データが変わって描き直すときにしか付け替えない。
+  // 描画データを memo したので、ハンドラは ref 経由で最新の props を読む。
+  const latestHandlersRef = useRef({ onHover, onTreeZoom });
+  latestHandlersRef.current = { onHover, onTreeZoom };
+  const handleHover = useCallback(() => {
+    const { onHover: currentOnHover } = latestHandlersRef.current;
+    currentOnHover ? currentOnHover() : null;
+    darkenPathbar();
+  }, []);
+  const handleTreemapClick = useCallback((event: { nextLevel?: string }) => {
+    // パスバーで戻る場合もReact側の表示階層と説明を同期する。
+    if (event.nextLevel !== undefined) latestHandlersRef.current.onTreeZoom(event.nextLevel);
+    return false;
+  }, []);
+
   return (
     <ChartCore
-      data={[data]}
-      layout={layout}
+      data={data}
+      layout={figure.layout}
       useResizeHandler={true}
       style={{ width: "100%", height: "100%" }}
-      config={{
-        responsive: true,
-        displayModeBar: false,
-        locale: "ja",
-      }}
+      config={PLOTLY_CONFIG}
       onUpdate={darkenPathbar}
       onUnhover={darkenPathbar}
-      onHover={() => {
-        onHover ? onHover() : null;
-        darkenPathbar();
-      }}
-      onTreemapClick={(event: { nextLevel?: string }) => {
-        // パスバーで戻る場合もReact側の表示階層と説明を同期する。
-        if (event.nextLevel !== undefined) onTreeZoom(event.nextLevel);
-        return false;
-      }}
+      onHover={handleHover}
+      onTreemapClick={handleTreemapClick}
     />
   );
 }
