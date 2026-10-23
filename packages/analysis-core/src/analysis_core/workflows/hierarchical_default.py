@@ -116,7 +116,8 @@ def create_hierarchical_workflow(
                 id="visualization",
                 plugin="analysis.hierarchical_visualization",
                 depends_on=["aggregation"],
-                optional=True,
+                # --without-html のときは condition で飛ばす。HTML を出すと決めた実行で
+                # 書き出しに失敗したら、古い report.html が残るので成功扱いにしない
                 condition="${not config.without_html}",
             )
         )

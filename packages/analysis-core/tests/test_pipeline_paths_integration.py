@@ -8,6 +8,7 @@ This is a regression test for bugs where:
 - update_status/update_progress didn't read _output_base_dir from config
 """
 
+import importlib
 import json
 import pickle
 import tempfile
@@ -478,8 +479,8 @@ class TestOrchestratorPathsIntegration:
 class TestVisualizationWorkflowIntegration:
     """The default CLI path (HTML enabled) must finish without extra config keys."""
 
-    def test_only_visualization_writes_report_without_report_dir(self, tmp_path):
-        """Re-running only the visualization step writes report.html without report_dir in config."""
+    @staticmethod
+    def _visualization_orchestrator(tmp_path, only="hierarchical_visualization"):
         from analysis_core.orchestrator import PipelineOrchestrator
 
         input_dir = tmp_path / "inputs"
@@ -519,14 +520,79 @@ class TestVisualizationWorkflowIntegration:
 
         orchestrator = PipelineOrchestrator.from_config(
             config_path=config_path,
-            only="hierarchical_visualization",
+            only=only,
             skip_interaction=True,
             without_html=False,
             validate_api_keys_early=False,
             output_base_dir=output_dir,
             input_base_dir=input_dir,
         )
+        return orchestrator, output_dir
+
+    def test_only_visualization_writes_report_without_report_dir(self, tmp_path):
+        """Re-running only the visualization step writes report.html without report_dir in config."""
+        orchestrator, output_dir = self._visualization_orchestrator(tmp_path)
         result = orchestrator.run_default()
 
         assert result.success, result.error
         assert (output_dir / "demo" / "report.html").exists()
+
+    def test_visualization_failure_fails_the_pipeline_and_keeps_old_report_intact(self, tmp_path, monkeypatch):
+        """HTML 出力ありで report.html を書けなければ、成功扱いにせず status も error にする。"""
+        viz_module = importlib.import_module("analysis_core.steps.hierarchical_visualization")
+
+        orchestrator, output_dir = self._visualization_orchestrator(tmp_path)
+        report_path = output_dir / "demo" / "report.html"
+        report_path.write_text("old report", encoding="utf-8")
+
+        def broken_build_html(*args, **kwargs):
+            raise OSError("disk full")
+
+        monkeypatch.setattr(viz_module, "build_html", broken_build_html)
+        result = orchestrator.run_default()
+
+        assert not result.success
+        assert "disk full" in (result.error or "")
+        status = json.loads((output_dir / "demo" / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status["status"] == "error"
+        assert "disk full" in status["error"]
+        assert report_path.read_text(encoding="utf-8") == "old report"
+
+    def test_visualization_write_failure_leaves_no_partial_report(self, tmp_path, monkeypatch):
+        """置き換えに失敗しても、古い report.html を書きかけで壊さず、一時ファイルも残さない。"""
+        viz_module = importlib.import_module("analysis_core.steps.hierarchical_visualization")
+
+        orchestrator, output_dir = self._visualization_orchestrator(tmp_path)
+        report_path = output_dir / "demo" / "report.html"
+        report_path.write_text("old report", encoding="utf-8")
+
+        real_replace = viz_module.os.replace
+
+        def broken_replace(src, dst):
+            # status ファイルの書き込みも os.replace を使うので、report.html だけを失敗させる
+            if str(dst).endswith("report.html"):
+                raise OSError("replace failed")
+            return real_replace(src, dst)
+
+        monkeypatch.setattr(viz_module.os, "replace", broken_replace)
+        result = orchestrator.run_default()
+
+        assert not result.success
+        assert report_path.read_text(encoding="utf-8") == "old report"
+        assert [p.name for p in (output_dir / "demo").iterdir() if p.name.endswith(".tmp")] == []
+
+
+@pytest.mark.parametrize(
+    "factory_path",
+    [
+        "analysis_core.workflows.hierarchical_default:create_hierarchical_workflow",
+        "analysis_core.workflows.llm_grouping_compatible:create_llm_grouping_workflow",
+    ],
+)
+def test_visualization_step_is_required_when_html_is_enabled(factory_path):
+    """HTML 出力ありのときの visualization の失敗を、optional として飲み込まない。--without-html は condition で飛ばす。"""
+    module_name, func_name = factory_path.split(":")
+    workflow = getattr(importlib.import_module(module_name), func_name)(include_visualization=True)
+    step = next(step for step in workflow.steps if step.id == "visualization")
+    assert step.optional is False
+    assert step.condition == "${not config.without_html}"

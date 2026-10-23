@@ -28,6 +28,7 @@ import base64
 import html
 import io
 import json
+import os
 import zipfile
 from collections import defaultdict
 from pathlib import Path
@@ -79,7 +80,13 @@ def hierarchical_visualization(config: dict[str, Any]) -> None:
         title=config.get("report_html_title"),
         url_pattern=config.get("report_url_pattern"),
     )
-    html_path.write_text(html_str, encoding="utf-8")
+    # 同じディレクトリの一時ファイルに書いてから置き換え、書きかけの report.html を残さない
+    tmp_path = html_path.with_name(f".{html_path.name}.{os.getpid()}.tmp")
+    try:
+        tmp_path.write_text(html_str, encoding="utf-8")
+        os.replace(tmp_path, html_path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
     print(f"  report.html: {html_path} ({html_path.stat().st_size / 1024:.1f} KB)")
 
 
