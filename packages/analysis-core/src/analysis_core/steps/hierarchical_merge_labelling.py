@@ -62,7 +62,8 @@ def hierarchical_merge_labelling(config: dict) -> None:
     # ボトムクラスタのラベル・説明とクラスタid付きの各argumentを入力し、各階層のクラスタラベル・説明を生成し、argumentに付けたdfを作成
     merge_result_df = merge_labelling(
         clusters_df=clusters_df,
-        cluster_id_columns=sorted(cluster_id_columns, reverse=True),
+        # 列名の文字列順では level-10 が level-2 の前に来るので、level を数値で並べる
+        cluster_id_columns=sorted(cluster_id_columns, key=_level_of_id_column, reverse=True),
         config=config,
     )
     # 上記のdfから各クラスタのlevel, id, label, description, valueを取得してdfを作成
@@ -127,6 +128,11 @@ def _filter_id_columns(columns: list[str]) -> list[str]:
     return [col for col in columns if col.startswith("cluster-level-") and col.endswith("-id")]
 
 
+def _level_of_id_column(column: str) -> int:
+    """cluster-level-{n}-id の n を数値で返す"""
+    return int(column.replace("cluster-level-", "").replace("-id", ""))
+
+
 def melt_cluster_data(df: pl.DataFrame) -> pl.DataFrame:
     """クラスタデータを行形式に変換する
 
@@ -140,7 +146,7 @@ def melt_cluster_data(df: pl.DataFrame) -> pl.DataFrame:
         行形式に変換されたDataFrame
     """
     id_columns: list[str] = _filter_id_columns(df.columns)
-    levels: set[int] = {int(col.replace("cluster-level-", "").replace("-id", "")) for col in id_columns}
+    levels: set[int] = {_level_of_id_column(col) for col in id_columns}
     all_rows: list[dict] = []
 
     # levelごとに各クラスタの出現件数を集計・縦持ちにする
