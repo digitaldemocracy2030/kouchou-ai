@@ -3,11 +3,12 @@
 import type { Cluster } from "@/type";
 import { Box, Heading, Link, Text } from "@chakra-ui/react";
 import { MessagesSquareIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 
 type Props = {
   cluster: Cluster;
-  onNavigate?: () => void;
+  /** 見出しを押したときに、そのクラスタの id を渡して呼ぶ（一覧全体で同じ関数を共有し、memo を効かせる） */
+  onNavigate?: (clusterId: string) => void;
   /** 属性フィルター適用後の件数（未指定なら cluster.value を表示） */
   count?: number;
   /** フィルター適用中かどうか（表示ラベルの切り替えに使う） */
@@ -16,7 +17,15 @@ type Props = {
   isSelected?: boolean;
 };
 
-export function ClusterOverview({ cluster, onNavigate, count, isFiltering, isSelected }: Props) {
+// 「詳細クラスタ」では最大 1,000 件並ぶため、親（ClientContainer）の無関係な state 変更
+// （ダイアログの開閉・散布図の点の選択など）で全件を描画し直さないよう memo する
+export const ClusterOverview = memo(function ClusterOverview({
+  cluster,
+  onNavigate,
+  count,
+  isFiltering,
+  isSelected,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 散布図でこのクラスタが選択されたら、連動して一覧の該当項目へスクロールする
@@ -45,7 +54,7 @@ export function ClusterOverview({ cluster, onNavigate, count, isFiltering, isSel
         <Link
           id={cluster.label}
           href={onNavigate ? "#report-chart" : `#${cluster.label}`}
-          onClick={onNavigate}
+          onClick={onNavigate ? () => onNavigate(cluster.id) : undefined}
           className={"headingColor"}
           position={"relative"}
           _hover={{
@@ -69,4 +78,4 @@ export function ClusterOverview({ cluster, onNavigate, count, isFiltering, isSel
       <Text>{cluster.takeaway}</Text>
     </Box>
   );
-}
+});

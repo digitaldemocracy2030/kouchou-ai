@@ -209,6 +209,16 @@ export function ClientContainer({ result }: Props) {
     return c.sort((a, b) => b.value - a.value);
   }, [result.clusters, filteredResult.clusters, selectedChart]);
 
+  // 一覧の見出しから、そのクラスタを開いた階層表示へ移る。全カードで同じ関数を渡し、ClusterOverview の memo を効かせる
+  const navigateToTreemap = useCallback(
+    (clusterId: string) => {
+      setTreemapLevel(clusterId);
+      changeChart("treemap");
+    },
+    [changeChart],
+  );
+  const canNavigateToTreemap = enabledCharts.includes("treemap");
+
   // --- UI ---
   return (
     <div>
@@ -286,14 +296,7 @@ export function ClientContainer({ result }: Props) {
             count={isFiltering ? (clusterCounts.get(c.id) ?? 0) : undefined}
             isFiltering={isFiltering}
             isSelected={c.id === selectedClusterId}
-            onNavigate={
-              enabledCharts.includes("treemap")
-                ? () => {
-                    setTreemapLevel(c.id);
-                    changeChart("treemap");
-                  }
-                : undefined
-            }
+            onNavigate={canNavigateToTreemap ? navigateToTreemap : undefined}
           />
         ))
       )}
