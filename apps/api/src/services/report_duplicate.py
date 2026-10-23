@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from src.config import settings
 from src.schemas.admin_report import ReportDuplicateOverrides, ReportDuplicateRequest
 from src.schemas.report_config import ReportConfig
+from src.services import report_status
 from src.services.analysis_config import prune_config_for_mode
 from src.services.report_launcher import launch_report_generation_from_config
 from src.services.report_status import add_new_report_to_status_from_config, delete_report_from_status, slug_exists
@@ -21,6 +22,8 @@ from src.utils.slug_utils import validate_slug
 logger = setup_logger()
 
 LOCK_TTL_SECONDS = 10 * 60
+# 複製元の入力 CSV を取得できず、抽出済みの意見から入力を作り直したことを示す status の警告コード
+SOURCE_INPUT_RECONSTRUCTED_WARNING = "source_input_reconstructed"
 LOCK_DIR_NAME = ".duplicate_locks"
 
 REUSE_ARTIFACTS = (
@@ -361,6 +364,13 @@ def duplicate_report(
                 source_result.get("arguments") or [],
                 new_input_path,
             )
+            # 旧形式レポートの救済として続けるが、元の入力とは別物になる（意見を再抽出し、属性列が無く、
+            # 件数は回答数ではなく意見数になる）。ファイルが無いのか取得に失敗したのかは区別できないので、
+            # 黙らずにログと status の警告に残す。
+            logger.warning(
+                f"複製元 {source_slug} の入力 CSV を取得できなかったため、抽出済みの意見 {input_limit_override} 件から"
+                f"入力を作り直して {new_slug} を作成します。属性と回答数は引き継がれません"
+            )
         created_any = True
 
         config["name"] = new_slug
@@ -410,6 +420,8 @@ def duplicate_report(
                 target.unlink()
 
         add_new_report_to_status_from_config(new_slug, config, source_slug=source_slug)
+        if not input_copied:
+            report_status.add_report_warning(new_slug, SOURCE_INPUT_RECONSTRUCTED_WARNING)
         cleanup_on_failure = False
 
         try:

@@ -38,6 +38,8 @@ class Report(SchemaBaseModel):
     provider: str | None = None  # LLMプロバイダー（openai, azure, openrouter, gemini, local）
     model: str | None = None  # LLMモデル
     analysis: AnalysisData | None = None
+    # 作成はできたが結果が想定と違いうることを示す警告コード（例: source_input_reconstructed）
+    warnings: list[str] | None = None
 
     @property
     def is_publicly_visible(self) -> bool:

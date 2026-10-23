@@ -159,6 +159,21 @@ def get_status(slug: str) -> str:
         return _report_status.get(slug, {}).get("status", "undefined")
 
 
+def add_report_warning(slug: str, code: str) -> None:
+    """レポートの status に警告コードを追記する（同じコードは重ねない）
+
+    レポートは作成できたが、結果が利用者の想定と違いうること（例: 複製元の入力を作り直した）を残す。
+    """
+    with _lock:
+        if slug not in _report_status:
+            logger.warning(f"slug {slug} not found in report status when adding warning {code}")
+            return
+        warnings = _report_status[slug].setdefault("warnings", [])
+        if code not in warnings:
+            warnings.append(code)
+        save_status()
+
+
 def invalidate_report_cache(slug: str) -> None:
     # Next.jsのキャッシュを破棄するAPIを呼び出す
     try:
