@@ -12,6 +12,7 @@ from src.config import settings
 from src.schemas.admin_report import ReportDuplicateOverrides, ReportDuplicateRequest
 from src.schemas.report_config import ReportConfig
 from src.services.analysis_config import prune_config_for_mode
+from src.services.model_catalog import EMBEDDING_KIND, models_for_provider
 from src.services.report_launcher import launch_report_generation_from_config
 from src.services.report_status import add_new_report_to_status_from_config, delete_report_from_status, slug_exists
 from src.services.report_sync import ReportSyncService
@@ -252,6 +253,8 @@ def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -
     if overrides is None:
         return config
 
+    source_provider = config.get("provider") or "openai"
+
     if overrides.question is not None:
         config["question"] = overrides.question
     if overrides.intro is not None:
@@ -285,7 +288,59 @@ def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -
         if overrides.prompt.overview is not None:
             config.setdefault("hierarchical_overview", {})["prompt"] = overrides.prompt.overview
 
+    _resolve_embedding_for_provider_change(config, source_provider, overrides)
     return config
+
+
+# 埋め込み API を持たない（OpenRouter）か、選べる埋め込みモデルが無い（local）プロバイダ。
+# 新規作成画面と同じく、サーバ内埋め込み（is_embedded_at_local）を求める。
+PROVIDERS_REQUIRING_LOCAL_EMBEDDING = ("openrouter", "local")
+
+
+def _resolve_embedding_for_provider_change(
+    config: dict, source_provider: str, overrides: ReportDuplicateOverrides
+) -> None:
+    """プロバイダを替えた複製で、複製元の埋め込みモデルを新しいプロバイダで使えるものに揃える
+
+    複製は複製元の embedding.model を引き継ぐ（同じベクトル空間を保つため）。プロバイダを替えると
+    抽出から再実行され、埋め込みもやり直しになるが、複製元のモデルのままだと新しいプロバイダで使えず
+    （例: gemini-embedding-001 を OpenAI に送る）、抽出を課金し終えた後に失敗する。
+    プロバイダを替えない複製と、埋め込みモデルを明示した複製には手を入れない。
+    """
+    new_provider = config.get("provider") or "openai"
+    if new_provider == source_provider or overrides.embedding_model is not None:
+        return
+
+    if new_provider in PROVIDERS_REQUIRING_LOCAL_EMBEDDING:
+        if not config.get("is_embedded_at_local"):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"AI プロバイダを {new_provider} に替えるときは、サーバ内埋め込み（is_embedded_at_local）を"
+                    "有効にしてください。このプロバイダでは埋め込みモデルを選べません"
+                    "（管理画面では『再利用』ページで切り替えられます）。"
+                ),
+            )
+        return
+
+    if new_provider == "azure":
+        # Azure はサーバー設定の埋め込みデプロイを使う。新規作成と同じく embedding セクションを省き、
+        # 複製元の別プロバイダのモデル名を成果物に残さない。
+        config.pop("embedding", None)
+        return
+
+    candidates = [
+        row["value"]
+        for row in models_for_provider(new_provider, kind=EMBEDDING_KIND)
+        if row.get("available", True) and not row.get("deprecated")
+    ]
+    if not candidates:
+        return
+    embedding = config.get("embedding") if isinstance(config.get("embedding"), dict) else {}
+    if embedding.get("model") in candidates:
+        return
+    # 新規作成画面の初期選択と同じく、カタログで先頭の利用可能なモデルを使う
+    config["embedding"] = {**embedding, "model": candidates[0]}
 
 
 def _ensure_source_input(slug: str) -> Path:
