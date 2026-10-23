@@ -8,13 +8,27 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'scripts/docs_hooks.py'
+      - 'scripts/check_docs_workflow_paths.py'
       - '.github/workflows/docs.yml'
-      # Root-level docs copied by hooks
+      # docs_hooks.py の FILE_MAPPINGS で docs に複製するファイル。
+      # FILE_MAPPINGS を変えたらここも揃える（scripts/check_docs_workflow_paths.py が CI で照合する）
       - 'CONTRIBUTING.md'
       - 'CODE_REVIEW_GUIDELINES.md'
-      - 'Azure.md'
       - 'PROJECTS.md'
       - 'CLA.md'
+      - 'apps/admin/README.md'
+      - 'apps/api/README.md'
+      - 'apps/api/broadlistening/README.md'
+      - 'apps/public-viewer/README.md'
+      - 'packages/analysis-core/README.md'
+      - 'test/e2e/README.md'
+      - 'test/e2e/fixtures/client/README.md'
+      - 'tools/scripts/README.md'
+      - 'utils/dummy-server/README.md'
+      - 'experiments/README.md'
+      - 'experiments/direct_win/README.md'
+      - 'experiments/embvec_reduce_public_comment/README.md'
+      - 'experiments/evaluation_report/README.md'
   pull_request:
     branches:
       - main
@@ -22,12 +36,27 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'scripts/docs_hooks.py'
+      - 'scripts/check_docs_workflow_paths.py'
       - '.github/workflows/docs.yml'
+      # docs_hooks.py の FILE_MAPPINGS で docs に複製するファイル。
+      # FILE_MAPPINGS を変えたらここも揃える（scripts/check_docs_workflow_paths.py が CI で照合する）
       - 'CONTRIBUTING.md'
       - 'CODE_REVIEW_GUIDELINES.md'
-      - 'Azure.md'
       - 'PROJECTS.md'
       - 'CLA.md'
+      - 'apps/admin/README.md'
+      - 'apps/api/README.md'
+      - 'apps/api/broadlistening/README.md'
+      - 'apps/public-viewer/README.md'
+      - 'packages/analysis-core/README.md'
+      - 'test/e2e/README.md'
+      - 'test/e2e/fixtures/client/README.md'
+      - 'tools/scripts/README.md'
+      - 'utils/dummy-server/README.md'
+      - 'experiments/README.md'
+      - 'experiments/direct_win/README.md'
+      - 'experiments/embvec_reduce_public_comment/README.md'
+      - 'experiments/evaluation_report/README.md'
   workflow_dispatch:
 
 permissions:
@@ -35,9 +64,11 @@ permissions:
   pages: write
   id-token: write
 
+# main への push（デプロイあり）は "pages" で直列にする。PR のビルドは PR ごとの別グループにして、
+# PR の実行が main の待機中のデプロイを置き換えないようにする（PR 側は新しい push で古い実行を取り消す）
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('docs-pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -54,6 +85,9 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r docs/requirements.txt
+
+      - name: Check workflow paths cover copied files
+        run: python scripts/check_docs_workflow_paths.py
 
       - name: Build documentation
         run: mkdocs build --strict
