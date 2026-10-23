@@ -55,14 +55,14 @@ Dockerを使わずに `apps/api` と `apps/admin` を個別に起動する場合
 
 ### 1. API 側の環境変数
 
-    cp apps/api/.env.example apps/api/.env
-
-`apps/api/.env` に最低限以下を設定します：
+リポジトリ直下で `apps/api/.env` を作成し、最低限以下を設定します（リポジトリ直下の `.env.example` を `apps/api/.env` にコピーして編集しても構いません）：
 
     ADMIN_API_KEY=admin
     PUBLIC_API_KEY=public
     OPENAI_API_KEY=sk-your-api-key-here
-    LOG_FILE=apps/api/error.log
+    LOG_FILE=error.log
+
+`LOG_FILE` は API を起動するディレクトリ（`apps/api`）からの相対パスです。上の例では `apps/api/error.log` に出力されます。
 
 ### 2. API 依存のセットアップと起動
 
@@ -77,10 +77,13 @@ Dockerを使わずに `apps/api` と `apps/admin` を個別に起動する場合
 
 ### 3. 管理画面（admin）の環境変数
 
-    cp apps/admin/.env.example apps/admin/.env
+API は起動したままにして、別のターミナルを開き、リポジトリ直下で以下を実行します。
 
-`apps/admin/.env` を以下のように設定します：
+    cp apps/admin/.env-sample apps/admin/.env
 
+`apps/admin/.env` を以下のように設定します。`NEXT_PUBLIC_ADMIN_API_KEY` は、API 側の `ADMIN_API_KEY` と同じ値にしてください（`.env-sample` の初期値 `yyyyyyyyyy` のままでは管理画面から API を呼べません）：
+
+    NEXT_PUBLIC_CLIENT_BASEPATH=http://localhost:3000
     NEXT_PUBLIC_API_BASEPATH=http://localhost:8000
     NEXT_PUBLIC_ADMIN_API_KEY=admin
 
@@ -150,4 +153,6 @@ Docker Desktop が起動しているか確認してください。
 
 ### ポートが使用中
 
-他のアプリケーションが同じポートを使用している場合は、該当するアプリケーションを停止するか、`.env` でポート番号を変更してください。
+他のアプリケーションが同じポートを使用している場合は、該当するアプリケーションを停止してください。
+
+レポート閲覧画面（3000）・管理画面（4000）・API（8000）のポートは `.env` では変えられません（`.env` で変えられるのは Ollama の `OLLAMA_HOST_PORT` だけです）。変える必要がある場合は、Docker で起動しているなら `compose.yaml` の `ports` のホスト側（`"8000:8000"` の左側）を、Docker を使わずに起動しているなら `apps/api/Makefile` の `--port 8000` や `apps/admin/package.json` の `-p 4000` を編集します。その場合は、`NEXT_PUBLIC_API_BASEPATH` や `NEXT_PUBLIC_CLIENT_BASEPATH` など、そのポートを指す URL の設定も合わせて変えてください。
