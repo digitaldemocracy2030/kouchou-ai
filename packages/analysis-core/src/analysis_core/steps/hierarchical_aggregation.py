@@ -87,9 +87,11 @@ def hierarchical_aggregation(config) -> bool:
         arguments = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/args.csv")
         arg_num = len(arguments)
         # comment-id は入力CSVの値そのもの（"001" など）なので、型推論で数値化させない
+        # 古い extraction は同じ回答の中で同じ文面が繰り返されると同じ行を重複して書いていた。
+        # そのまま join すると final_result_with_comments.csv の行が二重になるので、完全一致の行だけ落とす。
         relation_df = pl.read_csv(
             f"{output_base_dir}/{config['output_dir']}/relations.csv", schema_overrides={"comment-id": pl.Utf8}
-        )
+        ).unique(maintain_order=True)
         comments = read_input_csv(f"{input_base_dir}/{config['input']}.csv")
         clusters = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/hierarchical_clusters.csv")
         labels = read_merge_labels(f"{output_base_dir}/{config['output_dir']}/hierarchical_merge_labels.csv")

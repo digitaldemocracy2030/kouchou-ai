@@ -206,3 +206,48 @@ def test_custom_intro_counts_comments_after_empty_filter_and_limit(tmp_path):
     config["extraction"]["limit"] = 2
     result = _run(report, config)
     assert "分析対象となったデータの件数は2件" in result["config"]["intro"]
+
+
+def test_same_opinion_repeated_within_one_comment_writes_one_relation(tmp_path, monkeypatch):
+    extraction = importlib.import_module("analysis_core.steps.extraction")
+    inputs = tmp_path / "inputs"
+    report = tmp_path / "outputs" / "report"
+    inputs.mkdir()
+    report.mkdir(parents=True)
+    (inputs / "input.csv").write_text("comment-id,comment-body\nc1,長い回答\n", encoding="utf-8")
+    config = {
+        "input": "input",
+        "output_dir": "report",
+        "provider": "openai",
+        "_input_base_dir": str(inputs),
+        "_output_base_dir": str(tmp_path / "outputs"),
+        "extraction": {"model": "m", "prompt": "p", "workers": 1, "limit": 10, "properties": []},
+    }
+    monkeypatch.setattr(extraction, "update_progress", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        extraction,
+        "request_to_chat_ai",
+        lambda **kwargs: ('{"extractedOpinionList": ["Xしてほしい", "Xしてほしい", "Yしてほしい"]}', 1, 1, 2),
+    )
+    extraction.extraction(config)
+
+    args = pl.read_csv(report / "args.csv", infer_schema_length=0)
+    relations = pl.read_csv(report / "relations.csv", infer_schema_length=0)
+    assert args["arg-id"].to_list() == ["Ac1_0", "Ac1_2"]
+    assert list(zip(relations["arg-id"], relations["comment-id"], strict=True)) == [("Ac1_0", "c1"), ("Ac1_2", "c1")]
+
+
+def test_duplicated_relation_rows_do_not_duplicate_comment_csv(tmp_path):
+    # 修正前の extraction が書いた relations.csv には同じ行が重複していることがある
+    report, config = _write_report(
+        tmp_path,
+        "comment-id,comment-body\nc1,長い回答\n",
+        [("Ac1_0", "Xしてほしい"), ("Ac1_2", "Yしてほしい")],
+        [("Ac1_0", "c1"), ("Ac1_0", "c1"), ("Ac1_2", "c1")],
+    )
+    config["is_pubcom"] = True
+    result = _run(report, config)
+    assert len(result["arguments"]) == 2
+
+    rows = pl.read_csv(report / "final_result_with_comments.csv", infer_schema_length=0)
+    assert rows["arg_id"].to_list() == ["Ac1_0", "Ac1_2"]

@@ -148,24 +148,22 @@ def extraction(config):
         for j, arg in enumerate(extracted_args):
             # 同じ文面でも回答ごとに別の意見として扱う。回答をまたいでまとめると、
             # 集計で意見1件に回答1件分の属性・URLしか残らず、他の回答者の帰属が消える。
+            # 同じ回答の中で同じ文面が繰り返されたときは 1 件にまとめ、relation も 1 行だけにする。
+            # key に comment_id が入っているので、既出なら同じ (arg-id, comment-id) の行は記録済み。
             key = (comment_id, arg)
-            if key not in argument_map:
-                # argumentテーブルに追加
-                arg_id = f"A{comment_id}_{j}"
-                argument = arg
-                argument_map[key] = {
-                    "arg-id": arg_id,
-                    "argument": argument,
-                }
-            else:
-                arg_id = argument_map[key]["arg-id"]
-
-            # relationテーブルにcommentとargの関係を追加
-            relation_row = {
+            if key in argument_map:
+                continue
+            arg_id = f"A{comment_id}_{j}"
+            argument_map[key] = {
                 "arg-id": arg_id,
-                "comment-id": comment_id,
+                "argument": arg,
             }
-            relation_rows.append(relation_row)
+            relation_rows.append(
+                {
+                    "arg-id": arg_id,
+                    "comment-id": comment_id,
+                }
+            )
 
     # DataFrame化
     results = pl.DataFrame(list(argument_map.values()))
