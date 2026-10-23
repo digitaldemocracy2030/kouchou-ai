@@ -15,7 +15,7 @@ from src.services.analysis_config import prune_config_for_mode
 from src.services.report_status import (
     add_new_report_to_status,
     load_status_as_reports,
-    set_status,
+    set_status_unless_deleted,
     update_token_usage,
 )
 from src.services.report_sync import ReportSyncService
@@ -246,13 +246,14 @@ def _settle_completed_report(slug: str) -> None:
 
     成果物のアップロードが一部でも失敗した状態で ready にすると、再起動後に結果ファイルの
     無い ready レポートが残るため、全て成功した場合だけ ready にする。
+    実行中に削除されたレポートは deleted のまま保つ（set_status_unless_deleted）。
     """
     if _sync_report_artifacts_to_storage(slug):
-        set_status(slug, "ready")
+        set_status_unless_deleted(slug, "ready")
     else:
         logger.error(f"Failed to sync report artifacts for {slug}; marking report as error")
         _ensure_error_status_payload(slug, error_override=UPLOAD_FAILED_ERROR)
-        set_status(slug, "error")
+        set_status_unless_deleted(slug, "error")
 
 
 def _finalize_completed_report(slug: str) -> None:
@@ -305,7 +306,7 @@ def recover_interrupted_reports() -> None:
             else:
                 logger.warning(f"Recovering interrupted report {slug}: marking as error")
                 _ensure_error_status_payload(slug, error_override=INTERRUPTED_ERROR)
-                set_status(slug, "error")
+                set_status_unless_deleted(slug, "error")
         except Exception as e:
             logger.error(f"Failed to recover interrupted report {slug}: {e}")
 
@@ -361,7 +362,7 @@ def _monitor_process(process: subprocess.Popen, slug: str, log_file: Any | None 
 
         else:
             _ensure_error_status_payload(slug)
-            set_status(slug, "error")
+            set_status_unless_deleted(slug, "error")
     finally:
         if log_file is not None:
             log_file.close()
@@ -382,7 +383,7 @@ def _launch_analysis_process(cmd: list[str], slug: str, env: dict[str, str]) -> 
 
 def _set_report_status_if_present(slug: str, status: str) -> None:
     try:
-        set_status(slug, status)
+        set_status_unless_deleted(slug, status)
     except ValueError:
         logger.info(f"Skip status update for {slug}: report status entry not found")
 

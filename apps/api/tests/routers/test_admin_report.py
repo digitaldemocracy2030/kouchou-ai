@@ -612,3 +612,106 @@ def test_azure_verification_guidance_without_exception_details(client, error_kin
     assert "モデルのバージョンではなくAPIバージョン" in data["message"]
     assert "secret detail" not in response.text
     assert "private-endpoint" not in response.text
+
+
+class TestEditRejectsDeletedOrProcessingReport:
+    """削除済み・生成中のレポートへの編集（タイトル・説明、意見グループ名）を受け付けない
+
+    削除済みのレポートを別タブなどから編集すると、再集計の完了時に status が ready に
+    上書きされ、削除前の公開状態のまま復活していた。
+    """
+
+    @pytest.fixture
+    def status_file(self, tmp_path):
+        path = tmp_path / "report_status.json"
+        with patch.object(report_status, "STATE_FILE", path):
+            yield path
+
+    def _write_status(self, path, status):
+        path.write_text(
+            json.dumps(
+                {
+                    "test-slug": {
+                        "slug": "test-slug",
+                        "status": status,
+                        "title": "t",
+                        "description": "d",
+                        "visibility": ReportVisibility.PUBLIC.value,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    @pytest.mark.parametrize(("status", "expected_code"), [("deleted", 404), ("processing", 409)])
+    def test_update_config_rejects(self, client, status_file, status, expected_code):
+        self._write_status(status_file, status)
+        with (
+            patch("src.routers.admin_report.ConfigRepository") as mock_repo,
+            patch("src.routers.admin_report.execute_aggregation") as mock_execute,
+            patch("src.routers.admin_report.update_report_config") as mock_update,
+        ):
+            response = client.patch(
+                "/admin/reports/test-slug/config",
+                json={"question": "new title"},
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == expected_code
+        mock_repo.return_value.update_json.assert_not_called()
+        mock_execute.assert_not_called()
+        mock_update.assert_not_called()
+
+    @pytest.mark.parametrize(("status", "expected_code"), [("deleted", 404), ("processing", 409)])
+    def test_update_cluster_label_rejects(self, client, status_file, status, expected_code):
+        self._write_status(status_file, status)
+        with (
+            patch("src.routers.admin_report.ClusterRepository") as mock_repo,
+            patch("src.routers.admin_report.execute_aggregation") as mock_execute,
+        ):
+            response = client.patch(
+                "/admin/reports/test-slug/cluster-label",
+                json={"id": "1_1", "label": "l", "description": "d"},
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == expected_code
+        mock_repo.return_value.update_csv.assert_not_called()
+        mock_execute.assert_not_called()
+
+    def test_delete_then_edit_does_not_launch_aggregation(self, client, status_file):
+        """DELETE の後の PATCH config は 404 になり、再集計を起動しない"""
+        self._write_status(status_file, "ready")
+        report_status.load_status()
+        with (
+            patch("src.routers.admin_report.ConfigRepository") as mock_repo,
+            patch("src.routers.admin_report.execute_aggregation") as mock_execute,
+        ):
+            assert client.delete("/admin/reports/test-slug", headers={"x-api-key": "test-api-key"}).status_code == 200
+            response = client.patch(
+                "/admin/reports/test-slug/config",
+                json={"question": "new title"},
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 404
+        mock_repo.return_value.update_json.assert_not_called()
+        mock_execute.assert_not_called()
+        assert report_status.get_status("test-slug") == "deleted"
+
+    def test_update_config_allows_ready_report(self, client, status_file):
+        self._write_status(status_file, "ready")
+        with (
+            patch("src.routers.admin_report.ConfigRepository") as mock_repo,
+            patch("src.routers.admin_report.execute_aggregation", return_value=True) as mock_execute,
+            patch("src.routers.admin_report.update_report_config", return_value={"slug": "test-slug"}),
+        ):
+            mock_repo.return_value.update_json.return_value = True
+            response = client.patch(
+                "/admin/reports/test-slug/config",
+                json={"question": "new title"},
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 200
+        mock_execute.assert_called_once_with("test-slug")

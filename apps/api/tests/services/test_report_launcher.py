@@ -570,7 +570,9 @@ def test_monitor_process_reads_workflow_status_and_syncs_outputs(monkeypatch, tm
             calls["syncs"].append(("status", None))
 
     monkeypatch.setattr(
-        report_launcher, "set_status", lambda current_slug, status: calls["statuses"].append((current_slug, status))
+        report_launcher,
+        "set_status_unless_deleted",
+        lambda current_slug, status: calls["statuses"].append((current_slug, status)),
     )
     monkeypatch.setattr(
         report_launcher,
@@ -634,7 +636,9 @@ def test_monitor_process_marks_error_when_artifact_upload_fails(monkeypatch, tmp
             calls["syncs"].append(("status", None))
 
     monkeypatch.setattr(
-        report_launcher, "set_status", lambda current_slug, status: calls["statuses"].append((current_slug, status))
+        report_launcher,
+        "set_status_unless_deleted",
+        lambda current_slug, status: calls["statuses"].append((current_slug, status)),
     )
     monkeypatch.setattr(report_launcher, "update_token_usage", lambda *args: None)
     monkeypatch.setattr(report_launcher, "ReportSyncService", DummyReportSyncService)
@@ -782,7 +786,9 @@ def test_monitor_process_persists_error_log_excerpt_when_process_fails(monkeypat
             return 1
 
     monkeypatch.setattr(
-        report_launcher, "set_status", lambda current_slug, status: calls["statuses"].append((current_slug, status))
+        report_launcher,
+        "set_status_unless_deleted",
+        lambda current_slug, status: calls["statuses"].append((current_slug, status)),
     )
 
     report_launcher._monitor_process(DummyProcess(), slug)
@@ -1041,3 +1047,105 @@ def test_recover_interrupted_reports_does_nothing_without_processing_entries(mon
     report_launcher.recover_interrupted_reports()
 
     assert json.loads(status_file.read_text(encoding="utf-8"))["old"]["status"] == "ready"
+
+
+def _setup_deleted_report(monkeypatch, tmp_path, slug):
+    import json
+
+    from src.services import report_launcher, report_status
+
+    report_dir = tmp_path / "reports"
+    config_dir = tmp_path / "configs"
+    data_dir = tmp_path / "data"
+    (report_dir / slug).mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+    data_dir.mkdir(parents=True)
+    (report_dir / slug / "hierarchical_status.json").write_text(
+        json.dumps({"status": "completed", "completed_jobs": [{"step": "hierarchical_aggregation"}]}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_launcher.settings, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(report_status.settings, "DATA_DIR", data_dir)
+    monkeypatch.setattr(report_status, "STATE_FILE", data_dir / "report_status.json")
+
+    report_status._report_status.clear()
+    report_status._report_status[slug] = {
+        "slug": slug,
+        "source_slug": None,
+        "status": "deleted",
+        "title": "t",
+        "description": "d",
+        "is_pubcom": False,
+        "visibility": "public",
+        "created_at": "2026-05-20T00:00:00+00:00",
+    }
+    report_status.save_status()
+
+    class DummyReportSyncService:
+        def sync_report_files_to_storage(self, value):
+            return True
+
+        def sync_input_file_to_storage(self, value):
+            return True
+
+        def sync_config_file_to_storage(self, value):
+            return True
+
+        def sync_status_file_to_storage(self):
+            pass
+
+    monkeypatch.setattr(report_launcher, "ReportSyncService", DummyReportSyncService)
+    return report_dir
+
+
+def test_monitor_process_keeps_deleted_status_when_aggregation_completes(monkeypatch, tmp_path):
+    # 再集計の実行中に削除されたレポートを、完了時に ready へ戻さない（削除前の公開状態で復活させない）
+    import json
+
+    from src.services import report_launcher, report_status
+
+    slug = "demo"
+    _setup_deleted_report(monkeypatch, tmp_path, slug)
+
+    class DummyProcess:
+        def wait(self):
+            return 0
+
+    report_launcher._monitor_process(DummyProcess(), slug)
+
+    assert report_status._report_status[slug]["status"] == "deleted"
+    saved = json.loads(report_status.STATE_FILE.read_text(encoding="utf-8"))
+    assert saved[slug]["status"] == "deleted"
+
+
+def test_monitor_process_keeps_deleted_status_when_process_fails(monkeypatch, tmp_path):
+    from src.services import report_launcher, report_status
+
+    slug = "demo"
+    _setup_deleted_report(monkeypatch, tmp_path, slug)
+
+    class DummyProcess:
+        def wait(self):
+            return 1
+
+    report_launcher._monitor_process(DummyProcess(), slug)
+
+    assert report_status._report_status[slug]["status"] == "deleted"
+
+
+def test_monitor_process_keeps_deleted_status_when_upload_fails(monkeypatch, tmp_path):
+    from src.services import report_launcher, report_status
+
+    slug = "demo"
+    _setup_deleted_report(monkeypatch, tmp_path, slug)
+    monkeypatch.setattr(report_launcher, "_sync_report_artifacts_to_storage", lambda _slug: False)
+
+    class DummyProcess:
+        def wait(self):
+            return 0
+
+    report_launcher._monitor_process(DummyProcess(), slug)
+
+    assert report_status._report_status[slug]["status"] == "deleted"

@@ -154,6 +154,24 @@ def set_status(slug: str, status: str) -> None:
         save_status()
 
 
+def set_status_unless_deleted(slug: str, status: str) -> bool:
+    """削除済み (deleted) でなければ status を書き換え、書き換えたかを返す
+
+    analysis-core の終了を監視する側（生成・再集計の完了時）が使う。実行中に管理画面から
+    削除されたレポートを完了時に ready / error へ上書きすると、削除前の公開状態のまま
+    一覧に復活するため、確認と書き換えを同じロック内で行い、deleted は保つ。
+    """
+    with _lock:
+        if slug not in _report_status:
+            raise ValueError(f"slug {slug} not found in report status")
+        if _report_status[slug].get("status") == ReportStatus.DELETED.value:
+            logger.info(f"Skip status update to {status} for {slug}: report is deleted")
+            return False
+        _report_status[slug]["status"] = status
+        save_status()
+        return True
+
+
 def get_status(slug: str) -> str:
     with _lock:
         return _report_status.get(slug, {}).get("status", "undefined")

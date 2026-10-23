@@ -75,6 +75,23 @@ def validate_path_within_report_dir(path) -> None:
         raise HTTPException(status_code=400, detail="Invalid path") from None
 
 
+def _ensure_report_editable(slug: str) -> None:
+    """編集（タイトル・説明、意見グループ名）で再集計を起動してよいレポートかを確かめる
+
+    削除済みのレポートを編集すると、再集計の完了時に status が ready に戻り、削除前の
+    公開状態のまま復活する。生成中のレポートを編集すると、生成より先に終わった再集計が
+    ready にしてしまう。どちらも再集計を起動する前に拒否する。
+    status に無い slug は従来どおり扱う（後段の設定ファイル・CSV の読み込みで判定される）。
+    """
+    report = next((r for r in load_status_as_reports(include_deleted=True) if r.slug == slug), None)
+    if report is None:
+        return
+    if report.status == ReportStatus.DELETED:
+        raise HTTPException(status_code=404, detail=f"Report {slug} not found")
+    if report.status == ReportStatus.PROCESSING:
+        raise HTTPException(status_code=409, detail=f"Report {slug} is still being generated")
+
+
 @router.get("/admin/reports")
 async def get_reports(api_key: str = Depends(verify_admin_api_key)) -> list[Report]:
     return list(map(add_analysis_data, load_status_as_reports()))
@@ -332,6 +349,7 @@ async def update_report_config_endpoint(
         更新後のレポート情報
     """
     validate_slug(slug)
+    _ensure_report_editable(slug)
     try:
         # 中間ファイル（config.json）を更新
         config_repo = ConfigRepository(slug)
@@ -406,6 +424,7 @@ async def update_cluster_label(
     validate_slug(slug)
     # FIXME: error handlingを共通化するタイミングで、error handlingを切り出す
     # issue: https://github.com/digitaldemocracy2030/kouchou-ai/issues/546
+    _ensure_report_editable(slug)
     repo = ClusterRepository(slug)
     try:
         is_csv_updated = repo.update_csv(updated_cluster)
