@@ -38,6 +38,7 @@ def test_warns_when_limit_truncates_comments(tmp_path, monkeypatch, caplog):
     assert len(warnings) == 1
     assert "5件" in warnings[0]
     assert "3件" in warnings[0]
+    assert "残りの 2件" in warnings[0]
     assert "extraction.limit=3" in warnings[0]
 
 
