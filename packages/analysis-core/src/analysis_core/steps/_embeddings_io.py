@@ -56,7 +56,15 @@ def stack_embedding_rows(rows: Sequence[Any], dtype: Any = EMBEDDING_DTYPE) -> n
     first = np.asarray(rows[0], dtype=dtype)
     if first.ndim != 1:
         raise ValueError(f"埋め込みの行の形が不正です: shape={first.shape}")
-    out = np.empty((n_rows, first.shape[0]), dtype=dtype)
+    width = first.shape[0]
+    out = np.empty((n_rows, width), dtype=dtype)
     for index, row in enumerate(rows):
-        out[index] = row
+        row_array = np.asarray(row, dtype=dtype)
+        # 次元数の違う行を代入すると、長さ 1 の行が全列にブロードキャストされて
+        # 誤った座標になるので、形がそろわない行は読み込みエラーにする
+        if row_array.shape != (width,):
+            raise ValueError(
+                f"埋め込みの次元がそろっていません: 行 {index} の shape={row_array.shape}、先頭行の次元={width}"
+            )
+        out[index] = row_array
     return out

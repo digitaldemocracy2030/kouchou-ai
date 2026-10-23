@@ -256,6 +256,16 @@ class TestStackEmbeddingRows:
         with pytest.raises(ValueError):
             stack_embedding_rows([[0.0, 1.0], [0.0, 1.0, 2.0]])
 
+    @pytest.mark.parametrize(
+        "bad_row",
+        [[5.0], 5.0, [[0.0, 1.0, 2.0]]],
+        ids=["length_1", "scalar", "two_dimensional"],
+    )
+    def test_row_that_would_broadcast_raises(self, bad_row):
+        # 長さ 1 の行やスカラーを全列にブロードキャストして、誤った座標にしない
+        with pytest.raises(ValueError, match="次元がそろっていません"):
+            stack_embedding_rows([[0.0, 1.0, 2.0], bad_row])
+
     def test_matches_np_asarray(self):
         rows = [[0.1, 0.2, 0.3], np.array([1.5, 2.5, 3.5], dtype=np.float32)]
         out = stack_embedding_rows(rows)

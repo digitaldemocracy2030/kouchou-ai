@@ -145,7 +145,7 @@ import numpy as np
 読む側の注意:
 
 - `list[dict]` の形式なら、`embedding` が ndarray でも list でも、`np.asarray([item["embedding"] for item in records], dtype=np.float32)` で同じ 2 次元配列にそろえられます
-- `embedding` は list ではないので、`+` は連結ではなく要素ごとの和になり、`==` で比べると例外になります
+- `embedding` は list ではないので、`+` は連結ではなく要素ごとの和になります。`array_a == array_b` は要素ごとの真偽値の配列を返し、その結果をそのまま `if` の条件に使うと例外（`ValueError`）になります。配列全体が等しいかは `np.array_equal(array_a, array_b)` で比べてください
 - JSON に書き出すときは `.tolist()` で list にしてください（ndarray のままでは `json.dumps` が `TypeError` になります）。float32 由来の誤差で、`0.1` が `0.10000000149011612` のように出ます
 
 ---
