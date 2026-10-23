@@ -142,14 +142,15 @@ describe("TreemapChart のフィルタ判定", () => {
       <TreemapChart
         clusterList={clusters}
         argumentList={args}
-        level="0"
+        level="2_0"
         onTreeZoom={() => {}}
         filteredArgumentIds={["a1", "a4"]}
       />,
     );
     const [trace] = chartCoreProps[chartCoreProps.length - 1].data as { ids: string[]; values: number[] }[];
     const valueById = Object.fromEntries(trace.ids.map((id, i) => [id, trace.values[i]]));
-    expect(valueById).toEqual({ "0": 2, "1_0": 1, "1_1": 1, "2_0": 1, "2_1": 1, a1: 1, a2: 0, a3: 0, a4: 1, a5: 0 });
+    // 2_0 の表示では、その意見 a1・a3・a5 と、見えない 2_1 の代表（値 0 を優先して a2）が葉として渡る
+    expect(valueById).toEqual({ "0": 2, "1_0": 1, "1_1": 1, "2_0": 1, "2_1": 1, a1: 1, a2: 0, a3: 0, a5: 0 });
   });
 });
 

@@ -164,27 +164,20 @@ describe("TreemapChart の描画データの memo", () => {
 
 describe("buildTreemapFigure", () => {
   it("フィルタなしでは、クラスタの値は元の件数、意見の値は 1 になる", () => {
+    // ルート表示では意見は見えないので、各小分類の代表 1 件だけが葉として渡る（treemapLeaves.test.ts）
     const { data } = buildTreemapFigure(clusters, args, "0", undefined);
-    expect(data.ids).toEqual(["0", "1_0", "1_1", "2_0", "2_1", "a1", "a2", "a3", "a4"]);
-    expect(data.parents).toEqual(["", "0", "0", "1_0", "1_1", "2_0", "2_1", "2_0", "2_1"]);
-    expect(data.values).toEqual([4, 2, 2, 2, 2, 1, 1, 1, 1]);
+    expect(data.ids).toEqual(["0", "1_0", "1_1", "2_0", "2_1", "a3", "a4"]);
+    expect(data.parents).toEqual(["", "0", "0", "1_0", "1_1", "2_0", "2_1"]);
+    expect(data.values).toEqual([4, 2, 2, 2, 2, 1, 1]);
     expect(data.level).toBe("0");
   });
 
   it("フィルタ中は、クラスタの値をフィルタ後の件数にし、合致しない意見を値 0・灰色・ホバーなしにする", () => {
-    const { data } = buildTreemapFigure(clusters, args, "0", ["a1"]);
-    expect(data.values).toEqual([1, 1, 0, 1, 0, 1, 0, 0, 0]);
-    expect((data.marker as { colors: string[] }).colors).toEqual([
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "#cccccc",
-      "#cccccc",
-      "#cccccc",
-    ]);
+    // 小分類 2_0 の表示では、その意見 a1・a3 と、見えない小分類 2_1 の代表 a4 が葉として渡る
+    const { data } = buildTreemapFigure(clusters, args, "2_0", ["a1"]);
+    expect(data.ids).toEqual(["0", "1_0", "1_1", "2_0", "2_1", "a1", "a3", "a4"]);
+    expect(data.values).toEqual([1, 1, 0, 1, 0, 1, 0, 0]);
+    expect((data.marker as { colors: string[] }).colors).toEqual(["", "", "", "", "", "", "#cccccc", "#cccccc"]);
     const customdata = data.customdata as string[];
     expect(customdata[1]).toContain("元の件数: 2<br>フィルター後: 1");
     expect(customdata[6]).toBe("");

@@ -74,7 +74,10 @@ export function buildTreemapFigure(
     }
   }
 
-  const list = [{ ...clusterList[0], parent: "" }, ...clusterList.slice(1), ...convertedArgumentList];
+  // 葉（意見）は、表示中の階層から見える範囲のものだけを渡す（見えない葉まで渡すと、Plotly が全意見分の slice を作って重い）
+  const leafArgumentList = selectTreemapLeaves(clusterList, convertedArgumentList, level);
+
+  const list = [{ ...clusterList[0], parent: "" }, ...clusterList.slice(1), ...leafArgumentList];
   const ids = list.map((node) => node.id);
   const labels = list.map((node) => {
     return node.id === level ? wrapJapaneseText(node.label, 50) : wrapJapaneseText(node.label, 15);
@@ -142,7 +145,7 @@ export function buildTreemapFigure(
     texttemplate: isFilteringActive
       ? "%{label}<br>%{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}"
       : "%{label}<br>%{value:,}件<br>全意見の %{percentRoot:.2%}",
-    maxdepth: 2,
+    maxdepth: TREEMAP_MAX_DEPTH,
     pathbar: {
       thickness: 28,
     },
@@ -208,6 +211,58 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
       onTreemapClick={handleTreemapClick}
     />
   );
+}
+
+// ツリーマップの trace に渡す maxdepth（表示中の階層から何段下まで描くか）
+const TREEMAP_MAX_DEPTH = 2;
+
+/**
+ * ツリーマップに渡す葉（意見ノード）を、表示中の階層 level から見えるものに絞る。
+ *
+ * - Plotly は level を根にした部分木で深さを数え、深さ < maxdepth のノードだけを描く（maxdepth: 2 なら level 自身とその子）。
+ *   したがって意見ノードが見えるのは、親クラスタが level のときだけ。
+ * - 見えない意見も Plotly は slice として作る（座標を一点に潰すだけ）ので、件数が多いと開く・戻るが数秒かかる。
+ * - ただし、見えないクラスタから子を全部外すと、そのクラスタが「葉」扱いになって色（depthfade）が変わる。
+ *   そこで見えないクラスタには代表の意見を 1 件だけ残す。代表は、Plotly が値の降順に並べたときに最後に来るもの
+ *   （フィルタ後の値が 0 の意見があればその最後、無ければ最後の意見）にする。最後の slice の色を基準にする
+ *   darkenPathbar の結果も変えないため。
+ * - level がクラスタでない（想定外の値）ときは絞らない。
+ *
+ * 入力の並びは保つ。
+ */
+export function selectTreemapLeaves<T extends { id: string; parent: string; filtered?: boolean }>(
+  clusterList: Cluster[],
+  leaves: T[],
+  level: string,
+): T[] {
+  const parentById = new Map<string, string>();
+  for (const cluster of clusterList) parentById.set(cluster.id, cluster.parent);
+  // level 自身はルート（parent が空）でも Map に入る
+  if (!parentById.has(level)) return leaves;
+
+  const isVisible = (leaf: T) => {
+    // 意見ノードの深さ（level からの段数）= 親クラスタまでの段数 + 1。深さ < maxdepth なら描かれる
+    let clusterId: string | undefined = leaf.parent;
+    for (let depth = 1; depth < TREEMAP_MAX_DEPTH; depth++) {
+      if (clusterId === level) return true;
+      clusterId = clusterId === undefined ? undefined : parentById.get(clusterId);
+    }
+    return false;
+  };
+
+  const representativeByParent = new Map<string, T>();
+  const visible = new Set<T>();
+  for (const leaf of leaves) {
+    if (isVisible(leaf)) {
+      visible.add(leaf);
+      continue;
+    }
+    const current = representativeByParent.get(leaf.parent);
+    // 値 0（フィルタで除外）の意見は値 1 の意見より後ろに並ぶので、0 のものを優先し、同じ値なら後のものにする
+    if (!current || leaf.filtered || !current.filtered) representativeByParent.set(leaf.parent, leaf);
+  }
+  for (const leaf of representativeByParent.values()) visible.add(leaf);
+  return leaves.filter((leaf) => visible.has(leaf));
 }
 
 function convertArgumentToCluster(argument: Argument): Cluster {
