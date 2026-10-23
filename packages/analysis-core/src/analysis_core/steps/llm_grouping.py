@@ -6,7 +6,7 @@ import json
 import os
 import pickle
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_EXCEPTION, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 
 import numpy as np
@@ -271,7 +271,12 @@ def _assign_groups(
 
     バッチは最大 workers 本を同時に呼ぶ。結果はバッチの順に集めるので、返す dict の順序と
     arg_id → group_id の対応は直列で呼んだ場合と変わらない。トークン数の加算も呼び出し元の
-    スレッドで行う。どれかのバッチが失敗したら、まだ送っていないバッチは送らずに例外を伝える。
+    スレッドで行う。
+
+    失敗は完了順に検知する。どれかのバッチが失敗した時点で、まだ始まっていないバッチは取り消して
+    送らない（先頭側のバッチが遅れていても、その完了を待たずに止める）。ただし、その時点で実行中の
+    呼び出しは止められないので、それらが終わるのを待ってから例外を伝える（最長で LLM 呼び出しの
+    タイムアウトと再試行の分）。送って成功したバッチのトークン数は、失敗した場合も計上する。
     """
     allowed_group_ids = {group.group_id for group in groups}
     group_text = "\n".join(f"- {group.group_id}: {group.label}\n  {group.description}" for group in groups)
@@ -326,24 +331,47 @@ def _assign_groups(
     if not batches:
         return {}
 
-    assignments: dict[str, str] = {}
     with ThreadPoolExecutor(max_workers=max(1, min(workers, len(batches)))) as executor:
         futures = [executor.submit(assign_batch, batch_ids, batch_arguments) for batch_ids, batch_arguments in batches]
         try:
-            for (batch_ids, _), future in zip(batches, futures, strict=True):
-                batch_assignments, token_input, token_output, token_total = future.result()
-                _accumulate_token_usage(config, token_input, token_output, token_total)
-                for arg_id in batch_ids:
-                    group_id = batch_assignments.get(arg_id, fallback_group_id)
-                    if group_id not in allowed_group_ids:
-                        group_id = fallback_group_id
-                    assignments[arg_id] = group_id
+            # 完了順に失敗を見る。バッチ順に result() を待つと、先頭のバッチが遅い間に
+            # 後ろのバッチの失敗に気づけず、残りのバッチを送り続けてしまう。
+            _, not_done = wait(futures, return_when=FIRST_EXCEPTION)
         except BaseException:
-            # 失敗したら、まだ始まっていないバッチは送らない（課金と待ち時間を増やさない）
             for future in futures:
                 future.cancel()
             raise
+        # 失敗があれば、まだ始まっていないバッチは送らない（課金と待ち時間を増やさない）
+        for future in not_done:
+            future.cancel()
+    # with を抜けた時点で、実行中だった呼び出しも終わっている
 
+    failure: BaseException | None = None
+    results: list[tuple[dict, int, int, int] | None] = []
+    for future in futures:
+        if future.cancelled():
+            results.append(None)
+            continue
+        error = future.exception()
+        if error is not None:
+            failure = failure or error
+            results.append(None)
+            continue
+        batch_result = future.result()
+        # 送って成功したバッチは課金されているので、失敗した場合も計上する
+        _accumulate_token_usage(config, *batch_result[1:])
+        results.append(batch_result)
+    if failure is not None:
+        raise failure
+
+    assignments: dict[str, str] = {}
+    for (batch_ids, _), batch_result in zip(batches, results, strict=True):
+        batch_assignments = batch_result[0]
+        for arg_id in batch_ids:
+            group_id = batch_assignments.get(arg_id, fallback_group_id)
+            if group_id not in allowed_group_ids:
+                group_id = fallback_group_id
+            assignments[arg_id] = group_id
     return assignments
 
 

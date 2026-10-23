@@ -29,13 +29,15 @@ def _batch_arg_ids(kwargs) -> list[str]:
 class _ConcurrencyProbe:
     """request_to_chat_ai の代役。同時実行数を数え、バッチの arg_id を偶数→g2・奇数→g1 に割り当てる。"""
 
-    def __init__(self, delay_for=None, fail_on_call=None):
+    def __init__(self, delay_for=None, fail_on_call=None, fail_for=None):
         self.lock = threading.Lock()
         self.active = 0
         self.max_active = 0
         self.calls = 0
         self.delay_for = delay_for or (lambda index: 0.05)
         self.fail_on_call = fail_on_call
+        # バッチ先頭の arg 番号で失敗させるバッチを決める（呼び出し順に依らない）
+        self.fail_for = fail_for or (lambda first: False)
 
     def __call__(self, **kwargs):
         with self.lock:
@@ -47,7 +49,7 @@ class _ConcurrencyProbe:
             batch_ids = _batch_arg_ids(kwargs)
             first = int(batch_ids[0][1:])
             time.sleep(self.delay_for(first))
-            if self.fail_on_call is not None and call_index == self.fail_on_call:
+            if (self.fail_on_call is not None and call_index == self.fail_on_call) or self.fail_for(first):
                 raise TimeoutError("simulated timeout")
             assignments = [
                 {"arg_id": arg_id, "group_id": "g2" if int(arg_id[1:]) % 2 == 0 else "g1"} for arg_id in batch_ids
@@ -127,6 +129,46 @@ def test_assign_groups_stops_sending_remaining_batches_after_a_failure(monkeypat
 
     # 40 バッチのうち、失敗の時点で実行中・取得済みのものだけが送られ、残りは送らない
     assert probe.calls < 10
+
+
+@pytest.mark.parametrize("failing_batch", [1, 12])
+def test_assign_groups_stops_sending_when_a_later_batch_fails_while_the_first_is_slow(monkeypatch, failing_batch):
+    """先頭のバッチが遅くても、後ろのバッチの失敗に完了順で気づき、残りを送らない（s000）。
+
+    結果をバッチ順に future.result() で待つと、先頭のバッチが終わるまで失敗に気づかず、
+    その間に worker が残りのバッチを送り続けていた。
+    """
+    workers = 4
+    failing_first = failing_batch * 5
+    # バッチ 0 だけ遅く、失敗するバッチは即座に失敗する。その他は短時間で返る
+    probe = _ConcurrencyProbe(
+        delay_for=lambda first: 1.0 if first == 0 else (0 if first == failing_first else 0.01),
+        fail_for=lambda first: first == failing_first,
+    )
+    monkeypatch.setattr(llm_grouping_step, "request_to_chat_ai", probe)
+
+    with pytest.raises(TimeoutError, match="simulated timeout"):
+        _assign(200, batch_size=5, workers=workers)
+
+    # 40 バッチのうち、失敗したバッチまでと、その時点で実行中だった数本だけが送られる
+    assert probe.calls <= failing_batch + workers + 2
+
+
+def test_assign_groups_counts_tokens_of_batches_that_finished_after_a_failure(monkeypatch):
+    """失敗の時点で実行中だったバッチも送信済みで課金されているので、成功した分のトークンは計上する。"""
+    # バッチ 0 は即座に失敗、バッチ 1 は少し遅れて成功する（失敗の時点では実行中）
+    probe = _ConcurrencyProbe(
+        delay_for=lambda first: 0.0 if first == 0 else 0.3,
+        fail_for=lambda first: first == 0,
+    )
+    monkeypatch.setattr(llm_grouping_step, "request_to_chat_ai", probe)
+    config = {}
+
+    with pytest.raises(TimeoutError, match="simulated timeout"):
+        _assign(10, batch_size=5, workers=2, config=config)
+
+    assert probe.calls == 2
+    assert config == {"total_token_usage": 5, "token_usage_input": 3, "token_usage_output": 2}
 
 
 def test_llm_grouping_step_passes_configured_workers_to_assignment(tmp_path, monkeypatch):
