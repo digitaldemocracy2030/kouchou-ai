@@ -75,6 +75,18 @@ def test_zero_padded_comment_ids_keep_attributes_and_url(tmp_path):
     assert arguments["A002_0"]["attributes"] == {"age": "30s"}
 
 
+def test_empty_description_rewritten_by_csv_module_stays_empty(tmp_path):
+    # 管理画面のラベル編集（csv.DictWriter）で書き直すと、空の description は引用符なしの空欄になる
+    report, config = _write_report(tmp_path, "comment-id,comment-body\n1,body\n", [("A1_0", "body")], [("A1_0", "1")])
+    (report / "hierarchical_merge_labels.csv").write_text(
+        "level,id,label,description,value,parent,density_rank_percentile\n1,1_0,交通,,1,0,0.5\n", encoding="utf-8"
+    )
+    result = _run(report, config)
+    cluster = next(c for c in result["clusters"] if c["id"] == "1_0")
+    assert cluster["label"] == "交通"
+    assert cluster["takeaway"] == ""
+
+
 def test_identical_opinions_from_different_comments_keep_each_respondent(tmp_path, monkeypatch):
     extraction = importlib.import_module("analysis_core.steps.extraction")
     inputs = tmp_path / "inputs"

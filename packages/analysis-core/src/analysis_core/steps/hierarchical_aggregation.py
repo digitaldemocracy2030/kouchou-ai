@@ -92,7 +92,7 @@ def hierarchical_aggregation(config) -> bool:
         )
         comments = read_input_csv(f"{input_base_dir}/{config['input']}.csv")
         clusters = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/hierarchical_clusters.csv")
-        labels = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/hierarchical_merge_labels.csv")
+        labels = read_merge_labels(f"{output_base_dir}/{config['output_dir']}/hierarchical_merge_labels.csv")
 
         hidden_properties_map: dict[str, list[str]] = config["hierarchical_aggregation"]["hidden_properties"]
 
@@ -368,6 +368,24 @@ def _merge_opinion_classifications(arguments: list[Argument], path: str) -> int:
     return updated
 
 
+def read_merge_labels(path) -> pl.DataFrame:
+    """hierarchical_merge_labels.csv を読む。
+
+    管理画面のラベル編集（apps/api の ClusterRepository.update_csv）は csv モジュールで全行を書き直すので、
+    空の label / description は引用符なしの空欄になる。polars の既定ではこれが null になり、
+    公開 JSON に文字列 'None' が出てしまうため、空欄は空文字列として読む。
+    """
+    return pl.read_csv(
+        path,
+        schema_overrides={"label": pl.Utf8, "description": pl.Utf8},
+        missing_utf8_is_empty_string=True,
+    )
+
+
+def _text_or_empty(value) -> str:
+    return "" if value is None else str(value)
+
+
 def _build_cluster_value(melted_labels: pl.DataFrame, total_num: int) -> list[Cluster]:
     results: list[Cluster] = [
         Cluster(
@@ -387,8 +405,8 @@ def _build_cluster_value(melted_labels: pl.DataFrame, total_num: int) -> list[Cl
             int(melted_label["level"]) if isinstance(melted_label["level"], int | np.integer) else melted_label["level"]
         )
         cluster_id = str(melted_label["id"])
-        label = str(melted_label["label"])
-        takeaway = str(melted_label["description"])
+        label = _text_or_empty(melted_label["label"])
+        takeaway = _text_or_empty(melted_label["description"])
         value = (
             int(melted_label["value"]) if isinstance(melted_label["value"], int | np.integer) else melted_label["value"]
         )

@@ -274,3 +274,39 @@ class TestClusterRepositoryLlmGroupingCsv:
 
         assert repo.update_csv(ClusterUpdate(id="g1", label="x", description="y")) is False
         assert repo.labels_path.read_text(encoding="utf-8") == "level,id,label,description,value,parent\n"
+
+
+class TestClusterRepositoryAggregationRoundTrip:
+    """polars が書いた CSV → update_csv → aggregation の読み込み、の往復で空の説明が 'None' にならない"""
+
+    def test_unedited_empty_description_stays_empty(self, tmp_path):
+        import polars as pl
+
+        aggregation = pytest.importorskip("analysis_core.steps.hierarchical_aggregation")
+
+        labels_path = tmp_path / "hierarchical_merge_labels.csv"
+        pl.DataFrame(
+            {
+                "level": [1, 1, 1],
+                "id": ["g1", "g2", "other"],
+                "label": ["交通", "医療", "その他"],
+                "description": ["", "", "どれにも当てはまらない意見"],
+                "value": [2, 1, 0],
+                "parent": ["0", "0", "0"],
+                "density_rank_percentile": [0.3, 0.6, 1.0],
+            }
+        ).write_csv(labels_path)
+        repo = ClusterRepository("test-slug")
+        repo.labels_path = labels_path
+
+        assert (
+            repo.update_csv(ClusterUpdate(id="other", label="その他の意見", description="どれにも当てはまらない"))
+            is True
+        )
+
+        labels = aggregation.read_merge_labels(labels_path)
+        clusters = {c["id"]: c for c in aggregation._build_cluster_value(labels, 3)}
+        assert clusters["g1"]["takeaway"] == ""
+        assert clusters["g2"]["takeaway"] == ""
+        assert clusters["other"]["label"] == "その他の意見"
+        assert clusters["other"]["takeaway"] == "どれにも当てはまらない"
