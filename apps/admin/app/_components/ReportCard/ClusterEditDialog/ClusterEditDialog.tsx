@@ -34,6 +34,10 @@ type ClusterEditDialogProps = {
   setIsClusterEditDialogOpen: Dispatch<SetStateAction<boolean>>;
 };
 
+/**
+ * 意見グループ一覧を取得して編集ダイアログを開く。
+ * 取得に失敗したときや 0 件のときは開いた状態を false に戻し、次に押されたときに再取得できるようにする。
+ */
 export function ClusterEditDialog({ report, isOpen, setIsClusterEditDialogOpen }: ClusterEditDialogProps) {
   const [clusters, setClusters] = useState<ClusterResponse[]>([]);
 
@@ -43,12 +47,22 @@ export function ClusterEditDialog({ report, isOpen, setIsClusterEditDialogOpen }
       toaster.create({
         type: "error",
         title: "エラー",
-        description: "クラスタ一覧の取得に失敗しました。",
+        description: "意見グループ一覧の取得に失敗しました。",
       });
+      setIsClusterEditDialogOpen(false);
+      return;
+    }
+    if (result.clusters.length === 0) {
+      toaster.create({
+        type: "info",
+        title: "お知らせ",
+        description: "編集できる意見グループがありません。",
+      });
+      setIsClusterEditDialogOpen(false);
       return;
     }
     setClusters(result.clusters);
-  }, [report.slug]);
+  }, [report.slug, setIsClusterEditDialogOpen]);
 
   useEffect(() => {
     if (isOpen) {

@@ -3,6 +3,7 @@ import { ReportVisibility } from "@/type";
 import { ChakraProvider, createSystem, defaultConfig } from "@chakra-ui/react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { ClusterEditDialog } from "./ClusterEditDialog";
 
 // Mock the toaster
@@ -268,7 +269,7 @@ describe("ClusterEditDialog", () => {
       expect(mockToaster.create).toHaveBeenCalledWith({
         type: "error",
         title: "エラー",
-        description: "クラスタ一覧の取得に失敗しました。",
+        description: "意見グループ一覧の取得に失敗しました。",
       });
     });
   });
@@ -314,6 +315,63 @@ describe("ClusterEditDialog", () => {
 
     await waitFor(() => {
       expect(screen.queryByText("意見グループの編集")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("取得に失敗・0 件だった後の再オープン", () => {
+    // ActionMenu と同じく、開くときは setOpen(true) を呼ぶだけの親を模す
+    function Harness() {
+      const [isOpen, setIsOpen] = useState(false);
+      return (
+        <TestWrapper>
+          <button type="button" onClick={() => setIsOpen(true)}>
+            意見グループ編集
+          </button>
+          <ClusterEditDialog report={mockReport} isOpen={isOpen} setIsClusterEditDialogOpen={setIsOpen} />
+        </TestWrapper>
+      );
+    }
+
+    it("取得に失敗した後にもう一度押すと再取得してダイアログが開く", async () => {
+      mockFetchClusters
+        .mockResolvedValueOnce({ success: false, error: "failed" })
+        .mockResolvedValue({ success: true, clusters: mockClusters });
+      const user = userEvent.setup();
+      render(<Harness />);
+
+      await user.click(screen.getByText("意見グループ編集"));
+      await waitFor(() => expect(mockFetchClusters).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(require("@/components/ui/toaster").toaster.create).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "error" }),
+        ),
+      );
+
+      await user.click(screen.getByText("意見グループ編集"));
+      await waitFor(() => expect(mockFetchClusters).toHaveBeenCalledTimes(2));
+      expect(await screen.findByText("意見グループを編集")).toBeInTheDocument();
+    });
+
+    it("0 件だったときは理由を示し、もう一度押すと再取得してダイアログが開く", async () => {
+      const mockToaster = require("@/components/ui/toaster").toaster;
+      mockFetchClusters
+        .mockResolvedValueOnce({ success: true, clusters: [] })
+        .mockResolvedValue({ success: true, clusters: mockClusters });
+      const user = userEvent.setup();
+      render(<Harness />);
+
+      await user.click(screen.getByText("意見グループ編集"));
+      await waitFor(() =>
+        expect(mockToaster.create).toHaveBeenCalledWith({
+          type: "info",
+          title: "お知らせ",
+          description: "編集できる意見グループがありません。",
+        }),
+      );
+
+      await user.click(screen.getByText("意見グループ編集"));
+      await waitFor(() => expect(mockFetchClusters).toHaveBeenCalledTimes(2));
+      expect(await screen.findByText("意見グループを編集")).toBeInTheDocument();
     });
   });
 });
