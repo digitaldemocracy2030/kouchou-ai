@@ -268,20 +268,22 @@ export function ScatterChart({
   onHoverRef.current = onHover;
 
   // arg_id → アノテーションインデックスのマッピング（イベントハンドラからref経由で参照）
+  // 注釈は意見が 0 件のクラスタを除いて作るので、インデックスも同じ順のクラスタ列で数える
   const argToAnnotationIndexRef = useRef<Map<string, number[]>>(new Map());
   const argToAnnotationIndex = useMemo(() => {
+    const labelledClusters = targetClusters.filter((cluster) => argumentsOf(cluster.id).length > 0);
     const map = new Map<string, number[]>();
     for (const arg of allArguments) {
       const indices: number[] = [];
-      for (let i = 0; i < targetClusters.length; i++) {
-        if (arg.cluster_ids.includes(targetClusters[i].id)) {
+      for (let i = 0; i < labelledClusters.length; i++) {
+        if (arg.cluster_ids.includes(labelledClusters[i].id)) {
           indices.push(i);
         }
       }
       if (indices.length > 0) map.set(arg.arg_id, indices);
     }
     return map;
-  }, [allArguments, targetClusters]);
+  }, [allArguments, targetClusters, argumentsOf]);
   argToAnnotationIndexRef.current = argToAnnotationIndex;
 
   // Plotly gd 要素の参照とハンドラを保持し、差し替え・アンマウント時にクリーンアップする

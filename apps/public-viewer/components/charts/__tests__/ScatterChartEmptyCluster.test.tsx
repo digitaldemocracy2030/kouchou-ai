@@ -1,17 +1,28 @@
 import { Provider } from "@/components/ui/provider";
 import type { Argument, Cluster } from "@/type";
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { ScatterChart } from "../ScatterChart";
 
 // jsdom には structuredClone が無く、Chakra v3 の recipe 処理が必要とするため補う
 globalThis.structuredClone ??= <T,>(value: T): T => (value === undefined ? value : JSON.parse(JSON.stringify(value)));
 
-// Plotly を実描画せず、ChartCore に渡る layout だけを取り出す
-const chartCoreProps: Array<{ layout?: { annotations?: Array<{ x: number; y: number; text: string }> } }> = [];
+// Plotly を実描画せず、ChartCore に渡る props を取り出す。注釈は Plotly と同じく g.annotation を順に並べる
+const chartCoreProps: Array<{
+  layout?: { annotations?: Array<{ x: number; y: number; text: string }> };
+  onUpdate?: (figure: unknown, graphDiv?: HTMLElement) => void;
+}> = [];
 jest.mock("../ChartCore", () => ({
   ChartCore: (props: unknown) => {
-    chartCoreProps.push(props as (typeof chartCoreProps)[number]);
-    return null;
+    const p = props as (typeof chartCoreProps)[number];
+    chartCoreProps.push(p);
+    return (
+      <svg>
+        <title>chart</title>
+        {(p.layout?.annotations ?? []).map((a) => (
+          <g key={a.text} className="annotation" data-label={a.text} />
+        ))}
+      </svg>
+    );
   },
 }));
 
@@ -76,5 +87,44 @@ describe("ScatterChart: 意見が 0 件のクラスタ", () => {
     const annotations = lastAnnotations();
     expect(annotations.map((a) => a.text)).toEqual(["交通", "医療"]);
     expect(annotations).not.toContainEqual(expect.objectContaining({ x: 0, y: 0 }));
+  });
+});
+
+describe("ScatterChart: 0 件のクラスタがあるときのホバー", () => {
+  beforeEach(() => {
+    chartCoreProps.length = 0;
+  });
+
+  it("0 件のクラスタが前にあっても、ホバーした意見のクラスタのラベルだけを隠す", () => {
+    // 0 件の「その他」を先頭に置き、注釈から除いた分だけインデックスがずれないかを確かめる
+    const ordered: Cluster[] = [
+      { ...cluster("0", "全体", 3), level: 0, parent: "" },
+      cluster("other", "その他", 0),
+      cluster("g1", "交通", 2),
+      cluster("g2", "医療", 1),
+    ];
+    const { container } = render(
+      <Provider>
+        <ScatterChart clusterList={ordered} argumentList={args} targetLevel={1} showClusterLabels />
+      </Provider>,
+    );
+
+    const handlers: Record<string, (data: unknown) => void> = {};
+    const gd = Object.assign(document.createElement("div"), {
+      on: (event: string, handler: (data: unknown) => void) => {
+        handlers[event] = handler;
+      },
+      removeListener: () => {},
+    });
+    act(() => chartCoreProps.at(-1)?.onUpdate?.({}, gd));
+    act(() => handlers.plotly_hover({ points: [{ customdata: { arg_id: "A3" } }] }));
+
+    const opacity = Object.fromEntries(
+      Array.from(container.querySelectorAll<HTMLElement>("g.annotation")).map((g) => [
+        g.getAttribute("data-label"),
+        g.style.opacity,
+      ]),
+    );
+    expect(opacity).toEqual({ 交通: "1", 医療: "0" });
   });
 });
