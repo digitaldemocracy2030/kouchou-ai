@@ -1,6 +1,6 @@
 "use server";
 
-import { getApiBaseUrl } from "@/app/utils/api";
+import { ADMIN_API_KEY_MISSING_MESSAGE, getApiBaseUrl } from "@/app/utils/api";
 
 type DuplicateParams = {
   newSlug?: string;
@@ -25,7 +25,7 @@ type DuplicateResult = { success: true; slug: string } | { success: false; error
 export async function duplicateReport(sourceSlug: string, params: DuplicateParams): Promise<DuplicateResult> {
   const adminApiKey = process.env.ADMIN_API_KEY;
   if (!adminApiKey) {
-    throw new Error("ADMIN_API_KEY is not set");
+    throw new Error(ADMIN_API_KEY_MISSING_MESSAGE);
   }
   const encodedSourceSlug = encodeURIComponent(sourceSlug);
 

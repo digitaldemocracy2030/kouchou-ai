@@ -45,6 +45,8 @@ BASIC_AUTH_PASSWORD=your_password
 OPENAI_API_KEY=your_openai_key
 ```
 
+`ADMIN_API_KEY` は api だけでなく、管理画面（admin）のサーバー側（再利用設定の取得・レポートの複製）でも使います。`make azure-config-update` と GitHub Actions の `azure-deploy.yml` は、admin コンテナにも `ADMIN_API_KEY` を設定します。
+
 次に、以下の手順で `.env.azure` を作成し、Azure環境で用いる環境変数を設定してください。
 
 ```bash

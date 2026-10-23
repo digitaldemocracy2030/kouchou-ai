@@ -1,3 +1,4 @@
+import { ADMIN_API_KEY_MISSING_MESSAGE } from "@/app/utils/api";
 import { NextResponse } from "next/server";
 
 const getAdminBaseUrl = () => {
@@ -7,7 +8,7 @@ const getAdminBaseUrl = () => {
 export async function GET(_: Request, context: { params: Promise<{ slug: string }> }) {
   const adminApiKey = process.env.ADMIN_API_KEY;
   if (!adminApiKey) {
-    return NextResponse.json({ detail: "ADMIN_API_KEY is not set" }, { status: 500 });
+    return NextResponse.json({ detail: ADMIN_API_KEY_MISSING_MESSAGE }, { status: 500 });
   }
 
   const baseUrl = getAdminBaseUrl();
