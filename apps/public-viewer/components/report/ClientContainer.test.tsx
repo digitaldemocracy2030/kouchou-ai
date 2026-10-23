@@ -195,3 +195,37 @@ describe("濃い意見の抽出結果が 0 件のとき", () => {
     await flush();
   });
 });
+
+describe("フィルタボタン", () => {
+  it("属性のあるレポートではフィルタボタンからテキスト検索に到達できる", async () => {
+    await renderViewer();
+    fireEvent.click(screen.getByRole("button", { name: "フィルタ" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("テキスト検索")).toBeInTheDocument();
+    await flush();
+  });
+
+  it("属性の無いレポート（attributes=null）でも、フィルタボタンからテキスト検索を使える", async () => {
+    // 属性列を選ばずに作ったレポートでは analysis-core が attributes: null を出力する
+    const args = (structuredClone(fixture) as unknown as Result).arguments.map((a) => ({
+      ...a,
+      attributes: null,
+    })) as unknown as Result["arguments"];
+    await renderViewer({ arguments: args });
+
+    fireEvent.click(screen.getByRole("button", { name: "フィルタ" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("テキスト検索")).toBeInTheDocument();
+    // 属性 0 件の案内は閲覧者向けの文言にする（作成者向けの「CSVファイルをアップロードする際に…」は出さない）
+    expect(within(dialog).getByText("このレポートには、絞り込みに使える属性情報がありません。")).toBeInTheDocument();
+    expect(within(dialog).queryByText(/CSVファイルをアップロード/)).not.toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "AI" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "設定を適用" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    // 検索中であることがバッジ（有効なフィルタ数）でわかる
+    expect(within(screen.getByRole("button", { name: "フィルタ" })).getByText("1")).toBeInTheDocument();
+    await flush();
+  });
+});

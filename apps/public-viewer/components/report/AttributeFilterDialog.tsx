@@ -186,7 +186,7 @@ export function AttributeFilterDialog({
             </Box>
             {attributes.length === 0 ? (
               <Text fontSize="sm" color="gray.500">
-                利用できる属性情報がありません。CSVファイルをアップロードする際に、属性列を選択してください。
+                このレポートには、絞り込みに使える属性情報がありません。
               </Text>
             ) : (
               attributes.map((attr) => {

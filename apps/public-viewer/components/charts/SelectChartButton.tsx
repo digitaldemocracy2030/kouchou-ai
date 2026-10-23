@@ -26,8 +26,8 @@ type Props = {
   enabledCharts?: ChartType[];
   /** Order to display charts (undefined = use enabledCharts order) */
   chartOrder?: ChartType[];
+  /** フィルタ（テキスト検索・属性）ダイアログを開く。属性の無いレポートでもテキスト検索に使うため常に表示する */
   onClickAttentionFilter?: () => void;
-  isAttentionFilterEnabled?: boolean;
   showAttentionFilterBadge?: boolean;
   attentionFilterBadgeCount?: number;
 };
@@ -114,7 +114,6 @@ export function SelectChartButton({
   enabledCharts,
   chartOrder,
   onClickAttentionFilter,
-  isAttentionFilterEnabled,
   showAttentionFilterBadge,
   attentionFilterBadgeCount,
 }: Props) {
@@ -159,9 +158,9 @@ export function SelectChartButton({
         </SegmentGroup.Root>
 
         <HStack gap={1} justifySelf={["end"]} alignSelf={"center"}>
-          {isAttentionFilterEnabled && onClickAttentionFilter && (
+          {onClickAttentionFilter && (
             <Tooltip content={"フィルタ"} openDelay={0} closeDelay={0}>
-              <Button onClick={onClickAttentionFilter} variant="outline" h={"50px"}>
+              <Button aria-label="フィルタ" onClick={onClickAttentionFilter} variant="outline" h={"50px"}>
                 <Box display="flex" alignItems="center" gap={1}>
                   <Icon>
                     <Filter size={16} />

@@ -239,7 +239,6 @@ export function ClientContainer({ result }: Props) {
         enabledCharts={enabledCharts}
         chartOrder={chartOrder}
         onClickAttentionFilter={() => setOpenAttributeFilter(true)}
-        isAttentionFilterEnabled={attributeMetas.length > 0}
         showAttentionFilterBadge={hasActiveFilters(filterParams)}
         attentionFilterBadgeCount={countActiveFilters(filterParams)}
       />
