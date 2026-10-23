@@ -5,8 +5,9 @@ import os
 import re
 from pathlib import Path
 
+import openai
 import polars as pl
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from tqdm import tqdm
 
 from analysis_core.core import update_progress
@@ -17,6 +18,8 @@ from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, res
 
 COMMA_AND_SPACE_AND_RIGHT_BRACKET = re.compile(r",\s*(\])")
 EXTRACTION_WAIT_TIMEOUT_SECONDS = DEFAULT_REQUEST_TIMEOUT_SECONDS
+# 形式不正・途中切れの応答を受けたときに、同じ回答を送り直す回数の上限（初回を含む）。
+EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS = 3
 
 
 class ExtractionResponse(BaseModel):
@@ -253,21 +256,72 @@ def extract_arguments(
     timeout_seconds=EXTRACTION_WAIT_TIMEOUT_SECONDS,
     user_api_key=None,
 ):
-    """Send a single comment to the LLM and return extracted arguments."""
+    """Send a single comment to the LLM and return extracted arguments.
+
+    応答が形式不正・途中切れのとき（JSON の不正・スキーマ違反・finish_reason=length）は、
+    この回答だけを EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS 回まで送り直す。200 で返った
+    応答の中身の不正は SDK も再試行しないため、1 件の不調で抽出全体が中断していた。
+    拒否（内容なし）・コンテンツフィルタ・API エラーは送り直しても変わらないか SDK が扱うので、
+    そのまま送出する。送り直した分のトークンも課金されているので合計に含める。
+    """
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": input},
     ]
-    response, token_input, token_output, token_total = request_to_chat_ai(
-        messages=messages,
-        model=model,
-        is_json=False,
-        json_schema=ExtractionResponse,
-        provider=provider,
-        local_llm_address=local_llm_address,
-        user_api_key=user_api_key or os.getenv("USER_API_KEY"),
-        timeout_seconds=timeout_seconds,
+    total_input = total_output = total_tokens = 0
+    for attempt in range(1, EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS + 1):
+        try:
+            response, token_input, token_output, token_total = request_to_chat_ai(
+                messages=messages,
+                model=model,
+                is_json=False,
+                json_schema=ExtractionResponse,
+                provider=provider,
+                local_llm_address=local_llm_address,
+                user_api_key=user_api_key or os.getenv("USER_API_KEY"),
+                timeout_seconds=timeout_seconds,
+            )
+        except (ValidationError, openai.LengthFinishReasonError) as error:
+            # SDK の構造化出力の parse が、途中で切れた・スキーマに合わない応答を弾いた
+            token_input, token_output, token_total = _token_usage_of_failed_completion(error)
+            total_input += token_input
+            total_output += token_output
+            total_tokens += token_total
+            if attempt >= EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS:
+                raise
+            _log_malformed_retry(error, attempt)
+            continue
+
+        total_input += token_input
+        total_output += token_output
+        total_tokens += token_total
+        try:
+            items = parse_extraction_response(response)
+        except ValueError as error:
+            # 内容が無い応答（拒否など）は送り直しても変わらないので、再試行しない
+            if response is None or attempt >= EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS:
+                raise
+            _log_malformed_retry(error, attempt)
+            continue
+        items = list(filter(None, items))  # omit empty strings
+        return items, total_input, total_output, total_tokens
+
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
+def _token_usage_of_failed_completion(error: Exception) -> tuple[int, int, int]:
+    """finish_reason=length で弾かれた応答の usage（取れない場合は 0）。"""
+    usage = getattr(getattr(error, "completion", None), "usage", None)
+    if usage is None:
+        return 0, 0, 0
+    return usage.prompt_tokens or 0, usage.completion_tokens or 0, usage.total_tokens or 0
+
+
+def _log_malformed_retry(error: Exception, attempt: int) -> None:
+    # 応答本文・原文は公開ログに出さない（例外の種類だけを残す）
+    logging.warning(
+        "意見抽出の応答が形式不正のため、同じ回答を送り直します（%s、%d/%d 回目）",
+        type(error).__name__,
+        attempt,
+        EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS,
     )
-    items = parse_extraction_response(response)
-    items = list(filter(None, items))  # omit empty strings
-    return items, token_input, token_output, token_total
