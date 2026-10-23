@@ -687,7 +687,7 @@ apps/public-viewer/components/charts/
 ├── plugins/
 │   ├── types.ts          # プラグインの型定義
 │   ├── registry.ts       # プラグインレジストリ
-│   ├── scatter.tsx       # 散布図プラグイン (scatterAll, scatterDensity)
+│   ├── scatter.tsx       # 散布図プラグイン (scatterAll, scatterDetail, scatterDensity)
 │   ├── treemap.tsx       # ツリーマップ プラグイン
 │   └── hierarchy-list.tsx # 階層リストプラグイン
 ├── ScatterChart.tsx       # 散布図コンポーネント
@@ -724,7 +724,8 @@ export function MyCustomChart({ clusterList, argumentList, filteredArgumentIds }
 
 ```tsx
 // apps/public-viewer/components/charts/plugins/my-custom.tsx
-import { MyCustomIcon } from "@/components/icons/ViewIcons";
+// アイコンは既存のものを使う例。独自のアイコンを使う場合は components/icons/ViewIcons.tsx に追加する
+import { ListViewIcon as MyCustomIcon } from "@/components/icons/ViewIcons";
 import { MyCustomChart } from "../MyCustomChart";
 import type { ChartPlugin, ChartRenderContext } from "./types";
 
@@ -737,7 +738,7 @@ export const myCustomPlugin: ChartPlugin = {
     icon: MyCustomIcon,                 // アイコンコンポーネント
     modes: [                            // このプラグインが提供するモード
       {
-        id: "customView",               // モードID（ChartTypeに追加が必要）
+        id: "customView",               // モードID（レポートの enabledCharts に加えるID。Step 5 参照）
         label: "カスタム",              // 表示ラベル
         icon: MyCustomIcon,
       },
@@ -772,6 +773,7 @@ ChartType は既知のID + 任意文字列を許容するため、サーバや�
 // apps/public-viewer/type.ts
 export type ChartType =
   | "scatterAll"
+  | "scatterDetail"
   | "scatterDensity"
   | "treemap"
   | "hierarchyList"
@@ -789,6 +791,39 @@ export function loadBuiltinChartPlugins(): void {
   chartRegistry.register(myCustomPlugin);
 }
 ```
+
+### Step 5: レポートで表示を有効にする
+
+レジストリに登録しただけでは、新しいモードはどのレポートのタブにも表示されません。公開ビューアは、レポートの可視化設定 `enabledCharts` に含まれるモードだけを表示するためです（[レポートごとのチャート設定](#レポートごとのチャート設定)）。
+
+- 可視化設定を保存していないレポートでは、ビューアの既定値（`DEFAULT_ENABLED_CHARTS` の `scatterAll` / `scatterDetail` / `scatterDensity` / `treemap` に `hierarchyList` を加えたもの）が使われます
+- 管理画面の可視化設定ダイアログは、選べるチャートが固定の一覧（`AVAILABLE_CHARTS`）なので、新しいモードを選べません
+
+表示するレポートごとに、管理用 API（`PATCH /admin/reports/{slug}/visualization-config`）で `enabledCharts`（必要なら `chartOrder`・`defaultChart`）にモード ID を加えます。この API は設定全体を置き換えます（送らなかった項目は既定値に戻ります）。先に `GET /admin/reports/{slug}/visualization-config` で今の設定を取得し、それにモード ID を加えて送ってください。
+
+```bash
+# 今の設定を取得し、enabledCharts に customView を加えて送り直す
+# （設定が未保存なら、ビューアの既定の 5 種に customView を加えたものを保存する）
+curl -s "http://localhost:8000/admin/reports/<slug>/visualization-config" \
+  -H "x-api-key: <ADMIN_API_KEY>" \
+  | jq '(.visualizationConfig // {"version": "1", "enabledCharts": ["scatterAll", "scatterDetail", "scatterDensity", "treemap", "hierarchyList"]})
+        | .enabledCharts += ["customView"]' \
+  | curl -s -X PATCH "http://localhost:8000/admin/reports/<slug>/visualization-config" \
+      -H "x-api-key: <ADMIN_API_KEY>" \
+      -H "Content-Type: application/json" \
+      -d @-
+```
+
+API で加えたモード ID は、その後に管理画面のダイアログで設定を保存しても残ります。
+
+すべてのレポートで既定で表示したい場合は、ビューアの既定値を変更します。既定値は次のように複数の場所にあり、それぞれ値が違うので注意してください。
+
+| 場所 | 使われる場面 |
+|------|------------|
+| `apps/public-viewer/components/charts/SelectChartButton.tsx` の `DEFAULT_ENABLED_CHARTS` | 可視化設定が無いときの既定（下の `DEFAULT_READING_CHARTS` の元） |
+| `apps/public-viewer/components/report/ClientContainer.tsx` の `DEFAULT_READING_CHARTS` | 可視化設定を保存していないレポートを表示するとき |
+| `apps/api/src/schemas/visualization_config.py` の `DEFAULT_REPORT_DISPLAY_CONFIG` | 保存された可視化設定を読めなかったとき |
+| `apps/admin/app/_components/ReportCard/VisualizationConfigDialog/VisualizationConfigDialog.tsx` の `DEFAULT_CONFIG` と `AVAILABLE_CHARTS` | 管理画面のダイアログの初期値と選択肢 |
 
 ## プラグインインターフェース
 
@@ -872,11 +907,12 @@ interface ChartRenderContext {
 
 ### 1. Scatter Plugin (`scatter`)
 
-散布図を表示するプラグイン。2つのモードを提供：
+散布図を表示するプラグイン。3つのモードを提供：
 
 | モード | 説明 |
 |--------|------|
 | `scatterAll` | 全データの散布図表示 |
+| `scatterDetail` | 詳細クラスタ（下の階層）で色分けした散布図表示 |
 | `scatterDensity` | 密度フィルター適用済み表示（条件付きで無効化） |
 
 ### 2. Treemap Plugin (`treemap`)
