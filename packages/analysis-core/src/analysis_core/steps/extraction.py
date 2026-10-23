@@ -93,6 +93,18 @@ def extraction(config):
     comments = _filter_empty_comments(comments)
 
     comment_ids = comments["comment-id"].to_list()[:limit]
+    if len(comments) > len(comment_ids):
+        # 切り詰めた残りの回答は分析されない。CLI で limit を省略すると spec の既定値（1000）が使われるので、
+        # 黙って落とさずに件数を知らせる（管理画面からの実行は limit=入力件数なので起きない）。
+        logging.warning(
+            "空でない回答 %d件のうち、先頭の %d件だけを分析します（extraction.limit=%d）。"
+            "残りの %d件は分析されません。全件を分析するには extraction.limit を回答数以上に設定してください"
+            "（省略時の既定値は 1000）。",
+            len(comments),
+            len(comment_ids),
+            limit,
+            len(comments) - len(comment_ids),
+        )
     comments_lookup = {row["comment-id"]: row for row in comments.iter_rows(named=True)}
     update_progress(config, total=len(comment_ids))
 

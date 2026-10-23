@@ -81,7 +81,7 @@ comment-id,comment-body,source
 | `is_embedded_at_local` | ローカルでエンベディングを行うか |
 | `embedding.model` | 埋め込みモデル。チャット用の `model` とは独立に指定でき、省略時は `text-embedding-3-small`。`provider` が `openai` の場合は `text-embedding-3-small` / `text-embedding-3-large` が選択可能（`gemini` は自動的に `gemini-embedding-001` に解決、`is_embedded_at_local: true` ではローカル埋め込みを使用） |
 | `extraction.workers` | 並列処理数 |
-| `extraction.limit` | 処理するコメント数の上限 |
+| `extraction.limit` | 処理するコメント数の上限。空のコメントを除いた先頭からこの件数だけを分析し、超えた分は分析しない（警告を出す）。省略時は 1000。全件を分析するにはコメント数以上の値を指定する |
 | `hierarchical_clustering.cluster_nums` | 階層クラスタリングの各レベルのクラスター数。省略時は extraction 後の argument 数からおすすめ値を自動計算 |
 
 ## 4. 環境変数の設定
