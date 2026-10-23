@@ -223,6 +223,25 @@ describe("ProgressSteps の工程表示", () => {
     expect(stepStates().custom_step).toBe("failed");
   });
 
+  it("工程が始まる前に失敗した（current_job が無いまま error）ら、待ち続けずにエラーを出し、どの工程にも失敗マークを付けない", async () => {
+    renderSteps(
+      [
+        {
+          status: "error",
+          current_step: "loading",
+          steps: HIERARCHICAL_STEPS,
+          error_message: "入力の読み込みに失敗しました",
+        },
+      ],
+      "error",
+    );
+    await advance(500);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("入力の読み込みに失敗しました");
+    expect(Object.values(stepStates())).not.toContain("failed");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("工程を受け取る前に状況の取得自体が失敗したら、どの工程にも失敗マークを付けない", async () => {
     const fetchMock = jest.fn().mockResolvedValue({ ok: false } as Response);
     global.fetch = fetchMock;

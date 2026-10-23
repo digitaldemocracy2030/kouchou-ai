@@ -52,13 +52,17 @@ export function useReportProgressPoll(slug: string) {
         if (response.ok) {
           const data = (await response.json()) as StepJsonResponse;
 
-          if (!data.current_step || data.current_step === "loading") {
+          const isLoadingStep = !data.current_step || data.current_step === "loading";
+
+          // 工程が始まる前の失敗（current_job が無いまま error）も、loading として待ち続けずにエラーを出す
+          if (isLoadingStep && data.status !== "error") {
             retryCount = 0;
             setTimeout(poll, 3000);
             return;
           }
 
-          setProgress(data.current_step);
+          // 失敗した工程が分からないときは "error" にし、どの工程にも失敗マークを付けない
+          setProgress(isLoadingStep ? "error" : (data.current_step as string));
           const steps = toPlannedSteps(data.steps);
           if (steps) {
             setPlannedSteps(steps);
