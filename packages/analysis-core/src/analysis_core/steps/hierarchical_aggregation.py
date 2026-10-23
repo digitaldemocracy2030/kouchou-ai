@@ -159,10 +159,15 @@ def create_custom_intro(config):
         provider = config.get("provider", "openai")
         model = config.get("model", "unknown")
 
+        # Azure は config のモデル名（管理画面の固定値 azure-server など）ではなく、サーバーに設定した
+        # デプロイを使う。使っていないモデル名や内部値を公開される文に載せない
+        if provider == "azure":
+            return "Azure OpenAI API（サーバー設定のモデル）"
+
         # プロバイダー名をマッピング
         provider_names = {
             "openai": "OpenAI API",
-            "azure": "Azure OpenAI API",
+            "gemini": "Google Gemini API",
             "openrouter": "OpenRouter API",
             "local": "Local LLM",
         }

@@ -118,6 +118,7 @@ export type Config = {
   question: string; // AIに関する問い
   input: string; // 入力データの識別子
   model: string; // 使用するモデル名
+  provider?: string; // LLM プロバイダ（openai / azure / gemini / openrouter / local）。古いレポートには無い
   intro: string; // イントロダクションの説明文
   output_dir: string; // 結果の出力ディレクトリ名
   previous?: Config; // 過去の設定情報

@@ -41,6 +41,7 @@ import {
   MessagesSquareIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { chatModelDisplayName, embeddingModelDisplayName } from "./modelDisplay";
 
 type ReportProps = {
   result: Result;
@@ -144,7 +145,9 @@ export function Analysis({ result }: ReportProps) {
                 </TimelineConnector>
                 {p.step === "extraction" && (
                   <TimelineContent>
-                    <TimelineTitle fontWeight={"bold"}>抽出 ({result.config.extraction.model})</TimelineTitle>
+                    <TimelineTitle fontWeight={"bold"}>
+                      抽出 ({chatModelDisplayName(result.config, result.config.extraction.model)})
+                    </TimelineTitle>
                     <TimelineDescription>
                       コメントデータから意見を抽出するステップです。
                       <br />
@@ -180,11 +183,7 @@ export function Analysis({ result }: ReportProps) {
                 {p.step === "embedding" && (
                   <TimelineContent>
                     <TimelineTitle fontWeight={"bold"}>
-                      埋め込み (
-                      {result.config.is_embedded_at_local
-                        ? "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-                        : result.config.embedding.model}
-                      )
+                      埋め込み ({embeddingModelDisplayName(result.config)})
                     </TimelineTitle>
                     <TimelineDescription>
                       抽出された意見に対して埋め込み（ベクトル表現）を生成するステップです。
@@ -233,7 +232,8 @@ export function Analysis({ result }: ReportProps) {
                 {p.step === "hierarchical_initial_labelling" && (
                   <TimelineContent>
                     <TimelineTitle fontWeight={"bold"}>
-                      初期ラベリング ({result.config.hierarchical_initial_labelling.model})
+                      初期ラベリング (
+                      {chatModelDisplayName(result.config, result.config.hierarchical_initial_labelling.model)})
                     </TimelineTitle>
                     <TimelineDescription>
                       意見グループ化の結果に対して、各意見グループに適切なタイトル・説明文を生成（ラベリング）するステップです。
@@ -271,7 +271,8 @@ export function Analysis({ result }: ReportProps) {
                 {p.step === "hierarchical_merge_labelling" && (
                   <TimelineContent>
                     <TimelineTitle fontWeight={"bold"}>
-                      統合ラベリング ({result.config.hierarchical_merge_labelling.model})
+                      統合ラベリング (
+                      {chatModelDisplayName(result.config, result.config.hierarchical_merge_labelling.model)})
                     </TimelineTitle>
                     <TimelineDescription>
                       意見グループを統合し、統合されたグループのタイトルと説明文を生成（ラベリング）するステップです。
@@ -309,7 +310,7 @@ export function Analysis({ result }: ReportProps) {
                 {p.step === "hierarchical_overview" && (
                   <TimelineContent>
                     <TimelineTitle fontWeight={"bold"}>
-                      要約 ({result.config.hierarchical_overview.model})
+                      要約 ({chatModelDisplayName(result.config, result.config.hierarchical_overview.model)})
                     </TimelineTitle>
                     <TimelineDescription>
                       意見グループの概要を作成するステップです。
