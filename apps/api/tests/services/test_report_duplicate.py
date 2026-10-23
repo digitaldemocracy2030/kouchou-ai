@@ -493,3 +493,140 @@ def test_duplicate_with_reuse_regenerates_legacy_pandas_embeddings(reuse_env, ov
     assert plan["hierarchical_clustering"]["run"] is embedding_reruns
     if embedding_reruns:
         assert "pandas" in plan["embedding"]["reason"]
+
+
+def _setup_umap_saving_env(monkeypatch, tmp_path, source_config=None, embedded_config=None):
+    """複製元を config ファイル、または hierarchical_result.json の埋め込み config で用意する。"""
+    from src.services import report_duplicate
+
+    env = SimpleNamespace(reports=tmp_path / "reports", configs=tmp_path / "configs", inputs=tmp_path / "inputs")
+    (env.reports / "old").mkdir(parents=True)
+    env.configs.mkdir(parents=True)
+    env.inputs.mkdir(parents=True)
+    monkeypatch.setattr(report_duplicate.settings, "REPORT_DIR", env.reports)
+    monkeypatch.setattr(report_duplicate.settings, "CONFIG_DIR", env.configs)
+    monkeypatch.setattr(report_duplicate.settings, "INPUT_DIR", env.inputs)
+    if source_config is not None:
+        (env.configs / "old.json").write_text(json.dumps(source_config), encoding="utf-8")
+    else:
+        (env.reports / "old" / "hierarchical_result.json").write_text(
+            json.dumps({"config": embedded_config, "arguments": []}), encoding="utf-8"
+        )
+    (env.inputs / "old.csv").write_text("comment-id,comment-body\n1,hello\n", encoding="utf-8")
+    for name in report_duplicate.REUSE_ARTIFACTS + ("hierarchical_status.json",):
+        (env.reports / "old" / name).write_text("{}" if name.endswith(".json") else name, encoding="utf-8")
+
+    monkeypatch.setattr(report_duplicate, "ReportSyncService", MagicMock())
+    monkeypatch.setattr(report_duplicate, "slug_exists", lambda slug: False)
+    monkeypatch.setattr(report_duplicate, "validate_slug", lambda slug: None)
+    monkeypatch.setattr(report_duplicate, "add_new_report_to_status_from_config", lambda *args, **kwargs: None)
+    monkeypatch.setattr(report_duplicate, "launch_report_generation_from_config", lambda *args, **kwargs: None)
+    return report_duplicate, env
+
+
+# #1104 より前に API で作ったレポートの config ファイル（save_umap_model を持たない）
+_CONFIG_WITHOUT_SAVE_FLAG = {
+    "name": "old",
+    "input": "old",
+    "question": "Q",
+    "intro": "I",
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "extraction": {"workers": 2, "prompt": "extract"},
+    "hierarchical_clustering": {"cluster_nums": [2, 4]},
+}
+
+
+def _duplicate(report_duplicate, reuse: bool, cluster: list[int] | None):
+    from src.schemas.admin_report import ReportDuplicateOverrides, ReportDuplicateRequest, ReportDuplicateReuse
+
+    report_duplicate.duplicate_report(
+        "old",
+        ReportDuplicateRequest(
+            new_slug="copy",
+            reuse=ReportDuplicateReuse(enabled=reuse),
+            overrides=ReportDuplicateOverrides(cluster=cluster),
+        ),
+    )
+
+
+@pytest.mark.parametrize(("reuse", "cluster"), [(False, None), (False, [3, 9]), (True, [3, 9])])
+def test_duplicate_from_config_file_without_save_flag_does_not_save_umap_model(monkeypatch, tmp_path, reuse, cluster):
+    """複製元の config ファイルが save_umap_model を持たなくても、複製では umap_model.pkl を保存させない。
+
+    clustering が再実行される複製（reuse 無効、またはクラスタ数の変更）で、analysis-core の既定 true が
+    使われると、Web 経路では読まれない umap_model.pkl が保存・アップロードされる。
+    """
+    report_duplicate, env = _setup_umap_saving_env(monkeypatch, tmp_path, source_config=_CONFIG_WITHOUT_SAVE_FLAG)
+
+    _duplicate(report_duplicate, reuse, cluster)
+
+    written = json.loads((env.configs / "copy.json").read_text(encoding="utf-8"))
+    assert written["hierarchical_clustering"]["save_umap_model"] is False
+    assert written["hierarchical_clustering"]["cluster_nums"] == (cluster or [2, 4])
+
+
+@pytest.mark.parametrize("section", [None, "missing"])
+def test_duplicate_hierarchical_config_without_clustering_section_does_not_save_umap_model(
+    monkeypatch, tmp_path, section
+):
+    """hierarchical_clustering の無い（または null の）config でも、analysis-core の既定 true に任せない。"""
+    source_config = {key: value for key, value in _CONFIG_WITHOUT_SAVE_FLAG.items() if key != "hierarchical_clustering"}
+    if section is None:
+        source_config["hierarchical_clustering"] = None
+    report_duplicate, env = _setup_umap_saving_env(monkeypatch, tmp_path, source_config=source_config)
+
+    _duplicate(report_duplicate, reuse=False, cluster=None)
+
+    written = json.loads((env.configs / "copy.json").read_text(encoding="utf-8"))
+    assert written["hierarchical_clustering"] == {"save_umap_model": False}
+
+
+def test_duplicate_keeps_explicit_save_umap_model_true(monkeypatch, tmp_path):
+    """config に明示した save_umap_model: true（手で有効にしたもの）は、複製でも引き継ぐ。"""
+    source_config = {
+        **_CONFIG_WITHOUT_SAVE_FLAG,
+        "hierarchical_clustering": {"cluster_nums": [2, 4], "save_umap_model": True},
+    }
+    report_duplicate, env = _setup_umap_saving_env(monkeypatch, tmp_path, source_config=source_config)
+
+    _duplicate(report_duplicate, reuse=False, cluster=None)
+
+    written = json.loads((env.configs / "copy.json").read_text(encoding="utf-8"))
+    assert written["hierarchical_clustering"]["save_umap_model"] is True
+
+
+def test_duplicate_from_embedded_config_does_not_save_umap_model(monkeypatch, tmp_path):
+    embedded = {
+        "name": "old",
+        "input": "old",
+        "question": "Q",
+        "intro": "I",
+        "model": "gpt-4o-mini",
+        "provider": "openai",
+        "analysis_mode": "hierarchical",
+        "extraction": {"prompt": "p", "workers": 1, "limit": 2},
+        "hierarchical_clustering": {"cluster_nums": [2, 4]},
+        "hierarchical_initial_labelling": {"prompt": "i", "sampling_num": 30, "workers": 1},
+        "hierarchical_merge_labelling": {"prompt": "m", "sampling_num": 30, "workers": 1},
+        "hierarchical_overview": {"prompt": "ov"},
+        "hierarchical_aggregation": {"sampling_num": 5000},
+    }
+    report_duplicate, env = _setup_umap_saving_env(monkeypatch, tmp_path, embedded_config=embedded)
+
+    _duplicate(report_duplicate, reuse=False, cluster=None)
+
+    written = json.loads((env.configs / "copy.json").read_text(encoding="utf-8"))
+    assert written["hierarchical_clustering"] == {"cluster_nums": [2, 4], "save_umap_model": False}
+
+
+def test_duplicate_llm_grouping_config_gets_no_clustering_section(monkeypatch, tmp_path):
+    source_config = {
+        key: value for key, value in _CONFIG_WITHOUT_SAVE_FLAG.items() if key != "hierarchical_clustering"
+    } | {"analysis_mode": "llm_grouping", "llm_grouping": {"group_count": 5}}
+    report_duplicate, env = _setup_umap_saving_env(monkeypatch, tmp_path, source_config=source_config)
+
+    _duplicate(report_duplicate, reuse=False, cluster=None)
+
+    written = json.loads((env.configs / "copy.json").read_text(encoding="utf-8"))
+    assert "hierarchical_clustering" not in written

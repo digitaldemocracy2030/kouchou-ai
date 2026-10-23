@@ -353,8 +353,12 @@ def test_duplicate_embedded_fallback_pruned_config_validates():
 
 
 def test_duplicate_config_does_not_save_umap_model():
-    """複製（Web 経路）でも umap_model.pkl を保存させない。llm_grouping には hierarchical_clustering を足さない。"""
+    """複製（Web 経路）でも umap_model.pkl を保存させない。llm_grouping には hierarchical_clustering を足さない。
+
+    duplicate_report は config の取得元（ファイル／埋め込み）によらず disable_umap_model_saving を通す。
+    """
     from src.services.report_duplicate import _build_analysis_core_config_from_embedded_config
+    from src.services.report_launcher import disable_umap_model_saving
 
     base = {
         "name": "src",
@@ -374,13 +378,15 @@ def test_duplicate_config_does_not_save_umap_model():
         "hierarchical_initial_labelling": {"prompt": "i", "sampling_num": 30, "workers": 1},
         "hierarchical_merge_labelling": {"prompt": "m", "sampling_num": 30, "workers": 1},
     }
-    built = prune_config_for_mode(_build_analysis_core_config_from_embedded_config(hierarchical))
+    built = prune_config_for_mode(
+        disable_umap_model_saving(_build_analysis_core_config_from_embedded_config(hierarchical))
+    )
     assert built["hierarchical_clustering"] == {"cluster_nums": [3, 6], "save_umap_model": False}
     _validate_with_analysis_core(built)
 
     llm_grouping = {**base, "analysis_mode": "llm_grouping"}
-    built = prune_config_for_mode(_build_analysis_core_config_from_embedded_config(llm_grouping))
-    assert "hierarchical_clustering" not in built
+    built = disable_umap_model_saving(_build_analysis_core_config_from_embedded_config(llm_grouping))
+    assert "hierarchical_clustering" not in prune_config_for_mode(built)
 
 
 def test_update_json_preserves_keys_not_defined_in_report_config(tmp_path, monkeypatch):

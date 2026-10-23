@@ -11,7 +11,7 @@ import polars as pl
 from src.config import settings
 from src.schemas.admin_report import ReportInput
 from src.schemas.report import ReportStatus
-from src.services.analysis_config import prune_config_for_mode
+from src.services.analysis_config import prune_config_for_mode, resolve_analysis_mode
 from src.services.report_status import (
     add_new_report_to_status,
     load_status_as_reports,
@@ -94,10 +94,17 @@ def disable_umap_model_saving(config: dict[str, Any]) -> dict[str, Any]:
     umap_model.pkl は #515 の UMAP 平面の使い回し（CLI 専用）のためのファイルで、
     Web 経路では読まれない。それでも件数に比例して大きくなり（6 万件で 1GB 超）、
     完了時にストレージへアップロードされるので、Web 経路では保存しない。
+
+    save_umap_model を持たない config（この設定より前に作ったレポートの config ファイル、
+    hierarchical_clustering が無い・null のもの）にも false を入れる。指定が無いと
+    analysis-core の既定（保存する）になるため。明示した値（手で true にしたもの）は変えない。
     """
+    if resolve_analysis_mode(config) != "hierarchical":
+        return config
     clustering = config.get("hierarchical_clustering")
-    if isinstance(clustering, dict):
-        clustering["save_umap_model"] = False
+    if not isinstance(clustering, dict):
+        clustering = config["hierarchical_clustering"] = {}
+    clustering.setdefault("save_umap_model", False)
     return config
 
 

@@ -205,8 +205,7 @@ def _build_analysis_core_config_from_embedded_config(embedded_config: dict) -> d
     if isinstance(embedding, dict) and isinstance(embedding.get("model"), str):
         config["embedding"] = {"model": embedding["model"]}
 
-    # 新規作成と同じく、Web 経路では使わない umap_model.pkl を保存させない
-    return disable_umap_model_saving(config)
+    return config
 
 
 def _write_input_csv_from_arguments(arguments: list, output_path: Path) -> int:
@@ -446,6 +445,10 @@ def duplicate_report(
         config = _apply_overrides(config, payload.overrides)
         if input_limit_override is not None:
             config.setdefault("extraction", {})["limit"] = input_limit_override
+        # 新規作成と同じく、Web 経路では使わない umap_model.pkl を保存させない。
+        # 複製元の config ファイル（この設定より前に作ったレポートのもの）も、
+        # 埋め込み config から作った config も、ここで 1 回だけ設定する。
+        config = disable_umap_model_saving(config)
 
         # 複製元 config は (a) 既存 config ファイル、(b) hierarchical_result.json 埋め込みの
         # normalize 済み config（この場合 llm_grouping が値入り dict で混入する）のいずれか。
