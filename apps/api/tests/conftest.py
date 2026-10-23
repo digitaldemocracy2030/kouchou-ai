@@ -72,4 +72,7 @@ def client(test_settings):
     # 認証関数をオーバーライド
     app.dependency_overrides[verify_public_api_key] = test_verify_public_api_key
 
-    return TestClient(app)
+    yield TestClient(app)
+
+    # 公開 API キーの検証を試すテストに上書きが残らないよう、後片付けする
+    app.dependency_overrides.pop(verify_public_api_key, None)
