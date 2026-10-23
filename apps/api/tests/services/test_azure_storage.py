@@ -309,6 +309,57 @@ class TestAzureBlobStorageService:
                 # jsonは指定したsuffixに一致しないためダウンロードされない
                 assert "test/dir/file2.json" not in remote_paths
 
+    def test_download_directory_excludes_subdirs(
+        self, azure_storage: AzureBlobStorageService, mock_blob_service_client: tuple[MagicMock, MagicMock]
+    ):
+        """download_directory: exclude_subdirs に挙げた直下のディレクトリは取得しない"""
+        _, container_client_mock = mock_blob_service_client
+
+        names = [
+            "outputs/live/hierarchical_result.json",
+            "outputs/gone/hierarchical_result.json",
+            "outputs/gone/args.csv",
+            "outputs/gone-2/hierarchical_result.json",
+        ]
+        blobs = []
+        for name in names:
+            blob = MagicMock()
+            blob.name = name
+            blobs.append(blob)
+        container_client_mock.list_blobs.return_value = blobs
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch.object(azure_storage, "download_file", return_value=True) as mock_download_file:
+                result = azure_storage.download_directory(
+                    "outputs", temp_dir, target_suffixes=(".json", ".csv"), exclude_subdirs=("gone",)
+                )
+
+                assert result is True
+                remote_paths = sorted(call[0][0] for call in mock_download_file.call_args_list)
+                # 前方一致ではなく、ディレクトリ名の完全一致で除外する
+                assert remote_paths == [
+                    "outputs/gone-2/hierarchical_result.json",
+                    "outputs/live/hierarchical_result.json",
+                ]
+
+    def test_download_directory_all_excluded_is_not_failure(
+        self, azure_storage: AzureBlobStorageService, mock_blob_service_client: tuple[MagicMock, MagicMock]
+    ):
+        """download_directory: 該当ファイルがすべて除外対象でも、失敗（ファイル無し）扱いにしない"""
+        _, container_client_mock = mock_blob_service_client
+        blob = MagicMock()
+        blob.name = "outputs/gone/hierarchical_result.json"
+        container_client_mock.list_blobs.return_value = [blob]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch.object(azure_storage, "download_file", return_value=True) as mock_download_file:
+                result = azure_storage.download_directory(
+                    "outputs", temp_dir, target_suffixes=(".json",), exclude_subdirs=("gone",)
+                )
+
+                assert result is True
+                mock_download_file.assert_not_called()
+
     def test_download_directory_failure(
         self, azure_storage: AzureBlobStorageService, mock_blob_service_client: tuple[MagicMock, MagicMock]
     ):

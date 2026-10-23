@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from src.config import settings
+from src.schemas.report import ReportStatus
 from src.services.storage import get_storage_service
 from src.utils.logger import setup_logger
 
@@ -26,6 +27,16 @@ class ReportSyncService:
         "hierarchical_clusters.csv",
         "relations.csv",
         "hierarchical_overview.txt",
+    )
+    # 起動時（initialize_from_storage）に全レポート分を取得するファイル。
+    # CSV ダウンロード（final_result_with_comments.csv）、クラスタラベルの編集（hierarchical_merge_labels.csv）、
+    # 編集後の再集計（args.csv / relations.csv / hierarchical_clusters.csv / hierarchical_overview.txt）は
+    # ローカルのファイルを前提にし、その場では取得しないので、ここに含める。
+    # embeddings.pkl と hierarchical_initial_labels.csv は複製（再利用）でしか使わず、複製時に
+    # report_duplicate._ensure_source_artifacts が足りない分を取得するので、起動時には取らない。
+    # 生成後のローカル掃除（_cleanup_report_files）は従来どおり PRESERVED_REPORT_FILES を残す。
+    STARTUP_REPORT_FILES = tuple(
+        name for name in PRESERVED_REPORT_FILES if name not in ("embeddings.pkl", "hierarchical_initial_labels.csv")
     )
     # ``report.html`` is intentionally excluded. The Web product uses
     # ``hierarchical_result.json`` as the canonical stored/distributed artifact
@@ -165,7 +176,12 @@ class ReportSyncService:
             return False
 
     def _download_directory_from_storage(
-        self, remote_dir_prefix: str, local_dir: Path, target_suffixes: tuple[str, ...], file_type_name: str
+        self,
+        remote_dir_prefix: str,
+        local_dir: Path,
+        target_suffixes: tuple[str, ...],
+        file_type_name: str,
+        exclude_subdirs: tuple[str, ...] | None = None,
     ) -> bool:
         """ストレージからディレクトリをダウンロードする汎用関数
 
@@ -174,15 +190,18 @@ class ReportSyncService:
             local_dir: ローカルディレクトリのパス
             target_suffixes: ダウンロード対象のファイル拡張子のタプル
             file_type_name: ログメッセージで使用するファイルタイプ名
+            exclude_subdirs: プレフィックス直下で取得しないディレクトリ名（None なら指定しない）
 
         Returns:
             bool: ダウンロードに成功した場合はTrue、失敗した場合はFalse
         """
+        kwargs = {} if exclude_subdirs is None else {"exclude_subdirs": exclude_subdirs}
         try:
             return self.storage_service.download_directory(
                 remote_dir_prefix,
                 str(local_dir),
                 target_suffixes=target_suffixes,
+                **kwargs,
             )
         except FileNotFoundError:
             logger.warning(f"ストレージに{file_type_name}が存在しません: {remote_dir_prefix}")
@@ -191,14 +210,42 @@ class ReportSyncService:
             logger.error(f"{file_type_name}のダウンロードに失敗しました: {e}")
             return False
 
+    def _deleted_report_slugs(self) -> tuple[str, ...]:
+        """ローカルのステータスファイルから、論理削除（status=deleted）済みのレポートの slug を返す
+
+        ステータスファイルが無い・読めない場合は空タプルを返す（何も除外しない）。
+        """
+        try:
+            with open(self.LOCAL_STATUS_FILE_PATH, encoding="utf-8") as f:
+                report_status = json.load(f)
+        except FileNotFoundError:
+            return ()
+        except Exception as e:
+            logger.warning(f"ステータスファイルを読めないため、削除済みレポートも取得します: {e}")
+            return ()
+        if not isinstance(report_status, dict):
+            return ()
+        return tuple(
+            slug
+            for slug, entry in report_status.items()
+            if isinstance(entry, dict) and entry.get("status") == ReportStatus.DELETED.value
+        )
+
     def download_all_report_results_from_storage(self) -> bool:
-        """レポート結果ファイル（hierarchical_result.json）のみをストレージからダウンロードする
+        """起動時に、全レポートの成果物のうち STARTUP_REPORT_FILES に当たるものをストレージからダウンロードする
+
+        論理削除（status=deleted）済みのレポートは取得しない。ステータスファイルは先に
+        download_status_file_from_storage で用意しておく。
 
         Returns:
             bool: ダウンロードに成功した場合はTrue、失敗した場合はFalse
         """
         return self._download_directory_from_storage(
-            self.REMOTE_REPORT_DIR_PREFIX, settings.REPORT_DIR, self.PRESERVED_REPORT_FILES, "レポートファイル"
+            self.REMOTE_REPORT_DIR_PREFIX,
+            settings.REPORT_DIR,
+            self.STARTUP_REPORT_FILES,
+            "レポートファイル",
+            exclude_subdirs=self._deleted_report_slugs(),
         )
 
     def download_all_config_files_from_storage(self) -> bool:

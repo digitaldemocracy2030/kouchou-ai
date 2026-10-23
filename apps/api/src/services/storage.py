@@ -40,12 +40,20 @@ class StorageService(ABC):
         pass
 
     @abstractmethod
-    def download_directory(self, remote_dir_prefix: str, local_dir_path: str, target_suffixes: tuple[str, ...] = ()):
+    def download_directory(
+        self,
+        remote_dir_prefix: str,
+        local_dir_path: str,
+        target_suffixes: tuple[str, ...] = (),
+        exclude_subdirs: tuple[str, ...] = (),
+    ):
         """ストレージから指定プレフィックスに一致するファイル群をディレクトリとしてダウンロードする
 
         Args:
             remote_dir_prefix: ダウンロードするストレージ上のディレクトリプレフィックス
             local_dir_path: ローカルの保存先ディレクトリパス
+            target_suffixes: ダウンロード対象とするファイルの拡張子リスト（省略可能）
+            exclude_subdirs: プレフィックス直下で取得しないディレクトリ名（完全一致。省略可能）
         """
         pass
 
@@ -89,7 +97,11 @@ class LocalStorageService(StorageService):
         return True
 
     def download_directory(
-        self, remote_dir_prefix: str, local_dir_path: str, target_suffixes: tuple[str, ...] = ()
+        self,
+        remote_dir_prefix: str,
+        local_dir_path: str,
+        target_suffixes: tuple[str, ...] = (),
+        exclude_subdirs: tuple[str, ...] = (),
     ) -> bool:
         """ローカルストレージの場合はファイル一覧取得は不要
 
@@ -97,6 +109,7 @@ class LocalStorageService(StorageService):
             remote_dir_prefix: ダウンロード対象のディレクトリプレフィックス
             local_dir_path: ダウンロード先のローカルディレクトリパス
             target_suffixes: ダウンロード対象とするファイルの拡張子リスト（省略可能）
+            exclude_subdirs: プレフィックス直下で取得しないディレクトリ名（省略可能）
         """
         logger.debug(
             f"LocalStorageService: download_directory は何もしません - {remote_dir_prefix} -> {local_dir_path}"
@@ -301,7 +314,11 @@ class AzureBlobStorageService(StorageService):
             return False
 
     def download_directory(
-        self, remote_dir_prefix: str, local_dir_path: str, target_suffixes: tuple[str, ...] = ()
+        self,
+        remote_dir_prefix: str,
+        local_dir_path: str,
+        target_suffixes: tuple[str, ...] = (),
+        exclude_subdirs: tuple[str, ...] = (),
     ) -> bool:
         """ディレクトリをダウンロードする
 
@@ -312,6 +329,9 @@ class AzureBlobStorageService(StorageService):
             local_dir_path: ローカルの保存先ディレクトリパス（文字列）
             target_suffixes: ダウンロード対象とするファイルの拡張子リスト（省略可能）
                 指定された場合、リストに含まれる拡張子を持つファイルのみがダウンロードされます
+            exclude_subdirs: プレフィックス直下で取得しないディレクトリ名（省略可能）
+                ディレクトリ名と完全一致したものだけを除外します（前方一致ではありません）。
+                該当ファイルがすべて除外対象だった場合も、失敗（ファイル無し）とはみなしません
 
         Raises:
             FileNotFoundError: 一致するファイルが見つからない場合
@@ -334,6 +354,8 @@ class AzureBlobStorageService(StorageService):
                 found = True
                 # プレフィックス部分を除いた相対パスを計算し、ローカルのパスと結合
                 relative_path = blob_name[len(prefix) :] if prefix else blob_name
+                if exclude_subdirs and relative_path.split("/", 1)[0] in exclude_subdirs:
+                    continue
                 local_path = os.path.join(local_dir_path, relative_path)
 
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)

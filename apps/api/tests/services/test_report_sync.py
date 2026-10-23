@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -195,22 +196,88 @@ class TestReportSyncService:
         mock_storage_service.download_file.assert_called_once()
 
     def test_download_all_report_results_from_storage_success(
-        self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock
+        self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock, tmp_path: Path
     ):
         """レポート結果ファイルのダウンロードが成功することを確認"""
         # モックの設定
         mock_storage_service.download_directory.return_value = True
 
-        # 実行
-        result = report_sync_service.download_all_report_results_from_storage()
+        # 実行（ステータスファイルが無い = 削除済みレポートは分からないので、何も除外しない）
+        with patch.object(ReportSyncService, "LOCAL_STATUS_FILE_PATH", tmp_path / "missing.json"):
+            result = report_sync_service.download_all_report_results_from_storage()
 
         # 検証
         assert result is True
         mock_storage_service.download_directory.assert_called_once_with(
             str(report_sync_service.REMOTE_REPORT_DIR_PREFIX),
             str(settings.REPORT_DIR),
-            target_suffixes=report_sync_service.PRESERVED_REPORT_FILES,
+            target_suffixes=report_sync_service.STARTUP_REPORT_FILES,
+            exclude_subdirs=(),
         )
+
+    def test_download_all_report_results_skips_reuse_only_artifacts(
+        self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock, tmp_path: Path
+    ):
+        """起動時には、複製でしか使わない embeddings.pkl と初期ラベルを取得しない
+
+        複製は _ensure_source_artifacts で足りないファイルをその場で取得する。一方、CSV ダウンロード・
+        クラスタラベルの編集・編集後の再集計はローカルのファイルを前提にするので、それらは起動時に取る。
+        """
+        mock_storage_service.download_directory.return_value = True
+
+        with patch.object(ReportSyncService, "LOCAL_STATUS_FILE_PATH", tmp_path / "missing.json"):
+            report_sync_service.download_all_report_results_from_storage()
+
+        suffixes = mock_storage_service.download_directory.call_args.kwargs["target_suffixes"]
+        assert "embeddings.pkl" not in suffixes
+        assert "hierarchical_initial_labels.csv" not in suffixes
+        for required in (
+            ".json",
+            "final_result_with_comments.csv",
+            "hierarchical_merge_labels.csv",
+            "args.csv",
+            "relations.csv",
+            "hierarchical_clusters.csv",
+            "hierarchical_overview.txt",
+        ):
+            assert required in suffixes
+
+    def test_download_all_report_results_excludes_deleted_reports(
+        self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock, tmp_path: Path
+    ):
+        """status=deleted（論理削除）のレポートの成果物は起動時に取得しない"""
+        mock_storage_service.download_directory.return_value = True
+        status_file = tmp_path / "report_status.json"
+        status_file.write_text(
+            json.dumps(
+                {
+                    "live": {"slug": "live", "status": "ready"},
+                    "gone": {"slug": "gone", "status": "deleted"},
+                    "broken": {"slug": "broken", "status": "error"},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with patch.object(ReportSyncService, "LOCAL_STATUS_FILE_PATH", status_file):
+            result = report_sync_service.download_all_report_results_from_storage()
+
+        assert result is True
+        assert mock_storage_service.download_directory.call_args.kwargs["exclude_subdirs"] == ("gone",)
+
+    def test_download_all_report_results_ignores_unreadable_status_file(
+        self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock, tmp_path: Path
+    ):
+        """ステータスファイルが壊れていても起動時の取得は止めず、何も除外しない"""
+        mock_storage_service.download_directory.return_value = True
+        status_file = tmp_path / "report_status.json"
+        status_file.write_text("{not json", encoding="utf-8")
+
+        with patch.object(ReportSyncService, "LOCAL_STATUS_FILE_PATH", status_file):
+            result = report_sync_service.download_all_report_results_from_storage()
+
+        assert result is True
+        assert mock_storage_service.download_directory.call_args.kwargs["exclude_subdirs"] == ()
 
     def test_download_all_report_results_from_storage_file_not_found(
         self, report_sync_service: ReportSyncService, mock_storage_service: MagicMock
