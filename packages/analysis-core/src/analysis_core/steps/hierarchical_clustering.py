@@ -7,6 +7,8 @@ from importlib import import_module
 import numpy as np
 import polars as pl
 
+from analysis_core.steps._embeddings_io import stack_embedding_rows
+
 # 保存する UMAP model payload のフォーマット版数。
 # 将来 model 保存形式を変える時に後方互換を判断するための marker。
 UMAP_MODEL_FORMAT_VERSION = 1
@@ -265,6 +267,8 @@ def hierarchical_clustering(config):
         embeddings_data = pickle.load(f)
 
     # Handle both old (pandas DataFrame) and new (list[dict]) formats
+    # 旧形式の list[float] も読めるよう、float32 の配列を先に確保して 1 行ずつ埋める
+    # （UMAP は入力を float32 に変換して使うので、UMAP の入力は変わらない）。
     if isinstance(embeddings_data, list):
         # list[dict] 形式の場合、arg-id で並べ替えて順序を保証
         if embeddings_data and "arg-id" in embeddings_data[0]:
@@ -272,14 +276,18 @@ def hierarchical_clustering(config):
             missing = [arg_id for arg_id in arg_ids if arg_id not in embed_by_id]
             if missing:
                 raise ValueError(f"embeddings.pkl に存在しない arg-id があります: {missing[:5]} ...")
-            embeddings_array = np.asarray([embed_by_id[arg_id] for arg_id in arg_ids])
+            embeddings_array = stack_embedding_rows([embed_by_id[arg_id] for arg_id in arg_ids])
+            del embed_by_id
         else:
-            embeddings_array = np.asarray([item["embedding"] for item in embeddings_data])
+            embeddings_array = stack_embedding_rows([item["embedding"] for item in embeddings_data])
     else:
         # Old pandas DataFrame format for backward compatibility
         # pandas DataFrame は直接イテレートするとカラム名が返されるため、
         # ["embedding"] カラムから値を取得する
-        embeddings_array = np.asarray(embeddings_data["embedding"].values.tolist())
+        embeddings_array = stack_embedding_rows(embeddings_data["embedding"].values.tolist())
+    # 読み込んだ list / dict（旧形式では Python float の list）を UMAP の前に解放する。
+    # 残すと UMAP の間も配列版と二重にメモリに載り、数万件で OOM の原因になる。
+    del embeddings_data
 
     # 件数一致の検証
     if embeddings_array.shape[0] != len(arg_ids):

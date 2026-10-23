@@ -408,3 +408,41 @@ class TestHierarchicalClusteringReuseRealUmap:
                     },
                 }
             )
+
+    def test_model_fit_on_legacy_embeddings_reused_by_float32_embeddings(self, tmp_path):
+        """旧形式（list[float]）の embeddings.pkl で fit した model を、現行形式
+        （float32 の配列）の embeddings.pkl のレポートから使い回しても同じ平面になる。
+        UMAP は入力を float32 に変換して使うので、保存形式の変更で座標は変わらない。"""
+        rng = np.random.default_rng(11)
+        dim = 16
+        n = 30
+        base = tmp_path / "outputs"
+
+        emb = rng.random((n, dim))
+        ds_old = _write_dataset(base, "report_old", list(range(n)), emb)
+        hierarchical_clustering(
+            {
+                "output_dir": "report_old",
+                "_output_base_dir": str(base),
+                "hierarchical_clustering": {"cluster_nums": [2, 4]},
+            }
+        )
+        xy_old = pl.read_csv(str(ds_old / "hierarchical_clusters.csv")).select(["x", "y"]).to_numpy()
+
+        ds_new = base / "report_new"
+        ds_new.mkdir(parents=True)
+        pl.DataFrame({"arg-id": list(range(n)), "argument": [f"arg {i}" for i in range(n)]}).write_csv(
+            str(ds_new / "args.csv")
+        )
+        new_records = [{"arg-id": i, "embedding": row} for i, row in enumerate(emb.astype(np.float32))]
+        with open(ds_new / "embeddings.pkl", "wb") as f:
+            pickle.dump(new_records, f)
+        hierarchical_clustering(
+            {
+                "output_dir": "report_new",
+                "_output_base_dir": str(base),
+                "hierarchical_clustering": {"cluster_nums": [2, 4], "reuse_umap_model": "report_old"},
+            }
+        )
+        xy_new = pl.read_csv(str(ds_new / "hierarchical_clusters.csv")).select(["x", "y"]).to_numpy()
+        assert np.allclose(xy_old, xy_new, atol=1e-4)

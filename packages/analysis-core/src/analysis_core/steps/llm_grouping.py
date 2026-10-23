@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS
+from analysis_core.steps._embeddings_io import stack_embedding_rows
 from analysis_core.steps.hierarchical_clustering import (
     MIN_ARGUMENTS_FOR_UMAP_FIT,
     UMAP_N_COMPONENTS,
@@ -332,14 +333,18 @@ def _project_embeddings_to_xy(output_base_dir: str, dataset: str, arg_ids: list[
             if item_arg_id is None:
                 continue
             embed_by_id[item_arg_id] = item["embedding"]
+        item = None  # ループ変数が最後の要素（の埋め込み）を参照し続けないようにする
 
         missing_arg_ids = [arg_id for arg_id in arg_ids if arg_id not in embed_by_id]
         if missing_arg_ids:
             raise ValueError(f"Missing embeddings for arg ids: {missing_arg_ids}")
 
-        embeddings_array = np.asarray([embed_by_id[arg_id] for arg_id in arg_ids])
+        embeddings_array = stack_embedding_rows([embed_by_id[arg_id] for arg_id in arg_ids])
+        del embed_by_id
     else:
-        embeddings_array = np.asarray(embeddings_data["embedding"].values.tolist())
+        embeddings_array = stack_embedding_rows(embeddings_data["embedding"].values.tolist())
+    # 読み込んだ list / dict を UMAP の前に解放する（hierarchical_clustering と同じ理由）
+    del embeddings_data
 
     n_samples = embeddings_array.shape[0]
     if n_samples < 2:
