@@ -102,3 +102,41 @@ it("全画面で表示モードを切り替えると散布図の選択は解除�
   await flush();
   expect(container.querySelector('[aria-current="true"]')).toBeNull();
 });
+
+it("全画面で表示モードを切り替えて全体に戻しても、散布図の選択は復活せず自動スクロールもしない", async () => {
+  const { container } = await renderViewer();
+  fireEvent.click(screen.getByRole("button", { name: "クラスタ1_1を選択" }));
+  expect(container.querySelector('[aria-current="true"]')).not.toBeNull();
+  const scrollIntoView = Element.prototype.scrollIntoView as jest.Mock;
+  scrollIntoView.mockClear();
+
+  fireEvent.click(screen.getByRole("button", { name: "全画面表示" }));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: "詳細クラスタ" }));
+  await flush();
+  fireEvent.click(within(dialog).getByRole("button", { name: "全体" }));
+  await flush();
+
+  expect(container.querySelector('[aria-current="true"]')).toBeNull();
+  expect(scrollIntoView).not.toHaveBeenCalled();
+});
+
+it.each(["階層", "詳細クラスタ"])(
+  "表示モードのタブで「%s」へ切り替えて全体に戻しても、散布図の選択は復活せず自動スクロールもしない",
+  async (mode) => {
+    const { container } = await renderViewer();
+    fireEvent.click(screen.getByRole("button", { name: "クラスタ1_1を選択" }));
+    expect(container.querySelector('[aria-current="true"]')).not.toBeNull();
+    const scrollIntoView = Element.prototype.scrollIntoView as jest.Mock;
+    scrollIntoView.mockClear();
+
+    fireEvent.click(screen.getByRole("radio", { name: mode }));
+    await flush();
+    fireEvent.click(screen.getByRole("radio", { name: "全体" }));
+    await flush();
+
+    expect(screen.getByTestId("scatter")).toHaveAttribute("data-level", "1");
+    expect(container.querySelector('[aria-current="true"]')).toBeNull();
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  },
+);

@@ -13,7 +13,7 @@ import { Chart } from "@/components/report/Chart";
 import { ClusterOverview } from "@/components/report/ClusterOverview";
 import { DisplaySettingDialog } from "@/components/report/DisplaySettingDialog";
 import type { Cluster, Result } from "@/type";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { TreemapDetails } from "./TreemapDetails";
 import {
   type AttributeFilters,
@@ -76,6 +76,13 @@ export function ClientContainer({ result }: Props) {
   // 散布図でクリックされたクラスタ（連動文章・一覧のハイライト対象）
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
 
+  // 表示モードを変えたら、散布図で選んだクラスタの選択も解除する。
+  // 選択を残すと、元のモードに戻ったときにカードが選択済みで再マウントされ、再ハイライトと自動スクロールが起きる
+  const changeChart = useCallback((chart: string) => {
+    setSelectedChart(chart);
+    setSelectedClusterId(null);
+  }, []);
+
   // --- 属性メタデータ（純粋な派生データなのでuseMemoで計算） ---
   const attributeMetas = useMemo(() => computeAttributeMetas(result.arguments), [result.arguments]);
 
@@ -107,8 +114,8 @@ export function ClientContainer({ result }: Props) {
       scatterDensity: !isDenseGroupEnabled,
     }).filter((mode) => !mode.isDisabled);
     const fallback = selectable.find((mode) => mode.id === "scatterAll") ?? selectable[0];
-    if (fallback) setSelectedChart(fallback.id);
-  }, [selectedChart, isDenseGroupEnabled, result, enabledCharts, chartOrder]);
+    if (fallback) changeChart(fallback.id);
+  }, [selectedChart, isDenseGroupEnabled, result, enabledCharts, chartOrder, changeChart]);
 
   // --- 属性・テキストフィルタの適用（密度変更時に再計算しないよう分離） ---
   const filteredArgIds = useMemo(
@@ -130,8 +137,8 @@ export function ClientContainer({ result }: Props) {
     return counts;
   }, [result.arguments, filteredArgIds]);
 
-  // 表示モードやフィルタが変わると clustersToDisplay の中身も変わるため、
-  // 一覧に存在しなくなった selectedClusterId は下の map で自然に一致せず、ハイライトは外れる。
+  // フィルタで一覧から一時的に消えた selectedClusterId は、下の map で一致せずハイライトが外れる
+  // （表示モードの切り替えでは changeChart で選択自体を解除する）。
 
   // --- フィルタ済み結果を派生計算（stale closure問題を解消） ---
   const filteredResult = useMemo(() => {
@@ -231,7 +238,7 @@ export function ClientContainer({ result }: Props) {
       )}
       <SelectChartButton
         selected={selectedChart}
-        onChange={setSelectedChart}
+        onChange={changeChart}
         onClickDensitySetting={() => setOpenDensityFilterSetting(true)}
         onClickFullscreen={() => setIsFullscreen(true)}
         result={result}
@@ -250,7 +257,7 @@ export function ClientContainer({ result }: Props) {
         selectedChart={selectedChart}
         isFullscreen={isFullscreen}
         onExitFullscreen={() => setIsFullscreen(false)}
-        onChangeChart={setSelectedChart}
+        onChangeChart={changeChart}
         enabledCharts={enabledCharts}
         chartOrder={chartOrder}
         disabledModeOverrides={{ scatterDensity: !isDenseGroupEnabled }}
@@ -284,7 +291,7 @@ export function ClientContainer({ result }: Props) {
               enabledCharts.includes("treemap")
                 ? () => {
                     setTreemapLevel(c.id);
-                    setSelectedChart("treemap");
+                    changeChart("treemap");
                   }
                 : undefined
             }
