@@ -805,9 +805,15 @@ def initialization(
     if only and only not in step_names:
         raise ValueError(f"Unknown step for --only: '{only}'. Valid steps: {', '.join(step_names)}")
 
+    # provider の無い古い config（v2.1.0 より前の API が作ったもの）は既定の openai として扱う。
+    # 補わないと下の update_status が "provider": None を書き、ステップに渡る provider が None になって
+    # LLM 呼び出しが「Unknown provider: None」で失敗する。
+    if not config.get("provider"):
+        config["provider"] = "openai"
+
     # Validate API keys early (fail-fast)
     # This ensures we catch missing API keys before starting any pipeline steps
-    provider = config.get("provider", "openai")
+    provider = config["provider"]
     if validate_api_keys_early:
         validate_api_keys(provider, resolve_user_api_key(config))
 

@@ -349,3 +349,59 @@ def test_duplicate_with_reuse_reruns_extraction_when_input_is_rebuilt(reuse_env)
     plan = _plan(reuse_env, new_config_path)
     assert plan["extraction"]["run"] is True
     assert plan["extraction"]["reason"] == "some parameters changed: input"
+
+
+# v2.0.0 の API の _build_config が書いた config を最小化したもの（provider キーが無い）。
+# v2.1.0 より前に作ったレポートの configs/<slug>.json はこの形のまま残っている。
+LEGACY_V200_CONFIG = {
+    "name": SOURCE_SLUG,
+    "input": SOURCE_SLUG,
+    "question": "Q",
+    "intro": "intro",
+    "model": "gpt-4o-mini",
+    "is_pubcom": True,
+    "extraction": {"prompt": "e", "workers": 2, "limit": COMMENT_COUNT},
+    "hierarchical_clustering": {"cluster_nums": [3, 6]},
+    "hierarchical_initial_labelling": {"prompt": "i", "sampling_num": 30, "workers": 2},
+    "hierarchical_merge_labelling": {"prompt": "m", "sampling_num": 30, "workers": 2},
+    "hierarchical_overview": {"prompt": "o"},
+    "hierarchical_aggregation": {"sampling_num": 2},
+}
+
+
+@pytest.mark.parametrize("reuse_enabled", [True, False], ids=["reuse", "no-reuse"])
+def test_duplicate_legacy_config_without_provider_runs_with_openai(reuse_env, monkeypatch, reuse_enabled):
+    """provider の無い v2.0.x の config を複製しても、LLM のステップに provider=openai が渡る
+
+    provider を補わないと、analysis-core が status に "provider": None を書き、
+    抽出や overview が「Unknown provider: None」で失敗していた。
+    """
+    from analysis_core.core import initialization, run_step
+
+    from src.schemas.admin_report import ReportDuplicateRequest, ReportDuplicateReuse
+    from src.services import report_duplicate
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    reuse_env.configs.mkdir(parents=True)
+    reuse_env.inputs.mkdir(parents=True)
+    (reuse_env.configs / f"{SOURCE_SLUG}.json").write_text(json.dumps(LEGACY_V200_CONFIG), encoding="utf-8")
+    rows = "".join(f"c{i},comment {i}\n" for i in range(COMMENT_COUNT))
+    (reuse_env.inputs / f"{SOURCE_SLUG}.csv").write_text("comment-id,comment-body\n" + rows, encoding="utf-8")
+    (reuse_env.reports / SOURCE_SLUG).mkdir(parents=True)
+
+    payload = ReportDuplicateRequest(new_slug=NEW_SLUG, reuse=ReportDuplicateReuse(enabled=reuse_enabled))
+    report_duplicate.duplicate_report(SOURCE_SLUG, payload)
+    new_config_path = reuse_env.launched[-1]
+
+    assert json.loads(new_config_path.read_text(encoding="utf-8"))["provider"] == "openai"
+
+    config = initialization(
+        new_config_path,
+        skip_interaction=True,
+        without_html=True,
+        output_base_dir=reuse_env.reports,
+        input_base_dir=reuse_env.inputs,
+    )
+    seen = {}
+    run_step("extraction", lambda c: seen.setdefault("provider", c["provider"]), config, reuse_env.reports)
+    assert seen["provider"] == "openai"

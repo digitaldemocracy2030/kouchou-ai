@@ -365,6 +365,10 @@ def duplicate_report(
 
         config["name"] = new_slug
         config["input"] = new_slug
+        # v2.1.0 より前に作ったレポートの config には provider が無い。管理画面は provider を
+        # 「無ければ openai」とみなして override を送らないので、ここで同じ既定値を補う。
+        if not config.get("provider"):
+            config["provider"] = "openai"
         # Keep source_slug in status only; analysis-core config schema doesn't accept it.
         config = _apply_overrides(config, payload.overrides)
         if input_limit_override is not None:

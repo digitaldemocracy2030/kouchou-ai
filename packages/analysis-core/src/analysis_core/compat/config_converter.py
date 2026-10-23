@@ -75,7 +75,9 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
 
     # Top-level defaults
     result.setdefault("model", "gpt-4o-mini")
-    result.setdefault("provider", "openai")
+    # キーがあって値が null の config（古い config・埋め込み config 由来）も openai として扱う
+    if not result.get("provider"):
+        result["provider"] = "openai"
     result.setdefault("analysis_mode", "hierarchical")
     result.setdefault("is_embedded_at_local", False)
     result.setdefault("is_pubcom", False)
@@ -225,7 +227,7 @@ def create_step_context_from_config(
         output_dir=Path(output_base_dir) / dataset,
         input_dir=Path(input_dir),
         dataset=dataset,
-        provider=config.get("provider", "openai"),
+        provider=config.get("provider") or "openai",
         model=config.get("model", "gpt-4o-mini"),
         local_llm_address=config.get("local_llm_address"),
         user_api_key=resolve_user_api_key(config),

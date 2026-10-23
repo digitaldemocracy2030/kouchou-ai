@@ -404,6 +404,51 @@ class TestInitialization:
         assert plan_by_step["extraction"]["run"] is False
         assert plan_by_step["embedding"]["run"] is True
 
+    @pytest.mark.parametrize("provider_entry", [{}, {"provider": None}], ids=["missing", "null"])
+    def test_initialization_defaults_missing_provider_to_openai(self, tmp_path, monkeypatch, provider_entry):
+        """provider の無い古い config（v2.0.x の API が作ったもの）は openai として扱う
+
+        provider が無いまま status に "provider": None を書くと、ステップに渡る config の
+        provider が None になり、LLM 呼び出しが「Unknown provider: None」で失敗していた。
+        """
+        from analysis_core.compat import create_step_context_from_config
+        from analysis_core.core import initialization
+
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        config_path = tmp_path / "legacy_job.json"
+        # v2.0.0 の API の _build_config が書く形（provider キーが無い）を最小化したもの
+        config_path.write_text(
+            json.dumps(
+                {
+                    "name": "legacy_job",
+                    "input": "legacy_job",
+                    "question": "Q",
+                    "intro": "intro",
+                    "model": "gpt-4o-mini",
+                    "is_pubcom": True,
+                    "extraction": {"prompt": "e", "workers": 2, "limit": 60},
+                    "hierarchical_clustering": {"cluster_nums": [3, 6]},
+                    **provider_entry,
+                }
+            ),
+            encoding="utf-8",
+        )
+        input_dir = tmp_path / "inputs"
+        output_dir = tmp_path / "outputs"
+        input_dir.mkdir()
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=output_dir,
+            input_base_dir=input_dir,
+        )
+
+        assert config["provider"] == "openai"
+        status = json.loads((output_dir / "legacy_job" / "hierarchical_status.json").read_text(encoding="utf-8"))
+        assert status["provider"] == "openai"
+        assert create_step_context_from_config(config, output_base_dir=output_dir).provider == "openai"
+
 
 class TestValidateApiKeys:
     """Test API key validation."""

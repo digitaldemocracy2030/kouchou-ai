@@ -253,7 +253,7 @@ kouchou-analyze --help
 
 ### `Unknown provider: None`
 
-設定ファイルに `"provider": "openai"` を追加してください。
+古い版の analysis-core で、`provider` を書いていない（または `null` の）設定ファイルを使うと出ます。現在の版では `provider` を省略すると `openai` として扱います。古い版を使う場合は、設定ファイルに `"provider": "openai"` を追加してください。
 
 ### `'is_embedded_at_local'` エラー
 

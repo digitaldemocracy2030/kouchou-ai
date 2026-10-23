@@ -17,6 +17,11 @@ class TestNormalizeConfig:
         assert result["is_embedded_at_local"] is False
         assert result["is_pubcom"] is False
 
+    def test_null_provider_defaults_to_openai(self):
+        """provider が null の config（古い config・埋め込み config 由来）も openai として扱う"""
+        assert normalize_config({"provider": None})["provider"] == "openai"
+        assert create_step_context_from_config({"provider": None}, output_dir="job").provider == "openai"
+
     def test_fills_extraction_defaults(self):
         """Test that extraction defaults are filled in."""
         config = {}
