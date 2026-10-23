@@ -7,7 +7,10 @@ embeddings.pkl の形式:
 - 旧形式（読み込みのみ対応）:
   - ``list[dict]`` で ``"embedding"`` が Python float の list のもの
   - ``"arg-id"`` を持たない ``list[dict]``（行の順序で args.csv と対応させる）
-  - pandas DataFrame（``"embedding"`` 列）
+  - pandas DataFrame（``"embedding"`` 列）。v2.0.0〜v4.0.0 が書いた形式。unpickle に
+    pandas が要るので、pandas の入った環境でしか読めない（analysis-core と API の依存には
+    pandas が無い）。実行計画では、埋め込みを読むステップが走るときに embedding を
+    再実行して作り直す（``is_pandas_embeddings_pickle``）。
 
 旧形式は ``--reuse-from`` やレポートの複製、ストレージ同期で残り続けるので、
 読み込み側は全形式を扱う。現行形式も ``np.asarray([item["embedding"] ...])`` で
@@ -21,12 +24,108 @@ UMAP の入力は変わらない。
 
 from __future__ import annotations
 
+import importlib.util
+import io
+import pickle
+import pickletools
 from collections.abc import Iterable, Sequence
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 EMBEDDING_DTYPE = np.float32
+
+# pickle の先頭（トップレベルのオブジェクトのクラス参照）を調べる範囲
+_PICKLE_HEADER_BYTES = 64 * 1024
+_STRING_OPCODES = {
+    "STRING",
+    "BINSTRING",
+    "SHORT_BINSTRING",
+    "UNICODE",
+    "BINUNICODE",
+    "SHORT_BINUNICODE",
+    "BINUNICODE8",
+}
+
+
+class LegacyEmbeddingsFormatError(RuntimeError):
+    """pandas の無い環境で、旧形式（pandas の DataFrame）の embeddings.pkl を読もうとした。"""
+
+
+def _top_level_class_module(path: Path) -> str | None:
+    """pickle のトップレベルのオブジェクトのクラスの module 名を、unpickle せずに返す。
+
+    クラスのインスタンスでない（list などの）場合、読めない場合は None を返す。
+    先頭だけを pickletools で走査するので、ファイルが大きくても速い。
+    """
+    try:
+        with open(path, "rb") as f:
+            head = f.read(_PICKLE_HEADER_BYTES)
+    except OSError:
+        return None
+
+    strings: list[Any] = []
+    memo: dict[int, Any] = {}
+    last: Any = None
+    try:
+        for opcode, arg, _ in pickletools.genops(io.BytesIO(head)):
+            name = opcode.name
+            if name in ("PROTO", "FRAME"):
+                continue
+            if name in _STRING_OPCODES:
+                last = arg
+                strings.append(arg)
+            elif name == "MEMOIZE":
+                memo[len(memo)] = last
+            elif name in ("PUT", "BINPUT", "LONG_BINPUT"):
+                memo[arg] = last
+            elif name in ("GET", "BINGET", "LONG_BINGET"):
+                last = memo.get(arg)
+                strings.append(last)
+            elif name == "GLOBAL":
+                # arg は "module name"
+                return str(arg).split(" ", 1)[0]
+            elif name == "STACK_GLOBAL":
+                module = strings[-2] if len(strings) >= 2 else None
+                return module if isinstance(module, str) else None
+            else:
+                # list / dict などから始まる（トップレベルがクラスのインスタンスではない）
+                return None
+    except Exception:
+        # 先頭で切ったための途中終了や、pickle でないファイル
+        return None
+    return None
+
+
+def is_pandas_embeddings_pickle(path: str | Path) -> bool:
+    """embeddings.pkl が旧形式（pandas のオブジェクトの pickle）かを、unpickle せずに判定する。
+
+    pandas の有無に関係なく同じ結果を返すので、実行計画や再利用の判定に使える。
+    """
+    module = _top_level_class_module(Path(path))
+    return module is not None and (module == "pandas" or module.startswith("pandas."))
+
+
+def _pandas_available() -> bool:
+    return importlib.util.find_spec("pandas") is not None
+
+
+def load_embeddings_pickle(path: str | Path) -> Any:
+    """embeddings.pkl を読む。
+
+    旧形式（pandas の DataFrame）を pandas の無い環境で読もうとした場合は、unpickle の
+    ModuleNotFoundError ではなく、原因と対処の分かる LegacyEmbeddingsFormatError を投げる。
+    """
+    path = Path(path)
+    if not _pandas_available() and is_pandas_embeddings_pickle(path):
+        raise LegacyEmbeddingsFormatError(
+            f"{path} is in the old embeddings.pkl format (pandas DataFrame, written by v4.0.0 or earlier) "
+            "and cannot be read without pandas. Re-run from the embedding step "
+            "(remove embeddings.pkl, or run with --only embedding) to regenerate it."
+        )
+    with open(path, "rb") as f:
+        return pickle.load(f)
 
 
 def to_embedding_rows(embeds: Iterable[Sequence[float]]) -> list[np.ndarray]:

@@ -464,9 +464,14 @@ def decide_what_to_run(
                 newer.append(dep)
         return newer
 
-    # Figure out which steps need to run
-    plan: list[dict[str, Any]] = []
-    for step in specs:
+    def build_plan(rerun_reasons: dict[str, str]) -> list[dict[str, Any]]:
+        """rerun_reasons: steps that must re-run even if nothing changed, with the reason."""
+        plan: list[dict[str, Any]] = []
+        for step in specs:
+            plan.append(plan_step(step, plan, rerun_reasons))
+        return plan
+
+    def plan_step(step: dict[str, Any], plan: list[dict[str, Any]], rerun_reasons: dict[str, str]) -> dict[str, Any]:
         stepname = step["step"]
         run = True
         reason = None
@@ -488,6 +493,8 @@ def decide_what_to_run(
             reason = "forced with -f"
         elif config.get("only") == stepname:
             reason = "forced this step with -o"
+        elif stepname in rerun_reasons:
+            reason = rerun_reasons[stepname]
         elif not found_prev:
             reason = "no trace of previous run"
         elif not artifact_exists:
@@ -508,9 +515,38 @@ def decide_what_to_run(
                     run = False
                     reason = "nothing changed"
 
-        plan.append({"step": stepname, "run": run, "reason": reason})
+        return {"step": stepname, "run": run, "reason": reason}
 
+    plan = build_plan({})
+    legacy_reason = _legacy_embeddings_rerun_reason(plan, specs, output_base_dir / config["output_dir"])
+    if legacy_reason:
+        plan = build_plan({"embedding": legacy_reason})
     return plan
+
+
+def _legacy_embeddings_rerun_reason(
+    plan: list[dict[str, Any]], specs: list[dict[str, Any]], output_dir: Path
+) -> str | None:
+    """Return why embedding must re-run when a step reading embeddings.pkl runs on the old pandas format.
+
+    v2.0.0-v4.0.0 wrote embeddings.pkl as a pickled pandas DataFrame, which cannot be unpickled
+    without pandas (not a dependency any more). Reports reused or duplicated from those versions
+    keep that file, so regenerate it only when a step that reads it (clustering, llm_grouping) runs.
+    Unchanged reuse keeps it, so labelling is not re-run for nothing.
+    """
+    run_by_step = {item["step"]: item["run"] for item in plan}
+    embedding_spec = next((spec for spec in specs if spec["step"] == "embedding"), None)
+    if embedding_spec is None or run_by_step.get("embedding"):
+        return None
+    readers = [spec["step"] for spec in specs if "embedding" in spec["dependencies"]["steps"]]
+    if not any(run_by_step.get(step) for step in readers):
+        return None
+
+    from analysis_core.steps._embeddings_io import is_pandas_embeddings_pickle
+
+    if not is_pandas_embeddings_pickle(output_dir / embedding_spec["filename"]):
+        return None
+    return f"{embedding_spec['filename']} is in the old pandas DataFrame format (v4.0.0 or earlier); regenerating it"
 
 
 def carried_over_token_usage(

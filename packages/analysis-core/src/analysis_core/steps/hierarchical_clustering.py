@@ -7,7 +7,7 @@ from importlib import import_module
 import numpy as np
 import polars as pl
 
-from analysis_core.steps._embeddings_io import stack_embedding_rows
+from analysis_core.steps._embeddings_io import load_embeddings_pickle, stack_embedding_rows
 
 # 保存する UMAP model payload のフォーマット版数。
 # 将来 model 保存形式を変える時に後方互換を判断するための marker。
@@ -263,8 +263,7 @@ def hierarchical_clustering(config):
     arguments_df = pl.read_csv(f"{output_base_dir}/{dataset}/args.csv", columns=["arg-id", "argument"])
     arg_ids = arguments_df["arg-id"].to_list()
 
-    with open(f"{output_base_dir}/{dataset}/embeddings.pkl", "rb") as f:
-        embeddings_data = pickle.load(f)
+    embeddings_data = load_embeddings_pickle(f"{output_base_dir}/{dataset}/embeddings.pkl")
 
     # Handle both old (pandas DataFrame) and new (list[dict]) formats
     # 旧形式の list[float] も読めるよう、float32 の配列を先に確保して 1 行ずつ埋める

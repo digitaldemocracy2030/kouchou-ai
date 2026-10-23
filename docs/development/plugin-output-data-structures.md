@@ -140,7 +140,7 @@ import numpy as np
 
 - `embedding` が Python の `list[float]` の `list[dict]`
 - `arg-id` を持たない `list[dict]`（行の順序で `args.csv` と対応）
-- pandas DataFrame（`embedding` 列）
+- pandas DataFrame（`embedding` 列）。v2.0.0〜v4.0.0 が書いた形式で、読むには pandas が要ります（analysis-core と API の依存には入っていません）。analysis-core は、この形式の `embeddings.pkl` を読むステップ（クラスタリング・LLM grouping）を実行するときに、embedding ステップを再実行して今の形式で作り直します
 
 読む側の注意:
 

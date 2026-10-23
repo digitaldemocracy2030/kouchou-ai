@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -453,3 +454,42 @@ def test_duplicate_legacy_config_without_provider_runs_with_openai(reuse_env, mo
     seen = {}
     run_step("extraction", lambda c: seen.setdefault("provider", c["provider"]), config, reuse_env.reports)
     assert seen["provider"] == "openai"
+
+
+# v4.0.0 のタグの API で作ったレポートの embeddings.pkl（pandas の DataFrame の pickle）を最小化したもの
+LEGACY_PANDAS_EMBEDDINGS = (
+    Path(__file__).resolve().parents[4]
+    / "packages"
+    / "analysis-core"
+    / "tests"
+    / "fixtures"
+    / "legacy_embeddings_pandas_dataframe.pkl"
+)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "embedding_reruns"),
+    [
+        pytest.param({"cluster": [3, 6]}, True, id="cluster-changed"),
+        pytest.param(None, False, id="unchanged"),
+    ],
+)
+def test_duplicate_with_reuse_regenerates_legacy_pandas_embeddings(reuse_env, overrides, embedding_reruns):
+    """v4.0.0 以前のレポート（embeddings.pkl が pandas の pickle）を再利用で複製する。
+
+    pandas が無い今の環境では、この pickle を読むクラスタリングが「No module named 'pandas'」で
+    失敗していた。クラスタリングが走る複製では embedding から作り直し、抽出（LLM）は再利用する。
+    クラスタリングが走らない複製では作り直さない。
+    """
+    source_config_path = _create_source_report("hierarchical")
+    _run_analysis_core(reuse_env, source_config_path)
+    (reuse_env.reports / SOURCE_SLUG / "embeddings.pkl").write_bytes(LEGACY_PANDAS_EMBEDDINGS.read_bytes())
+
+    new_config_path = _duplicate_with_reuse(reuse_env, overrides)
+
+    plan = _plan(reuse_env, new_config_path)
+    assert plan["extraction"]["run"] is False
+    assert plan["embedding"]["run"] is embedding_reruns
+    assert plan["hierarchical_clustering"]["run"] is embedding_reruns
+    if embedding_reruns:
+        assert "pandas" in plan["embedding"]["reason"]

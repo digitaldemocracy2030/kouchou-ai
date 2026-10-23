@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import pickle
 from collections import Counter
 from dataclasses import dataclass
 
@@ -14,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS
-from analysis_core.steps._embeddings_io import stack_embedding_rows
+from analysis_core.steps._embeddings_io import load_embeddings_pickle, stack_embedding_rows
 from analysis_core.steps.hierarchical_clustering import (
     MIN_ARGUMENTS_FOR_UMAP_FIT,
     UMAP_N_COMPONENTS,
@@ -321,8 +320,7 @@ def _assign_groups(
 
 def _project_embeddings_to_xy(output_base_dir: str, dataset: str, arg_ids: list[str]) -> np.ndarray:
     UMAP, _, _ = _load_clustering_dependencies()
-    with open(f"{output_base_dir}/{dataset}/embeddings.pkl", "rb") as f:
-        embeddings_data = pickle.load(f)
+    embeddings_data = load_embeddings_pickle(f"{output_base_dir}/{dataset}/embeddings.pkl")
 
     if isinstance(embeddings_data, list):
         embed_by_id = {}

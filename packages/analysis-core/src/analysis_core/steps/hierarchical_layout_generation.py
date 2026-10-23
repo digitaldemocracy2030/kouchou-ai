@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import math
-import pickle
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -156,11 +155,11 @@ def _build_semantic_island_layout(
 def _load_embeddings(embeddings_path: Path, arg_ids: list[str]) -> np.ndarray:
     import numpy as np
 
-    from analysis_core.steps._embeddings_io import stack_embedding_rows
+    from analysis_core.steps._embeddings_io import load_embeddings_pickle, stack_embedding_rows
 
     # PCA・MDS の計算精度を変えないよう float64 のまま展開する（保存形式は float32 でも、
     # float64 への変換は値を変えない）。
-    embeddings_data = pickle.loads(embeddings_path.read_bytes())
+    embeddings_data = load_embeddings_pickle(embeddings_path)
     if isinstance(embeddings_data, list):
         embedding_by_id = {item["arg-id"]: item["embedding"] for item in embeddings_data}
         return stack_embedding_rows([embedding_by_id[arg_id] for arg_id in arg_ids], dtype=np.float64)
