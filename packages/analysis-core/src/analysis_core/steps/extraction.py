@@ -261,8 +261,12 @@ def extract_arguments(
     応答が形式不正・途中切れのとき（JSON の不正・スキーマ違反・finish_reason=length）は、
     この回答だけを EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS 回まで送り直す。200 で返った
     応答の中身の不正は SDK も再試行しないため、1 件の不調で抽出全体が中断していた。
-    拒否（内容なし）・コンテンツフィルタ・API エラーは送り直しても変わらないか SDK が扱うので、
-    そのまま送出する。送り直した分のトークンも課金されているので合計に含める。
+    API エラーと、拒否・コンテンツフィルタは送り直しても変わらないか SDK が扱うので、そのまま送出する。
+    拒否・コンテンツフィルタは経路によって返り方が違う。OpenAI・Azure・OpenRouter の構造化出力
+    （parse）経路では内容なし（None）か SDK の例外で返り、OpenRouter の JSON fallback 経路と
+    ローカル LLM 経路では本文（「I'm sorry...」など）や空文字列で返る。後者は JSON の括弧を
+    含まない本文として見分ける（_looks_like_json_attempt）。送り直した分のトークンも課金されて
+    いるので合計に含める。
     """
     messages = [
         {"role": "system", "content": prompt},
@@ -298,8 +302,9 @@ def extract_arguments(
         try:
             items = parse_extraction_response(response)
         except ValueError as error:
-            # 内容が無い応答（拒否など）は送り直しても変わらないので、再試行しない
-            if response is None or attempt >= EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS:
+            # 内容が無い応答や、JSON を書こうとしていない本文（拒否・コンテンツフィルタの空応答）は
+            # 送り直しても変わらないので、再試行しない
+            if not _looks_like_json_attempt(response) or attempt >= EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS:
                 raise
             _log_malformed_retry(error, attempt)
             continue
@@ -307,6 +312,19 @@ def extract_arguments(
         return items, total_input, total_output, total_tokens
 
     raise AssertionError("unreachable")  # pragma: no cover
+
+
+def _looks_like_json_attempt(response: str | dict | None) -> bool:
+    """応答が JSON を書こうとした形か（壊れていても送り直す価値があるか）。
+
+    JSON fallback 経路やローカル LLM 経路の拒否・コンテンツフィルタは、括弧を含まない本文や空文字列で返る。
+    これらは決定的に繰り返されるので、形式不正（途中切れ・スキーマ違反）と区別して送り直さない。
+    """
+    if response is None:
+        return False
+    if not isinstance(response, str):
+        return True
+    return "{" in response or "[" in response
 
 
 def _token_usage_of_failed_completion(error: Exception) -> tuple[int, int, int]:
@@ -320,7 +338,7 @@ def _token_usage_of_failed_completion(error: Exception) -> tuple[int, int, int]:
 def _log_malformed_retry(error: Exception, attempt: int) -> None:
     # 応答本文・原文は公開ログに出さない（例外の種類だけを残す）
     logging.warning(
-        "意見抽出の応答が形式不正のため、同じ回答を送り直します（%s、%d/%d 回目）",
+        "意見抽出の応答を解釈できなかったため、同じ回答を送り直します（%s、%d/%d 回目）",
         type(error).__name__,
         attempt,
         EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS,

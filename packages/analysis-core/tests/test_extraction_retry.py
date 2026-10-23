@@ -5,6 +5,7 @@ SDK も再試行しないため、1 件でも起きると抽出全体が中断�
 """
 
 import importlib
+from types import SimpleNamespace
 
 import openai
 import pytest
@@ -58,7 +59,7 @@ class _Responder:
 @pytest.mark.parametrize(
     "malformed",
     [
-        pytest.param("broken JSON", id="malformed-json"),
+        pytest.param('{"extractedOpinionList": [意見]}', id="malformed-json"),
         pytest.param('{"extractedOpinionList": ["途中で', id="truncated-json"),
         pytest.param("{}", id="schema-mismatch"),
     ],
@@ -97,7 +98,7 @@ def test_length_finish_reason_is_retried_and_its_tokens_are_counted(monkeypatch)
 
 
 def test_retries_are_bounded_and_the_last_error_is_raised(monkeypatch):
-    responder = _Responder("broken JSON")
+    responder = _Responder('{"extractedOpinionList": [意見]}')
     monkeypatch.setattr(extraction, "request_to_chat_ai", responder)
 
     with pytest.raises(ValueError, match="malformed JSON"):
@@ -122,6 +123,88 @@ def test_refusals_and_non_format_errors_are_not_retried(monkeypatch, outcome):
         extraction.extract_arguments("回答", "p", "m")
 
     assert responder.calls == 1
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        pytest.param("I'm sorry, but I can't help with that request.", id="text-refusal"),
+        pytest.param("申し訳ありませんが、この内容にはお答えできません。", id="text-refusal-ja"),
+        pytest.param("", id="empty-content"),
+        pytest.param("   \n", id="blank-content"),
+    ],
+)
+def test_text_refusals_without_json_are_not_retried(monkeypatch, content):
+    """JSON の括弧を含まない本文（拒否・コンテンツフィルタの空応答）は形式不正ではないので送り直さない（s001）。"""
+    responder = _Responder(content)
+    monkeypatch.setattr(extraction, "request_to_chat_ai", responder)
+
+    with pytest.raises(ValueError, match="malformed JSON"):
+        extraction.extract_arguments("回答", "p", "m")
+
+    assert responder.calls == 1
+
+
+class _FakeOpenAIClient:
+    """llm.OpenAI の代役。chat.completions.create の呼び出し回数を数え、決まった本文を返す。"""
+
+    def __init__(self, content, finish_reason, counter):
+        self._content = content
+        self._finish_reason = finish_reason
+        self._counter = counter
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    def _create(self, **payload):
+        self._counter["requests"] += 1
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(message=SimpleNamespace(content=self._content), finish_reason=self._finish_reason)
+            ],
+            usage=CompletionUsage(prompt_tokens=10, completion_tokens=2, total_tokens=12),
+        )
+
+
+@pytest.mark.parametrize(
+    ("provider", "model"),
+    [
+        pytest.param("openrouter", "meta-llama/llama-3.3-70b-instruct:free", id="openrouter-json-fallback"),
+        pytest.param("local", "llama3", id="local"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("content", "finish_reason"),
+    [
+        pytest.param("I'm sorry, but I can't help with that request.", "stop", id="text-refusal"),
+        pytest.param("", "content_filter", id="content-filter-empty"),
+    ],
+)
+def test_refusals_on_text_paths_are_sent_once(monkeypatch, provider, model, content, finish_reason):
+    """OpenRouter の JSON fallback 経路とローカル LLM 経路では、拒否が本文で返る。これを 3 回送らない（s001）。"""
+    llm = importlib.import_module("analysis_core.services.llm")
+    counter = {"requests": 0}
+    monkeypatch.setattr(llm, "OpenAI", lambda *args, **kwargs: _FakeOpenAIClient(content, finish_reason, counter))
+    monkeypatch.delenv("OPENROUTER_FORCE_JSON_FALLBACK", raising=False)
+
+    with pytest.raises(ValueError, match="malformed JSON"):
+        extraction.extract_arguments("回答", "p", model, provider, None, 30, "sk-test-not-a-real-key")
+
+    assert counter["requests"] == 1
+
+
+def test_truncated_json_on_text_paths_is_still_retried(monkeypatch):
+    """括弧を含む壊れた JSON（途中切れ）は、これまでどおり送り直す。"""
+    llm = importlib.import_module("analysis_core.services.llm")
+    counter = {"requests": 0}
+    monkeypatch.setattr(
+        llm,
+        "OpenAI",
+        lambda *args, **kwargs: _FakeOpenAIClient('{"extractedOpinionList": ["途中', "length", counter),
+    )
+
+    with pytest.raises(ValueError, match="malformed JSON"):
+        extraction.extract_arguments("回答", "p", "llama3", "local", None, 30)
+
+    assert counter["requests"] == extraction.EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS
 
 
 def test_extraction_completes_when_one_response_is_truncated_once(tmp_path, monkeypatch):
