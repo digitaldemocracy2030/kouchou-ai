@@ -1133,6 +1133,30 @@ def _extract_json_text(content: str | None) -> str | None:
     return candidate
 
 
+class _OpenRouterStructuredOutputIgnored(Exception):
+    """parse が HTTP 200 の応答を受け取った後、内容がスキーマに合わず検証で失敗した
+
+    応答は受け取り済み（課金済み）なので、そのトークン数を usage に持たせて呼び出し側で合算する。
+    """
+
+    def __init__(self, usage: tuple[int, int, int], cause: Exception):
+        super().__init__(f"structured output did not match the schema: {cause}")
+        self.usage = usage
+
+
+def _extract_raw_token_usage(raw_response: Any) -> tuple[int, int, int]:
+    """生の HTTP 応答の JSON から usage を読む。読めなければ 0 とする"""
+    try:
+        usage = raw_response.http_response.json().get("usage") or {}
+        return (
+            int(usage.get("prompt_tokens") or 0),
+            int(usage.get("completion_tokens") or 0),
+            int(usage.get("total_tokens") or 0),
+        )
+    except Exception:
+        return (0, 0, 0)
+
+
 def _openrouter_structured_parse(
     client: OpenAI,
     model: str,
@@ -1140,8 +1164,13 @@ def _openrouter_structured_parse(
     json_schema: type[BaseModel],
     timeout_seconds: int,
 ) -> tuple[str, int, int, int]:
-    """structured outputs 対応モデル向け: beta.chat.completions.parse を使う既存経路。"""
-    response = client.beta.chat.completions.parse(
+    """structured outputs 対応モデル向け: beta.chat.completions.parse を使う既存経路。
+
+    response_format を無視したモデルの応答は、SDK の parse が受け取った後の検証で ValidationError になる。
+    その場合も 1 回目の課金済みトークンを失わないよう、生の応答を受け取ってから parse し、
+    検証に失敗したら usage を持たせた _OpenRouterStructuredOutputIgnored を投げる。
+    """
+    raw_response = client.beta.chat.completions.with_raw_response.parse(
         model=model,
         messages=messages,
         temperature=0,
@@ -1150,6 +1179,10 @@ def _openrouter_structured_parse(
         response_format=json_schema,
         timeout=timeout_seconds,
     )
+    try:
+        response = raw_response.parse()
+    except ValidationError as e:
+        raise _OpenRouterStructuredOutputIgnored(_extract_raw_token_usage(raw_response), e) from e
     token_usage_input, token_usage_output, token_usage_total = _extract_token_usage(response)
     return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
 
@@ -1247,17 +1280,26 @@ def request_to_openrouter_chatcompletion(
 
     try:
         if use_pydantic:
+            # 取り直す前の課金済みリクエストのトークン数（入力・出力・合計）
+            spent_usage = (0, 0, 0)
             if not prefer_json_fallback:
                 try:
                     return _openrouter_structured_parse(client, model, messages, json_schema, timeout_seconds)
-                except (openai.BadRequestError, ValidationError) as e:
+                except (openai.BadRequestError, ValidationError, _OpenRouterStructuredOutputIgnored) as e:
                     # structured outputs 非対応モデルは 400 で落ちるため JSON モードへ切り替える。
                     # 400 にならず response_format を無視するモデルもあり、コードフェンス付きの JSON を
-                    # 返すと SDK の parse が ValidationError を投げる。これも JSON モードで取り直す
+                    # 返すと SDK の parse が検証で失敗する。これも JSON モードで取り直す。
+                    # 後者は 1 回目も課金済みなので、そのトークン数を取り直しの分に足して返す
+                    if isinstance(e, _OpenRouterStructuredOutputIgnored):
+                        spent_usage = e.usage
                     logging.warning(
                         f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {e}"
                     )
-            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
+            content, *fallback_usage = _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
+            token_usage_input, token_usage_output, token_usage_total = (
+                spent + added for spent, added in zip(spent_usage, fallback_usage, strict=True)
+            )
+            return content, token_usage_input, token_usage_output, token_usage_total
 
         if structured_dict_schema and prefer_json_fallback:
             return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)

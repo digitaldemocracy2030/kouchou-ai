@@ -63,11 +63,22 @@ class _Response:
         self.usage = _Usage()
 
 
+class _FakeRawResponse:
+    """with_raw_response.parse の戻り値のモック。parse() で解析済みの応答を返す。"""
+
+    def __init__(self, response):
+        self._response = response
+
+    def parse(self):
+        return self._response
+
+
 class _FakeParse:
-    """beta.chat.completions.parse のモック。"""
+    """beta.chat.completions.parse（with_raw_response.parse を含む）のモック。"""
 
     def __init__(self, recorder):
         self._recorder = recorder
+        self.with_raw_response = type("_WithRawResponse", (), {"parse": self._parse_raw})()
 
     def parse(self, **kwargs):
         self._recorder["parse_calls"].append(kwargs)
@@ -75,6 +86,9 @@ class _FakeParse:
         if isinstance(behavior, Exception):
             raise behavior
         return _Response(behavior)
+
+    def _parse_raw(self, **kwargs):
+        return _FakeRawResponse(self.parse(**kwargs))
 
 
 class _FakeCreate:
@@ -303,3 +317,95 @@ def test_non_free_model_falls_back_when_real_sdk_rejects_fenced_json(monkeypatch
     )
     assert json.loads(content) == {"answer": "fenced"}
     assert seen_formats == ["json_schema", "json_object"]
+
+
+def _real_sdk_with_responses(monkeypatch, responses):
+    """実 SDK の通信先を MockTransport に差し替え、responses を 1 リクエストずつ返す"""
+    seen = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        seen.append(body)
+        content, usage = responses[len(seen) - 1]
+        payload = {
+            "id": "x",
+            "object": "chat.completion",
+            "created": 0,
+            "model": body["model"],
+            "choices": [{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": content}}],
+        }
+        if usage is not None:
+            payload["usage"] = usage
+        return httpx.Response(200, json=payload)
+
+    real_openai = llm.OpenAI
+
+    def _factory(**kwargs):
+        return real_openai(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    monkeypatch.setattr(llm, "OpenAI", _factory)
+    monkeypatch.delenv("OPENROUTER_FORCE_JSON_FALLBACK", raising=False)
+    return seen
+
+
+def test_fenced_json_fallback_counts_tokens_of_both_requests(monkeypatch):
+    """フェンス付き JSON で JSON モードへ取り直すとき、課金済みの 1 回目のトークンも数える"""
+    fenced = '```json\n{"answer": "fenced"}\n```'
+    seen = _real_sdk_with_responses(
+        monkeypatch,
+        [
+            (fenced, {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}),
+            (fenced, {"prompt_tokens": 130, "completion_tokens": 25, "total_tokens": 155}),
+        ],
+    )
+
+    content, token_input, token_output, token_total = request_to_openrouter_chatcompletion(
+        messages=[{"role": "user", "content": "q"}],
+        model="anthropic/claude-3.5-haiku",
+        json_schema=_Schema,
+        user_api_key="test-key",
+    )
+
+    assert json.loads(content) == {"answer": "fenced"}
+    assert [(body.get("response_format") or {}).get("type") for body in seen] == ["json_schema", "json_object"]
+    assert (token_input, token_output, token_total) == (230, 45, 275)
+
+
+def test_fenced_json_fallback_without_usage_in_first_response(monkeypatch):
+    """1 回目の応答に usage が無ければ、従来どおり 0 として 2 回目の分だけを返す"""
+    fenced = '```json\n{"answer": "fenced"}\n```'
+    _real_sdk_with_responses(
+        monkeypatch,
+        [
+            (fenced, None),
+            (fenced, {"prompt_tokens": 130, "completion_tokens": 25, "total_tokens": 155}),
+        ],
+    )
+
+    _, token_input, token_output, token_total = request_to_openrouter_chatcompletion(
+        messages=[{"role": "user", "content": "q"}],
+        model="anthropic/claude-3.5-haiku",
+        json_schema=_Schema,
+        user_api_key="test-key",
+    )
+
+    assert (token_input, token_output, token_total) == (130, 25, 155)
+
+
+def test_structured_parse_success_returns_its_usage_with_real_sdk(monkeypatch):
+    """structured outputs に従うモデルでは 1 回だけ送り、その usage を返す"""
+    seen = _real_sdk_with_responses(
+        monkeypatch,
+        [('{"answer": "ok"}', {"prompt_tokens": 7, "completion_tokens": 3, "total_tokens": 10})],
+    )
+
+    content, *usage = request_to_openrouter_chatcompletion(
+        messages=[{"role": "user", "content": "q"}],
+        model="openai/gpt-4o",
+        json_schema=_Schema,
+        user_api_key="test-key",
+    )
+
+    assert json.loads(content) == {"answer": "ok"}
+    assert len(seen) == 1
+    assert usage == [7, 3, 10]
