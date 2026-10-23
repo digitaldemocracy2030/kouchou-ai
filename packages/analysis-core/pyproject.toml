@@ -51,7 +51,7 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/digitaldemocracy2030/kouchou-ai"
 Repository = "https://github.com/digitaldemocracy2030/kouchou-ai"
-Documentation = "https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/docs/CLI_QUICKSTART.md"
+Documentation = "https://digitaldemocracy2030.github.io/kouchou-ai/user-guide/cli-quickstart.html"
 Issues = "https://github.com/digitaldemocracy2030/kouchou-ai/issues"
 
 [project.scripts]
