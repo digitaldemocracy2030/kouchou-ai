@@ -14,7 +14,7 @@ from src.schemas.report_config import ReportConfig
 from src.services import report_status
 from src.services.analysis_config import prune_config_for_mode
 from src.services.model_catalog import EMBEDDING_KIND, models_for_provider
-from src.services.report_launcher import launch_report_generation_from_config
+from src.services.report_launcher import disable_umap_model_saving, launch_report_generation_from_config
 from src.services.report_status import add_new_report_to_status_from_config, delete_report_from_status, slug_exists
 from src.services.report_sync import ReportSyncService
 from src.utils.logger import setup_logger
@@ -205,7 +205,8 @@ def _build_analysis_core_config_from_embedded_config(embedded_config: dict) -> d
     if isinstance(embedding, dict) and isinstance(embedding.get("model"), str):
         config["embedding"] = {"model": embedding["model"]}
 
-    return config
+    # 新規作成と同じく、Web 経路では使わない umap_model.pkl を保存させない
+    return disable_umap_model_saving(config)
 
 
 def _write_input_csv_from_arguments(arguments: list, output_path: Path) -> int:

@@ -117,6 +117,36 @@ class TestConfigSpecAllowsReuseUmapModel:
         validate_config(config, specs)
 
 
+class TestConfigSpecAllowsSaveUmapModel:
+    """``save_umap_model``（umap_model.pkl を保存するか）も config で指定できる。"""
+
+    def test_validate_config_accepts_save_umap_model(self):
+        from analysis_core.core.orchestration import (
+            get_specs_path_for_mode,
+            load_specs,
+            validate_config,
+        )
+
+        specs = load_specs(get_specs_path_for_mode("hierarchical"))
+        config = {
+            "input": "report_b",
+            "question": "q",
+            "analysis_mode": "hierarchical",
+            "hierarchical_clustering": {"cluster_nums": [2, 4], "save_umap_model": False},
+        }
+        validate_config(config, specs)
+
+    def test_save_umap_model_defaults_to_true_and_is_not_a_rerun_dependency(self):
+        from analysis_core.core.orchestration import get_specs_path_for_mode, load_specs
+
+        specs = load_specs(get_specs_path_for_mode("hierarchical"))
+        (spec,) = [s for s in specs if s["step"] == "hierarchical_clustering"]
+        # CLI の既定は従来どおり保存する（#515 の使い回し元になれる）
+        assert spec["options"]["save_umap_model"] is True
+        # 保存するかどうかはクラスタリングの結果を変えないので、変えても再実行しない
+        assert "save_umap_model" not in spec["dependencies"]["params"]
+
+
 class TestSaveLoadUmapModel:
     def test_round_trip_with_metadata(self, tmp_path):
         model = _FakeUMAP()
@@ -284,6 +314,39 @@ class TestPluginWiring:
         assert captured["legacy"]["hierarchical_clustering"]["cluster_nums"] == [2, 4]
 
 
+class TestPluginForwardsSaveUmapModel:
+    @pytest.mark.parametrize(
+        ("full_clustering", "expected"),
+        [
+            ({"cluster_nums": [2, 4], "save_umap_model": False}, False),
+            ({"cluster_nums": [2, 4]}, True),
+        ],
+    )
+    def test_plugin_forwards_save_umap_model_from_full_config(self, tmp_path, monkeypatch, full_clustering, expected):
+        import importlib
+
+        from analysis_core.plugin import StepContext, StepInputs
+        from analysis_core.plugins.builtin.hierarchical_clustering import hierarchical_clustering_plugin
+
+        step_mod = importlib.import_module("analysis_core.steps.hierarchical_clustering")
+        captured = {}
+        monkeypatch.setattr(step_mod, "hierarchical_clustering", lambda legacy: captured.update(legacy=legacy))
+
+        output_dir = tmp_path / "outputs" / "report_b"
+        output_dir.mkdir(parents=True)
+        ctx = StepContext(
+            output_dir=output_dir,
+            input_dir=tmp_path / "inputs",
+            dataset="report_b",
+            provider="openai",
+            model="gpt-4o-mini",
+        )
+        inputs = StepInputs(artifacts={}, config={"hierarchical_clustering": full_clustering})
+        hierarchical_clustering_plugin.run(ctx, inputs, {"cluster_nums": [2, 4]})
+
+        assert captured["legacy"]["hierarchical_clustering"]["save_umap_model"] is expected
+
+
 def _write_dataset(base_dir, dataset, arg_ids, embeddings):
     ds_dir = base_dir / dataset
     ds_dir.mkdir(parents=True, exist_ok=True)
@@ -389,6 +452,77 @@ class TestHierarchicalClusteringReuseRealUmap:
         )
         xy_d = pl.read_csv(str(ds_d / "hierarchical_clusters.csv")).select(["x", "y"]).to_numpy()
         assert np.allclose(xy_a, xy_d, atol=1e-4), "name-based reuse must project same data to same plane"
+
+    def test_save_umap_model_false_skips_writing_model(self, tmp_path):
+        """Web 経路（API）は #515 を使わないので、umap_model.pkl を書かない。"""
+        rng = np.random.default_rng(3)
+        base = tmp_path / "outputs"
+        ds = _write_dataset(base, "report_web", list(range(20)), rng.random((20, 16)))
+        hierarchical_clustering(
+            {
+                "output_dir": "report_web",
+                "_output_base_dir": str(base),
+                "hierarchical_clustering": {"cluster_nums": [2, 4], "save_umap_model": False},
+            }
+        )
+        assert (ds / "hierarchical_clusters.csv").exists()
+        assert not (ds / UMAP_MODEL_FILENAME).exists()
+
+    def test_save_umap_model_false_removes_stale_model_from_previous_run(self, tmp_path):
+        """前回の実行（保存あり）で残った umap_model.pkl は、今回の座標と食い違うので消す。"""
+        rng = np.random.default_rng(4)
+        base = tmp_path / "outputs"
+        ds = _write_dataset(base, "report_web", list(range(20)), rng.random((20, 16)))
+        (ds / UMAP_MODEL_FILENAME).write_bytes(b"stale")
+        hierarchical_clustering(
+            {
+                "output_dir": "report_web",
+                "_output_base_dir": str(base),
+                "hierarchical_clustering": {"cluster_nums": [2, 4], "save_umap_model": False},
+            }
+        )
+        assert not (ds / UMAP_MODEL_FILENAME).exists()
+
+    def test_save_umap_model_false_keeps_own_dir_model_used_for_reuse(self, tmp_path):
+        """自レポートの umap_model.pkl を投影元に使う場合は、保存しない設定でも消さない。"""
+        rng = np.random.default_rng(5)
+        base = tmp_path / "outputs"
+        emb = rng.random((20, 16))
+        ds = _write_dataset(base, "report_own", list(range(20)), emb)
+        hierarchical_clustering(
+            {
+                "output_dir": "report_own",
+                "_output_base_dir": str(base),
+                "hierarchical_clustering": {"cluster_nums": [2, 4]},
+            }
+        )
+        before = (ds / UMAP_MODEL_FILENAME).read_bytes()
+        hierarchical_clustering(
+            {
+                "output_dir": "report_own",
+                "_output_base_dir": str(base),
+                "hierarchical_clustering": {
+                    "cluster_nums": [2, 4],
+                    "reuse_umap_model": UMAP_MODEL_FILENAME,
+                    "save_umap_model": False,
+                },
+            }
+        )
+        assert (ds / UMAP_MODEL_FILENAME).read_bytes() == before
+
+    @pytest.mark.parametrize("value", ["false", 0, "no"])
+    def test_save_umap_model_rejects_non_boolean(self, tmp_path, value):
+        rng = np.random.default_rng(6)
+        base = tmp_path / "outputs"
+        _write_dataset(base, "report_x", list(range(20)), rng.random((20, 16)))
+        with pytest.raises(ValueError, match="save_umap_model"):
+            hierarchical_clustering(
+                {
+                    "output_dir": "report_x",
+                    "_output_base_dir": str(base),
+                    "hierarchical_clustering": {"cluster_nums": [2, 4], "save_umap_model": value},
+                }
+            )
 
     def test_missing_reuse_model_raises_not_silent_fit(self, tmp_path):
         """A requested-but-missing reuse model must error, not silently fit a

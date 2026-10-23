@@ -62,7 +62,8 @@ def test_build_config_defaults_to_hierarchical_mode():
     config = _build_config(report_input)
 
     assert config["analysis_mode"] == "hierarchical"
-    assert config["hierarchical_clustering"] == {"cluster_nums": [3, 6]}
+    # Web 経路は #515 の UMAP 再利用（CLI 専用）を使わないので umap_model.pkl を保存させない
+    assert config["hierarchical_clustering"] == {"cluster_nums": [3, 6], "save_umap_model": False}
     assert config["hierarchical_initial_labelling"]["prompt"] == "init"
     assert config["hierarchical_merge_labelling"]["prompt"] == "merge"
     assert config["hierarchical_overview"] == {"prompt": "ov"}

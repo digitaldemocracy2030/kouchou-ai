@@ -254,6 +254,23 @@ def compute_umap_embeddings(
     return np.asarray(umap_embeds), model, n_features_in
 
 
+def _resolve_save_umap_model(value) -> bool:
+    """config の ``save_umap_model`` を解釈する。未指定（None）なら従来どおり保存する。"""
+    if value is None:
+        return True
+    if isinstance(value, bool):
+        return value
+    raise ValueError(f"save_umap_model には true / false を指定してください: {value!r}")
+
+
+def _remove_stale_umap_model(model_path: str, reuse_model_path: str | None) -> None:
+    if not os.path.exists(model_path):
+        return
+    if reuse_model_path is not None and os.path.realpath(model_path) == os.path.realpath(reuse_model_path):
+        return
+    os.remove(model_path)
+
+
 def hierarchical_clustering(config):
     UMAP, _, KMeans = _load_clustering_dependencies()
 
@@ -335,8 +352,15 @@ def hierarchical_clustering(config):
 
     # fit / reuse のいずれでも、使用した model を自レポートの output dir へ保存し、
     # このレポート自体も別レポートの投影元として再利用できるようにする。
+    # model には入力埋め込みの写しと近傍探索の index が入り、6 万件で 1GB を超える。
+    # #515 を使わない Web 経路（API）は save_umap_model: false で保存を止める。
     model_path = f"{output_base_dir}/{dataset}/{UMAP_MODEL_FILENAME}"
-    save_umap_model(model_path, umap_model, n_features_in=n_features_in, n_components=UMAP_N_COMPONENTS)
+    if _resolve_save_umap_model(config["hierarchical_clustering"].get("save_umap_model")):
+        save_umap_model(model_path, umap_model, n_features_in=n_features_in, n_components=UMAP_N_COMPONENTS)
+    else:
+        # 前回の実行で残った model は今回の座標と食い違うので消す（今回の投影元そのものは残す）
+        _remove_stale_umap_model(model_path, reuse_model_path)
+    del umap_model
 
     cluster_results = hierarchical_clustering_embeddings(
         umap_embeds=umap_embeds,

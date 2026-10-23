@@ -352,6 +352,37 @@ def test_duplicate_embedded_fallback_pruned_config_validates():
     _validate_with_analysis_core(pruned)
 
 
+def test_duplicate_config_does_not_save_umap_model():
+    """複製（Web 経路）でも umap_model.pkl を保存させない。llm_grouping には hierarchical_clustering を足さない。"""
+    from src.services.report_duplicate import _build_analysis_core_config_from_embedded_config
+
+    base = {
+        "name": "src",
+        "input": "src",
+        "question": "q",
+        "intro": "i",
+        "model": "gpt-4o-mini",
+        "provider": "openai",
+        "extraction": {"prompt": "p", "workers": 1, "limit": 2},
+        "hierarchical_overview": {"prompt": "ov"},
+        "hierarchical_aggregation": {"sampling_num": 5000},
+    }
+    hierarchical = {
+        **base,
+        "analysis_mode": "hierarchical",
+        "hierarchical_clustering": {"cluster_nums": [3, 6]},
+        "hierarchical_initial_labelling": {"prompt": "i", "sampling_num": 30, "workers": 1},
+        "hierarchical_merge_labelling": {"prompt": "m", "sampling_num": 30, "workers": 1},
+    }
+    built = prune_config_for_mode(_build_analysis_core_config_from_embedded_config(hierarchical))
+    assert built["hierarchical_clustering"] == {"cluster_nums": [3, 6], "save_umap_model": False}
+    _validate_with_analysis_core(built)
+
+    llm_grouping = {**base, "analysis_mode": "llm_grouping"}
+    built = prune_config_for_mode(_build_analysis_core_config_from_embedded_config(llm_grouping))
+    assert "hierarchical_clustering" not in built
+
+
 def test_update_json_preserves_keys_not_defined_in_report_config(tmp_path, monkeypatch):
     # タイトル・説明の編集で ReportConfig に定義のないキー（enable_source_link・embedding）が
     # 消えると、再集計で出典リンクや埋め込みモデルの指定が黙って失われる。

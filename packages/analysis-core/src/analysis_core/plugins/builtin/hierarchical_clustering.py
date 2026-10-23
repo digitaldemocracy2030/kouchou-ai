@@ -53,6 +53,10 @@ def hierarchical_clustering_plugin(
     legacy_config["hierarchical_clustering"] = {
         "cluster_nums": step_config.get("cluster_nums"),
         "reuse_umap_model": step_config.get("reuse_umap_model") or full_clustering.get("reuse_umap_model"),
+        # save_umap_model も workflow template に無いため、full config から読む（未指定なら保存する）
+        "save_umap_model": _first_not_none(
+            step_config.get("save_umap_model"), full_clustering.get("save_umap_model"), True
+        ),
     }
 
     clustering_impl(legacy_config)
@@ -63,3 +67,7 @@ def hierarchical_clustering_plugin(
             "clusters": ctx.output_dir / "hierarchical_clusters.csv",
         },
     )
+
+
+def _first_not_none(*values: Any) -> Any:
+    return next((value for value in values if value is not None), None)
