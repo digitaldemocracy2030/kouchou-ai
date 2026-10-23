@@ -6,6 +6,7 @@ import json
 import os
 import pickle
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import numpy as np
@@ -102,6 +103,7 @@ def llm_grouping(config: dict) -> None:
         local_llm_address=config.get("local_llm_address"),
         config=config,
         other_group_id=other_group_id,
+        workers=_resolve_workers(llm_config),
     )
     points = _project_embeddings_to_xy(output_base_dir, dataset, arg_ids)
 
@@ -135,6 +137,14 @@ def _resolve_group_count(config: dict, argument_count: int) -> int:
         return min(max(1, int(cluster_nums[0])), max(1, argument_count))
 
     return calculate_recommended_cluster_nums(max(2, argument_count))[0]
+
+
+def _resolve_workers(llm_config: dict) -> int:
+    """割当の同時実行数。未指定・None（旧 config の書き戻しなど）は 1（直列）にする。"""
+    try:
+        return max(1, int(llm_config.get("workers") or 1))
+    except (TypeError, ValueError):
+        return 1
 
 
 def _resolve_predefined_groups(llm_config: dict) -> list[GroupDefinition] | None:
@@ -255,8 +265,14 @@ def _assign_groups(
     local_llm_address: str | None,
     config: dict,
     other_group_id: str | None = None,
+    workers: int = 1,
 ) -> dict[str, str]:
-    assignments: dict[str, str] = {}
+    """意見を batch_size 件ずつのバッチに分け、各バッチの割当を LLM に問い合わせる。
+
+    バッチは最大 workers 本を同時に呼ぶ。結果はバッチの順に集めるので、返す dict の順序と
+    arg_id → group_id の対応は直列で呼んだ場合と変わらない。トークン数の加算も呼び出し元の
+    スレッドで行う。どれかのバッチが失敗したら、まだ送っていないバッチは送らずに例外を伝える。
+    """
     allowed_group_ids = {group.group_id for group in groups}
     group_text = "\n".join(f"- {group.group_id}: {group.label}\n  {group.description}" for group in groups)
 
@@ -270,10 +286,7 @@ def _assign_groups(
             f"『{other_label}』({other_group_id}) に割り当ててください。\n"
         )
 
-    safe_batch_size = max(1, batch_size)
-    for start in range(0, len(arg_ids), safe_batch_size):
-        batch_ids = arg_ids[start : start + safe_batch_size]
-        batch_arguments = arguments[start : start + safe_batch_size]
+    def assign_batch(batch_ids: list[str], batch_arguments: list[str]) -> tuple[dict, int, int, int]:
         batch_lines = "\n".join(
             f"- {arg_id}: {argument}" for arg_id, argument in zip(batch_ids, batch_arguments, strict=True)
         )
@@ -297,19 +310,39 @@ def _assign_groups(
             user_api_key=os.getenv("USER_API_KEY"),
             timeout_seconds=LLM_GROUPING_TIMEOUT_SECONDS,
         )
-        _accumulate_token_usage(config, token_input, token_output, token_total)
         response_json = json.loads(response_text) if isinstance(response_text, str) else response_text
         batch_assignments = {
             assignment.get("arg_id"): assignment.get("group_id")
             for assignment in response_json.get("assignments", [])
             if assignment.get("arg_id")
         }
+        return batch_assignments, token_input, token_output, token_total
 
-        for arg_id in batch_ids:
-            group_id = batch_assignments.get(arg_id, fallback_group_id)
-            if group_id not in allowed_group_ids:
-                group_id = fallback_group_id
-            assignments[arg_id] = group_id
+    safe_batch_size = max(1, batch_size)
+    batches = [
+        (arg_ids[start : start + safe_batch_size], arguments[start : start + safe_batch_size])
+        for start in range(0, len(arg_ids), safe_batch_size)
+    ]
+    if not batches:
+        return {}
+
+    assignments: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=max(1, min(workers, len(batches)))) as executor:
+        futures = [executor.submit(assign_batch, batch_ids, batch_arguments) for batch_ids, batch_arguments in batches]
+        try:
+            for (batch_ids, _), future in zip(batches, futures, strict=True):
+                batch_assignments, token_input, token_output, token_total = future.result()
+                _accumulate_token_usage(config, token_input, token_output, token_total)
+                for arg_id in batch_ids:
+                    group_id = batch_assignments.get(arg_id, fallback_group_id)
+                    if group_id not in allowed_group_ids:
+                        group_id = fallback_group_id
+                    assignments[arg_id] = group_id
+        except BaseException:
+            # 失敗したら、まだ始まっていないバッチは送らない（課金と待ち時間を増やさない）
+            for future in futures:
+                future.cancel()
+            raise
 
     return assignments
 

@@ -37,6 +37,7 @@
       "assignment_prompt": "",
       "predefined_groups": null,
       "other_group_label": "その他",
+      "workers": 1,
       "model": "gpt-4o-mini"
     },
     "use_llm": true

@@ -126,6 +126,7 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     llm_grouping.setdefault("group_count", None)
     llm_grouping.setdefault("discovery_sample_size", 80)
     llm_grouping.setdefault("assignment_batch_size", 25)
+    llm_grouping.setdefault("workers", 1)
     if not llm_grouping.get("discovery_prompt"):
         llm_grouping["discovery_prompt"] = get_default_prompt("llm_grouping_discovery") or ""
     if not llm_grouping.get("assignment_prompt"):

@@ -38,6 +38,7 @@ def llm_grouping_plugin(
         "assignment_prompt": step_config.get("assignment_prompt", ""),
         "predefined_groups": full_llm_config.get("predefined_groups"),
         "other_group_label": full_llm_config.get("other_group_label"),
+        "workers": step_config.get("workers", 1),
         "model": step_config.get("model", ctx.model),
     }
 
