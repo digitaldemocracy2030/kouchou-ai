@@ -187,17 +187,25 @@ function convertArgumentToCluster(argument: Argument): Cluster {
   };
 }
 
-function darkenPathbar() {
-  const panels = document.querySelectorAll(".treemap > .slice > .surface");
-  if (!panels.length) return;
-  const leafColor = getColor(panels[panels.length - 1]);
-  if (panels.length > 1) darkenColor(panels[0], leafColor);
-  const pathbars = document.querySelectorAll(".treemap > .pathbar > .surface");
-  for (const pathbar of pathbars) darkenColor(pathbar, leafColor);
+export function darkenPathbar() {
+  // plotly は hover / unhover のイベントを、ラベルや強調の後片付けより前に呼ぶ。
+  // ここで例外を投げると後片付けが飛ばされるので、色付けに失敗しても外へは投げない
+  try {
+    const panels = document.querySelectorAll(".treemap > .slice > .surface");
+    if (!panels.length) return;
+    const leafColor = getColor(panels[panels.length - 1]);
+    if (panels.length > 1) darkenColor(panels[0], leafColor);
+    const pathbars = document.querySelectorAll(".treemap > .pathbar > .surface");
+    for (const pathbar of pathbars) darkenColor(pathbar, leafColor);
+  } catch (error) {
+    console.warn("Failed to darken the treemap pathbar", error);
+  }
 }
 
+// Element.computedStyleMap は Firefox に無いので、どのブラウザにもある getComputedStyle を使う。
+// どちらも "rgb(r, g, b)" の形の文字列を返す
 function getColor(elem: Element) {
-  return elem.computedStyleMap().get("fill")?.toString() || "";
+  return window.getComputedStyle(elem).fill || "";
 }
 
 function darkenColor(elem: Element, originalColor: string) {
