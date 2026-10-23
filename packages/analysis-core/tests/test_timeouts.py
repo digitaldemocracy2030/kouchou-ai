@@ -72,3 +72,29 @@ def test_workflow_extraction_passes_timeout_to_llm(tmp_path, monkeypatch, overri
     )
     assert seen == [DEFAULT_REQUEST_TIMEOUT_SECONDS if override is None else override]
     assert (output / "args.csv").exists()
+
+
+def test_environment_reaches_llm_grouping_discovery_and_assignment():
+    env = {**os.environ, "LLM_REQUEST_TIMEOUT_SECONDS": "617"}
+    code = """
+import importlib
+import json
+
+llm_grouping = importlib.import_module("analysis_core.steps.llm_grouping")
+
+seen = []
+
+def request(**kwargs):
+    seen.append(kwargs["timeout_seconds"])
+    if "assignments" in kwargs["json_schema"].model_fields:
+        return json.dumps({"assignments": [{"arg_id": "A1", "group_id": "g1"}]}), 1, 1, 2
+    return json.dumps({"groups": [{"label": "g", "description": "d"}]}), 1, 1, 2
+
+llm_grouping.request_to_chat_ai = request
+common = dict(prompt="p", model="m", provider="local", local_llm_address=None, config={})
+groups = llm_grouping._discover_groups(arguments=["a"], question="q", group_count=1, sample_size=1, **common)
+llm_grouping._assign_groups(arg_ids=["A1"], arguments=["a"], groups=groups, batch_size=1, **common)
+assert seen == [617, 617], seen
+"""
+    result = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

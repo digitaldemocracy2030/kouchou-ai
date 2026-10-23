@@ -8,7 +8,7 @@ LLM_REQUEST_TIMEOUT_SECONDS=600
 
 未指定の既定値は300秒です。正の整数を指定してください。0・負数・小数・空文字は設定エラーになります。変更後はAPIを再起動します。Docker Composeでは環境変数を取り込むため `docker compose up -d --force-recreate api` でAPIコンテナを再作成してください。CLIでは同じ環境変数を設定してから再実行します。
 
-OpenAI / Azure / Gemini / OpenRouter / ローカルLLMのチャット呼び出しに適用され、初期ラベル・統合ラベル・概要生成でも使用します。embeddingのタイムアウトは対象外です。SDKのリトライやrate limitの待機時間を含む、レポート全体の実行制限時間ではありません。
+OpenAI / Azure / Gemini / OpenRouter / ローカルLLMのチャット呼び出しに適用され、初期ラベル・統合ラベル・概要生成・LLM直接グルーピング（グループの発見と割当）でも使用します。embeddingのタイムアウトは対象外です。SDKのリトライやrate limitの待機時間を含む、レポート全体の実行制限時間ではありません。
 
 抽出工程では既存のバッチ待機期限にも同じ値を適用します。バッチの待機にはキュー内の処理も含まれるため、必要に応じて十分に長く設定してください。抽出工程だけ上書きする場合は分析configの `extraction.timeout_seconds` に正の整数を指定します。優先順位は工程設定、環境変数、既定値300秒です。legacy / workflowどちらにも適用されます。
 
