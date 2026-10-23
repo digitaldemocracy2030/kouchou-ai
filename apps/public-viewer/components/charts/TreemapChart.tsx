@@ -1,3 +1,4 @@
+import { toIdSet } from "@/lib/argumentIndex";
 import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster } from "@/type";
 import type { TreemapData } from "plotly.js";
@@ -20,13 +21,15 @@ type Props = {
 export function TreemapChart({ clusterList, argumentList, onHover, level, onTreeZoom, filteredArgumentIds }: Props) {
   // フィルタリングが有効かどうかをチェック
   const isFilteringActive = !!filteredArgumentIds;
+  // フィルタ判定は Set で行う（配列の includes だと全意見 N 件 × フィルタ ID |F| 件の比較になる）
+  const filteredIdSet = toIdSet(filteredArgumentIds);
 
   // フィルターされていない場合は全ての引数を表示
   const convertedArgumentList = argumentList.map((arg) => {
     const converted = convertArgumentToCluster(arg);
 
     // フィルターが適用されていて、フィルター結果に含まれない場合はグレーにする
-    if (filteredArgumentIds && !filteredArgumentIds.includes(arg.arg_id)) {
+    if (filteredIdSet && !filteredIdSet.has(arg.arg_id)) {
       // フィルターに該当しないものは灰色表示用のプロパティを追加
       return {
         ...converted,
@@ -47,7 +50,7 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
   // フィルター適用後の引数を使ってカウント
   for (const arg of argumentList) {
     // フィルターが適用されていて、引数がフィルター対象でない場合はスキップ
-    if (isFilteringActive && !filteredArgumentIds.includes(arg.arg_id)) {
+    if (filteredIdSet && !filteredIdSet.has(arg.arg_id)) {
       continue;
     }
 

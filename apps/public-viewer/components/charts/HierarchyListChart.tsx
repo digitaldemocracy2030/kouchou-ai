@@ -7,6 +7,7 @@
 
 "use client";
 
+import { groupArgumentsByCluster, toIdSet } from "@/lib/argumentIndex";
 import type { Argument, Cluster } from "@/type";
 import { Box, Icon, Text, VStack } from "@chakra-ui/react";
 import { ChevronRight } from "lucide-react";
@@ -35,11 +36,12 @@ interface ClusterNode {
 
 function ArgumentsDisplay({
   arguments: argumentsList,
-  filteredArgumentIds,
+  filteredIdSet,
   maxDisplay = 10,
 }: {
   arguments: Argument[];
-  filteredArgumentIds?: string[];
+  // フィルタ済み意見 ID の Set（undefined = フィルタなし）。配列の includes による線形探索を避けるため Set で受け取る
+  filteredIdSet?: ReadonlySet<string>;
   maxDisplay?: number;
 }) {
   const [showAll, setShowAll] = useState(false);
@@ -60,7 +62,7 @@ function ArgumentsDisplay({
       </Text>
       <Box as="ul" pl={4} m={0} listStyleType="disc">
         {displayArguments.map((arg) => {
-          const isFiltered = filteredArgumentIds && !filteredArgumentIds.includes(arg.arg_id);
+          const isFiltered = filteredIdSet && !filteredIdSet.has(arg.arg_id);
           return (
             <Box as="li" key={arg.arg_id} mb={2} opacity={isFiltered ? 0.4 : 1}>
               <Text fontSize="sm" color="gray.700">
@@ -98,16 +100,19 @@ export function HierarchyListChart({
 }: HierarchyListChartProps) {
   const [treeData, setTreeData] = useState<ClusterNode[]>([]);
 
+  // cluster_id → 意見の索引。クラスタごとに全意見を filter すると、クラスタ数 × 意見数の走査になるため 1 回だけ作る
+  const argumentsByCluster = useMemo(() => groupArgumentsByCluster(argumentList), [argumentList]);
+  const filteredIdSet = useMemo(() => toIdSet(filteredArgumentIds), [filteredArgumentIds]);
+
   // Build tree structure from flat cluster list
   useEffect(() => {
     const clusterMap = new Map<string, ClusterNode>();
 
     // Create nodes for all clusters
+    const maxLevel = Math.max(...clusterList.map((c) => c.level));
     for (const cluster of clusterList) {
       // Find arguments belonging to this cluster (at deepest level)
-      const maxLevel = Math.max(...clusterList.map((c) => c.level));
-      const clusterArguments =
-        cluster.level === maxLevel ? argumentList.filter((arg) => arg.cluster_ids.includes(cluster.id)) : [];
+      const clusterArguments = cluster.level === maxLevel ? (argumentsByCluster.get(cluster.id) ?? []) : [];
 
       clusterMap.set(cluster.id, {
         ...cluster,
@@ -145,7 +150,7 @@ export function HierarchyListChart({
     };
 
     setTreeData(sortChildren(rootNodes));
-  }, [clusterList, argumentList]);
+  }, [clusterList, argumentsByCluster]);
 
   const closeAllDescendants = (nodes: ClusterNode[]): ClusterNode[] => {
     return nodes.map((node) => ({
@@ -190,19 +195,18 @@ export function HierarchyListChart({
 
   // Calculate filtered state for each cluster
   const clusterFilterState = useMemo(() => {
-    if (!filteredArgumentIds) return new Map<string, boolean>();
+    if (!filteredIdSet) return new Map<string, boolean>();
 
     const state = new Map<string, boolean>();
-    const filteredSet = new Set(filteredArgumentIds);
 
     for (const cluster of clusterList) {
-      const clusterArgs = argumentList.filter((arg) => arg.cluster_ids.includes(cluster.id));
-      const hasMatchingArgs = clusterArgs.some((arg) => filteredSet.has(arg.arg_id));
+      const clusterArgs = argumentsByCluster.get(cluster.id) ?? [];
+      const hasMatchingArgs = clusterArgs.some((arg) => filteredIdSet.has(arg.arg_id));
       state.set(cluster.id, hasMatchingArgs);
     }
 
     return state;
-  }, [clusterList, argumentList, filteredArgumentIds]);
+  }, [clusterList, argumentsByCluster, filteredIdSet]);
 
   const renderClusterNode = (node: ClusterNode, depth = 0): ReactNode => {
     const hasChildren = node.children.length > 0;
@@ -313,7 +317,7 @@ export function HierarchyListChart({
         {/* Render arguments */}
         {hasArguments && !hasChildren && node.isChildrenExpanded && (
           <Box mt={2} pl={`${(depth + 1) * 24}px`}>
-            <ArgumentsDisplay arguments={node.arguments} filteredArgumentIds={filteredArgumentIds} />
+            <ArgumentsDisplay arguments={node.arguments} filteredIdSet={filteredIdSet} />
           </Box>
         )}
       </Box>

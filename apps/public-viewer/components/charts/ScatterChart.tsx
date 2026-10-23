@@ -1,4 +1,5 @@
 import { Tooltip } from "@/components/ui/tooltip";
+import { groupArgumentsByCluster, splitArgumentsByFilter, toIdSet } from "@/lib/argumentIndex";
 import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster, Config } from "@/type";
 import { Box, Flex, Icon, IconButton, Text } from "@chakra-ui/react";
@@ -52,6 +53,9 @@ const SOFT_COLORS = [
   "#fcbf49",
 ];
 
+// 意見を持たないクラスタに使う空配列（参照を共有するので変更しないこと）
+const NO_ARGUMENTS: Argument[] = [];
+
 // フィルタで全点が除外された（plot 上でグレー表示される）クラスタの凡例 swatch 色。
 // plot 側の notMatchingData と同じ色にして視覚的に整合させる。
 const FILTERED_SWATCH_COLOR = "#cccccc";
@@ -92,6 +96,12 @@ export function ScatterChart({
   // 全ての引数を表示するため、argumentListをそのまま使用
   // フィルター条件に合致しないものは後で灰色表示する
   const allArguments = argumentList;
+
+  // フィルタ判定は Set で行う。配列の includes だと全意見 N 件 × フィルタ ID |F| 件の比較になり、大規模レポートで固まる。
+  const filteredIdSet = useMemo(() => toIdSet(filteredArgumentIds), [filteredArgumentIds]);
+  // cluster_id → 意見の索引。クラスタごとに全意見を filter すると、クラスタ数 × 意見数の走査になるため 1 回だけ作る。
+  const argumentsByCluster = useMemo(() => groupArgumentsByCluster(allArguments), [allArguments]);
+  const argumentsOf = (clusterId: string) => argumentsByCluster.get(clusterId) ?? NO_ARGUMENTS;
 
   // clusterList.filter() は毎レンダリング新しい配列参照を生成するため、
   // hullTraces の useMemo deps に含める際に参照が安定するよう useMemo でメモ化する
@@ -161,8 +171,7 @@ export function ScatterChart({
     // クラスタ ID の集合を 1 パスで作る。plot 側の allElementsFiltered
     // （filteredArgumentIds && (matching.length === 0 || cluster.allFiltered)）と同条件。
     const clusterIdsWithMatching = new Set<string>();
-    if (filteredArgumentIds) {
-      const filteredIdSet = new Set(filteredArgumentIds);
+    if (filteredIdSet) {
       for (const arg of allArguments) {
         if (!filteredIdSet.has(arg.arg_id)) continue;
         for (const clusterId of arg.cluster_ids) clusterIdsWithMatching.add(clusterId);
@@ -185,7 +194,7 @@ export function ScatterChart({
       const key = top?.id ?? "__unknown__";
       // このクラスタの点が plot 上で全てグレー表示になる（表示対象が 0 件）か
       const filteredOut =
-        Boolean(filteredArgumentIds) && (!clusterIdsWithMatching.has(cluster.id) || Boolean(cluster.allFiltered));
+        Boolean(filteredIdSet) && (!clusterIdsWithMatching.has(cluster.id) || Boolean(cluster.allFiltered));
       if (!groupMap.has(key)) groupMap.set(key, { parentId: key, parentLabel, members: [] });
       groupMap.get(key)?.members.push({
         id: cluster.id,
@@ -195,7 +204,7 @@ export function ScatterChart({
       });
     }
     return { labelByClusterId, groups: Array.from(groupMap.values()) };
-  }, [showParentAttribution, targetClusters, resolveTopAncestor, clusterColorMap, allArguments, filteredArgumentIds]);
+  }, [showParentAttribution, targetClusters, resolveTopAncestor, clusterColorMap, allArguments, filteredIdSet]);
 
   const annotationLabelWidth = 228; // ラベルの最大横幅を指定
   const annotationFontsize = 14; // フォントサイズを指定
@@ -346,37 +355,22 @@ export function ScatterChart({
     }
   };
 
-  // フィルターが適用されている場合、フィルター条件に合致するアイテムと合致しないアイテムを分離
+  // フィルター条件に合致するアイテムと合致しないアイテムの分割結果を、クラスタごとに 1 回だけ計算して使い回す
+  // （散布図のトレースとラベル注釈の判定で同じ分割を 2 回走らせないため）
+  const splitByClusterId = new Map<string, ReturnType<typeof splitArgumentsByFilter>>();
   const separateDataByFilter = (cluster: Cluster) => {
-    if (!filteredArgumentIds) {
-      // フィルターなしの場合は通常表示
-      const clusterArguments = allArguments.filter((arg) => arg.cluster_ids.includes(cluster.id));
-      return {
-        matching: clusterArguments,
-        notMatching: [] as Argument[],
-      };
+    let split = splitByClusterId.get(cluster.id);
+    if (!split) {
+      split = splitArgumentsByFilter(argumentsOf(cluster.id), filteredIdSet);
+      splitByClusterId.set(cluster.id, split);
     }
-
-    // フィルター条件に合致するアイテム（前面に表示）
-    const matchingArguments = allArguments.filter(
-      (arg) => arg.cluster_ids.includes(cluster.id) && filteredArgumentIds.includes(arg.arg_id),
-    );
-
-    // フィルター条件に合致しないアイテム（背面に表示）
-    const notMatchingArguments = allArguments.filter(
-      (arg) => arg.cluster_ids.includes(cluster.id) && !filteredArgumentIds.includes(arg.arg_id),
-    );
-
-    return {
-      matching: matchingArguments,
-      notMatching: notMatchingArguments,
-    };
+    return split;
   };
 
   // 各クラスターのデータを生成（フィルター対象外を背面に、フィルター対象を前面に描画するため分離）
   const clusterDataSets = targetClusters.map((cluster) => {
     // クラスターに属するすべての引数を取得（フィルター状況に関係なく）
-    const allClusterArguments = allArguments.filter((arg) => arg.cluster_ids.includes(cluster.id));
+    const allClusterArguments = argumentsOf(cluster.id);
 
     // クラスター中心はフィルター状況に関わらず、すべての要素から計算
     const allXValues = allClusterArguments.map((arg) => arg.x);
@@ -485,7 +479,7 @@ export function ScatterChart({
 
     // フィルターがない場合の通常表示
     if (!filteredArgumentIds) {
-      const clusterArguments = allArguments.filter((arg) => arg.cluster_ids.includes(dataSet.cluster.id));
+      const clusterArguments = dataSet.allClusterArguments;
       if (clusterArguments.length > 0) {
         result.push({
           x: clusterArguments.map((arg) => arg.x),
@@ -534,11 +528,11 @@ export function ScatterChart({
   // 下に凸包が描画される。この SVG/WebGL 混在は意図的な設計である。
   // Gift wrapping は O(nh) のため、入力が変わらない限り再計算しないよう useMemo でメモ化する。
   // clusterDataSets / clusterColorMap は毎レンダリング再生成されるので、
-  // 上流の安定した参照（targetClusters / argumentList / filteredArgumentIds）を deps とする。
+  // 上流の安定した参照（targetClusters / argumentsByCluster）を deps とする。
   const hullTraces = useMemo(() => {
     if (!showConvexHull) return [];
     return targetClusters.flatMap((cluster, index) => {
-      const clusterArguments = argumentList.filter((arg) => arg.cluster_ids.includes(cluster.id));
+      const clusterArguments = argumentsByCluster.get(cluster.id) ?? NO_ARGUMENTS;
       if (clusterArguments.length < 3) return [];
       const hull = convexHull(clusterArguments.map((arg) => [arg.x, arg.y]));
       if (hull.length < 3) return [];
@@ -564,7 +558,7 @@ export function ScatterChart({
         },
       ];
     });
-  }, [showConvexHull, targetClusters, argumentList]);
+  }, [showConvexHull, targetClusters, argumentsByCluster]);
 
   // 凸包を最背面に挿入（scatter点の下に描画）
   const allPlotData = [...hullTraces, ...plotData];
