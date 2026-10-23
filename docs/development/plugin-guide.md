@@ -279,6 +279,9 @@ analysis-core は、分析パイプラインの各ステップをプラグイン
 最も簡単なプラグイン作成方法は `@step_plugin` デコレータを使用することです。
 
 ```python
+# my_plugin.py
+import polars as pl
+
 from analysis_core.plugin import (
     step_plugin,
     StepContext,
@@ -302,15 +305,16 @@ def custom_analysis_plugin(
 ) -> StepOutputs:
     """カスタム分析を実行"""
 
-    # 入力ファイルを読み込み
-    args_path = inputs.artifacts.get("arguments")
+    # 入力ファイル（抽出された意見の args.csv）を読み込み
+    args_path = inputs.artifacts["arguments"]
+    args_df = pl.read_csv(args_path)
 
-    # 処理を実行
-    # ...
+    # 処理を実行（例: 意見ごとの文字数を数える）
+    result_df = args_df.with_columns(pl.col("argument").str.len_chars().alias("length"))
 
     # 結果を保存
     output_path = ctx.output_dir / "custom_result.csv"
-    # result_df.to_csv(output_path, index=False)
+    result_df.write_csv(output_path)
 
     return StepOutputs(
         artifacts={"custom_result": output_path},
@@ -520,6 +524,15 @@ workflow = WorkflowDefinition(
 LLMを使用するプラグインの例：
 
 ```python
+# my_llm_plugin.py
+import json
+
+import polars as pl
+
+from analysis_core.plugin import StepContext, StepInputs, StepOutputs, step_plugin
+from analysis_core.services.llm import request_to_chat_ai
+
+
 @step_plugin(
     id="mycompany.llm_analysis",
     version="1.0.0",
@@ -532,59 +545,78 @@ def llm_analysis_plugin(
     inputs: StepInputs,
     config: dict,
 ) -> StepOutputs:
-    from analysis_core.services.llm import request_to_chat_ai
-
     # プロンプトを取得（configから、またはデフォルト）
     prompt = config.get("prompt", "Analyze the following...")
     model = config.get("model", ctx.model)
 
+    # 分析対象の意見を読み込み
+    arguments = pl.read_csv(inputs.artifacts["arguments"])["argument"].to_list()
+
     # LLMリクエスト
-    response = request_to_chat_ai(
-        messages=[{"role": "user", "content": prompt}],
+    # 戻り値は (応答テキスト, 入力トークン数, 出力トークン数, 合計トークン数) のタプル
+    response_text, token_input, token_output, token_total = request_to_chat_ai(
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "\n".join(arguments)},
+        ],
         model=model,
         provider=ctx.provider,
+        local_llm_address=ctx.local_llm_address,
+        user_api_key=ctx.user_api_key,
     )
+
+    # 結果を保存
+    output_path = ctx.output_dir / "analysis_result.json"
+    output_path.write_text(json.dumps({"result": response_text}, ensure_ascii=False), encoding="utf-8")
 
     # トークン使用量を記録
     return StepOutputs(
         artifacts={"analysis_result": output_path},
-        token_usage=response.get("total_tokens", 0),
-        token_input=response.get("prompt_tokens", 0),
-        token_output=response.get("completion_tokens", 0),
+        token_usage=token_total,
+        token_input=token_input,
+        token_output=token_output,
     )
 ```
 
 ## テスト
 
-プラグインのテスト例：
+クイックスタートの `custom_analysis_plugin`（`my_plugin.py`）のテスト例です。pytest の `tmp_path` に入力ファイルを用意して実行します。
+
+`@step_plugin` を付けた関数は `FunctionPlugin` オブジェクトに置き換わるため、関数のように直接呼び出すことはできません。`.run(ctx, inputs, config)` で実行してください。
 
 ```python
-import pytest
 from pathlib import Path
+
 from analysis_core.plugin import StepContext, StepInputs
 
-def test_custom_plugin():
+from my_plugin import custom_analysis_plugin
+
+
+def test_custom_analysis_plugin(tmp_path: Path):
+    # テスト用の入力ファイル
+    args_path = tmp_path / "args.csv"
+    args_path.write_text("arg-id,argument\nA1_0,公園を増やしてほしい\n", encoding="utf-8")
+
     # テスト用コンテキスト
     ctx = StepContext(
-        output_dir=Path("/tmp/test_output"),
-        input_dir=Path("/tmp/test_input"),
+        output_dir=tmp_path,
+        input_dir=tmp_path,
         dataset="test",
         provider="openai",
         model="gpt-4o-mini",
     )
 
     # テスト用入力
-    inputs = StepInputs(
-        artifacts={"arguments": Path("/tmp/test_input/args.csv")},
-    )
+    inputs = StepInputs(artifacts={"arguments": args_path})
 
-    # プラグイン実行
-    result = custom_step_plugin(ctx, inputs, {"threshold": 0.5})
+    # プラグイン実行（直接呼び出しではなく run() を使う）
+    result = custom_analysis_plugin.run(ctx, inputs, {})
 
     # 検証
-    assert result.artifacts.get("custom_result") is not None
     assert result.artifacts["custom_result"].exists()
 ```
+
+LLM を使うプラグインをテストするときは、`unittest.mock.patch("my_llm_plugin.request_to_chat_ai", return_value=("応答", 10, 5, 15))` のように LLM の呼び出しを差し替えると、API を呼ばずに確かめられます。
 
 ## ベストプラクティス
 
