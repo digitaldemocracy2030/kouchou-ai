@@ -56,23 +56,22 @@ export function filterArgumentIds(args: Argument[], params: FilterParams): strin
         return false;
       }
 
-      // 属性がない場合、カテゴリ/数値フィルタはマッチ不可なので除外。
-      // テキスト検索のみアクティブならテキストマッチで判定する。
-      if (!arg.attributes) {
-        return !!searchLower;
-      }
+      // 属性の空欄は入力経路によって attributes=null・値が null・"" のいずれかになる。
+      // attributes=null も「全属性が空」として扱い、カテゴリ条件では不一致、
+      // 数値条件では「空の値を含める」の設定に従う。
+      const attrs = arg.attributes ?? {};
 
       // カテゴリフィルタ（属性間はAND、値間はOR）
       for (const [attr, values] of Object.entries(attributeFilters)) {
         if (values.length === 0) continue;
-        const attrValue = String(arg.attributes[attr] ?? "");
+        const attrValue = String(attrs[attr] ?? "");
         if (!values.includes(attrValue)) return false;
       }
 
       // 数値レンジフィルタ
       for (const [attr, range] of Object.entries(numericRanges)) {
         if (!enabledRanges[attr]) continue;
-        const rawValue = arg.attributes[attr];
+        const rawValue = attrs[attr];
         const trimmed = rawValue == null ? "" : String(rawValue).trim();
         if (trimmed === "") {
           if (!includeEmptyValues[attr]) return false;
