@@ -248,6 +248,8 @@ azure-build:
 			--build-arg NEXT_PUBLIC_ADMIN_API_KEY="$(NEXT_PUBLIC_ADMIN_API_KEY)" \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg CLIENT_STATIC_BUILD_BASEPATH="$(CLIENT_STATIC_BUILD_BASEPATH)" \
+			--build-arg NEXT_PUBLIC_LOCAL_LLM_ADDRESS="$(NEXT_PUBLIC_LOCAL_LLM_ADDRESS)" \
+			--build-arg NEXT_PUBLIC_USE_AZURE="$(NEXT_PUBLIC_USE_AZURE)" \
 			-f ./apps/admin/Dockerfile \
 			-t $(AZURE_ACR_NAME).azurecr.io/admin:latest . && \
 		docker build --platform linux/amd64 --no-cache \
@@ -271,6 +273,8 @@ azure-build:
 			--build-arg NEXT_PUBLIC_ADMIN_API_KEY="$(NEXT_PUBLIC_ADMIN_API_KEY)" \
 			--build-arg NEXT_PUBLIC_API_BASEPATH="$(NEXT_PUBLIC_API_BASEPATH)" \
 			--build-arg CLIENT_STATIC_BUILD_BASEPATH="$(CLIENT_STATIC_BUILD_BASEPATH)" \
+			--build-arg NEXT_PUBLIC_LOCAL_LLM_ADDRESS="$(NEXT_PUBLIC_LOCAL_LLM_ADDRESS)" \
+			--build-arg NEXT_PUBLIC_USE_AZURE="$(NEXT_PUBLIC_USE_AZURE)" \
 			-f ./apps/admin/Dockerfile \
 			-t $(AZURE_ACR_NAME).azurecr.io/admin:latest .; \
 		docker build --platform linux/amd64 \

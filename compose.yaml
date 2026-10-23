@@ -74,6 +74,9 @@ services:
         - API_BASEPATH=http://api:8000
         - CLIENT_STATIC_BUILD_BASEPATH=${CLIENT_STATIC_BUILD_BASEPATH}
         - NEXT_PUBLIC_ADMIN_GA_MEASUREMENT_ID=${NEXT_PUBLIC_ADMIN_GA_MEASUREMENT_ID:-}
+        # 作成フォームの初期値（LocalLLM のアドレス・既定のプロバイダー）はビルド時に埋め込まれる
+        - NEXT_PUBLIC_LOCAL_LLM_ADDRESS=${NEXT_PUBLIC_LOCAL_LLM_ADDRESS:-ollama:11434}
+        - NEXT_PUBLIC_USE_AZURE=${NEXT_PUBLIC_USE_AZURE:-}
     ports:
       - "4000:4000"
     environment:
