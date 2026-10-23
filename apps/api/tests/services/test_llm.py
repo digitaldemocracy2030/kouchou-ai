@@ -15,8 +15,13 @@ from analysis_core.services.llm import (
     request_to_embed,  # noqa: F401
     request_to_openai,
 )
+from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS
 from openai import AzureOpenAI  # noqa: F401
 from pydantic import BaseModel, Field
+
+# request_to_chat_ai が既定で渡す timeout は、import 時に .env / 環境変数
+# LLM_REQUEST_TIMEOUT_SECONDS から決まる。開発者の .env に左右されないよう、
+# 期待値は固定の 300 ではなく DEFAULT_REQUEST_TIMEOUT_SECONDS から取る。
 
 
 class TestLLMService:
@@ -943,7 +948,9 @@ class TestLLMService:
         assert token_input == 50
         assert token_output == 50
         assert token_total == 100
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, None, None, 300)
+        mock_request_to_openai.assert_called_once_with(
+            messages, "gpt-4o", False, None, None, DEFAULT_REQUEST_TIMEOUT_SECONDS
+        )
 
     def test_request_to_chat_openai_use_azure(self, mock_openai_response):
         """request_to_chat_openai: provider=azureの場合はrequest_to_azure_chatcompletionを使用する"""
@@ -965,7 +972,7 @@ class TestLLMService:
         assert token_input == 75
         assert token_output == 75
         assert token_total == 150
-        mock_request_to_azure.assert_called_once_with(messages, True, None, None, 300)
+        mock_request_to_azure.assert_called_once_with(messages, True, None, None, DEFAULT_REQUEST_TIMEOUT_SECONDS)
 
     def test_request_to_chat_openai_with_json_schema(self, mock_openai_response):
         """request_to_chat_openai: json_schemaパラメータを指定できる"""
@@ -1001,7 +1008,9 @@ class TestLLMService:
         assert token_input == 100
         assert token_output == 100
         assert token_total == 200
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, json_schema, None, 300)
+        mock_request_to_openai.assert_called_once_with(
+            messages, "gpt-4o", False, json_schema, None, DEFAULT_REQUEST_TIMEOUT_SECONDS
+        )
 
     def test_request_to_chat_openai_with_pydantic_model(self, mock_openai_response):
         """request_to_chat_openai: Pydantic BaseModelを指定できる"""
@@ -1026,7 +1035,9 @@ class TestLLMService:
         assert token_input == 125
         assert token_output == 125
         assert token_total == 250
-        mock_request_to_openai.assert_called_once_with(messages, "gpt-4o", False, TestModel, None, 300)
+        mock_request_to_openai.assert_called_once_with(
+            messages, "gpt-4o", False, TestModel, None, DEFAULT_REQUEST_TIMEOUT_SECONDS
+        )
 
     def test_validate_model_valid(self):
         """_validate_model: 有効なモデルの場合は例外を発生させない"""
@@ -1083,7 +1094,7 @@ class TestLLMService:
             temperature=0,
             n=1,
             seed=0,
-            timeout=300,
+            timeout=DEFAULT_REQUEST_TIMEOUT_SECONDS,
         )
 
     def test_request_to_chat_ai_use_openrouter_without_env(self):
@@ -1203,7 +1214,7 @@ class TestLLMService:
             contents=[{"role": "user", "parts": [{"text": "Hello!"}]}],
             config={
                 "system_instruction": "You are a helpful assistant.",
-                "http_options": {"timeout": 300000},
+                "http_options": {"timeout": DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000},
             },
         )
 
