@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from analysis_core.core import update_progress
 from analysis_core.core.utils import read_input_csv
+from analysis_core.services.error_summary import summarize_exception
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.parse_json_list import parse_extraction_response
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
@@ -249,7 +250,14 @@ def extract_batch(
             else:
                 results[i] = result
         except Exception as e:
+            # status と診断には分類名（型名）だけを残し、理由は秘密情報を伏せて通常ログに出す
             failures[i] = type(e).__name__
+            logging.error(
+                "意見抽出に失敗しました。%s %s: %s",
+                "回答ID" if comment_ids is not None else "batch index",
+                comment_ids[i] if comment_ids is not None else i,
+                summarize_exception(e, (user_api_key,)),
+            )
         if i in failures or not results[i]:
             pending["diagnostics"].append(i)
         pending["count"] += 1

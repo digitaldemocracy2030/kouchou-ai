@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 from analysis_core.core.utils import read_input_csv, write_json_atomic
 from analysis_core.env_file import load_env_file
+from analysis_core.services.timeouts import openai_flex_timeout_from_env
 
 # Default specs - can be overridden
 _specs: list[dict[str, Any]] = []
@@ -270,6 +271,9 @@ def validate_api_keys(provider: str, user_api_key: str | None = None) -> None:
                 "OPENAI_API_KEY environment variable is not set. "
                 "Please set it in your .env file or environment."
             )
+        # 書式誤りをリクエストのたびに検出すると、抽出などの失敗に埋もれて原因が見えない。
+        # LLM_REQUEST_TIMEOUT_SECONDS と同じく起動時に変数名つきで止める。
+        openai_flex_timeout_from_env()
 
     elif provider == "azure":
         missing_vars = []

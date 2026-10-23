@@ -1,10 +1,14 @@
 """Shared failure handling for concurrent cluster labelling."""
 
 import json
+import logging
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
 from pydantic import ValidationError
+
+from analysis_core.services.error_summary import summarize_exception
 
 _usage_lock = Lock()
 
@@ -47,7 +51,12 @@ def record_usage(config, token_input, token_output, token_total):
                 config[key] = config.get(key, 0) + count
 
 
-def run_labelling_batch(process, cluster_ids, workers, stage):
+def run_labelling_batch(process, cluster_ids, workers, stage, secrets: Iterable[str | None] = ()):
+    """クラスタごとのラベル生成を並列に行い、失敗があればまとめて LabellingBatchError にする。
+
+    status に入る例外メッセージは分類名だけにし、理由は秘密情報を伏せたうえで通常ログに出す。
+    """
+    secrets = tuple(secrets)
     results = []
     failures = {}
     with ThreadPoolExecutor(max_workers=workers) as executor:
@@ -62,6 +71,12 @@ def run_labelling_batch(process, cluster_ids, workers, stage):
                 elif isinstance(exc, TimeoutError) or "timeout" in kind.lower():
                     kind = "timeout"
                 failures[str(cluster_id)] = kind
+                logging.error(
+                    "%s: ラベル生成に失敗しました。クラスタ %s: %s",
+                    stage,
+                    cluster_id,
+                    summarize_exception(exc, secrets),
+                )
     if failures:
         raise LabellingBatchError(stage, failures)
     return results

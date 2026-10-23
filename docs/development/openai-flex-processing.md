@@ -26,6 +26,7 @@ OPENAI_FLEX_TIMEOUT_SECONDS=900
 ## 挙動
 
 - OpenAIはFlexに15分程度のタイムアウトを推奨しているため、Flex利用時は `OPENAI_FLEX_TIMEOUT_SECONDS` まで待ちます。
+- `OPENAI_FLEX_TIMEOUT_SECONDS` が正の整数（秒）でない場合（例: `15m`）、provider が `openai` の実行は起動時に変数名を示すエラーで止まります。
 - Flexのリソース不足時、OpenAIは 429（エラーコード `resource_unavailable`）を返し課金しません。この場合のみ同じリクエストを `service_tier=default`（標準処理を明示。`auto` は自動選択で再び Flex になり得る）に切り替えて再送します。
   切り替え後は標準処理のみを最大3回リトライし、Flexを叩き直しません（1回の呼び出しで最大4リクエスト）。
 - `resource_unavailable` 以外の 429（通常のrate limit・quota超過）は標準処理へ切り替えず、従来どおり同じtierで最大3回リトライします。

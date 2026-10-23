@@ -79,7 +79,7 @@
 
 ## 失敗の扱い
 
-応答がJSONでない、ラベルが欠けている、真偽値でない、通信に失敗した、といった場合は「どちらにも該当しない」と見なさず、ステップ全体を失敗させます（`ClassificationBatchError`）。失敗した意見の `arg-id` と例外の種類だけをログに出し、意見本文は出しません。部分的な出力ファイルは書きません。前回の実行で書いた `opinion_classifications.csv` / `opinion_classification_summary.json` はステップの開始時に削除するので、失敗したときに古いラベルが集計に混ざることもありません。`enabled: true` で有効にしたこのステップが失敗すると、パイプライン全体が失敗します（ラベルなしで完了扱いにはしません）。
+応答がJSONでない、ラベルが欠けている、真偽値でない、通信に失敗した、といった場合は「どちらにも該当しない」と見なさず、ステップ全体を失敗させます（`ClassificationBatchError`）。失敗した意見の `arg-id` と例外の種類、API キーなどを伏せ字にして切り詰めた例外メッセージをログに出し、意見本文は出しません（応答の検証エラーは項目と理由だけを出します）。モデルの拒否は `LLMRefusalError`、安全フィルタによる停止は `LLMSafetyBlockError` になります。部分的な出力ファイルは書きません。前回の実行で書いた `opinion_classifications.csv` / `opinion_classification_summary.json` はステップの開始時に削除するので、失敗したときに古いラベルが集計に混ざることもありません。`enabled: true` で有効にしたこのステップが失敗すると、パイプライン全体が失敗します（ラベルなしで完了扱いにはしません）。
 
 `enabled` を `false` に戻した場合、出力ディレクトリに前回の `opinion_classifications.csv` が残っていても `hierarchical_aggregation` はラベルを付けません。
 
