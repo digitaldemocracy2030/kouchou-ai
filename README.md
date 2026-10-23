@@ -206,6 +206,8 @@ make client-build-static
 
 フロントエンドのアプリケーション(public-viewer と admin) を開発用のダミーサーバ (dummy-server) をバックエンドとして起動する手順です。
 
+dummy-server は `http://localhost:8002` で起動します。`make client-dev` は public-viewer と admin の接続先を dummy-server に向けて起動するので、`.env` の `NEXT_PUBLIC_API_BASEPATH`（`.env-sample` の既定値は Docker の API 向けの `http://localhost:8000`）を書き換える必要はありません。うまく表示されない場合は [管理画面で「レポートの取得に失敗しました」と表示される](docs/development/admin-report-fetch-troubleshooting.md) を参照してください。
+
 ### 1. public-viewer, admin, dummy-server の環境構築
 
 ```sh

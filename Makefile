@@ -132,6 +132,12 @@ client-setup:
 	cd apps/admin && cp .env-sample .env
 	cd utils/dummy-server && pnpm install && cp .env-sample .env
 
+# client-dev は public-viewer / admin の接続先を dummy-server（utils/dummy-server、8002 番）に向ける。
+# 各 app の .env（.env-sample の既定は Docker の API の 8000 番）より、ここで渡す環境変数が優先される。
+# client-dev-server / client-admin-dev-server を単独で起動した時は .env の値を使う。
+DUMMY_SERVER_BASEPATH ?= http://localhost:8002
+client-dev: export NEXT_PUBLIC_API_BASEPATH = $(DUMMY_SERVER_BASEPATH)
+client-dev: export API_BASEPATH = $(DUMMY_SERVER_BASEPATH)
 client-dev: client-dev-server client-admin-dev-server dummy-server
 
 client-dev-server:
