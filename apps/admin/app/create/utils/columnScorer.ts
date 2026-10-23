@@ -22,12 +22,25 @@ function calculateVariance(values: number[]): number {
   return calculateMean(squaredDifferences);
 }
 
+/** 意見の ID を表す列。コメント列の自動選択では候補にしない */
+const ID_COLUMNS = ["id", "comment-id"];
+
+/**
+ * parseCsv の結果から、コメント列・属性列の選択肢にする列名を返す。
+ * id 列は parseCsv が全行に付ける（無ければ csv-N を合成する）ので選択肢に入れない。
+ */
+export function getCsvColumnCandidates(data: Record<string, unknown>[]): string[] {
+  if (data.length === 0) return [];
+  return Object.keys(data[0]).filter((key) => key !== "id");
+}
+
 /**
  * 文字列の配列から、最適なコメントカラムを選択する、駄目だったらスコア計算からカラムを返す
  * 各カラムのスコアを計算し、スコアが最も高いカラムを返す
  * score = 平均文字数 + k * 文字数の分散
  * 自由入力文の場合、文字数が多くなり、また、分散も大きくなるため、スコアが高くなる
  * 選択肢やログ、IDなどの場合、文字数が少なく、分散も小さくなるため、スコアが低くなる
+ * ただし id・comment-id 列は、合成 id（csv-N）の方が短い回答より長くなりうるので最初から候補にしない
  * @param data パースされたCSVデータ
  * @param k 分散に掛ける係数（デフォルト: 2.0）
  * @returns スコアが最も高いカラム名
@@ -35,7 +48,7 @@ function calculateVariance(values: number[]): number {
 export function getBestCommentColumn(data: Record<string, unknown>[], k = 2.0): string | null {
   if (data.length === 0) return null;
 
-  const columns = Object.keys(data[0]);
+  const columns = Object.keys(data[0]).filter((col) => !ID_COLUMNS.includes(col));
 
   // コメントだと認識されるデフォルトカラム
   const defaultCommentColumns = [

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import type { useClusterSettings } from "../hooks/useClusterSettings";
 import { parseCsv } from "../parseCsv";
-import { getBestCommentColumn } from "../utils/columnScorer";
+import { getBestCommentColumn, getCsvColumnCandidates } from "../utils/columnScorer";
 import { AttributeColumnsSelector } from "./AttributeColumnsSelector";
 import { ClusterSettingsSection } from "./ClusterSettingsSection";
 import { CommentColumnSelector } from "./CommentColumnSelector";
@@ -70,10 +70,10 @@ export function CsvFileTab({
             try {
               const parsed = await parseCsv(file);
               if (version !== loadVersion.current) return;
-              const columns = Object.keys(parsed[0]).filter((key) => key !== "id");
+              const rows = parsed as unknown as Record<string, unknown>[];
               setCsv(file);
-              setCsvColumns(columns);
-              setSelectedCommentColumn(getBestCommentColumn(parsed as unknown as Record<string, unknown>[]) || "");
+              setCsvColumns(getCsvColumnCandidates(rows));
+              setSelectedCommentColumn(getBestCommentColumn(rows) || "");
               clusterSettings.setRecommended(parsed.length);
             } catch (error) {
               if (version !== loadVersion.current) return;
