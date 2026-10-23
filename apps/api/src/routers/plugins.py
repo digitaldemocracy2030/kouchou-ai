@@ -26,14 +26,20 @@ load_builtin_plugins()
 
 
 class PluginManifestResponse(BaseModel):
-    """Response model for plugin manifest."""
+    """Response model for plugin manifest.
+
+    PluginManifest.to_dict() と同じ項目を持つ。ここに無い項目は応答から黙って落ちるので、
+    to_dict に項目を足したらここにも足す（tests/routers/test_plugins.py で照合している）。
+    """
 
     id: str
     name: str
     description: str
     version: str
     icon: str | None
+    placeholder: str
     enabledByDefault: bool
+    isEnabled: bool
     isAvailable: bool
     missingSettings: list[str]
     settings: list[dict]
