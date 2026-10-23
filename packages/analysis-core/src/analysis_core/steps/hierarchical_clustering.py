@@ -11,6 +11,18 @@ import polars as pl
 # 将来 model 保存形式を変える時に後方互換を判断するための marker。
 UMAP_MODEL_FORMAT_VERSION = 1
 UMAP_MODEL_FILENAME = "umap_model.pkl"
+# 散布図の座標は 2 次元
+UMAP_N_COMPONENTS = 2
+# UMAP の fit（spectral 初期化）は k = n_components + 1 < 件数 を要する。
+# これを下回ると「Cannot use scipy.linalg.eigh ... k >= N」などライブラリ内部の文言で落ちる
+MIN_ARGUMENTS_FOR_UMAP_FIT = UMAP_N_COMPONENTS + 2
+
+
+def too_few_arguments_message(argument_count: int) -> str:
+    return (
+        f"抽出された意見が {argument_count} 件のため、意見を分類できません。"
+        f"{MIN_ARGUMENTS_FOR_UMAP_FIT} 件以上必要です。入力のコメントを増やしてください。"
+    )
 
 
 def _load_clustering_dependencies():
@@ -275,6 +287,16 @@ def hierarchical_clustering(config):
             f"args.csv と embeddings.pkl の件数が一致しません: args={len(arg_ids)}, embeddings={embeddings_array.shape[0]}"
         )
 
+    # #515: 別レポートで fit 済みの UMAP model があれば、それを使い回して
+    # 新しい embeddings を同一平面へ投影 (transform) する。無ければ従来通り fit_transform。
+    reuse_value = config["hierarchical_clustering"].get("reuse_umap_model")
+    reuse_model_path = _resolve_reuse_model_path(reuse_value, output_base_dir, dataset)
+
+    # fit は少数件だと UMAP 内部のエラーで落ちるので、先に分かる文言で止める。
+    # transform（reuse_umap_model）は少数件でも投影できるので対象外。
+    if reuse_model_path is None and len(arg_ids) < MIN_ARGUMENTS_FOR_UMAP_FIT:
+        raise ValueError(too_few_arguments_message(len(arg_ids)))
+
     cluster_nums = config["hierarchical_clustering"].get("cluster_nums")
     if not cluster_nums:
         cluster_nums = calculate_recommended_cluster_nums(len(arg_ids))
@@ -293,21 +315,13 @@ def hierarchical_clustering(config):
     else:
         n_neighbors = default_n_neighbors
 
-    # #515: 別レポートで fit 済みの UMAP model があれば、それを使い回して
-    # 新しい embeddings を同一平面へ投影 (transform) する。無ければ従来通り fit_transform。
-    reuse_value = config["hierarchical_clustering"].get("reuse_umap_model")
-    reuse_model_path = _resolve_reuse_model_path(reuse_value, output_base_dir, dataset)
-
     def _umap_factory(**kwargs):
-        # TODO 詳細エラーメッセージを加える
-        # 以下のエラーの場合、おそらく元の意見件数が少なすぎることが原因
-        # TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N. Use scipy.linalg.eigh(A.toarray()) or reduce k.
         return UMAP(**kwargs)
 
     umap_embeds, umap_model, n_features_in = compute_umap_embeddings(
         embeddings_array,
         n_neighbors=n_neighbors,
-        n_components=2,
+        n_components=UMAP_N_COMPONENTS,
         reuse_model_path=reuse_model_path,
         umap_factory=_umap_factory,
     )
@@ -315,7 +329,7 @@ def hierarchical_clustering(config):
     # fit / reuse のいずれでも、使用した model を自レポートの output dir へ保存し、
     # このレポート自体も別レポートの投影元として再利用できるようにする。
     model_path = f"{output_base_dir}/{dataset}/{UMAP_MODEL_FILENAME}"
-    save_umap_model(model_path, umap_model, n_features_in=n_features_in, n_components=2)
+    save_umap_model(model_path, umap_model, n_features_in=n_features_in, n_components=UMAP_N_COMPONENTS)
 
     cluster_results = hierarchical_clustering_embeddings(
         umap_embeds=umap_embeds,

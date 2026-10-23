@@ -386,3 +386,22 @@ def test_validate_config_accepts_predefined_groups_options():
         },
     }
     validate_config(config, specs)  # should not raise
+
+
+@pytest.mark.parametrize("n", [2, 3])
+def test_llm_grouping_projection_handles_two_or_three_arguments(tmp_path, n):
+    """2〜3 件では UMAP の fit が落ちるので、グループの割当が済んだ後に失敗させない（実 UMAP で確認）。"""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+
+    output_dir = tmp_path / "outputs" / "demo"
+    output_dir.mkdir(parents=True)
+    rng = np.random.default_rng(0)
+    arg_ids = [f"a{i}" for i in range(n)]
+    with open(output_dir / "embeddings.pkl", "wb") as f:
+        pickle.dump([{"arg-id": arg_id, "embedding": rng.random(16).tolist()} for arg_id in arg_ids], f)
+
+    result = llm_grouping_step._project_embeddings_to_xy(str(tmp_path / "outputs"), "demo", arg_ids)
+    assert result.shape == (n, 2)
+    assert np.isfinite(result).all()
+    # 点が 1 か所に重ならない
+    assert len({tuple(np.round(point, 6)) for point in result}) == n

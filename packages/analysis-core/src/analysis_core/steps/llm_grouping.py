@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.steps.hierarchical_clustering import (
+    MIN_ARGUMENTS_FOR_UMAP_FIT,
+    UMAP_N_COMPONENTS,
     _load_clustering_dependencies,
     calculate_recommended_cluster_nums,
 )
@@ -338,11 +340,16 @@ def _project_embeddings_to_xy(output_base_dir: str, dataset: str, arg_ids: list[
         embeddings_array = np.asarray(embeddings_data["embedding"].values.tolist())
 
     n_samples = embeddings_array.shape[0]
-    n_neighbors = max(2, min(15, n_samples - 1)) if n_samples > 1 else 1
     if n_samples < 2:
-        return np.zeros((n_samples, 2))
+        return np.zeros((n_samples, UMAP_N_COMPONENTS))
+    if n_samples < MIN_ARGUMENTS_FOR_UMAP_FIT:
+        # 2〜3 件では UMAP の fit がライブラリ内部のエラーで落ちる。グループの割当はもう済んでいて、
+        # 座標は散布図の表示に使うだけなので、点が重ならないよう円周上に並べる
+        angles = 2 * np.pi * np.arange(n_samples) / n_samples
+        return np.column_stack([np.cos(angles), np.sin(angles)])
 
-    umap_model = UMAP(n_components=2, n_neighbors=n_neighbors)
+    n_neighbors = max(2, min(15, n_samples - 1))
+    umap_model = UMAP(n_components=UMAP_N_COMPONENTS, n_neighbors=n_neighbors)
     return umap_model.fit_transform(embeddings_array)
 
 

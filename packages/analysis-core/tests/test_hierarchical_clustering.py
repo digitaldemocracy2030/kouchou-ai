@@ -98,3 +98,52 @@ class TestNormalizeClusterNums:
     def test_rejects_invalid_values(self, bad):
         with pytest.raises(ValueError):
             normalize_cluster_nums(bad, 100)
+
+
+def _write_clustering_inputs(base_dir, n, dim=16, seed=0):
+    import pickle
+
+    import polars as pl
+
+    dataset_dir = base_dir / "demo"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+    arg_ids = [f"A{i}_0" for i in range(n)]
+    pl.DataFrame({"arg-id": arg_ids, "argument": [f"opinion {i}" for i in range(n)]}).write_csv(
+        dataset_dir / "args.csv"
+    )
+    rng = np.random.default_rng(seed)
+    with open(dataset_dir / "embeddings.pkl", "wb") as f:
+        pickle.dump([{"arg-id": arg_id, "embedding": rng.random(dim).tolist()} for arg_id in arg_ids], f)
+    return {"output_dir": "demo", "_output_base_dir": str(base_dir), "hierarchical_clustering": {}}
+
+
+class TestHierarchicalClusteringSmallInputs:
+    """抽出された意見が少なすぎるときは、UMAP 内部のエラーではなく分かる文言で落とす。"""
+
+    @pytest.mark.parametrize("n", [1, 2, 3])
+    def test_too_few_arguments_fail_with_clear_message(self, tmp_path, n):
+        from analysis_core.steps.hierarchical_clustering import hierarchical_clustering
+
+        config = _write_clustering_inputs(tmp_path, n)
+        with pytest.raises(ValueError, match=rf"抽出された意見が {n} 件.*4 件以上"):
+            hierarchical_clustering(config)
+        assert not (tmp_path / "demo" / "hierarchical_clusters.csv").exists()
+
+    def test_four_arguments_are_enough(self, tmp_path):
+        from analysis_core.steps.hierarchical_clustering import hierarchical_clustering
+
+        config = _write_clustering_inputs(tmp_path, 4)
+        hierarchical_clustering(config)
+        assert (tmp_path / "demo" / "hierarchical_clusters.csv").exists()
+
+    def test_reused_umap_model_still_projects_few_arguments(self, tmp_path):
+        """fit しない reuse_umap_model（transform）の経路は少数件でも通るので、弾かない。"""
+        from analysis_core.steps.hierarchical_clustering import hierarchical_clustering
+
+        source_config = _write_clustering_inputs(tmp_path / "source", 20, seed=1)
+        hierarchical_clustering(source_config)
+
+        config = _write_clustering_inputs(tmp_path / "target", 2, seed=2)
+        config["hierarchical_clustering"]["reuse_umap_model"] = str(tmp_path / "source" / "demo" / "umap_model.pkl")
+        hierarchical_clustering(config)
+        assert (tmp_path / "target" / "demo" / "hierarchical_clusters.csv").exists()
