@@ -1,5 +1,6 @@
 """Cluster the arguments using UMAP + HDBSCAN and GPT-4."""
 
+import json
 import os
 import pickle
 from importlib import import_module
@@ -187,7 +188,10 @@ def _resolve_reuse_model_path(reuse_value, output_base_dir: str, dataset: str) -
     if os.path.isabs(reuse_value):
         if os.path.isfile(reuse_value):
             return reuse_value
-        raise FileNotFoundError(f"reuse_umap_model に指定された UMAP model が見つかりません: {reuse_value}")
+        raise FileNotFoundError(
+            f"reuse_umap_model に指定された UMAP model が見つかりません: {reuse_value}"
+            + _model_not_saved_hint(reuse_value)
+        )
 
     candidates = [
         os.path.join(output_base_dir, reuse_value),
@@ -203,7 +207,49 @@ def _resolve_reuse_model_path(reuse_value, output_base_dir: str, dataset: str) -
         f"reuse_umap_model に指定した UMAP model が見つかりません: {reuse_value!r}\n"
         f"  探索したパス:\n  {tried}\n"
         "  別レポートの output ディレクトリ名、または umap_model.pkl への相対/絶対パスを指定してください。"
+        + _model_not_saved_hint(os.path.join(output_base_dir, reuse_value))
     )
+
+
+def _model_not_saved_hint(reuse_path: str) -> str:
+    """投影元が save_umap_model: false で作られていれば、その旨をエラー文に添える。
+
+    管理画面（API）で作ったレポートは umap_model.pkl を保存しない。指定は正しいのに
+    「見つかりません」だけでは原因が分からないので、投影元の hierarchical_status.json に
+    残る clustering の設定から判定する。判定できないときは何も添えない。
+    """
+    report_dirs = [reuse_path]
+    if os.path.basename(reuse_path) == UMAP_MODEL_FILENAME:
+        report_dirs.append(os.path.dirname(reuse_path))
+    for report_dir in report_dirs:
+        if _created_without_saving_umap_model(report_dir):
+            return (
+                f"\n  指定したレポート（{report_dir}）は save_umap_model: false で作られたため、"
+                "umap_model.pkl を保存していません（管理画面で作ったレポートはこの設定になります）。"
+                "\n  投影元にするレポートは CLI で作ってください。"
+                "このレポートを作り直すと UMAP を学習し直すので、元の散布図とは別の平面になります。"
+            )
+    return ""
+
+
+def _created_without_saving_umap_model(report_dir: str) -> bool:
+    status_path = os.path.join(report_dir, "hierarchical_status.json")
+    if not os.path.isfile(status_path):
+        return False
+    try:
+        from analysis_core.core.orchestration import collect_previous_jobs
+
+        with open(status_path, encoding="utf-8") as f:
+            status = json.load(f)
+        jobs = collect_previous_jobs(status) if isinstance(status, dict) else []
+    except Exception:
+        # エラー文に添えるだけなので、壊れた status では判定しない
+        return False
+    for job in jobs:
+        if isinstance(job, dict) and job.get("step") == "hierarchical_clustering":
+            params = job.get("params")
+            return isinstance(params, dict) and params.get("save_umap_model") is False
+    return False
 
 
 def compute_umap_embeddings(

@@ -285,9 +285,10 @@ Job already running and locked. Try again in 5 minutes.
 
 散布図の点の配置は UMAP による次元圧縮で決まりますが、UMAP は確率的なため、**同じデータでも実行するたびに平面（軸・配置）が変わります**。そのため「先月のデータと今月のデータを同じ平面に並べて変化を見る」といった比較がしにくくなります。
 
-分析を実行すると、使用した UMAP モデルが各レポートの出力先に `outputs/<レポート名>/umap_model.pkl` として保存されます。新しいレポートを作るときに既存レポートのモデルを指定すると、UMAP を学習し直さず（`fit_transform` ではなく）既存の平面へ `transform` で投影するため、**同じ座標平面上に別データを並べられます**。
+CLI で分析を実行すると、使用した UMAP モデルが各レポートの出力先に `outputs/<レポート名>/umap_model.pkl` として保存されます（`hierarchical_clustering.save_umap_model` が `false` のときは保存しません。後述）。新しいレポートを作るときに既存レポートのモデルを指定すると、UMAP を学習し直さず（`fit_transform` ではなく）既存の平面へ `transform` で投影するため、**同じ座標平面上に別データを並べられます**。
 
 > この機能は現状 CLI 専用です。WebUI（管理画面）からは提供していません。
+> 管理画面で作成・複製したレポートは `save_umap_model: false` で実行されるため `umap_model.pkl` が無く、投影元には使えません。投影元にするレポートは CLI で作成してください。
 
 `hierarchical_clustering.reuse_umap_model` に、使い回したい既存レポートを指定します。
 
@@ -316,6 +317,8 @@ Job already running and locked. Try again in 5 minutes.
 - **元レポートと同じ埋め込みモデル**（`embedding.model`）で生成した埋め込みが必要です。次元が一致しないとエラーで停止します。
 - 指定した `umap_model.pkl` が見つからない場合は、黙って新しい平面を学習し直すのではなく、エラーで停止します（指定ミスに気づけるようにするため）。
 - このレポート自身のモデルも `outputs/<レポート名>/umap_model.pkl` に保存されるため、さらに別のレポートの投影元として再利用できます。
+- `"save_umap_model": false` を指定すると、このレポートの `umap_model.pkl` を保存しません（前回の実行で残ったものも削除します）。モデルには入力の埋め込みの写しが入り、件数に比例して大きくなる（数万件で GB 単位）ので、投影元に使わないレポートで容量を抑えたいときに指定します。
+- 後から `save_umap_model` を `true` に戻しても、それだけでは clustering は再実行されず、モデルは作られません。`-f` や `--only hierarchical_clustering` で作り直すと UMAP を学習し直すので、平面は元のレポートの散布図とは別のものになります。投影元にしたいレポートは、最初から保存する設定で作ってください。
 
 実行は通常どおりです:
 

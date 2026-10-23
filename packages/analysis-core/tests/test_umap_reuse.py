@@ -5,6 +5,7 @@ round-trip with umap-learn to validate that a model fit on report A can project
 report B's embeddings onto the same plane via ``.transform``.
 """
 
+import json
 import pickle
 
 import numpy as np
@@ -628,3 +629,54 @@ class TestSaveUmapModelIsValidatedBeforeUmap:
                 }
             )
         assert called == []
+
+
+def _write_status(report_dir, clustering_params, nested=False):
+    job = {"step": "hierarchical_clustering", "params": clustering_params}
+    status = {"status": "completed", "completed_jobs": [{"step": "embedding", "params": {}}]}
+    if nested:
+        # aggregation だけを再実行した後などは、clustering の記録が previously_completed_jobs に移る
+        status["previously_completed_jobs"] = [job]
+    else:
+        status["completed_jobs"].append(job)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    (report_dir / "hierarchical_status.json").write_text(json.dumps(status), encoding="utf-8")
+
+
+class TestMissingModelExplainsSaveUmapModelFalse:
+    """投影元が save_umap_model: false（管理画面で作ったレポート）で作られたときは、そう伝える。"""
+
+    @pytest.mark.parametrize("nested", [False, True])
+    def test_report_name_of_report_created_without_saving(self, tmp_path, nested):
+        base = tmp_path / "outputs"
+        _write_status(base / "report_web", {"cluster_nums": [2, 4], "save_umap_model": False}, nested=nested)
+        with pytest.raises(FileNotFoundError) as excinfo:
+            _resolve_reuse_model_path("report_web", str(base), "report_new")
+        message = str(excinfo.value)
+        assert "save_umap_model: false" in message
+        assert "管理画面" in message
+        assert "CLI" in message
+
+    def test_explicit_model_path_inside_report_created_without_saving(self, tmp_path):
+        base = tmp_path / "outputs"
+        _write_status(base / "report_web", {"save_umap_model": False})
+        with pytest.raises(FileNotFoundError, match="save_umap_model: false"):
+            _resolve_reuse_model_path(f"report_web/{UMAP_MODEL_FILENAME}", str(base), "report_new")
+        with pytest.raises(FileNotFoundError, match="save_umap_model: false"):
+            _resolve_reuse_model_path(str(base / "report_web" / UMAP_MODEL_FILENAME), str(base), "report_new")
+
+    @pytest.mark.parametrize("params", [{"cluster_nums": [2, 4]}, {"save_umap_model": True}])
+    def test_report_that_saved_model_keeps_typo_message(self, tmp_path, params):
+        """保存する設定で作ったレポートなら、従来どおり指定ミスを疑う文面のまま（保存しない設定とは言わない）。"""
+        base = tmp_path / "outputs"
+        _write_status(base / "report_cli", params)
+        with pytest.raises(FileNotFoundError) as excinfo:
+            _resolve_reuse_model_path("report_cli", str(base), "report_new")
+        assert "save_umap_model" not in str(excinfo.value)
+
+    def test_broken_status_file_keeps_typo_message(self, tmp_path):
+        base = tmp_path / "outputs"
+        (base / "report_x").mkdir(parents=True)
+        (base / "report_x" / "hierarchical_status.json").write_text("{broken", encoding="utf-8")
+        with pytest.raises(FileNotFoundError, match="見つかりません"):
+            _resolve_reuse_model_path("report_x", str(base), "report_new")
