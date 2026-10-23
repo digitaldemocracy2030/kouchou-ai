@@ -38,8 +38,9 @@ Admin UIから外部サービスのデータを取り込むためのプラグイ
 Twitter input plugin for fetching tweets.
 """
 
-import pandas as pd
 from typing import Any
+
+import polars as pl
 
 from src.plugins.base import InputPlugin, PluginManifest, PluginSetting, SettingType
 from src.plugins.registry import PluginRegistry
@@ -81,8 +82,8 @@ class TwitterPlugin(InputPlugin):
             return False, "無効なTwitter URLです"
         return True, None
 
-    def fetch_data(self, source: str, **options: Any) -> pd.DataFrame:
-        """データを取得してDataFrameで返す"""
+    def fetch_data(self, source: str, **options: Any) -> pl.DataFrame:
+        """データを取得して polars の DataFrame で返す"""
         # 設定が完了しているか確認（必須）
         self.ensure_configured()
 
@@ -100,7 +101,7 @@ class TwitterPlugin(InputPlugin):
 
         # 必須カラム: comment-id, comment-body, source, url
         # オプション: attribute_* で追加属性
-        return pd.DataFrame([
+        return pl.DataFrame([
             {
                 "comment-id": "tweet_123",
                 "comment-body": "投稿内容",
@@ -176,7 +177,7 @@ apps/api/src/plugins/
 
 ## fetch_data の戻り値
 
-`fetch_data()` は以下のカラムを持つ `pd.DataFrame` を返す必要があります：
+`fetch_data()` は以下のカラムを持つ `polars.DataFrame` を返す必要があります（pandas の DataFrame ではありません。API の依存には pandas が含まれていないため、`import pandas` するとプラグインが読み込まれません）：
 
 ### 必須カラム
 

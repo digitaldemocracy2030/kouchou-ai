@@ -14,7 +14,7 @@
 
 ## 入力プラグインの出力（`inputs/*.csv`）
 
-入力プラグインの `fetch_data()` は `pandas.DataFrame` を返し、`save_to_csv()` により `inputs/{name}.csv` として保存されます。
+入力プラグインの `fetch_data()` は `polars.DataFrame` を返し、`save_to_csv()` により `inputs/{name}.csv` として保存されます。
 
 ### 必須カラム（実運用で必ず必要）
 
