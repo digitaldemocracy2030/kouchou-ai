@@ -15,6 +15,46 @@ type ListItemData = {
 };
 
 type NumericRange = [number, number];
+/** 入力中の数値範囲。途中の値（空欄・"-" など）も保てるよう文字列で持つ */
+type NumericRangeInput = [string, string];
+
+/** 数値属性ごとの全範囲（属性メタデータの最小・最大値） */
+function defaultNumericRanges(attributes: AttributeMeta[]): NumericRangeFilters {
+  return Object.fromEntries(
+    attributes
+      .filter((a) => a.type === "numeric" && a.numericRange)
+      .map((a) => [a.name, a.numericRange as NumericRange]),
+  );
+}
+
+function toRangeInputs(ranges: NumericRangeFilters): Record<string, NumericRangeInput> {
+  return Object.fromEntries(Object.entries(ranges).map(([name, [min, max]]) => [name, [String(min), String(max)]]));
+}
+
+/**
+ * 入力中の文字列を、適用する数値範囲に変換する。
+ * 空欄や数値として読めない端は属性の全範囲の端とし、最小値が最大値より大きければ入れ替える。
+ */
+export function parseNumericRangeInputs(
+  inputs: Record<string, NumericRangeInput>,
+  attributes: AttributeMeta[],
+): NumericRangeFilters {
+  const defaults = defaultNumericRanges(attributes);
+  const parse = (text: string, fallback: number) => {
+    const trimmed = text.trim();
+    if (trimmed === "") return fallback;
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const result: NumericRangeFilters = {};
+  for (const [name, [minText, maxText]] of Object.entries(inputs)) {
+    const [defaultMin, defaultMax] = defaults[name] ?? [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY];
+    const min = parse(minText, defaultMin);
+    const max = parse(maxText, defaultMax);
+    result[name] = min <= max ? [min, max] : [max, min];
+  }
+  return result;
+}
 
 type AttributeFilterDialogProps = {
   attributes: AttributeMeta[];
@@ -80,14 +120,10 @@ export function AttributeFilterDialog({
 }: AttributeFilterDialogProps) {
   // --- 編集用一時状態 ---
   const [editCategoricalFilters, setEditCategoricalFilters] = useState<AttributeFilters>(initialFilters);
-  const [editNumericRanges, setEditNumericRanges] = useState<NumericRangeFilters>(
-    Object.keys(initialNumericRanges).length > 0
-      ? initialNumericRanges
-      : Object.fromEntries(
-          attributes
-            .filter((a) => a.type === "numeric" && a.numericRange)
-            .map((a) => [a.name, a.numericRange as NumericRange]),
-        ),
+  // 入力中は文字列のまま保持し、数値への変換・入れ替えは適用時に行う
+  // （入力のたびに丸めると、1 文字目で最小値・最大値に置き換わり桁が崩れる）
+  const [editRangeInputs, setEditRangeInputs] = useState<Record<string, NumericRangeInput>>(() =>
+    toRangeInputs({ ...defaultNumericRanges(attributes), ...initialNumericRanges }),
   );
   const [editEnabledRanges, setEditEnabledRanges] = useState<Record<string, boolean>>(initialEnabledRanges);
   const [editIncludeEmptyValues, setEditIncludeEmptyValues] =
@@ -107,16 +143,13 @@ export function AttributeFilterDialog({
     });
   }, []);
 
-  const handleRangeChange = useCallback(
-    (attr: string, idx: 0 | 1, value: number) => {
-      setEditNumericRanges((prev) => {
-        const [min, max] = prev[attr] ?? attributes.find((a) => a.name === attr)?.numericRange ?? [0, 0];
-        const next: NumericRange = idx === 0 ? [Math.min(value, max), max] : [min, Math.max(value, min)];
-        return { ...prev, [attr]: next };
-      });
-    },
-    [attributes],
-  );
+  const handleRangeChange = useCallback((attr: string, idx: 0 | 1, value: string) => {
+    setEditRangeInputs((prev) => {
+      const next: NumericRangeInput = [...(prev[attr] ?? ["", ""])];
+      next[idx] = value;
+      return { ...prev, [attr]: next };
+    });
+  }, []);
 
   const toggleRangeFilter = useCallback((attr: string) => {
     setEditEnabledRanges((prev) => ({ ...prev, [attr]: !prev[attr] }));
@@ -128,13 +161,7 @@ export function AttributeFilterDialog({
 
   const handleClearFilters = useCallback(() => {
     setEditCategoricalFilters({});
-    setEditNumericRanges(
-      Object.fromEntries(
-        attributes
-          .filter((a) => a.type === "numeric" && a.numericRange)
-          .map((a) => [a.name, a.numericRange as NumericRange]),
-      ),
-    );
+    setEditRangeInputs(toRangeInputs(defaultNumericRanges(attributes)));
     setEditEnabledRanges({});
     setEditIncludeEmptyValues({});
     setEditTextSearch("");
@@ -144,7 +171,7 @@ export function AttributeFilterDialog({
   const onApply = useCallback(() => {
     onApplyFilters(
       editCategoricalFilters,
-      editNumericRanges,
+      parseNumericRangeInputs(editRangeInputs, attributes),
       editIncludeEmptyValues,
       editEnabledRanges,
       editTextSearch,
@@ -152,7 +179,8 @@ export function AttributeFilterDialog({
     onClose();
   }, [
     editCategoricalFilters,
-    editNumericRanges,
+    editRangeInputs,
+    attributes,
     editIncludeEmptyValues,
     editEnabledRanges,
     editTextSearch,
@@ -222,8 +250,8 @@ export function AttributeFilterDialog({
                           </Text>
                           <Input
                             type="number"
-                            value={editNumericRanges[attr.name]?.[0] ?? ""}
-                            onChange={(e) => handleRangeChange(attr.name, 0, Number(e.target.value))}
+                            value={editRangeInputs[attr.name]?.[0] ?? ""}
+                            onChange={(e) => handleRangeChange(attr.name, 0, e.target.value)}
                             size="sm"
                             width="100px"
                             disabled={!editEnabledRanges[attr.name]}
@@ -231,8 +259,8 @@ export function AttributeFilterDialog({
                           <Text mx={2}>～</Text>
                           <Input
                             type="number"
-                            value={editNumericRanges[attr.name]?.[1] ?? ""}
-                            onChange={(e) => handleRangeChange(attr.name, 1, Number(e.target.value))}
+                            value={editRangeInputs[attr.name]?.[1] ?? ""}
+                            onChange={(e) => handleRangeChange(attr.name, 1, e.target.value)}
                             size="sm"
                             width="100px"
                             disabled={!editEnabledRanges[attr.name]}
