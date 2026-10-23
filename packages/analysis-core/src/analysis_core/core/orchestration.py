@@ -312,6 +312,60 @@ def validate_api_keys(provider: str, user_api_key: str | None = None) -> None:
         raise RuntimeError(f"Unknown provider: {provider}")
 
 
+def validate_embedding_keys(provider: str, is_embedded_at_local: bool, user_api_key: str | None = None) -> None:
+    """
+    Validate the settings the embedding step needs when it calls the provider's API.
+
+    validate_api_keys only checks the chat credentials. For most providers the
+    embedding API shares them, but Azure OpenAI uses a separate AZURE_EMBEDDING_*
+    deployment and OpenRouter has no embedding API at all. Without this check the
+    pipeline would fail at the embedding step, after extraction has already paid
+    for one chat call per comment. Call it only when the embedding step will run.
+
+    Args:
+        provider: The LLM provider name
+        is_embedded_at_local: True when embeddings are computed in-process (no API call)
+        user_api_key: Optional user-provided API key (replaces AZURE_EMBEDDING_API_KEY,
+            in the same order as request_to_azure_embed)
+
+    Raises:
+        RuntimeError: If the embedding step would fail for missing settings
+    """
+    if is_embedded_at_local:
+        return
+
+    load_env_file(override=False)
+
+    if provider == "azure":
+        missing_vars = []
+        if not os.getenv("AZURE_EMBEDDING_ENDPOINT"):
+            missing_vars.append("AZURE_EMBEDDING_ENDPOINT")
+        if not (user_api_key or os.getenv("AZURE_EMBEDDING_API_KEY")):
+            missing_vars.append("AZURE_EMBEDDING_API_KEY")
+        if not os.getenv("AZURE_EMBEDDING_VERSION"):
+            missing_vars.append("AZURE_EMBEDDING_VERSION")
+        if not os.getenv("AZURE_EMBEDDING_DEPLOYMENT_NAME"):
+            missing_vars.append("AZURE_EMBEDDING_DEPLOYMENT_NAME")
+
+        if missing_vars:
+            raise RuntimeError(
+                f"Azure OpenAI embedding environment variables not set: {', '.join(missing_vars)}. "
+                "The embedding step uses its own Azure deployment (AZURE_EMBEDDING_*), separate from "
+                "AZURE_CHATCOMPLETION_*. Set them, or enable is_embedded_at_local to embed on the server."
+            )
+
+    elif provider == "openrouter":
+        raise RuntimeError(
+            "OpenRouter has no embedding API support. "
+            "Enable is_embedded_at_local to embed on the server when using OpenRouter."
+        )
+
+
+def plan_runs_step(plan: list[dict[str, Any]] | None, step: str) -> bool:
+    """Return True when the execution plan will run the given step."""
+    return any(item.get("step") == step and item.get("run", True) for item in (plan or []))
+
+
 # step ごとの、true / false（または未指定）だけを受け付けるオプション
 _BOOLEAN_STEP_OPTIONS: dict[str, tuple[str, ...]] = {
     "hierarchical_clustering": ("save_umap_model",),
@@ -1015,7 +1069,12 @@ def initialization(
     # Re-runs that only use non-LLM steps (e.g. --only hierarchical_aggregation after a label edit)
     # do not need provider credentials.
     if validate_api_keys_early and plan_requires_api_key(plan, specs):
-        validate_api_keys(config["provider"], resolve_user_api_key(config))
+        user_api_key = resolve_user_api_key(config)
+        validate_api_keys(config["provider"], user_api_key)
+        # The embedding step may need settings beyond the chat credentials checked above.
+        # Check them only when it will actually run, so --only / reruns that skip it are not blocked.
+        if plan_runs_step(plan, "embedding"):
+            validate_embedding_keys(config["provider"], bool(config.get("is_embedded_at_local", False)), user_api_key)
 
     # Interactive confirmation (unless skipped)
     if "skip-interaction" not in config:

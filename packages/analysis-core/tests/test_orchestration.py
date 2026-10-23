@@ -527,6 +527,181 @@ class TestValidateApiKeys:
             validate_api_keys("unknown_provider")
 
 
+AZURE_CHAT_ENV = {
+    "AZURE_CHATCOMPLETION_ENDPOINT": "https://chat.invalid",
+    "AZURE_CHATCOMPLETION_DEPLOYMENT_NAME": "chat-deployment",
+    "AZURE_CHATCOMPLETION_API_KEY": "chat-key",
+    "AZURE_CHATCOMPLETION_VERSION": "2024-06-01",
+}
+AZURE_EMBEDDING_ENV = {
+    "AZURE_EMBEDDING_ENDPOINT": "https://embedding.invalid",
+    "AZURE_EMBEDDING_DEPLOYMENT_NAME": "embedding-deployment",
+    "AZURE_EMBEDDING_API_KEY": "embedding-key",
+    "AZURE_EMBEDDING_VERSION": "2024-06-01",
+}
+
+
+def _set_azure_env(monkeypatch, *, embedding: dict[str, str] | None = None):
+    """Chat の 4 変数だけを設定する。埋め込み側は空文字にして .env からの読み込みも防ぐ。"""
+    for key, value in AZURE_CHAT_ENV.items():
+        monkeypatch.setenv(key, value)
+    for key in AZURE_EMBEDDING_ENV:
+        monkeypatch.setenv(key, (embedding or {}).get(key, ""))
+    monkeypatch.setenv("USER_API_KEY", "")
+
+
+class TestValidateEmbeddingKeys:
+    """埋め込みを API で行う時の、開始前の環境変数チェック。"""
+
+    def test_azure_without_embedding_env_fails(self, monkeypatch):
+        from analysis_core.core.orchestration import validate_embedding_keys
+
+        _set_azure_env(monkeypatch)
+
+        with pytest.raises(RuntimeError, match="AZURE_EMBEDDING_ENDPOINT") as excinfo:
+            validate_embedding_keys("azure", is_embedded_at_local=False)
+        message = str(excinfo.value)
+        for key in AZURE_EMBEDDING_ENV:
+            assert key in message
+        assert "is_embedded_at_local" in message
+
+    def test_azure_with_embedding_env_passes(self, monkeypatch):
+        from analysis_core.core.orchestration import validate_embedding_keys
+
+        _set_azure_env(monkeypatch, embedding=AZURE_EMBEDDING_ENV)
+
+        validate_embedding_keys("azure", is_embedded_at_local=False)
+
+    def test_azure_user_api_key_replaces_embedding_api_key(self, monkeypatch):
+        from analysis_core.core.orchestration import validate_embedding_keys
+
+        _set_azure_env(monkeypatch, embedding={**AZURE_EMBEDDING_ENV, "AZURE_EMBEDDING_API_KEY": ""})
+
+        validate_embedding_keys("azure", is_embedded_at_local=False, user_api_key="user-key")
+        with pytest.raises(RuntimeError, match="AZURE_EMBEDDING_API_KEY"):
+            validate_embedding_keys("azure", is_embedded_at_local=False)
+
+    def test_local_embedding_needs_no_provider_env(self, monkeypatch):
+        from analysis_core.core.orchestration import validate_embedding_keys
+
+        _set_azure_env(monkeypatch)
+
+        validate_embedding_keys("azure", is_embedded_at_local=True)
+        validate_embedding_keys("openrouter", is_embedded_at_local=True)
+
+    def test_openrouter_without_local_embedding_fails(self):
+        from analysis_core.core.orchestration import validate_embedding_keys
+
+        with pytest.raises(RuntimeError, match="is_embedded_at_local"):
+            validate_embedding_keys("openrouter", is_embedded_at_local=False)
+
+    def test_other_providers_reuse_chat_credentials(self):
+        from analysis_core.core.orchestration import validate_embedding_keys
+
+        for provider in ("openai", "gemini", "local"):
+            validate_embedding_keys(provider, is_embedded_at_local=False)
+
+
+class TestInitializationEmbeddingKeys:
+    """initialization / from_dict は、埋め込みを実行する計画の時だけ埋め込み側も開始前に確かめる。"""
+
+    @staticmethod
+    def _write_config(tmp_path, **overrides):
+        config_path = tmp_path / "job.json"
+        config_path.write_text(
+            json.dumps({"input": "test", "question": "Test?", "provider": "azure", **overrides}),
+            encoding="utf-8",
+        )
+        (tmp_path / "inputs").mkdir(exist_ok=True)
+        return config_path
+
+    def test_azure_without_embedding_env_fails_before_running(self, tmp_path, monkeypatch):
+        from analysis_core.core import initialization
+
+        _set_azure_env(monkeypatch)
+        config_path = self._write_config(tmp_path, is_embedded_at_local=False)
+
+        with pytest.raises(RuntimeError, match="AZURE_EMBEDDING_"):
+            initialization(
+                config_path=config_path,
+                skip_interaction=True,
+                output_base_dir=tmp_path / "outputs",
+                input_base_dir=tmp_path / "inputs",
+            )
+        # 開始前に止まるので、running の状態は書かれない
+        assert not (tmp_path / "outputs" / "job" / "hierarchical_status.json").exists()
+
+    def test_azure_with_local_embedding_passes(self, tmp_path, monkeypatch):
+        from analysis_core.core import initialization
+
+        _set_azure_env(monkeypatch)
+        config_path = self._write_config(tmp_path, is_embedded_at_local=True)
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+        assert next(step for step in config["plan"] if step["step"] == "embedding")["run"] is True
+
+    def test_azure_only_other_step_does_not_need_embedding_env(self, tmp_path, monkeypatch):
+        from analysis_core.core import initialization
+
+        _set_azure_env(monkeypatch)
+        config_path = self._write_config(tmp_path, is_embedded_at_local=False)
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+            only="extraction",
+        )
+        assert next(step for step in config["plan"] if step["step"] == "embedding")["run"] is False
+
+    def test_validation_disabled_skips_embedding_check(self, tmp_path, monkeypatch):
+        from analysis_core.core import initialization
+
+        _set_azure_env(monkeypatch)
+        config_path = self._write_config(tmp_path, is_embedded_at_local=False)
+
+        initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+            validate_api_keys_early=False,
+        )
+
+    def test_from_dict_azure_without_embedding_env_fails(self, tmp_path, monkeypatch):
+        from analysis_core import PipelineOrchestrator
+
+        _set_azure_env(monkeypatch)
+
+        with pytest.raises(RuntimeError, match="AZURE_EMBEDDING_"):
+            PipelineOrchestrator.from_dict(
+                config={"name": "demo", "input": "demo", "question": "Test?", "provider": "azure"},
+                output_dir="demo",
+                output_base_dir=tmp_path / "outputs",
+                input_base_dir=tmp_path / "inputs",
+            )
+
+    def test_from_dict_skips_check_when_embedding_does_not_run(self, tmp_path, monkeypatch):
+        from analysis_core import PipelineOrchestrator
+
+        _set_azure_env(monkeypatch)
+        plan = [{"step": "embedding", "run": False, "reason": "nothing changed"}]
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={"name": "demo", "input": "demo", "question": "Test?", "provider": "azure", "plan": plan},
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+        assert orchestrator.get_plan() == plan
+
+
 class TestValidateConfig:
     """Test config validation."""
 
