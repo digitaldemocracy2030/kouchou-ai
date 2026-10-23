@@ -13,25 +13,33 @@ HASH_DIR := .env-hashes
 ENV_HASH_FILE := $(HASH_DIR)/.env.hash
 AZURE_ENV_HASH_FILE := $(HASH_DIR)/.env.azure.hash
 
+# ハッシュ計算のコマンド。sha256sum が無い環境（macOS など）では shasum -a 256 を使う。
+# どちらも出力は「ハッシュ  ファイル名」形式なので、cut -d' ' -f1 で同じ値になる
+SHA256_CMD := $(shell if command -v sha256sum >/dev/null 2>&1; then echo sha256sum; elif command -v shasum >/dev/null 2>&1; then echo "shasum -a 256"; fi)
+
+# ハッシュ計算のコマンドが無ければ、空のハッシュで比較・保存しないように止める
+define require_sha256
+if [ -z "$(SHA256_CMD)" ]; then \
+	echo "sha256sum も shasum も見つかりません。どちらかをインストールしてください。" >&2; \
+	exit 1; \
+fi
+endef
+
+# $(call env_hash,<file>): ファイルの SHA-256 ハッシュを出力するシェル式
+env_hash = $$($(SHA256_CMD) $(1) | cut -d' ' -f1)
+
 define check_env_changes
+$(require_sha256); \
 changed=false; \
 if [ -f .env ]; then \
-	if command -v sha256sum >/dev/null 2>&1; then \
-		current_hash=$$(sha256sum .env | cut -d' ' -f1); \
-	else \
-		current_hash=$$(shasum -a 256 .env | cut -d' ' -f1); \
-	fi; \
+	current_hash=$(call env_hash,.env); \
 	stored_hash=$$([ -f $(ENV_HASH_FILE) ] && cat $(ENV_HASH_FILE) || echo "no_hash"); \
 	if [ "$$current_hash" != "$$stored_hash" ]; then \
 		changed=true; \
 	fi; \
 fi; \
 if [ -f .env.azure ]; then \
-	if command -v sha256sum >/dev/null 2>&1; then \
-		current_hash=$$(sha256sum .env.azure | cut -d' ' -f1); \
-	else \
-		current_hash=$$(shasum -a 256 .env.azure | cut -d' ' -f1); \
-	fi; \
+	current_hash=$(call env_hash,.env.azure); \
 	stored_hash=$$([ -f $(AZURE_ENV_HASH_FILE) ] && cat $(AZURE_ENV_HASH_FILE) || echo "no_hash"); \
 	if [ "$$current_hash" != "$$stored_hash" ]; then \
 		changed=true; \
@@ -40,9 +48,17 @@ fi
 endef
 
 define update_env_hashes
+$(require_sha256); \
 mkdir -p $(HASH_DIR); \
-if [ -f .env ]; then sha256sum .env | cut -d' ' -f1 > $(ENV_HASH_FILE); fi; \
-if [ -f .env.azure ]; then sha256sum .env.azure | cut -d' ' -f1 > $(AZURE_ENV_HASH_FILE); fi
+for f in .env .env.azure; do \
+	[ -f "$$f" ] || continue; \
+	hash=$(call env_hash,$$f); \
+	if [ -z "$$hash" ]; then \
+		echo "$$f のハッシュを計算できませんでした" >&2; \
+		exit 1; \
+	fi; \
+	echo "$$hash" > $(HASH_DIR)/$$f.hash; \
+done
 endef
 
 define build_with_env_check
@@ -65,8 +81,9 @@ $(HASH_DIR):
 check-env-status:
 	@echo "🔍 envファイルの変更状況:"
 	@echo "----------------------------------------"
+	@$(require_sha256)
 	@if [ -f .env ]; then \
-		current_hash=$$(sha256sum .env | cut -d' ' -f1); \
+		current_hash=$(call env_hash,.env); \
 		stored_hash=$$([ -f $(ENV_HASH_FILE) ] && cat $(ENV_HASH_FILE) || echo "no_hash"); \
 		if [ "$$current_hash" != "$$stored_hash" ]; then \
 			echo ".env: 変更あり"; \
@@ -77,7 +94,7 @@ check-env-status:
 		echo ".env: ファイルなし"; \
 	fi
 	@if [ -f .env.azure ]; then \
-		current_hash=$$(sha256sum .env.azure | cut -d' ' -f1); \
+		current_hash=$(call env_hash,.env.azure); \
 		stored_hash=$$([ -f $(AZURE_ENV_HASH_FILE) ] && cat $(AZURE_ENV_HASH_FILE) || echo "no_hash"); \
 		if [ "$$current_hash" != "$$stored_hash" ]; then \
 			echo ".env.azure: 変更あり"; \
@@ -166,7 +183,7 @@ $(eval AZURE_RESOURCE_GROUP ?= kouchou-ai-rg)
 $(eval AZURE_LOCATION ?= japaneast)
 $(eval AZURE_CONTAINER_ENV ?= kouchou-ai-env)
 $(eval AZURE_WORKSPACE_NAME ?= kouchou-ai-logs)
-$(eval AZURE_ACR_NAME ?= kouchouai$(shell date +%s | sha256sum | head -c 8))
+$(eval AZURE_ACR_NAME ?= kouchouai$(shell date +%s | $(SHA256_CMD) | head -c 8))
 $(eval AZURE_ACR_SKU ?= Basic)
 $(eval export)
 endef
