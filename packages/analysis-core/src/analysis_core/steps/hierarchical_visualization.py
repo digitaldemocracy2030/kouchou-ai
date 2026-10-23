@@ -264,6 +264,21 @@ def _render_tree(data: dict[str, Any]) -> str:
         for cid in a.get("cluster_ids", []):
             args_in[cid].append(a)
 
+    def render_args(cid: str) -> str:
+        """Render the argument list (with source links) of a leaf cluster, or "" if it has none."""
+        members = args_in.get(cid, [])
+        if not members:
+            return ""
+        lines: list[str] = ['<ul class="args">']
+        for a in members:
+            comment_id = html.escape(str(a.get("comment_id", "")))
+            argument = html.escape(a.get("argument", ""))
+            url = a.get("url")
+            link = f' <a href="{html.escape(url)}" target="_blank" rel="noopener" class="src-link">↗</a>' if url else ""
+            lines.append(f'<li><span class="comment-id">#{comment_id}</span> {argument}{link}</li>')
+        lines.append("</ul>")
+        return "\n".join(lines)
+
     def render_children(parent_id: str) -> str:
         kids = sorted(children_of.get(parent_id, []), key=lambda c: -c.get("value", 0))
         if not kids:
@@ -286,22 +301,9 @@ def _render_tree(data: dict[str, Any]) -> str:
             if grand:
                 inner.append(grand)
             else:
-                members = args_in.get(cid, [])
-                if members:
-                    inner.append('<ul class="args">')
-                    for a in members:
-                        comment_id = html.escape(str(a.get("comment_id", "")))
-                        argument = html.escape(a.get("argument", ""))
-                        url = a.get("url")
-                        link = (
-                            f' <a href="{html.escape(url)}" target="_blank" rel="noopener" class="src-link">↗</a>'
-                            if url
-                            else ""
-                        )
-                        inner.append(
-                            f'<li><span class="comment-id">#{comment_id}</span> {argument}{link}</li>'
-                        )
-                    inner.append("</ul>")
+                args_html = render_args(cid)
+                if args_html:
+                    inner.append(args_html)
             inner.append("</details>")
             items.append("\n".join(inner))
         return '<div class="sub-clusters">\n' + "\n".join(items) + "\n</div>"
@@ -318,7 +320,27 @@ def _render_tree(data: dict[str, Any]) -> str:
         ]
         if cluster.get("takeaway"):
             parts.append(f'<p class="cluster-takeaway">{html.escape(cluster["takeaway"])}</p>')
-        parts.append(render_children(cid))
+        children = render_children(cid)
+        if children:
+            parts.append(children)
+        else:
+            # 1 段の木（llm_grouping や cluster_nums が 1 要素の場合）では level 1 が葉になる。
+            # level 1 は details ではなく section で描くので、意見が多くてもページが伸びないよう畳んで出す。
+            args_html = render_args(cid)
+            if args_html:
+                parts.extend(
+                    [
+                        '<div class="sub-clusters">',
+                        f'<details class="sub-cluster leaf-args" id="cluster-{html.escape(cid)}-args">',
+                        "<summary>",
+                        '<span class="sub-label">意見一覧</span> ',
+                        f'<span class="count-badge">{len(args_in.get(cid, [])):,} args</span>',
+                        "</summary>",
+                        args_html,
+                        "</details>",
+                        "</div>",
+                    ]
+                )
         parts.append("</section>")
         return "\n".join(parts)
 

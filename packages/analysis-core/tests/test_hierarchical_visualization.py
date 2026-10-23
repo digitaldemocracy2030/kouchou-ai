@@ -262,3 +262,54 @@ class TestReportLicense:
         # The source ZIP is omitted when its inputs are unavailable.
         assert "data:application/zip;base64," not in out
         assert 'download="kouchou-ai-report-source.zip"' not in out
+
+
+def _arg_items(out: str) -> list[str]:
+    """意見リスト（ul.args）の li の中身だけを、出現順に返す。"""
+    items: list[str] = []
+    for block in re.findall(r'<ul class="args">(.*?)</ul>', out, flags=re.S):
+        items.extend(re.findall(r"<li>(.*?)</li>", block, flags=re.S))
+    return items
+
+
+class TestArgumentListsInTree:
+    """意見の一覧が、木の葉（子を持たないクラスタ）ごとに 1 回ずつ出ること。"""
+
+    def test_single_level_tree_lists_arguments_under_level1(self) -> None:
+        # llm_grouping や cluster_nums が 1 要素の場合のように、level 1 が葉になる木
+        out = build_html(_minimal_payload())
+        items = _arg_items(out)
+        assert len(items) == 2
+        assert any('<span class="comment-id">#1</span> alpha' in i for i in items)
+        assert any('<span class="comment-id">#2</span> beta' in i for i in items)
+
+    def test_single_level_tree_list_keeps_source_link(self) -> None:
+        out = build_html(_minimal_payload(), url_pattern="https://example.com/r/{comment_id}")
+        items = _arg_items(out)
+        assert any('href="https://example.com/r/1"' in i for i in items)
+        assert any('href="https://example.com/r/2"' in i for i in items)
+
+    def test_two_level_tree_lists_each_argument_once(self) -> None:
+        payload = _minimal_payload()
+        payload["arguments"][0]["cluster_ids"] = ["0", "1_1", "2_1"]
+        payload["arguments"][1]["cluster_ids"] = ["0", "1_2", "2_2"]
+        payload["clusters"] += [
+            {"id": "2_1", "level": 2, "label": "alpha sub", "value": 1, "parent": "1_1", "takeaway": ""},
+            {"id": "2_2", "level": 2, "label": "beta sub", "value": 1, "parent": "1_2", "takeaway": ""},
+        ]
+        out = build_html(payload)
+        items = _arg_items(out)
+        # level 1 では重ねて出さず、葉の level 2 にだけ出る
+        assert len(items) == 2
+
+    def test_mixed_tree_lists_arguments_for_childless_level1(self) -> None:
+        payload = _minimal_payload()
+        payload["arguments"][0]["cluster_ids"] = ["0", "1_1", "2_1"]
+        payload["clusters"].append(
+            {"id": "2_1", "level": 2, "label": "alpha sub", "value": 1, "parent": "1_1", "takeaway": ""}
+        )
+        out = build_html(payload)
+        items = _arg_items(out)
+        assert len(items) == 2
+        assert sum("alpha" in i for i in items) == 1
+        assert sum("beta" in i for i in items) == 1
