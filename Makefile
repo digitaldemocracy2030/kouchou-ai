@@ -395,6 +395,7 @@ azure-assign-storage-access:
 # 環境変数の更新
 azure-config-update:
 	$(call read-env)
+	@$(MAKE) azure-check-revalidate-secret
 	docker run -it --rm -v $(shell pwd):/workspace -v $(HOME)/.azure:/root/.azure -w /workspace mcr.microsoft.com/azure-cli /bin/bash -c "\
 	    API_DOMAIN=\$$(az containerapp show --name api --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv) && \
 	    PUBLIC_VIEWER_DOMAIN=\$$(az containerapp show --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) --query properties.configuration.ingress.fqdn -o tsv) && \
@@ -406,7 +407,7 @@ azure-config-update:
 	        --set-env-vars 'OPENAI_API_KEY=$(OPENAI_API_KEY)' 'PUBLIC_API_KEY=$(PUBLIC_API_KEY)' 'ADMIN_API_KEY=$(ADMIN_API_KEY)' 'LOG_LEVEL=info' 'AZURE_BLOB_STORAGE_ACCOUNT_NAME=$(AZURE_BLOB_STORAGE_ACCOUNT_NAME)' 'AZURE_BLOB_STORAGE_CONTAINER_NAME=$(AZURE_BLOB_STORAGE_CONTAINER_NAME)' 'STORAGE_TYPE=azure_blob' \"REVALIDATE_URL=https://\$$PUBLIC_VIEWER_DOMAIN/api/revalidate\" 'REVALIDATE_SECRET=$(REVALIDATE_SECRET)' && \
 	    echo '>>> 公開閲覧用の環境変数を更新...' && \
 	    az containerapp update --name public-viewer --resource-group $(AZURE_RESOURCE_GROUP) \
-	        --set-env-vars 'NEXT_PUBLIC_PUBLIC_API_KEY=$(PUBLIC_API_KEY)' \"NEXT_PUBLIC_API_BASEPATH=https://\$$API_DOMAIN\" \"API_BASEPATH=https://\$$API_DOMAIN\" && \
+	        --set-env-vars 'NEXT_PUBLIC_PUBLIC_API_KEY=$(PUBLIC_API_KEY)' \"NEXT_PUBLIC_API_BASEPATH=https://\$$API_DOMAIN\" \"API_BASEPATH=https://\$$API_DOMAIN\" 'REVALIDATE_SECRET=$(REVALIDATE_SECRET)' && \
 	    echo '>>> 管理画面の環境変数を更新...' && \
 	    az containerapp update --name admin --resource-group $(AZURE_RESOURCE_GROUP) \
 	        --set-env-vars 'NEXT_PUBLIC_ADMIN_API_KEY=$(ADMIN_API_KEY)' \"NEXT_PUBLIC_CLIENT_BASEPATH=https://\$$PUBLIC_VIEWER_DOMAIN\" \"NEXT_PUBLIC_API_BASEPATH=https://\$$API_DOMAIN\" \"API_BASEPATH=https://\$$API_DOMAIN\" \"CLIENT_STATIC_BUILD_BASEPATH=https://\$$STATIC_SITE_BUILDER_DOMAIN\" 'BASIC_AUTH_USERNAME=$(BASIC_AUTH_USERNAME)' 'BASIC_AUTH_PASSWORD=$(BASIC_AUTH_PASSWORD)' && \

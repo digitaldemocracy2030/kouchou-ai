@@ -43,6 +43,9 @@ BASIC_AUTH_PASSWORD=your_password
 
 # OpenAI API設定
 OPENAI_API_KEY=your_openai_key
+
+# 公開ページのキャッシュ破棄用。make azure-config-update が api と public-viewer に同じ値を渡す（空だと止まる）
+REVALIDATE_SECRET=your_revalidate_secret
 ```
 
 次に、以下の手順で `.env.azure` を作成し、Azure環境で用いる環境変数を設定してください。
