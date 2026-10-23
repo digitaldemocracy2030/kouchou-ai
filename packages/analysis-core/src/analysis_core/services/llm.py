@@ -528,6 +528,33 @@ def resolve_local_llm_base_url(address: str) -> str:
 _resolve_local_llm_base_url = resolve_local_llm_base_url
 
 
+def _to_strict_json_schema(schema: Any) -> Any:
+    """pydantic のスキーマを、OpenAI の strict 構造化出力が受け付ける形に直したコピーを返す
+
+    strict:true では、すべての object に additionalProperties:false が要り、properties のキーは
+    すべて required に入っていなければならない（openai SDK の parse が内部で行う変換と同じ規則）。
+    pydantic の model_json_schema() はこれを出さないので、$defs の中も含めて再帰的に補う。
+    SDK の変換関数は private API なので使わない。
+    """
+    if isinstance(schema, list):
+        return [_to_strict_json_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+
+    strict = {key: _to_strict_json_schema(value) for key, value in schema.items()}
+    for key in ("properties", "$defs", "definitions"):
+        # 名前→スキーマの対応表は、キーそのものをスキーマのキーワードとして扱わない
+        if isinstance(schema.get(key), dict):
+            strict[key] = {name: _to_strict_json_schema(child) for name, child in schema[key].items()}
+    if strict.get("type") == "object" or isinstance(strict.get("properties"), dict):
+        # dict[str, X] のように additionalProperties にスキーマが入っている場合は触らない
+        strict.setdefault("additionalProperties", False)
+        properties = strict.get("properties")
+        if isinstance(properties, dict):
+            strict["required"] = list(properties)
+    return strict
+
+
 def request_to_local_llm(
     messages: list[dict],
     model: str,
@@ -575,7 +602,8 @@ def request_to_local_llm(
                 "json_schema": {
                     "name": json_schema.__name__,
                     "strict": True,  # ← スキーマ逸脱を弾く
-                    "schema": json_schema.schema(),
+                    # 社内ゲートウェイ経由で OpenAI / Azure の strict 検証に中継されても 400 にならない形にする
+                    "schema": _to_strict_json_schema(json_schema.model_json_schema()),
                 },
             }
 
