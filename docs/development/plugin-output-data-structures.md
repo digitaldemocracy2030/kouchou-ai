@@ -203,7 +203,7 @@ analysis-core の標準ワークフローは、次のステップでファイル
 - `comment_num`: 元コメント数
 - `overview`: 概要文
 - `propertyMap`: 属性マップ（必要な場合のみ）
-- `translations`: 翻訳データ（存在する場合のみ）
+- `translations`: 翻訳データ（`kouchou-translate` で後から追加。言語コードごとに `clusters` / `overview` / `question` / `intro` / `arguments` の訳。形は `packages/analysis-core/README.md` を参照）
 - `config`: 実行時設定
 
 `arguments` の構造（抜粋）:

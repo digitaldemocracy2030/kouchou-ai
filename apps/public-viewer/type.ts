@@ -64,8 +64,7 @@ export type Result = {
   comments: Comments; // コメント情報
   // biome-ignore lint/suspicious/noExplicitAny:
   propertyMap: Record<string, any>; // プロパティマッピング情報
-  // biome-ignore lint/suspicious/noExplicitAny:
-  translations: Record<string, any>; // 翻訳情報
+  translations?: ReportTranslations; // 翻訳情報（言語コードごと。無い・空なら元の言語だけ表示する）
   overview: string; // 解析概要
   config: Config; // 設定情報
   comment_num: number; // コメント数
@@ -98,7 +97,23 @@ export type Cluster = {
   filtered?: boolean; // フィルター対象外の場合にtrue（TreemapChartで使用）
 };
 
-export type JaLocaleType = {
+/**
+ * レポート本文の翻訳。キーは言語コード（"en", "ko" など）。
+ * 各フィールドは省略可能で、無い文言は元の言語で表示する。
+ * 旧形式（元の文字列 → 訳文の辞書）も lib/i18n/translateResult.ts が読む。
+ */
+export type ReportTranslation = {
+  clusters?: Record<string, { label?: string; takeaway?: string }>; // クラスタID → 訳
+  overview?: string; // 概要の訳
+  question?: string; // 問いの訳
+  intro?: string; // イントロの訳
+  arguments?: Record<string, string>; // 意見ID → 訳（省略可。費用が大きいので既定では生成しない）
+  meta?: Record<string, unknown>; // 生成に使ったモデル等（表示には使わない）
+};
+
+export type ReportTranslations = Record<string, ReportTranslation | Record<string, string>>;
+
+export type PlotlyLocale = {
   moduleType: "locale";
   name: string;
   dictionary: Record<string, string>;
@@ -110,6 +125,9 @@ export type JaLocaleType = {
     date: string;
   };
 };
+
+/** @deprecated PlotlyLocale を使う */
+export type JaLocaleType = PlotlyLocale;
 
 export type Comments = Record<string, { comment: string }>; // コメントIDをキーに持つオブジェクト
 

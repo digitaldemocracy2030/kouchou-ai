@@ -1,5 +1,6 @@
 import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { ChartType, Result } from "@/type";
 import { Box, Button, HStack, Icon, SegmentGroup, Stack } from "@chakra-ui/react";
 import { CogIcon, Filter, FullscreenIcon } from "lucide-react";
@@ -118,15 +119,18 @@ export function SelectChartButton({
   showAttentionFilterBadge,
   attentionFilterBadgeCount,
 }: Props) {
+  const messages = useMessages();
   // Generate items from plugin registry, filtered by enabledCharts
   const items = useMemo(() => {
+    // #961 の resolveChartModes で並び順・無効判定を一元化し、文言だけ表示言語の辞書で上書きする。
+    // 組み込みモードは messages を優先し、外部プラグインは manifest の文言（mode.label / mode.tooltip）をそのまま使う。
     return resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides).map((mode) => ({
       value: mode.id,
-      label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id),
+      label: SegmentItemWithIcon(mode.icon, messages.chartModes[mode.id] ?? mode.label, selected === mode.id),
       isDisabled: mode.isDisabled,
-      tooltip: mode.tooltip,
+      tooltip: mode.isDisabled ? (messages.chartModeDisabled[mode.id] ?? mode.tooltip) : undefined,
     }));
-  }, [selected, result, disabledModeOverrides, enabledCharts, chartOrder]);
+  }, [selected, result, disabledModeOverrides, enabledCharts, chartOrder, messages]);
 
   // Calculate dynamic tab width based on mode count
   const modeCount = items.length;
@@ -160,7 +164,7 @@ export function SelectChartButton({
 
         <HStack gap={1} justifySelf={["end"]} alignSelf={"center"}>
           {isAttentionFilterEnabled && onClickAttentionFilter && (
-            <Tooltip content={"フィルタ"} openDelay={0} closeDelay={0}>
+            <Tooltip content={messages.filter} openDelay={0} closeDelay={0}>
               <Button onClick={onClickAttentionFilter} variant="outline" h={"50px"}>
                 <Box display="flex" alignItems="center" gap={1}>
                   <Icon>
@@ -176,14 +180,21 @@ export function SelectChartButton({
             </Tooltip>
           )}
 
-          <Tooltip content={"表示設定"} openDelay={0} closeDelay={0}>
+          <Tooltip content={messages.displaySettings} openDelay={0} closeDelay={0}>
             <Button onClick={onClickDensitySetting} variant={"outline"} h={"50px"} w={"50px"} p={0}>
               <Icon as={CogIcon} />
             </Button>
           </Tooltip>
 
-          <Tooltip content={"全画面表示"} openDelay={0} closeDelay={0}>
-            <Button aria-label="全画面表示" onClick={onClickFullscreen} variant={"outline"} h={"50px"} w={"50px"} p={0}>
+          <Tooltip content={messages.fullscreen} openDelay={0} closeDelay={0}>
+            <Button
+              aria-label={messages.fullscreen}
+              onClick={onClickFullscreen}
+              variant={"outline"}
+              h={"50px"}
+              w={"50px"}
+              p={0}
+            >
               <Icon as={FullscreenIcon} />
             </Button>
           </Tooltip>

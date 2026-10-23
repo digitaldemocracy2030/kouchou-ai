@@ -2,6 +2,7 @@
 
 import { LoadingBar } from "@/components/report/LoadingBar";
 import jaLocale from "@/lib/plotly-locale-ja";
+import koLocale from "@/lib/plotly-locale-ko";
 import dynamic from "next/dynamic";
 
 export const ChartCore = dynamic(
@@ -17,7 +18,9 @@ export const ChartCore = dynamic(
     const createPlotlyComponent = (await import("react-plotly.js/factory")).default;
 
     Plotly.register([Scatter, Sunburst, Treemap, ScatterGL]);
+    // 英語は Plotly 本体の既定文言なので登録不要
     Plotly.register(jaLocale);
+    Plotly.register(koLocale);
 
     return createPlotlyComponent(Plotly);
   },

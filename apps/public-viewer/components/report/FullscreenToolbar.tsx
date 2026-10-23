@@ -1,4 +1,5 @@
 import { Tooltip } from "@/components/ui/tooltip";
+import { useMessages } from "@/lib/i18n/LanguageContext";
 import { Button, HStack, Icon } from "@chakra-ui/react";
 import { Minimize2 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -15,13 +16,14 @@ type Props = {
  * 追加の操作は children として受け取り、右端の「全画面終了」は常に残す。
  */
 export function FullscreenToolbar({ onExitFullscreen, children }: Props) {
+  const messages = useMessages();
   return (
     <HStack id="fullScreenButtons" w="100%" justifyContent="space-between" gap={2} p={2} flexShrink={0}>
       <HStack flex="1" minW={0} gap={2} overflowX="auto">
         {children}
       </HStack>
-      <Tooltip content={"全画面終了"} openDelay={0} closeDelay={0}>
-        <Button aria-label="全画面終了" onClick={onExitFullscreen} h="44px" borderWidth={2} flexShrink={0}>
+      <Tooltip content={messages.exitFullscreen} openDelay={0} closeDelay={0}>
+        <Button aria-label={messages.exitFullscreen} onClick={onExitFullscreen} h="44px" borderWidth={2} flexShrink={0}>
           <Icon>
             <Minimize2 />
           </Icon>

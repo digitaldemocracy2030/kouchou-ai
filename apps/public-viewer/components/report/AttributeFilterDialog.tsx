@@ -1,5 +1,6 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { DialogBody, DialogContent, DialogFooter, DialogRoot } from "@/components/ui/dialog";
+import { useMessages } from "@/lib/i18n/LanguageContext";
 import { Box, Button, Flex, Heading, Input, Text, Wrap, WrapItem } from "@chakra-ui/react";
 import React, { useCallback, useState } from "react";
 import { FixedSizeList as List } from "react-window";
@@ -47,6 +48,7 @@ const ValueCheckbox = React.memo(function ValueCheckbox({
   count: number;
   onChange: (attr: string, value: string) => void;
 }) {
+  const messages = useMessages();
   return (
     <Box
       p={1}
@@ -59,7 +61,7 @@ const ValueCheckbox = React.memo(function ValueCheckbox({
       onClick={() => onChange(attrName, value)}
     >
       <Checkbox checked={checked} onChange={() => onChange(attrName, value)}>
-        {value || "(空)"}
+        {value || messages.empty}
       </Checkbox>
       <Text as="span" fontSize="xs" ml={1} color="gray.500">
         {count}
@@ -78,6 +80,7 @@ export function AttributeFilterDialog({
   initialIncludeEmptyValues = {},
   initialTextSearch = "",
 }: AttributeFilterDialogProps) {
+  const messages = useMessages();
   // --- 編集用一時状態 ---
   const [editCategoricalFilters, setEditCategoricalFilters] = useState<AttributeFilters>(initialFilters);
   const [editNumericRanges, setEditNumericRanges] = useState<NumericRangeFilters>(
@@ -167,18 +170,18 @@ export function AttributeFilterDialog({
         <DialogBody>
           <Box mb={6} mt={4}>
             <Heading as="h3" size="md" mb={2}>
-              フィルタ
+              {messages.filter}
             </Heading>
             <Text fontSize="sm" mb={5} color="gray.600">
-              表示する意見グループを絞り込みます。フィルタ間はAND結合され、フィルタ内の条件はOR結合されます。
+              {messages.filterDescription}
             </Text>
 
             <Box mb={6} borderWidth={1} borderRadius="md" p={3}>
               <Heading as="h4" size="sm" mb={2}>
-                テキスト検索
+                {messages.textSearch}
               </Heading>
               <Input
-                placeholder="検索したいテキストを入力してください。入力されたテキストが含まれる意見のみ表示されます。"
+                placeholder={messages.textSearchPlaceholder}
                 value={editTextSearch}
                 onChange={(e) => setEditTextSearch(e.target.value)}
                 mb={2}
@@ -186,7 +189,7 @@ export function AttributeFilterDialog({
             </Box>
             {attributes.length === 0 ? (
               <Text fontSize="sm" color="gray.500">
-                利用できる属性情報がありません。CSVファイルをアップロードする際に、属性列を選択してください。
+                {messages.noAttributes}
               </Text>
             ) : (
               attributes.map((attr) => {
@@ -202,7 +205,7 @@ export function AttributeFilterDialog({
                           checked={!!editEnabledRanges[attr.name]}
                           onChange={() => toggleRangeFilter(attr.name)}
                         >
-                          フィルター有効化
+                          {messages.enableRange}
                         </Checkbox>
                       )}
                     </Flex>
@@ -215,10 +218,10 @@ export function AttributeFilterDialog({
                             disabled={!editEnabledRanges[attr.name]}
                             mr={4}
                           >
-                            空の値を含める
+                            {messages.includeEmpty}
                           </Checkbox>
                           <Text fontSize="xs" width="60px" textAlign="right" mr={2}>
-                            最小: {attr.numericRange?.[0] ?? "-"}
+                            {messages.min}: {attr.numericRange?.[0] ?? "-"}
                           </Text>
                           <Input
                             type="number"
@@ -238,7 +241,7 @@ export function AttributeFilterDialog({
                             disabled={!editEnabledRanges[attr.name]}
                           />
                           <Text fontSize="xs" width="60px" textAlign="left" ml={2}>
-                            最大: {attr.numericRange?.[1] ?? "-"}
+                            {messages.max}: {attr.numericRange?.[1] ?? "-"}
                           </Text>
                         </Flex>
                       </Box>
@@ -302,10 +305,10 @@ export function AttributeFilterDialog({
         </DialogBody>
         <DialogFooter justifyContent="space-between">
           <Button onClick={handleClearFilters} variant="outline" size="sm">
-            すべてクリア
+            {messages.clearAll}
           </Button>
           <Button onClick={onApply} colorScheme="blue">
-            設定を適用
+            {messages.apply}
           </Button>
         </DialogFooter>
       </DialogContent>

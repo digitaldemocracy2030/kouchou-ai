@@ -1,3 +1,4 @@
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster } from "@/type";
 import type { TreemapData } from "plotly.js";
@@ -18,6 +19,7 @@ type Props = {
  * onTreeZoomへ通知して、React側の表示階層と説明を同期する。
  */
 export function TreemapChart({ clusterList, argumentList, onHover, level, onTreeZoom, filteredArgumentIds }: Props) {
+  const { language, messages } = useLanguage();
   // フィルタリングが有効かどうかをチェック
   const isFilteringActive = !!filteredArgumentIds;
 
@@ -83,7 +85,7 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
       const filteredCount = clusterCounts[node.id];
 
       if (filteredCount < originalCount) {
-        takeaway = `${takeaway}<br><br>元の件数: ${originalCount}<br>フィルター後: ${filteredCount}`;
+        takeaway = `${takeaway}<br><br>${messages.originalCount}: ${originalCount}<br>${messages.afterFilterCount}: ${filteredCount}`;
       }
     }
 
@@ -124,9 +126,7 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
     hoverlabel: {
       align: "left",
     },
-    texttemplate: isFilteringActive
-      ? "%{label}<br>%{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}"
-      : "%{label}<br>%{value:,}件<br>全意見の %{percentRoot:.2%}",
+    texttemplate: isFilteringActive ? messages.treemapTextFiltered : messages.treemapText,
     maxdepth: 2,
     pathbar: {
       thickness: 28,
@@ -158,7 +158,7 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
       config={{
         responsive: true,
         displayModeBar: false,
-        locale: "ja",
+        locale: language,
       }}
       onUpdate={darkenPathbar}
       onUnhover={darkenPathbar}
