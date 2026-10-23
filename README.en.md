@@ -42,13 +42,13 @@ The project is based on [Talk to the City](https://github.com/AIObjectives/talk-
 
 Guidelines for the number of opinion groups (clusters) when creating a report:
 
-- We recommend using the cube root of the number of comments (∛n) as a baseline
+- We recommend using the cube root of the number of comments (∛n), rounded, for the first level and its square for the second level. The recommended first-level value is capped at 10
 - Examples:
-  - 1000 comments: 10→100 (first level → second level)
-  - 8000 comments: 20→400
-  - 125 comments: 5→25
-  - 400 comments: 7→50
-- The defaults are set based on the above, but adjusting them to the number of comments gives the best results
+  - 125 comments: 5→25 (first level → second level)
+  - 400 comments: 7→49
+  - 1000 comments: 10→100
+  - 8000 comments: 10→100 (∛8000 = 20, but the first level is capped at 10)
+- When you load data from a CSV file or an input plugin in the admin screen, these values are filled in as the initial settings. In the CLI, if `hierarchical_clustering.cluster_nums` is omitted, the same calculation is applied to the number of extracted opinions. Adjusting them to the number of comments and your purpose gives better results
 
 ### Steps
 
