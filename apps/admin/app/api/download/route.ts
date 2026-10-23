@@ -1,19 +1,38 @@
 import type { NextRequest } from "next/server";
+import { StaticBuildTimeoutError, requestStaticBuild, staticBuildTimeoutMs } from "./requestStaticBuild";
+
+function jsonResponse(status: number, message: string): Response {
+  return new Response(JSON.stringify({ message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 export async function POST(req: NextRequest) {
-  const buildRes = await fetch(`${process.env.CLIENT_STATIC_BUILD_BASEPATH}/build`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ slugs: (await req.json()).slugs }),
-  });
+  const { slugs } = await req.json();
+  const timeoutMs = staticBuildTimeoutMs();
+  let buildRes: Awaited<ReturnType<typeof requestStaticBuild>>;
+  try {
+    buildRes = await requestStaticBuild(
+      `${process.env.CLIENT_STATIC_BUILD_BASEPATH}/build`,
+      JSON.stringify({ slugs }),
+      { timeoutMs, signal: req.signal },
+    );
+  } catch (error) {
+    if (error instanceof StaticBuildTimeoutError) {
+      console.error(`Static build timed out after ${timeoutMs}ms`);
+      return jsonResponse(
+        504,
+        `静的ビルドが待ち時間の上限（${timeoutMs / 1000} 秒）内に終わりませんでした（CLIENT_STATIC_BUILD_TIMEOUT_SECONDS で変更できます）`,
+      );
+    }
+    console.error("Static build request failed:", error);
+    return jsonResponse(502, "Build failed");
+  }
 
-  if (!buildRes.ok || !buildRes.body) {
-    return new Response(JSON.stringify({ message: "Build failed" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+  if (buildRes.status < 200 || buildRes.status >= 300) {
+    await buildRes.body.cancel().catch(() => {});
+    return jsonResponse(500, "Build failed");
   }
 
   const nowDateTime = new Date()

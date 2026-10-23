@@ -34,7 +34,7 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 
 | route | 役割 | 種別 | 使用 env |
 |---|---|---|---|
-| `app/api/download/route.ts` (POST) | body の `slugs` を `${CLIENT_STATIC_BUILD_BASEPATH}/build` に POST し、返ってきた zip ストリームを `Content-Disposition: attachment; filename=kouchou-ai-<JST>.zip` で中継 | ストリーム中継 + ファイル名生成 | `CLIENT_STATIC_BUILD_BASEPATH` |
+| `app/api/download/route.ts` (POST) | body の `slugs` を `${CLIENT_STATIC_BUILD_BASEPATH}/build` に POST し、返ってきた zip ストリームを `Content-Disposition: attachment; filename=kouchou-ai-<JST>.zip` で中継。builder はビルドが終わるまで応答しないので、global fetch（undici の headersTimeout 300 秒）ではなく `node:http(s)` で呼び、無通信の待ち時間の上限（既定 30 分）を超えたら 504、接続できなければ 502 の JSON を返す | ストリーム中継 + ファイル名生成 | `CLIENT_STATIC_BUILD_BASEPATH`, `CLIENT_STATIC_BUILD_TIMEOUT_SECONDS`（任意） |
 | `app/api/admin/reports/[slug]/config/route.ts` (GET) | `/admin/reports/{slug}/config` 中継。**`ADMIN_API_KEY` をブラウザに出さないための proxy 層**。`reuse/[slug]/page.tsx` の client fetch が経由 | proxy | `ADMIN_API_KEY`, `API_BASEPATH ?? NEXT_PUBLIC_API_BASEPATH` |
 | `app/api/healthcheck/route.ts` (GET) | `{status:"ok"}` を返すだけ。middleware の Basic 認証を bypass する対象 | 静的応答 | なし |
 
