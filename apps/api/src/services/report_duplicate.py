@@ -370,16 +370,35 @@ def _ensure_source_input(slug: str) -> Path:
     raise HTTPException(status_code=404, detail="Source input file not found")
 
 
-def _ensure_source_artifacts(slug: str, file_names: tuple[str, ...]) -> None:
-    missing = []
-    for name in file_names:
-        if not (settings.REPORT_DIR / slug / name).exists():
-            missing.append(name)
+def _is_usable_artifact(path: Path) -> bool:
+    """中身のある成果物ファイルかどうか（0 バイトはダウンロードの失敗跡などとみなし、無いものとして扱う）"""
+    try:
+        return path.is_file() and path.stat().st_size > 0
+    except OSError:
+        return False
 
-    if not missing:
-        return
 
-    ReportSyncService().download_report_artifacts(slug, missing)
+def _ensure_source_artifacts(slug: str, file_names: tuple[str, ...]) -> set[str]:
+    """複製元の成果物のうち足りないものをストレージから取得し、再利用できるファイル名を返す
+
+    無いファイルと 0 バイトのファイルを取得し直す。取得に失敗したもの・取得しても空のものは
+    返り値に含めない（呼び出し側はそれをコピーせず、analysis-core に再計算させる）。
+    """
+    source_dir = settings.REPORT_DIR / slug
+    missing = [name for name in file_names if not _is_usable_artifact(source_dir / name)]
+
+    if missing:
+        downloaded = ReportSyncService().download_report_artifacts(slug, missing)
+        still_missing = [name for name in missing if not _is_usable_artifact(source_dir / name)]
+        if still_missing:
+            logger.warning(
+                "複製元の成果物を取得できなかったため、再利用せずに再計算します",
+                slug=slug,
+                files=still_missing,
+                download_succeeded=bool(downloaded),
+            )
+
+    return {name for name in file_names if _is_usable_artifact(source_dir / name)}
 
 
 def duplicate_report(
@@ -471,16 +490,15 @@ def duplicate_report(
 
         reuse_enabled = payload.reuse.enabled if payload.reuse is not None else True
         if reuse_enabled:
-            _ensure_source_artifacts(source_slug, REUSE_ARTIFACTS + ("hierarchical_status.json",))
+            usable = _ensure_source_artifacts(source_slug, REUSE_ARTIFACTS + ("hierarchical_status.json",))
 
             source_output_dir = settings.REPORT_DIR / source_slug
             for name in REUSE_ARTIFACTS:
-                src = source_output_dir / name
-                if src.exists():
-                    shutil.copy2(src, output_dir / name)
+                if name in usable:
+                    shutil.copy2(source_output_dir / name, output_dir / name)
 
             status_src = source_output_dir / "hierarchical_status.json"
-            if status_src.exists():
+            if "hierarchical_status.json" in usable:
                 # 入力 CSV をそのままコピーした場合だけ、記録上の入力名を新しい slug に読み替える。
                 # arguments から作り直した入力は中身が違うので、抽出からやり直させる。
                 renamed_input = (source_slug, new_slug) if input_copied else None

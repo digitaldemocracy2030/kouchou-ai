@@ -139,7 +139,8 @@ class TestAzureBlobStorageService:
         """download_file: 成功時はTrueを返す"""
         # モックの設定
         downloader_mock = MagicMock()
-        downloader_mock.readall.return_value = b"test content"
+        # 実 SDK の StorageStreamDownloader.readinto(stream) と同じく、渡された stream に書いてバイト数を返す
+        downloader_mock.readinto.side_effect = lambda stream: stream.write(b"test content")
         mock_blob_client.download_blob.return_value = downloader_mock
 
         # ダウンロード先のパス
@@ -196,6 +197,81 @@ class TestAzureBlobStorageService:
 
         # ファイルが作成されていないことを確認
         assert not os.path.exists(temp_path)
+
+    @staticmethod
+    def _failing_downloader(partial: bytes = b"partial") -> MagicMock:
+        """途中まで書いてから接続が切れる downloader（readall / readinto のどちらで読んでも失敗する）"""
+        downloader_mock = MagicMock()
+
+        def readinto(stream):
+            stream.write(partial)
+            raise ConnectionError("connection reset")
+
+        downloader_mock.readinto.side_effect = readinto
+        downloader_mock.readall.side_effect = ConnectionError("connection reset")
+        return downloader_mock
+
+    def test_download_file_interrupted_leaves_no_file(
+        self, azure_storage: AzureBlobStorageService, mock_blob_client: MagicMock, temp_dir: str
+    ):
+        """download_file: 読み込みが途中で失敗したら、保存先にも一時ファイルにも何も残さない"""
+        mock_blob_client.download_blob.return_value = self._failing_downloader()
+        target = os.path.join(temp_dir, "report", "embeddings.pkl")
+
+        result = azure_storage.download_file("outputs/report/embeddings.pkl", target)
+
+        assert result is False
+        assert not os.path.exists(target)
+        assert os.listdir(os.path.dirname(target)) == []
+
+    def test_download_file_interrupted_keeps_existing_file(
+        self, azure_storage: AzureBlobStorageService, mock_blob_client: MagicMock, temp_dir: str
+    ):
+        """download_file: 読み込みが途中で失敗しても、既にあるファイルを壊さない"""
+        mock_blob_client.download_blob.return_value = self._failing_downloader()
+        target = os.path.join(temp_dir, "report_status.json")
+        with open(target, "wb") as f:
+            f.write(b'{"old": true}')
+
+        result = azure_storage.download_file("status/report_status.json", target)
+
+        assert result is False
+        with open(target, "rb") as f:
+            assert f.read() == b'{"old": true}'
+        assert os.listdir(temp_dir) == ["report_status.json"]
+
+    def test_download_file_retry_after_interruption(
+        self, azure_storage: AzureBlobStorageService, mock_blob_client: MagicMock, temp_dir: str
+    ):
+        """download_file: 失敗のあとに呼び直すと、取り直して中身をそろえる"""
+        ok_downloader = MagicMock()
+        ok_downloader.readinto.side_effect = lambda stream: stream.write(b"full content")
+        mock_blob_client.download_blob.side_effect = [self._failing_downloader(), ok_downloader]
+        target = os.path.join(temp_dir, "embeddings.pkl")
+
+        assert azure_storage.download_file("outputs/r/embeddings.pkl", target) is False
+        assert azure_storage.download_file("outputs/r/embeddings.pkl", target) is True
+
+        with open(target, "rb") as f:
+            assert f.read() == b"full content"
+        assert os.listdir(temp_dir) == ["embeddings.pkl"]
+
+    def test_upload_directory_skips_leftover_download_temp_files(
+        self, azure_storage: AzureBlobStorageService, temp_dir: str
+    ):
+        """upload_directory: プロセスが落ちて残ったダウンロード途中の一時ファイルはアップロードしない"""
+        from src.services.storage import DOWNLOAD_TEMP_SUFFIX
+
+        with open(os.path.join(temp_dir, "hierarchical_result.json"), "w") as f:
+            f.write("{}")
+        with open(os.path.join(temp_dir, f".embeddings.pkl.abc{DOWNLOAD_TEMP_SUFFIX}"), "w") as f:
+            f.write("partial")
+
+        with patch.object(azure_storage, "upload_file", return_value=True) as mock_upload_file:
+            result = azure_storage.upload_directory(temp_dir, "outputs/r")
+
+        assert result is True
+        assert [call[0][1] for call in mock_upload_file.call_args_list] == ["outputs/r/hierarchical_result.json"]
 
     @pytest.fixture
     def test_dir_with_files(self, temp_dir: str):

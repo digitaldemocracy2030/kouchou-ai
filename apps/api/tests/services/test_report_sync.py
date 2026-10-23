@@ -380,6 +380,28 @@ class TestReportSyncService:
         assert (slug_dir / "hierarchical_result.json").exists()
         assert not (slug_dir / "report.html").exists()
 
+    def test_cleanup_report_files_removes_leftover_download_temp_files(
+        self, report_sync_service: ReportSyncService, tmp_path: Path
+    ):
+        """ダウンロード途中で残った一時ファイルは、元の名前が保持対象（.json など）でも保持しない"""
+        from src.services.storage import DOWNLOAD_TEMP_SUFFIX
+
+        slug_dir = tmp_path / "test-slug"
+        slug_dir.mkdir()
+        (slug_dir / "hierarchical_result.json").write_text("{}", encoding="utf-8")
+        leftovers = [
+            slug_dir / f".hierarchical_result.json.x1{DOWNLOAD_TEMP_SUFFIX}",
+            slug_dir / f".embeddings.pkl.x2{DOWNLOAD_TEMP_SUFFIX}",
+        ]
+        for path in leftovers:
+            path.write_text("partial", encoding="utf-8")
+            assert not path.name.endswith(ReportSyncService.PRESERVED_REPORT_FILES)
+
+        assert report_sync_service._cleanup_report_files(slug_dir) is True
+
+        assert (slug_dir / "hierarchical_result.json").exists()
+        assert not any(path.exists() for path in leftovers)
+
     def test_cleanup_report_files_exception(self, report_sync_service: ReportSyncService, monkeypatch):
         """存在しないディレクトリを指定した場合、Falseが返されることを確認"""
         # 存在しないディレクトリパス

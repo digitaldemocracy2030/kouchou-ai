@@ -644,3 +644,79 @@ def test_duplicate_llm_grouping_config_gets_no_clustering_section(monkeypatch, t
 
     written = json.loads((env.configs / "copy.json").read_text(encoding="utf-8"))
     assert "hierarchical_clustering" not in written
+
+
+def test_ensure_source_artifacts_redownloads_empty_files(monkeypatch, tmp_path):
+    """前回のダウンロード失敗などで 0 バイトになっている成果物は、無いものとして取り直す"""
+    from src.services import report_duplicate
+
+    monkeypatch.setattr(report_duplicate.settings, "REPORT_DIR", tmp_path)
+    source_dir = tmp_path / SOURCE_SLUG
+    source_dir.mkdir()
+    (source_dir / "embeddings.pkl").write_bytes(b"")
+    (source_dir / "args.csv").write_text("arg-id,argument\n", encoding="utf-8")
+
+    sync_service = MagicMock()
+
+    def download(slug, names):
+        for name in names:
+            (tmp_path / slug / name).write_bytes(b"downloaded")
+        return True
+
+    sync_service.download_report_artifacts.side_effect = download
+    monkeypatch.setattr(report_duplicate, "ReportSyncService", lambda: sync_service)
+
+    usable = report_duplicate._ensure_source_artifacts(SOURCE_SLUG, ("args.csv", "embeddings.pkl", "relations.csv"))
+
+    sync_service.download_report_artifacts.assert_called_once_with(SOURCE_SLUG, ["embeddings.pkl", "relations.csv"])
+    assert (source_dir / "embeddings.pkl").read_bytes() == b"downloaded"
+    assert usable == {"args.csv", "embeddings.pkl", "relations.csv"}
+
+
+def test_ensure_source_artifacts_excludes_files_that_could_not_be_fetched(monkeypatch, tmp_path):
+    """取得に失敗した成果物と、取得しても 0 バイトの成果物は、使えるものに含めない"""
+    from src.services import report_duplicate
+
+    monkeypatch.setattr(report_duplicate.settings, "REPORT_DIR", tmp_path)
+    source_dir = tmp_path / SOURCE_SLUG
+    source_dir.mkdir()
+    (source_dir / "args.csv").write_text("arg-id,argument\n", encoding="utf-8")
+
+    sync_service = MagicMock()
+
+    def download(slug, names):
+        # embeddings.pkl は取れず、relations.csv は空のものしか無かった
+        (tmp_path / slug / "relations.csv").write_bytes(b"")
+        return False
+
+    sync_service.download_report_artifacts.side_effect = download
+    monkeypatch.setattr(report_duplicate, "ReportSyncService", lambda: sync_service)
+
+    usable = report_duplicate._ensure_source_artifacts(SOURCE_SLUG, ("args.csv", "embeddings.pkl", "relations.csv"))
+
+    assert usable == {"args.csv"}
+
+
+def test_duplicate_with_reuse_recomputes_embedding_when_source_embeddings_are_empty(reuse_env):
+    """複製元の embeddings.pkl が 0 バイトで取り直せない場合は、コピーせずに embedding からやり直させる"""
+    from src.services import report_duplicate
+
+    source_config_path = _create_source_report("hierarchical")
+    _run_analysis_core(reuse_env, source_config_path)
+    (reuse_env.reports / SOURCE_SLUG / "embeddings.pkl").write_bytes(b"")
+    report_duplicate.ReportSyncService.return_value.download_report_artifacts.return_value = False
+
+    new_config_path = _duplicate_with_reuse(reuse_env)
+
+    assert not (reuse_env.reports / NEW_SLUG / "embeddings.pkl").exists()
+    assert (reuse_env.reports / NEW_SLUG / "args.csv").exists()
+    plan = _plan(reuse_env, new_config_path)
+    # 抽出は再利用し、embedding とその下流をやり直す
+    assert [step for step, decision in plan.items() if decision["run"]] == [
+        "embedding",
+        "hierarchical_clustering",
+        "hierarchical_initial_labelling",
+        "hierarchical_merge_labelling",
+        "hierarchical_overview",
+        "hierarchical_aggregation",
+    ]

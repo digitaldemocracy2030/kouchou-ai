@@ -1,4 +1,5 @@
 import os
+import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -10,6 +11,11 @@ from src.config import settings
 from src.utils.logger import setup_logger
 
 logger = setup_logger()
+
+# ダウンロード途中の一時ファイルの拡張子。ReportSyncService.PRESERVED_REPORT_FILES（".json" など）や
+# upload / download の target_suffixes のどれにも当たらない名前にして、プロセスが途中で落ちて残っても
+# 成果物として保持・アップロードされないようにする（_cleanup_report_files では削除される）。
+DOWNLOAD_TEMP_SUFFIX = ".download-tmp"
 
 
 class StorageService(ABC):
@@ -254,6 +260,9 @@ class AzureBlobStorageService(StorageService):
                     )
                     if not self._has_target_suffix(remote_blob_path, target_suffixes):
                         continue
+                    if filename.endswith(DOWNLOAD_TEMP_SUFFIX):
+                        # 別のダウンロードの途中、またはプロセスが落ちて残った一時ファイル
+                        continue
 
                     files_processed += 1
                     success = self.upload_file(file_path, remote_blob_path, skip_if_same=skip_if_same)
@@ -301,9 +310,22 @@ class AzureBlobStorageService(StorageService):
                 )
                 return False
 
-            os.makedirs(os.path.dirname(local_file_path), exist_ok=True) if os.path.dirname(local_file_path) else None
-            with open(local_file_path, "wb") as file:
-                file.write(downloader.readall())
+            local_dir = os.path.dirname(local_file_path)
+            if local_dir:
+                os.makedirs(local_dir, exist_ok=True)
+            # 保存先に直接書くと、読み込みが途中で失敗したときに 0 バイトや途中までのファイルが残り、
+            # 呼び出し側が「取得済み」とみなしてしまう。同じディレクトリの一時ファイルに書き切ってから
+            # os.replace で置き換え、失敗したら一時ファイルを消す（既存のファイルはそのまま残る）。
+            temp_path = os.path.join(
+                local_dir, f".{os.path.basename(local_file_path)}.{uuid.uuid4().hex}{DOWNLOAD_TEMP_SUFFIX}"
+            )
+            try:
+                with open(temp_path, "xb") as file:
+                    downloader.readinto(file)
+                os.replace(temp_path, local_file_path)
+            finally:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
             logger.info(f"ファイルをダウンロードしました。パス: '{remote_blob_path}' ローカルパス: '{local_file_path}'")
             return True
         except Exception as e:
