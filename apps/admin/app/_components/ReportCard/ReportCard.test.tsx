@@ -67,7 +67,8 @@ async function advance(ms: number, step = 100) {
 describe("ReportCard の進捗表示と一覧の取り直し", () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    mockRouter.refresh.mockClear();
+    // 実装を差し替えたテストの後でも、既定（何もしない）に戻す
+    mockRouter.refresh.mockReset();
   });
 
   afterEach(() => {
@@ -121,17 +122,50 @@ describe("ReportCard の進捗表示と一覧の取り直し", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("一覧が processing のまま変わらなくても、取り直しは上限で止まる", async () => {
+  it.each([125, 600])(
+    "成果物のアップロードが長く、completed から %i 秒後に一覧が ready になっても、カードを切り替える（s005）",
+    async (readyAfterSeconds) => {
+      // 一覧の取り直しを約 2 分（40 回）で打ち切っていたため、アップロードが 2 分を超えると
+      // ready になった後も「作成中」のまま残っていた
+      global.fetch = jest.fn(async () => stepJson({ status: "completed", current_step: "completed" }));
+      const startedAt = Date.now();
+      let rerenderCard: (next: Report) => void = () => {};
+      mockRouter.refresh.mockImplementation(() => {
+        rerenderCard(Date.now() - startedAt >= readyAfterSeconds * 1000 ? readyReport : { ...processingReport });
+      });
+      rerenderCard = renderCard(processingReport);
+
+      await advance((readyAfterSeconds + 120) * 1000, 1000);
+
+      expect(screen.queryByText(PROCESSING_TEXT)).not.toBeInTheDocument();
+      const refreshCount = mockRouter.refresh.mock.calls.length;
+      await advance(60_000, 1000);
+      expect(mockRouter.refresh).toHaveBeenCalledTimes(refreshCount);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("一覧が processing のまま変わらなくても、取り直しは間隔を延ばしながら続け、上限の時間で止まる", async () => {
+    // サーバーの再起動などで processing のまま固まったカードが、重い一覧の取得を永久に繰り返さないようにする
     global.fetch = jest.fn(async () => stepJson({ status: "completed", current_step: "completed" }));
     renderCard(processingReport);
 
     await advance(1500);
-    await advance(10 * 60_000, 10_000);
-    const refreshCount = mockRouter.refresh.mock.calls.length;
-    expect(refreshCount).toBeGreaterThan(1);
+    await advance(2 * 60_000, 1000);
+    const countAfterTwoMinutes = mockRouter.refresh.mock.calls.length;
+    expect(countAfterTwoMinutes).toBeGreaterThan(30);
 
-    await advance(10 * 60_000, 10_000);
-    expect(mockRouter.refresh).toHaveBeenCalledTimes(refreshCount);
+    // 2 分を過ぎたら間隔を延ばす（上限 30 秒）
+    await advance(10 * 60_000, 1000);
+    const countAfterTwelveMinutes = mockRouter.refresh.mock.calls.length;
+    expect(countAfterTwelveMinutes - countAfterTwoMinutes).toBeGreaterThan(10);
+    expect(countAfterTwelveMinutes - countAfterTwoMinutes).toBeLessThanOrEqual(25);
+
+    // completed から 30 分で打ち切る
+    await advance(20 * 60_000, 10_000);
+    const finalCount = mockRouter.refresh.mock.calls.length;
+    await advance(30 * 60_000, 10_000);
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(finalCount);
   });
 
   it("completed の後に一覧が error になったら（成果物のアップロード失敗）、step-json を取り直してエラー理由を表示する", async () => {

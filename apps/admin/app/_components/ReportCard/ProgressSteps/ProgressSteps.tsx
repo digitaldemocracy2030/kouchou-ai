@@ -24,8 +24,20 @@ const stepItemstyle = {
 // 直後だとデータが更新されていないので、最初の再取得は 1 秒後に行い、その後は間隔を空けて繰り返す
 const FIRST_REFRESH_DELAY_MS = 1000;
 const REFRESH_INTERVAL_MS = 3000;
-// 一覧の取得は ready の全レポートの結果ファイルを読むので、取り直しは約 2 分で打ち切る
-const MAX_REFRESH_COUNT = 40;
+// 一覧の取得は ready の全レポートの結果ファイルを読むので重い。成果物のアップロードはふつう 2 分以内に終わるので、
+// 最初の 40 回（約 2 分）は 3 秒おき、その後は間隔を倍々に延ばして最大 30 秒おきにする
+const FAST_REFRESH_COUNT = 40;
+const MAX_REFRESH_INTERVAL_MS = 30_000;
+// 大きな成果物のアップロード（Blob 運用）は 2 分を超えることがあるので、回数ではなく completed / error を
+// 受けてからの経過時間で打ち切る。processing のまま固まったカード（サーバーの再起動など）が取り直しを
+// 永久に続けないよう、上限は 30 分にする
+const MAX_REFRESH_DURATION_MS = 30 * 60_000;
+
+function refreshDelayMs(refreshCount: number): number {
+  if (refreshCount === 0) return FIRST_REFRESH_DELAY_MS;
+  if (refreshCount < FAST_REFRESH_COUNT) return REFRESH_INTERVAL_MS;
+  return Math.min(REFRESH_INTERVAL_MS * 2 ** (refreshCount - FAST_REFRESH_COUNT + 1), MAX_REFRESH_INTERVAL_MS);
+}
 
 type Props = {
   slug: string;
@@ -44,8 +56,9 @@ export const ProgressSteps = ({ slug, reportStatus }: Props) => {
   // カードが ready になっても、退場アニメーションの間は古い reportStatus（processing）のまま残る。
   // 非表示のタブではアニメーションが進まず長く残るので、その間は取り直さない
   const isPresent = useIsPresent();
-  // effect が張り直されても上限が効くよう、取り直した回数は ref で数える
+  // effect が張り直されても間隔と上限が効くよう、取り直した回数と始めた時刻は ref で持つ
   const refreshCountRef = useRef(0);
+  const refreshStartedAtRef = useRef<number | null>(null);
 
   // step-json は analysis-core の status ファイルを見て completed / error を返すが、カードの status（一覧）は
   // API が analysis-core の終了を待ち、成果物をストレージへ同期してから ready / error になる。そのため、
@@ -53,10 +66,12 @@ export const ProgressSteps = ({ slug, reportStatus }: Props) => {
   useEffect(() => {
     if (!(isCompleted || isError) || reportStatus !== "processing" || !isPresent) return;
 
+    refreshStartedAtRef.current ??= Date.now();
+    const startedAt = refreshStartedAtRef.current;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const scheduleRefresh = () => {
-      if (refreshCountRef.current >= MAX_REFRESH_COUNT) return;
-      const delay = refreshCountRef.current === 0 ? FIRST_REFRESH_DELAY_MS : REFRESH_INTERVAL_MS;
+      const delay = refreshDelayMs(refreshCountRef.current);
+      if (Date.now() + delay - startedAt > MAX_REFRESH_DURATION_MS) return;
       timer = setTimeout(() => {
         refreshCountRef.current += 1;
         router.refresh();
