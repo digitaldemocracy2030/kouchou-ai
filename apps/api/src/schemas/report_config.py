@@ -37,6 +37,7 @@ class LLMGroupingConfig(SchemaBaseModel):
     assignment_batch_size: int | None = None
     discovery_prompt: str | None = None
     assignment_prompt: str | None = None
+    workers: int | None = None  # 割当バッチの LLM 並列呼び出し数
 
 
 class ReportConfig(SchemaBaseModel):

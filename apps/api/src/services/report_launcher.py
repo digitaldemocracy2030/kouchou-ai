@@ -62,11 +62,11 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
         # 初期・統合ラベリングを行わず、llm_grouping ステップ
         # (group discovery + batch assignment) に置き換わる。
         # group discovery / assignment の prompt・パラメータは
-        # analysis-core 側の既定値 (llm_grouping_specs.json) を使用するため、
-        # ここでは明示セクションを付けない。
+        # analysis-core 側の既定値 (llm_grouping_specs.json) を使用する。
+        # 割当のバッチは LLM を並列に呼ぶので、並列数だけは管理画面の値を渡す。
         # NOTE: analysis-core は analysis_mode ごとに許可される config キーを
         # 検証するため、hierarchical 専用セクションを含めてはいけない。
-        pass
+        config["llm_grouping"] = {"workers": report_input.workers}
     else:
         config["hierarchical_clustering"] = {
             "cluster_nums": report_input.cluster,

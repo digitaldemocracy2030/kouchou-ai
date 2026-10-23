@@ -274,6 +274,11 @@ def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -
         config["local_llm_address"] = overrides.local_llm_address
     if overrides.cluster is not None:
         config.setdefault("hierarchical_clustering", {})["cluster_nums"] = overrides.cluster
+    if overrides.workers is not None and config.get("analysis_mode") == "llm_grouping":
+        # 作成時 (report_launcher._build_config) と同じく、LLM 直接グルーピングの割当にも並列数を渡す。
+        # hierarchical の config には llm_grouping セクションを作らない（analysis-core の検証で弾かれる）。
+        llm_grouping = config.get("llm_grouping") if isinstance(config.get("llm_grouping"), dict) else {}
+        config["llm_grouping"] = {**llm_grouping, "workers": overrides.workers}
 
     if overrides.prompt is not None:
         if overrides.prompt.extraction is not None:
