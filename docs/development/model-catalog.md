@@ -43,3 +43,14 @@ UIのモデル選択は固定で、OpenAIのカタログを流用しない。
 推定に使う単価は `AZURE_CHATCOMPLETION_INPUT_PRICE` / `AZURE_CHATCOMPLETION_OUTPUT_PRICE` に
 管理者が契約単価を設定する（USD/100万text token）。モデル名と両単価が揃わない、不正値の場合は料金不明。
 これらは接続先を変更しない。OpenAI単価へのfallbackはない。
+
+推論モデル（o系 / GPT-5,6系）は `temperature` を受け付けないため、analysis-core は推論モデルへのリクエストから
+`temperature` を外す。Azure ではデプロイ名がモデル名と一致するとは限らないので、次の順で判定する。
+
+1. `AZURE_CHATCOMPLETION_REASONING` が `true` / `false` ならそれに従う（空・`auto` は自動判定）
+2. `AZURE_CHATCOMPLETION_MODEL_NAME` が設定されていれば、その実モデル名で判定する
+3. どちらも無ければ `AZURE_CHATCOMPLETION_DEPLOYMENT_NAME` で判定する
+
+推論モデルをモデル名と違う名前（例: `kouchou-chat`）でデプロイした場合は、`AZURE_CHATCOMPLETION_MODEL_NAME`
+（または `AZURE_CHATCOMPLETION_REASONING=true`）の設定が必須。設定しないと全リクエストが400（unsupported_value）で失敗する。
+`AZURE_CHATCOMPLETION_MODEL_NAME` だけを設定すると管理画面の実モデル名表示にも出るが、両単価が揃わない限り料金は不明のまま。

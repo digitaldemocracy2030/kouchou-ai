@@ -826,6 +826,9 @@ class TestLLMService:
             "AZURE_CHATCOMPLETION_DEPLOYMENT_NAME": deployment,
             "AZURE_CHATCOMPLETION_API_KEY": "test-api-key",
             "AZURE_CHATCOMPLETION_VERSION": "2023-05-15",
+            # 推論モデル判定は実モデル名・明示指定を優先するので、開発者の .env の値を消してデプロイ名で判定させる
+            "AZURE_CHATCOMPLETION_MODEL_NAME": "",
+            "AZURE_CHATCOMPLETION_REASONING": "",
         }
 
     @staticmethod

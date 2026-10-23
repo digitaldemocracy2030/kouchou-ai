@@ -49,6 +49,29 @@ def _is_openai_reasoning_model(model: str | None) -> bool:
     return normalized.startswith(("gpt-5", "gpt-6", "o1", "o3", "o4"))
 
 
+def _is_azure_reasoning_deployment(deployment: str | None) -> bool:
+    """Azure のチャットデプロイが推論モデル（temperature を受け付けない）かどうか
+
+    Azure のデプロイ名は管理者が自由に付けるので、モデル名と一致するとは限らない。
+    1. AZURE_CHATCOMPLETION_REASONING が true / false なら、それに従う（明示指定）
+    2. AZURE_CHATCOMPLETION_MODEL_NAME（実モデル名）が設定されていれば、その名前で判定する
+    3. どちらも無ければ、従来どおりデプロイ名で判定する
+    """
+    override = (os.getenv("AZURE_CHATCOMPLETION_REASONING") or "").strip().lower()
+    if override in {"1", "true", "on", "yes"}:
+        return True
+    if override in {"0", "false", "off", "no"}:
+        return False
+    if override and override != "auto":
+        logging.warning(
+            f"AZURE_CHATCOMPLETION_REASONING={override!r} は解釈できないため、モデル名から自動判定します"
+            "（true / false / auto のいずれかを指定してください）"
+        )
+
+    model_name = (os.getenv("AZURE_CHATCOMPLETION_MODEL_NAME") or "").strip()
+    return _is_openai_reasoning_model(model_name or deployment)
+
+
 def _model_supports_openai_flex(model: str | None) -> bool:
     normalized = _normalize_model_name(model)
     if not normalized:
@@ -246,9 +269,9 @@ def request_to_azure_chatcompletion(
                 "response_format": json_schema,
                 "timeout": timeout_seconds,
             }
-            # 推論モデル(o系/GPT-5,6系)は temperature 指定を拒否するため、
-            # OpenAI 経路と同様に deployment 名で判定して temperature を外す。
-            if not _is_openai_reasoning_model(deployment):
+            # 推論モデル(o系/GPT-5,6系)は temperature 指定を拒否するため外す。
+            # 判定は実モデル名（未設定ならデプロイ名）か明示指定で行う。
+            if not _is_azure_reasoning_deployment(deployment):
                 parse_kwargs["temperature"] = 0
             response = client.beta.chat.completions.parse(**parse_kwargs)
             if hasattr(response, "usage") and response.usage:
@@ -275,9 +298,9 @@ def request_to_azure_chatcompletion(
                 "seed": 0,
                 "timeout": timeout_seconds,
             }
-            # 推論モデル(o系/GPT-5,6系)は temperature 指定を拒否するため、
-            # OpenAI 経路と同様に deployment 名で判定して temperature を外す。
-            if not _is_openai_reasoning_model(deployment):
+            # 推論モデル(o系/GPT-5,6系)は temperature 指定を拒否するため外す。
+            # 判定は実モデル名（未設定ならデプロイ名）か明示指定で行う。
+            if not _is_azure_reasoning_deployment(deployment):
                 payload["temperature"] = 0
             if response_format:
                 payload["response_format"] = response_format
