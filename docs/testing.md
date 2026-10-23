@@ -2,6 +2,26 @@
 
 このドキュメントでは、kouchou-ai プロジェクトのテスト手法について説明します。
 
+## Python のテストを実行する環境
+
+Python のテストは、CI（`server-pytest.yml` / `analysis-core-ci.yml`）と同じく、各パッケージの `requirements-dev.lock` を入れた仮想環境で `pytest` を実行します。以下のコマンド例は、その仮想環境を有効にしている前提です。
+
+```bash
+# analysis-core
+cd packages/analysis-core
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.lock
+
+# API（analysis-core も editable で入れる）
+cd apps/api
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.lock
+pip install -e ../../packages/analysis-core
+```
+
+- Docker で API のテストを実行する場合は、リポジトリのルートで `make test/api` を使います
+- rye を使っている場合は、`rye sync` のあと `pytest ...` を `rye run pytest ...` に読み替えても実行できます
+
 ## テストの種類
 
 ### 1. ユニットテスト
@@ -10,10 +30,10 @@
 
 ```bash
 # API (Python)
-cd apps/api && rye run pytest tests/
+cd apps/api && pytest tests/
 
 # analysis-core パッケージ
-cd packages/analysis-core && rye run pytest tests/
+cd packages/analysis-core && pytest tests/
 
 # フロントエンド (TypeScript)
 cd apps/public-viewer && pnpm test
@@ -26,7 +46,7 @@ cd apps/admin && pnpm test
 
 ```bash
 # analysis-core の統合テスト
-cd packages/analysis-core && rye run pytest tests/test_pipeline_paths_integration.py -v
+cd packages/analysis-core && pytest tests/test_pipeline_paths_integration.py -v
 ```
 
 ### 3. E2Eテスト (End-to-End Tests)
@@ -58,13 +78,13 @@ cd test/e2e && pnpm run test:ui  # UIモードで実行
 cd packages/analysis-core
 
 # API KEYがない場合は全テストがスキップされる
-rye run pytest tests/e2e/ -v
+pytest tests/e2e/ -v
 
 # API KEYを設定して実行
-OPENAI_API_KEY=sk-xxx rye run pytest tests/e2e/ -v
+OPENAI_API_KEY=sk-xxx pytest tests/e2e/ -v
 
 # 特定のテストのみ実行
-OPENAI_API_KEY=sk-xxx rye run pytest tests/e2e/test_pipeline_e2e.py::TestPipelineE2E::test_full_pipeline_produces_valid_output -v
+OPENAI_API_KEY=sk-xxx pytest tests/e2e/test_pipeline_e2e.py::TestPipelineE2E::test_full_pipeline_produces_valid_output -v
 ```
 
 ##### 自動実行からの除外
@@ -73,11 +93,11 @@ E2Eテストはコストがかかるため、通常の `pytest tests/` 実行時
 
 ```bash
 # 通常のテスト実行（e2eは含まれない）
-rye run pytest tests/ -v
+pytest tests/ -v
 # 結果: 105 passed（e2eテストは除外）
 
 # e2eを明示的に指定した場合のみ実行
-rye run pytest tests/e2e/ -v
+pytest tests/e2e/ -v
 ```
 
 この除外設定は `pyproject.toml` で行われています：
@@ -144,17 +164,17 @@ GitHub Actions で自動実行されるテスト：
 1. **コミット前にローカルでテスト実行**
    ```bash
    # 全ユニットテスト
-   cd packages/analysis-core && rye run pytest tests/
-   cd apps/api && rye run pytest tests/
+   cd packages/analysis-core && pytest tests/
+   cd apps/api && pytest tests/
    ```
 
 2. **重要な変更後はE2Eテストを実行**
    ```bash
    # パイプラインの変更後
-   OPENAI_API_KEY=sk-xxx rye run pytest tests/e2e/ -v
+   OPENAI_API_KEY=sk-xxx pytest tests/e2e/ -v
    ```
 
 3. **テストカバレッジの確認**
    ```bash
-   rye run pytest --cov=analysis_core tests/
+   pytest --cov=analysis_core tests/
    ```

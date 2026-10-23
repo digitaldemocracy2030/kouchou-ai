@@ -83,12 +83,13 @@ AIエージェントを使う方は、[AIエージェントを使ったコント
   * `api` については、以下のコマンドでフォーマットのチェックと自動整形を実施できます
     * チェック: `make lint/api-check`
     * 整形: `make lint/api-format`
+    * ルートで `pnpm install` すると [Lefthook](https://lefthook.dev/intro.html) の pre-push フックが入り、`apps/api` の Python ファイルを含む push の前に ruff のチェックと format のチェックが走ります。ruff は rye・PATH 上の `ruff`・`uvx` の順に探して使い、どれも無い場合は警告を出して飛ばします（その場合も Pull Request の CI で検査されます）
   * `public-viewer` / `admin` については Biome で lint, format のチェックを実施できます
     * チェック: `pnpm run lint`
     * 整形: `pnpm run format`
     * Pull Request では CI（client build / client-admin build）が `biome ci` を実行し、lint・format のエラーがあると失敗します。push 前に `pnpm run format` をかけてください
-    * [Lefthook](https://lefthook.dev/intro.html) で git push 時に Biome のチェックをかける設定をしています
-    * プロジェクトルートの [lefthook-local.sample.yml](./lefthook-local.sample.yml) を参考に、`lefthook-local.yml` を用意してください
+    * Lefthook で git push 時に Biome のチェックをかける設定もしています（既定では無効）
+    * 有効にするには、プロジェクトルートの [lefthook-local.sample.yml](./lefthook-local.sample.yml) を参考に、`lefthook-local.yml` を用意してください
 
 #### Pull Requestのプロセス
 

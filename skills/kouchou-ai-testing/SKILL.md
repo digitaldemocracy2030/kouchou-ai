@@ -9,7 +9,9 @@ description: "Testing commands and strategy for the kouchou-ai repo, including u
 Use this skill to run and debug tests across the repo.
 
 ## Core test commands
-- Run API tests with `make test/api` or `rye run pytest tests/` in `apps/api/`.
+- Run API tests with `make test/api` (Docker), or with `pytest tests/` in `apps/api/` inside a virtualenv that has `requirements-dev.lock` and `pip install -e ../../packages/analysis-core` installed (same as CI `server-pytest.yml`).
+- Run analysis-core tests with `pytest tests/` in `packages/analysis-core/` inside a virtualenv that has `requirements-dev.lock` installed (same as CI `analysis-core-ci.yml`).
+- `rye` is optional; if you use it, `rye run pytest ...` works too. Do not assume it is installed.
 - Run public viewer tests with `pnpm test` in `apps/public-viewer/`.
 - Run admin tests with `pnpm test` in `apps/admin/`.
 - Run Playwright E2E tests with `pnpm test` in `test/e2e/`.

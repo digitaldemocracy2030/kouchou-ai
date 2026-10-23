@@ -1,5 +1,7 @@
-# デフォルトでは skip: true で無効にしています。
-# 有効にしたい hook は、コメントアウトを外してしてください
+# Biome の hook（client-lint / client-admin-lint / dummy-server-lint）は、lefthook.yml で
+# skip: true にして無効にしています。有効にしたい hook は、コメントアウトを外してください。
+# api の ruff の hook（api-ruff-check / api-ruff-format）は既定で有効です。
+# rye・PATH 上の ruff・uvx の順に探し、どれも無ければ警告して飛ばします。
 
 # pre-push:
 #   commands:

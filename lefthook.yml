@@ -17,11 +17,12 @@ pre-push:
       exclude: "hierarchical_result.json"
       run: "npx biome check {push_files}"
       skip: true
+    # rye / PATH 上の ruff / uvx の順に探して実行する。どれも無ければ警告して飛ばす（scripts/lefthook-api-ruff.sh）
     api-ruff-check:
       root: "apps/api/"
       glob: "apps/api/**/*.py"
-      run: "rye run ruff check ."
+      run: "sh ../../scripts/lefthook-api-ruff.sh check ."
     api-ruff-format:
       root: "apps/api/"
       glob: "apps/api/**/*.py"
-      run: "rye run ruff format . --check"
+      run: "sh ../../scripts/lefthook-api-ruff.sh format . --check"
