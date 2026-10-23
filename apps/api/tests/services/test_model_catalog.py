@@ -93,6 +93,27 @@ def test_normalized_price_and_unknown_are_distinct():
     assert LLMPricing.format_cost(None) == "料金不明"
 
 
+def test_gemini_2_5_flash_price_matches_checked_official_rate():
+    """gemini-2.5-flash は Gemini 1.5 Flash の旧単価（0.35 / 1.05）ではなく、確認済みの公式単価を使う。
+
+    公式の料金ページ（Standard・有料枠）: 入力 0.30（text/image/video）/ 出力 2.50（thinking を含む）USD/100万token。
+    """
+    price = price_for_model("gemini", "gemini-2.5-flash")
+    assert (price["input"], price["output"]) == (0.30, 2.50)
+    assert price["source"] == "https://ai.google.dev/gemini-api/docs/pricing"
+    assert price["checked_at"]
+    # 入出力 1M/1M なら 2.80 USD（旧単価では 1.40 と半分に出ていた）
+    assert LLMPricing.calculate_cost("gemini", "gemini-2.5-flash", 1_000_000, 1_000_000) == pytest.approx(2.80)
+
+
+def test_catalog_price_with_source_has_checked_date():
+    """出典を書いた単価には確認日も入れる（いつ時点の値かを辿れるようにする）"""
+    for row in CATALOG:
+        price = row.get("price")
+        if price and price.get("source"):
+            assert price.get("checked_at"), (row["provider"], row["value"])
+
+
 def test_azure_ignores_ui_model_for_pricing(monkeypatch):
     monkeypatch.setenv("AZURE_CHATCOMPLETION_MODEL_NAME", "custom-model")
     row = models_for_provider("azure")[0]

@@ -102,10 +102,10 @@
     "available": true,
     "deprecated": false,
     "price": {
-      "input": 0.35,
-      "output": 1.05,
-      "source": null,
-      "checked_at": null,
+      "input": 0.3,
+      "output": 2.5,
+      "source": "https://ai.google.dev/gemini-api/docs/pricing",
+      "checked_at": "2026-10-23",
       "conditions": "通常のテキスト入出力単価による概算。キャッシュ割引・追加サービスは含まない。"
     }
   },
