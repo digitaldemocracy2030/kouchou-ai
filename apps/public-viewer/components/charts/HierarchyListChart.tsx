@@ -188,6 +188,19 @@ export function HierarchyListChart({
     setTreeData(updateNode(treeData));
   };
 
+  // フィルタ中の各クラスタの件数（undefined = フィルタなし）。ClientContainer の clusterCounts・TreemapChart と同じく、
+  // 一致した意見の cluster_ids すべてに 1 を足す。ツリーを作り直さないよう、表示時に Map を引くだけにする
+  const filteredCounts = useMemo(() => {
+    if (!filteredArgumentIds) return undefined;
+    const allowed = new Set(filteredArgumentIds);
+    const counts = new Map<string, number>();
+    for (const arg of argumentList) {
+      if (!allowed.has(arg.arg_id)) continue;
+      for (const id of arg.cluster_ids) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
+  }, [argumentList, filteredArgumentIds]);
+
   // Calculate filtered state for each cluster
   const clusterFilterState = useMemo(() => {
     if (!filteredArgumentIds) return new Map<string, boolean>();
@@ -251,7 +264,9 @@ export function HierarchyListChart({
             <Text fontWeight="semibold" color="gray.800" mb={1}>
               {node.label}
               <Text as="span" fontWeight="normal" fontSize="sm" color="gray.500" ml={2}>
-                ({node.value}件)
+                {filteredCounts
+                  ? `(フィルター後 ${filteredCounts.get(node.id) ?? 0}件 / 全${node.value}件)`
+                  : `(${node.value}件)`}
               </Text>
             </Text>
 
