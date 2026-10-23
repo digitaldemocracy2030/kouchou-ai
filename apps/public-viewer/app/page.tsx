@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
     const { getMetadataBase } = await import("@/app/utils/image-src");
 
     const metadata: Metadata = {
-      title: `${meta.reporter}のレポート一覧 - 広聴AI`,
+      title: meta.reporter ? `${meta.reporter}のレポート一覧 - 広聴AI` : "レポート一覧 - 広聴AI",
       description: meta.message || "",
       openGraph: {
         // metadataBase がベースパスを含むので、ここではベースパスを付けない

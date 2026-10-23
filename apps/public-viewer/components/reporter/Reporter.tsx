@@ -34,7 +34,7 @@ async function ReporterImage({
 export async function Reporter({ meta }: { meta: Meta }) {
   return (
     <ReporterContent meta={meta}>
-      <ReporterImage reporterName={meta.reporter} />
+      <ReporterImage reporterName={meta.reporter ?? ""} />
     </ReporterContent>
   );
 }

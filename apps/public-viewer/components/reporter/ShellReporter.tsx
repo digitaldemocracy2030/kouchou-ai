@@ -22,7 +22,7 @@ export function ShellReporter({ meta }: { meta: Meta }) {
       {hasImage ? (
         <Image
           src={getImageFromServerSrc(imagePath)}
-          alt={meta.reporter}
+          alt={meta.reporter ?? ""}
           maxW="150px"
           onError={() => setHasImage(false)}
         />

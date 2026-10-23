@@ -36,3 +36,27 @@ describe("トップページの generateMetadata（静的書き出し）", () =>
     expect(resolveUrl(images[0], metadata.metadataBase as URL)?.href).toBe("https://example.org/kouchou/meta/ogp.png");
   });
 });
+
+describe("トップページの generateMetadata（metadata.json の項目欠け）", () => {
+  it("reporter・message が null なら、タイトルに null を出さない", async () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      NEXT_PUBLIC_OUTPUT_MODE: "export",
+      NEXT_PUBLIC_STATIC_SHELL: undefined,
+      NEXT_PUBLIC_SITE_URL: "https://example.org",
+      API_BASEPATH: "http://api:8000",
+    };
+    global.fetch = jest.fn(
+      async () => new Response(JSON.stringify({ reporter: null, message: null, isDefault: false })),
+    ) as unknown as typeof fetch;
+    let mod: typeof import("../page") | undefined;
+    jest.isolateModules(() => {
+      mod = require("../page");
+    });
+    if (!mod) throw new Error("page not loaded");
+
+    const metadata = await mod.generateMetadata();
+    expect(metadata.title).toBe("レポート一覧 - 広聴AI");
+    expect(metadata.description).toBe("");
+  });
+});

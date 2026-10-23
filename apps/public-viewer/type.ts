@@ -1,7 +1,8 @@
 export type Meta = {
   isDefault: boolean; // デフォルトのメタデータかどうか
-  reporter: string; // レポート作成者名
-  message: string; // レポート作成者からのメッセージ
+  // API は custom/metadata.json に無い項目を null で返すため、文字列項目は null・未定義もありうる
+  reporter?: string | null; // レポート作成者名
+  message?: string | null; // レポート作成者からのメッセージ
   webLink?: string; // レポート作成者URL
   privacyLink?: string; // プライバシーポリシーURL
   termsLink?: string; // 利用規約URL

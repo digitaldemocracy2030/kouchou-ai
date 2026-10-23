@@ -93,7 +93,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const meta: Meta = await metaResponse.json();
     const result: Result = await resultResponse.json();
     const metaData: Metadata = {
-      title: `${result.config.question} - ${meta.reporter}`,
+      title: meta.reporter ? `${result.config.question} - ${meta.reporter}` : result.config.question,
       description: `${result.overview}`,
     };
 

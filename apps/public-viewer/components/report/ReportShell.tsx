@@ -40,7 +40,9 @@ export function ReportShell() {
 
   useShellMetadata(
     state.status === "ready"
-      ? `${state.result.config.question} - ${state.meta.reporter}`
+      ? state.meta.reporter
+        ? `${state.result.config.question} - ${state.meta.reporter}`
+        : state.result.config.question
       : state.status === "loading"
         ? undefined
         : "ページが見つかりませんでした - 広聴AI",

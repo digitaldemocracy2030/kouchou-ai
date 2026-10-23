@@ -62,3 +62,20 @@ describe("[slug] generateMetadata（静的書き出し）", () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("NEXT_PUBLIC_SITE_URL"));
   });
 });
+
+describe("[slug] generateMetadata（metadata.json の項目欠け）", () => {
+  it("reporter が null なら、タイトルは問いだけにして null を出さない", async () => {
+    global.fetch = jest.fn(async (url: string | URL | Request) =>
+      String(url).endsWith("/meta/metadata.json")
+        ? new Response(JSON.stringify({ reporter: null, message: null, isDefault: false }))
+        : new Response(JSON.stringify({ config: { question: "問い" }, overview: "概要", visibility: "public" })),
+    ) as unknown as typeof fetch;
+    const metadata = await generateMetadataWith({
+      NEXT_PUBLIC_OUTPUT_MODE: "export",
+      NEXT_PUBLIC_STATIC_SHELL: undefined,
+      NEXT_PUBLIC_SITE_URL: "https://example.org",
+      API_BASEPATH: "http://api:8000",
+    });
+    expect(metadata.title).toBe("問い");
+  });
+});
