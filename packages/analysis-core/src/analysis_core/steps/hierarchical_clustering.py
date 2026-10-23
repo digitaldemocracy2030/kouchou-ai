@@ -277,6 +277,8 @@ def hierarchical_clustering(config):
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
     path = f"{output_base_dir}/{dataset}/hierarchical_clusters.csv"
+    # 型の誤りは埋め込みの読み込みや UMAP の学習より前に止める（学習後に気づくと時間が無駄になる）
+    should_save_umap_model = _resolve_save_umap_model(config["hierarchical_clustering"].get("save_umap_model"))
     arguments_df = pl.read_csv(f"{output_base_dir}/{dataset}/args.csv", columns=["arg-id", "argument"])
     arg_ids = arguments_df["arg-id"].to_list()
 
@@ -355,7 +357,7 @@ def hierarchical_clustering(config):
     # model には入力埋め込みの写しと近傍探索の index が入り、6 万件で 1GB を超える。
     # #515 を使わない Web 経路（API）は save_umap_model: false で保存を止める。
     model_path = f"{output_base_dir}/{dataset}/{UMAP_MODEL_FILENAME}"
-    if _resolve_save_umap_model(config["hierarchical_clustering"].get("save_umap_model")):
+    if should_save_umap_model:
         save_umap_model(model_path, umap_model, n_features_in=n_features_in, n_components=UMAP_N_COMPONENTS)
     else:
         # 前回の実行で残った model は今回の座標と食い違うので消す（今回の投影元そのものは残す）

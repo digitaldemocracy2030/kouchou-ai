@@ -290,6 +290,12 @@ def validate_api_keys(provider: str, user_api_key: str | None = None) -> None:
         raise RuntimeError(f"Unknown provider: {provider}")
 
 
+# step ごとの、true / false（または未指定）だけを受け付けるオプション
+_BOOLEAN_STEP_OPTIONS: dict[str, tuple[str, ...]] = {
+    "hierarchical_clustering": ("save_umap_model",),
+}
+
+
 def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None = None) -> None:
     """
     Validate a pipeline configuration.
@@ -338,6 +344,18 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
         for key in config.get(step_spec["step"], {}):
             if key not in valid_options:
                 raise Exception(f"Unknown option '{key}' for step '{step_spec['step']}' in config")
+
+    # 型を誤ると実行の途中（抽出・埋め込みの後）で止まるオプションは、ここで先に検査する
+    for step, options in _BOOLEAN_STEP_OPTIONS.items():
+        step_config = config.get(step)
+        if not isinstance(step_config, dict):
+            continue
+        for option in options:
+            value = step_config.get(option)
+            if value is not None and not isinstance(value, bool):
+                raise Exception(
+                    f"Option '{option}' for step '{step}' must be true or false (JSON boolean), got {value!r}"
+                )
 
 
 def plan_requires_input(plan: list[dict[str, Any]] | None) -> bool:

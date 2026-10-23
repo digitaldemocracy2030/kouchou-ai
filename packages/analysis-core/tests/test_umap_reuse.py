@@ -580,3 +580,51 @@ class TestHierarchicalClusteringReuseRealUmap:
         )
         xy_new = pl.read_csv(str(ds_new / "hierarchical_clusters.csv")).select(["x", "y"]).to_numpy()
         assert np.allclose(xy_old, xy_new, atol=1e-4)
+
+
+class TestSaveUmapModelIsValidatedBeforeUmap:
+    """save_umap_model の型の誤りは、抽出・埋め込み・UMAP の学習より前に止める。"""
+
+    @staticmethod
+    def _config(value):
+        return {
+            "input": "report_b",
+            "question": "q",
+            "analysis_mode": "hierarchical",
+            "hierarchical_clustering": {"cluster_nums": [2, 4], "save_umap_model": value},
+        }
+
+    @pytest.mark.parametrize("value", ["false", "true", 0, 1, "no"])
+    def test_validate_config_rejects_non_boolean(self, value):
+        from analysis_core.core.orchestration import get_specs_path_for_mode, load_specs, validate_config
+
+        specs = load_specs(get_specs_path_for_mode("hierarchical"))
+        with pytest.raises(Exception, match="save_umap_model"):
+            validate_config(self._config(value), specs)
+
+    @pytest.mark.parametrize("value", [True, False, None])
+    def test_validate_config_accepts_boolean_or_null(self, value):
+        from analysis_core.core.orchestration import get_specs_path_for_mode, load_specs, validate_config
+
+        specs = load_specs(get_specs_path_for_mode("hierarchical"))
+        validate_config(self._config(value), specs)
+
+    def test_step_rejects_non_boolean_before_fitting_umap(self, tmp_path, monkeypatch):
+        import importlib
+
+        step_mod = importlib.import_module("analysis_core.steps.hierarchical_clustering")
+        called = []
+        monkeypatch.setattr(step_mod, "compute_umap_embeddings", lambda *args, **kwargs: called.append(True))
+
+        rng = np.random.default_rng(7)
+        base = tmp_path / "outputs"
+        _write_dataset(base, "report_x", list(range(20)), rng.random((20, 16)))
+        with pytest.raises(ValueError, match="save_umap_model"):
+            step_mod.hierarchical_clustering(
+                {
+                    "output_dir": "report_x",
+                    "_output_base_dir": str(base),
+                    "hierarchical_clustering": {"cluster_nums": [2, 4], "save_umap_model": "false"},
+                }
+            )
+        assert called == []
