@@ -14,6 +14,7 @@ import { CommentColumnSelector } from "./CommentColumnSelector";
 export function CsvFileTab({
   csv,
   setCsv,
+  isActive,
   csvColumns,
   setCsvColumns,
   selectedCommentColumn,
@@ -24,6 +25,8 @@ export function CsvFileTab({
 }: {
   csv: File | null;
   setCsv: (file: File | null) => void;
+  /** 解析が終わった時点で、入力タイプがまだ CSV ファイルかどうか */
+  isActive: () => boolean;
   csvColumns: string[];
   setCsvColumns: (columns: string[]) => void;
   selectedCommentColumn: string;
@@ -72,6 +75,10 @@ export function CsvFileTab({
               if (version !== loadVersion.current) return;
               const rows = parsed as unknown as Record<string, unknown>[];
               setCsv(file);
+              // 解析中に別の入力タブ（スプレッドシートなど）へ移っていたら、ファイルの選択だけ残し、
+              // 列・コメント列の選択・推奨クラスタ数はそのタブの状態のままにする。
+              // CSV タブに戻ると useInputData が csv を解析し直して列を作る。
+              if (!isActive()) return;
               setCsvColumns(getCsvColumnCandidates(rows));
               setSelectedCommentColumn(getBestCommentColumn(rows) || "");
               clusterSettings.setRecommended(parsed.length);

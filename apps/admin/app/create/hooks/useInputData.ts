@@ -12,6 +12,9 @@ import { showErrorToast } from "../utils/error-handler";
 export function useInputData(onDataLoaded: (commentCount: number) => void) {
   // 入力タイプの状態
   const [inputType, setInputType] = useState<InputType>("file");
+  // 非同期の処理（CSV の解析など）が終わった時点の入力タイプを、再描画を待たずに参照するための控え
+  const inputTypeRef = useRef<InputType>("file");
+  const getInputType = useCallback(() => inputTypeRef.current, []);
 
   // CSVファイル関連の状態
   const [csv, setCsv] = useState<File | null>(null);
@@ -139,6 +142,7 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
   const handleInputTypeChange = useCallback(
     (newType: InputType) => {
       setInputType(newType);
+      inputTypeRef.current = newType;
       const version = ++csvReloadVersion.current;
 
       if (newType === "file" && csv) {
@@ -186,6 +190,7 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
     selectedAttributeColumns,
     canImport,
     setInputType: handleInputTypeChange,
+    getInputType,
     setCsv: handleCsvChange,
     setSpreadsheetUrl,
     setSelectedCommentColumn,

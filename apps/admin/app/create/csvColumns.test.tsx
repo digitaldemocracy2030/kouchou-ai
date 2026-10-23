@@ -35,6 +35,18 @@ jest.mock("@/components/ui/file-upload", () => ({
   FileUploadList: () => null,
 }));
 jest.mock("./components/ClusterSettingsSection", () => ({ ClusterSettingsSection: () => null }));
+jest.mock("./api/spreadsheet", () => ({
+  importSpreadsheet: jest.fn(async () => {}),
+  getSpreadsheetData: jest.fn(async () => ({
+    comments: Array.from({ length: 4 }, (_, i) => ({
+      id: `s-${i}`,
+      comment: `スプレッドシートの意見 ${i} です。公園の整備についての要望をまとめました。`,
+      source: "sheet",
+      url: "",
+    })),
+  })),
+  deleteSpreadsheetData: jest.fn(async () => {}),
+}));
 
 const actualParseCsv: typeof parseCsv = jest.requireActual("./parseCsv").parseCsv;
 
@@ -64,6 +76,7 @@ function Harness() {
       <CsvFileTab
         csv={inputData.csv}
         setCsv={(file) => inputData.setCsv(file)}
+        isActive={() => inputData.getInputType() === "file"}
         csvColumns={inputData.csvColumns}
         setCsvColumns={inputData.setCsvColumns}
         selectedCommentColumn={inputData.selectedCommentColumn}
@@ -147,6 +160,80 @@ it("CSV タブに戻った直後にファイルを外すと、遅れて終わっ
   expect(result.current.csv).toBeNull();
   expect(result.current.csvColumns).toEqual([]);
   expect(onDataLoaded).not.toHaveBeenCalled();
+});
+
+let latestCluster: ReturnType<typeof useClusterSettings>;
+/** page.tsx と同じく、タブの値を inputType にして CsvFileTab と useInputData をつなぐ */
+function TabbedHarness() {
+  const clusterSettings = useClusterSettings();
+  const inputData = useInputData(clusterSettings.setRecommended);
+  latest = inputData;
+  latestCluster = clusterSettings;
+  return (
+    <Tabs.Root value={inputData.inputType}>
+      <CsvFileTab
+        csv={inputData.csv}
+        setCsv={(file) => inputData.setCsv(file)}
+        isActive={() => inputData.getInputType() === "file"}
+        csvColumns={inputData.csvColumns}
+        setCsvColumns={inputData.setCsvColumns}
+        selectedCommentColumn={inputData.selectedCommentColumn}
+        setSelectedCommentColumn={inputData.setSelectedCommentColumn}
+        selectedAttributeColumns={inputData.selectedAttributeColumns}
+        setSelectedAttributeColumns={inputData.setSelectedAttributeColumns}
+        clusterSettings={clusterSettings}
+      />
+    </Tabs.Root>
+  );
+}
+
+it("CSV の解析中にスプレッドシートのタブへ移ると、解析結果でスプレッドシートの列・選択・クラスタ数を上書きしない", async () => {
+  render(
+    <ChakraProvider value={system}>
+      <TabbedHarness />
+    </ChakraProvider>,
+  );
+  act(() => latest.setSpreadsheetUrl("https://docs.google.com/spreadsheets/d/x"));
+  act(() => latest.setInputType("spreadsheet"));
+  await act(async () => latest.importSpreadsheet("sheet-id"));
+  expect(latest.csvColumns).toEqual(["id", "comment", "source", "url"]);
+  expect(latest.selectedCommentColumn).toBe("comment");
+  const sheetRecommended = latestCluster.recommendedClusters;
+  expect(sheetRecommended).not.toBeNull();
+
+  act(() => latest.setInputType("file"));
+  const file = new File(
+    [
+      [
+        "自由記述,年代",
+        ...Array.from({ length: 30 }, (_, i) => `駅前の駐輪場を増やしてほしいという意見 ${i},${20 + i}`),
+      ].join("\n"),
+    ],
+    "big.csv",
+    { type: "text/csv" },
+  );
+  let finish!: () => void;
+  const rows = await actualParseCsv(file);
+  jest.mocked(parseCsv).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = () => resolve(rows);
+    }),
+  );
+  fireEvent.change(screen.getByLabelText("CSV"), { target: { files: [file] } });
+  act(() => latest.setInputType("spreadsheet"));
+  await act(async () => finish());
+  await settleParses();
+
+  expect(latest.inputType).toBe("spreadsheet");
+  expect(latest.csvColumns).toEqual(["id", "comment", "source", "url"]);
+  expect(latest.selectedCommentColumn).toBe("comment");
+  expect(latestCluster.recommendedClusters).toEqual(sheetRecommended);
+  // ファイルの選択は残し、CSV タブに戻ったときに列を作り直す
+  expect(latest.csv).toBe(file);
+  act(() => latest.setInputType("file"));
+  await settleParses();
+  expect(latest.csvColumns).toEqual(["自由記述", "年代"]);
+  expect(latest.selectedCommentColumn).toBe("自由記述");
 });
 
 it("getBestCommentColumn は id・comment-id 列を選ばない", () => {

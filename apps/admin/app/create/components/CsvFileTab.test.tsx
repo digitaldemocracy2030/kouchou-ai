@@ -45,6 +45,7 @@ function setup() {
     selectedCommentColumn: "old",
     selectedAttributeColumns: ["age"],
     setCsv: jest.fn(),
+    isActive: () => true,
     setCsvColumns: jest.fn(),
     setSelectedCommentColumn: jest.fn(),
     setSelectedAttributeColumns: jest.fn(),

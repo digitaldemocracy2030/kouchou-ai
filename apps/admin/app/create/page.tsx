@@ -331,6 +331,7 @@ export default function Page() {
                     basicInfo.fillEmptyFromCsv(file);
                     inputData.setCsv(file);
                   }}
+                  isActive={() => inputData.getInputType() === "file"}
                   csvColumns={inputData.csvColumns}
                   setCsvColumns={inputData.setCsvColumns}
                   selectedCommentColumn={inputData.selectedCommentColumn}
