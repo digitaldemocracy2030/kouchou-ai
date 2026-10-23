@@ -76,7 +76,8 @@ async def get_openrouter_models() -> list[dict]:
             return [
                 {
                     "value": model.get("id", ""),
-                    "label": f"{model.get('provider', 'unknown')} - {model.get('name', model.get('id', 'unknown'))}",
+                    # /models に provider は無く、name が「提供元: モデル名」の形で提供元を含む
+                    "label": model.get("name") or model.get("id", ""),
                 }
                 for model in data["data"]
             ]

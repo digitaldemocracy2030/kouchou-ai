@@ -196,3 +196,30 @@ async def test_local_models_use_pipeline_address_resolution(monkeypatch, address
 
     assert models == [{"value": "llama3", "label": "llama3"}]
     openai_cls.assert_called_once_with(base_url=expected_base_url, api_key="gateway-token")
+
+
+@pytest.mark.asyncio
+async def test_openrouter_labels_use_model_name(monkeypatch):
+    """OpenRouter の /models は provider を返さない。name（「提供元: モデル名」）をそのままラベルにする"""
+    import httpx
+
+    from src.services.llm_models import get_openrouter_models
+
+    payload = {
+        "data": [
+            {"id": "anthropic/claude-3.5-haiku", "name": "Anthropic: Claude 3.5 Haiku", "top_provider": {}},
+            {"id": "example/no-name"},
+        ]
+    }
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
+    real_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        "src.services.llm_models.httpx.AsyncClient", lambda **kwargs: real_client(transport=transport, **kwargs)
+    )
+
+    models = await get_openrouter_models()
+
+    assert models == [
+        {"value": "anthropic/claude-3.5-haiku", "label": "Anthropic: Claude 3.5 Haiku"},
+        {"value": "example/no-name", "label": "example/no-name"},
+    ]
