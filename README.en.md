@@ -42,7 +42,7 @@ The project is based on [Talk to the City](https://github.com/AIObjectives/talk-
 
 Guidelines for the number of opinion groups (clusters) when creating a report:
 
-- We recommend using the cube root of the number of comments (∛n), rounded, for the first level and its square for the second level. The recommended first-level value is capped at 10
+- We recommend using the cube root of the number of comments (∛n), rounded, for the first level and its square for the second level. The recommended first-level value is kept within 2 to 10 (in the CLI, the second level is also capped at the number of opinions)
 - Examples:
   - 125 comments: 5→25 (first level → second level)
   - 400 comments: 7→49
