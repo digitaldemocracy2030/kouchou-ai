@@ -4,6 +4,11 @@ Utility functions for the analysis pipeline.
 Migrated from apps/api/broadlistening/pipeline/utils.py
 """
 
+import json
+import os
+import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +24,31 @@ def read_input_csv(path: str | Path, **kwargs: Any) -> pl.DataFrame:
     """
     kwargs.setdefault("infer_schema_length", 0)
     return pl.read_csv(path, **kwargs)
+
+
+@contextmanager
+def atomic_output_path(path: str | Path) -> Iterator[Path]:
+    """同じディレクトリの一時ファイルのパスを渡し、ブロックが正常に終われば os.replace で差し替える。
+
+    最終パスを open("w") で直接書くと先に空になり、書き込み中に読み手（公開 API など）が
+    空・書きかけのファイルを読む。一時ファイル名にはプロセス内のスレッド間でも衝突しない
+    よう pid と uuid を入れる。失敗したときは一時ファイルを消し、既存のファイルは残す。
+    """
+    path = Path(path)
+    tmp_path = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        yield tmp_path
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
+
+
+def write_json_atomic(path: str | Path, data: Any) -> None:
+    """JSON を一時ファイルに書いてから os.replace し、読み手に書きかけを見せない。"""
+    with atomic_output_path(path) as tmp_path:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 def typed_message(t: str, m: str) -> dict[str, str]:

@@ -97,3 +97,56 @@ def test_workflow_marks_run_failed(tmp_path):
     status = json.loads((report / "hierarchical_status.json").read_text())
     assert status["status"] == "error"
     assert "hierarchical_aggregation" not in [job["step"] for job in status.get("completed_jobs", [])]
+
+
+def test_result_json_is_never_visible_partially_written(tmp_path, monkeypatch):
+    """書き込み中に公開 API などが読んでも、前回の完全な結果か今回の完全な結果だけが見える。
+
+    以前は hierarchical_result.json を open("w") で直接書き（先に空になる）、さらに
+    create_custom_intro が読み直してもう一度書き直していたため、途中の状態が見えた。
+    """
+    report, config = write_report(tmp_path)
+    result_path = report / "hierarchical_result.json"
+    result_path.write_text(json.dumps({"old": True}), encoding="utf-8")
+
+    observed = []
+    real_dump = json.dump
+
+    def spying_dump(obj, fp, *args, **kwargs):
+        # 書き込みのたびに、読み手から見える最終パスの中身を確かめる
+        observed.append(json.loads(result_path.read_text(encoding="utf-8")))
+        return real_dump(obj, fp, *args, **kwargs)
+
+    monkeypatch.setattr(json, "dump", spying_dump)
+    assert aggregation.hierarchical_aggregation(config) is True
+
+    assert observed == [{"old": True}]
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    assert result["config"]["intro"].startswith("intro\n分析対象となったデータの件数は1件")
+    assert "OpenAI API (m)" in result["config"]["intro"]
+    # 呼び出し元の config は書き換えない
+    assert config["intro"] == "intro"
+    assert not [p.name for p in report.iterdir() if p.name.endswith(".tmp")]
+
+
+def test_pubcom_csv_is_replaced_atomically(tmp_path, monkeypatch):
+    import polars as pl
+
+    report, config = write_report(tmp_path)
+    config["is_pubcom"] = True
+    final_csv = report / "final_result_with_comments.csv"
+    final_csv.write_text("old\n", encoding="utf-8")
+
+    written_paths = []
+    real_write_csv = pl.DataFrame.write_csv
+
+    def spying_write_csv(self, file=None, *args, **kwargs):
+        written_paths.append(str(file))
+        return real_write_csv(self, file, *args, **kwargs)
+
+    monkeypatch.setattr(pl.DataFrame, "write_csv", spying_write_csv)
+    assert aggregation.hierarchical_aggregation(config) is True
+
+    assert written_paths and str(final_csv) not in written_paths
+    assert "original-comment" in final_csv.read_text(encoding="utf-8")
+    assert not [p.name for p in report.iterdir() if p.name.endswith(".tmp")]

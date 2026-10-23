@@ -8,7 +8,7 @@ from typing import Any, TypedDict
 import numpy as np
 import polars as pl
 
-from analysis_core.core.utils import read_input_csv
+from analysis_core.core.utils import atomic_output_path, read_input_csv, write_json_atomic
 from analysis_core.steps.extraction import filter_empty_comments
 
 
@@ -119,12 +119,13 @@ def hierarchical_aggregation(config) -> bool:
         results["overview"] = overview
 
         # Convert non-serializable NumPy types to native Python types
+        # （dict を作り直すので、以降 results["config"] を書き換えても呼び出し元の config は変わらない）
         results = json_serialize_numpy(results)
-
-        with open(path, "w", encoding="utf-8") as file:
-            json.dump(results, file, indent=2, ensure_ascii=False)
         # TODO: サンプリングロジックを実装したいが、現状は全件抽出
-        create_custom_intro(config)
+        results["config"]["intro"] = create_custom_intro(config)
+
+        # 公開 API が読み続けるファイルなので、一時ファイルに書いてから差し替え、1 回で書き終える
+        write_json_atomic(path, results)
         if config["is_pubcom"]:
             add_original_comments(labels, arguments, relation_df, clusters, config)
         return True
@@ -136,14 +137,14 @@ def hierarchical_aggregation(config) -> bool:
         raise
 
 
-def create_custom_intro(config):
+def create_custom_intro(config) -> str:
+    """hierarchical_result.json の config.intro に入れる、件数とモデルを添えた調査概要を返す"""
     output_base_dir = config.get("_output_base_dir", "outputs")
     input_base_dir = config.get("_input_base_dir", "inputs")
 
     dataset = config["output_dir"]
     args_path = f"{output_base_dir}/{dataset}/args.csv"
     comments = read_input_csv(f"{input_base_dir}/{config['input']}.csv")
-    result_path = f"{output_base_dir}/{dataset}/hierarchical_result.json"
 
     input_count = len(comments)
     args_count = len(pl.read_csv(args_path))
@@ -182,15 +183,9 @@ def create_custom_intro(config):
 """
 
     intro = config["intro"]
-    custom_intro = base_custom_intro.format(
+    return base_custom_intro.format(
         intro=intro, processed_num=processed_num, args_count=args_count, llm_provider=llm_provider
     )
-
-    with open(result_path, encoding="utf-8") as f:
-        result = json.load(f)
-    result["config"]["intro"] = custom_intro
-    with open(result_path, "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=2, ensure_ascii=False)
 
 
 def add_original_comments(labels, arguments, relation_df, clusters, config):
@@ -251,7 +246,8 @@ def add_original_comments(labels, arguments, relation_df, clusters, config):
     )
 
     # 保存
-    final_df.write_csv(f"{output_base_dir}/{config['output_dir']}/final_result_with_comments.csv")
+    with atomic_output_path(f"{output_base_dir}/{config['output_dir']}/final_result_with_comments.csv") as tmp_path:
+        final_df.write_csv(tmp_path)
 
 
 def _build_arguments(

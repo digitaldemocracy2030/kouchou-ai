@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
-from analysis_core.core.utils import read_input_csv
+from analysis_core.core.utils import read_input_csv, write_json_atomic
 from analysis_core.env_file import load_env_file
 
 # Default specs - can be overridden
@@ -209,14 +209,7 @@ def _seed_reused_outputs(
 
 def _write_json_atomic(path: Path, data: dict[str, Any]) -> None:
     """Write JSON via a temp file + os.replace so readers never see a partial file."""
-    tmp_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    try:
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, path)
-    finally:
-        if tmp_path.exists():
-            tmp_path.unlink()
+    write_json_atomic(path, data)
 
 
 def load_specs(specs_path: Path) -> list[dict[str, Any]]:
