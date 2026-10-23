@@ -285,3 +285,56 @@ def p(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
         # With ignore_errors=False, should raise
         with pytest.raises(PluginLoadError):
             load_plugins_from_directory(temp_plugin_dir, ignore_errors=False)
+
+
+class TestReplaceBuiltinPlugin:
+    """外部プラグインで組み込みと同じ ID のステップを置き換える（plugin-guide の手順）"""
+
+    PLUGIN_ID = "analysis.hierarchical_overview"
+
+    @pytest.fixture
+    def replacing_plugin_dir(self, temp_plugin_dir):
+        import yaml
+
+        plugin_dir = temp_plugin_dir / "overview_override"
+        plugin_dir.mkdir()
+        with open(plugin_dir / "manifest.yaml", "w") as f:
+            yaml.dump({"id": self.PLUGIN_ID, "version": "9.9.9", "entry": "plugin:override"}, f)
+        (plugin_dir / "plugin.py").write_text(
+            f"""
+from analysis_core.plugin import step_plugin, StepContext, StepInputs, StepOutputs
+
+@step_plugin(id="{self.PLUGIN_ID}", version="9.9.9")
+def override(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+    return StepOutputs()
+"""
+        )
+        return temp_plugin_dir
+
+    def test_load_from_directory_then_engine_keeps_replacement(self, replacing_plugin_dir):
+        """先にディレクトリから読み込み、そのあと WorkflowEngine を作っても例外にならず、置き換えが保たれる"""
+        from analysis_core.workflow import WorkflowEngine
+
+        registry = PluginRegistry()
+        loaded = load_plugins_from_directory(replacing_plugin_dir, registry)
+        assert [p.manifest.id for p in loaded] == [self.PLUGIN_ID]
+
+        WorkflowEngine(registry)
+
+        assert registry.get(self.PLUGIN_ID) is loaded[0].plugin
+        # ほかの組み込みは登録される
+        assert "analysis.extraction" in registry
+
+    def test_load_all_plugins_then_engine_keeps_replacement(self, replacing_plugin_dir, monkeypatch, tmp_path):
+        """load_all_plugins（ANALYSIS_PLUGINS_PATH を読む）のあとに WorkflowEngine を作っても置き換えが保たれる"""
+        from analysis_core.plugin import load_all_plugins
+        from analysis_core.workflow import WorkflowEngine
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("ANALYSIS_PLUGINS_PATH", str(replacing_plugin_dir))
+        registry = PluginRegistry()
+        loaded = load_all_plugins(registry)
+
+        WorkflowEngine(registry)
+
+        assert registry.get(self.PLUGIN_ID) is loaded[0].plugin

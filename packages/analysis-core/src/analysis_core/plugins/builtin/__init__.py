@@ -4,6 +4,7 @@ Built-in analysis step plugins.
 This module registers the standard analysis steps as plugins.
 """
 
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -25,6 +26,11 @@ def register_all(registry: "PluginRegistry") -> None:
     - analysis.hierarchical_overview
     - analysis.hierarchical_aggregation
     - analysis.hierarchical_visualization
+
+    A plugin already registered with the same ID (e.g. an external plugin loaded
+    by ``load_plugins_from_directory`` to replace a built-in step) is kept, so
+    loading external plugins before ``register_builtin_plugins`` works the same
+    as loading them after it.
 
     Args:
         registry: Plugin registry to register plugins with
@@ -55,4 +61,9 @@ def register_all(registry: "PluginRegistry") -> None:
     ]
 
     for plugin in plugins:
+        if plugin.id in registry:
+            logging.getLogger(__name__).info(
+                "Keeping already registered plugin '%s' instead of the built-in one", plugin.id
+            )
+            continue
         registry.register(plugin)

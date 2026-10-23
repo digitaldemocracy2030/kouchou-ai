@@ -475,13 +475,22 @@ for p in loaded:
 
 ### 環境変数で指定
 
-```bash
-# プラグインディレクトリを環境変数で指定
-export ANALYSIS_PLUGINS_PATH=/path/to/plugins:/another/path
+`ANALYSIS_PLUGINS_PATH` は、Python API の `load_all_plugins()`（内部で `discover_plugin_directories()`）が読むプラグインディレクトリの一覧です。区切りは OS のパス区切り（Linux / macOS は `:`）です。
 
-# パイプライン実行時に自動的に読み込まれる
-python -m analysis_core --config config.json
+```python
+from analysis_core.plugin import get_registry, load_all_plugins
+from analysis_core.workflow import WorkflowEngine
+
+# ANALYSIS_PLUGINS_PATH=/path/to/plugins:/another/path を設定して実行する。
+# 組み込みプラグインを先に登録し、そのあと外部プラグインを登録する（同じ ID は外部側で置き換える）
+loaded = load_all_plugins(get_registry())
+
+engine = WorkflowEngine()  # 読み込んだ外部プラグインを含むグローバルレジストリを使う
 ```
+
+`load_all_plugins()` は `ANALYSIS_PLUGINS_PATH` のほかに、カレントディレクトリの `plugins/analysis/` も探します。信頼できないディレクトリで実行しないでください。
+
+**注意**: CLI（`kouchou-analyze` / `python -m analysis_core`）と、管理画面からのレポート作成（API が CLI を起動する経路）は、外部プラグインを読み込みません。`ANALYSIS_PLUGINS_PATH` を設定しても無視され、組み込みのステップで実行されます。外部プラグインで組み込みのステップを置き換えたり新しいステップを使ったりするには、上のように Python API で読み込み、`WorkflowEngine` でワークフローを実行してください。
 
 ## ワークフローでの使用
 
