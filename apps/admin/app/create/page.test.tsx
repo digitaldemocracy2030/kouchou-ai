@@ -1,4 +1,5 @@
 import { system } from "@/components/theme/system";
+import { toaster } from "@/components/ui/toaster";
 import { ChakraProvider } from "@chakra-ui/react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -22,6 +23,13 @@ jest.mock("./components/PluginTab", () => ({ PluginTab: () => null }));
 jest.mock("./components/ClusterSettingsSection", () => ({ ClusterSettingsSection: () => null }));
 jest.mock("./components/EnvironmentCheckDialog/verifyApiKey", () => ({ verifyApiKey: jest.fn() }));
 jest.mock("./parseCsv", () => ({ parseCsv: async () => [{ id: "1", answer: "意見", age: "30" }] }));
+let mockBodyLimitBytes = Number.POSITIVE_INFINITY;
+jest.mock("@/app/utils/requestBodyLimit", () => ({
+  ...jest.requireActual("@/app/utils/requestBodyLimit"),
+  get SERVER_ACTION_BODY_SIZE_LIMIT_BYTES() {
+    return mockBodyLimitBytes;
+  },
+}));
 
 const originalResizeObserver = global.ResizeObserver;
 beforeAll(() => {
@@ -35,6 +43,7 @@ afterAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockBodyLimitBytes = Number.POSITIVE_INFINITY;
   jest.mocked(useAISettings).mockReturnValue({
     provider: "openai",
     model: "gpt-4o-mini",
@@ -146,4 +155,37 @@ it.each([
   } finally {
     parseCsv.parseCsv = originalParseCsv;
   }
+});
+
+it("送信データが Server Action の本文上限を超えるときは、確認に進まず上限を案内する（s002）", async () => {
+  jest.mocked(useInputData).mockReturnValue({
+    inputType: "file",
+    csv: new File(["csv"], "test.csv"),
+    spreadsheetImported: false,
+    spreadsheetData: [],
+    selectedCommentColumn: "answer",
+    csvColumns: ["answer", "age"],
+    selectedAttributeColumns: ["age"],
+  } as unknown as ReturnType<typeof useInputData>);
+  // 本物の上限（100MB）の代わりに、このテストの送信データより小さい上限にする
+  mockBodyLimitBytes = 64;
+  render(
+    <ChakraProvider value={system}>
+      <Page />
+    </ChakraProvider>,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "作成前の確認へ" }));
+
+  await waitFor(() =>
+    expect(toaster.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "error",
+        title: "送信データが大きすぎます",
+        description: expect.stringContaining("上限（約 100 MB）"),
+      }),
+    ),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(createReport).not.toHaveBeenCalled();
 });

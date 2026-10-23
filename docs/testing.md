@@ -62,6 +62,18 @@ cd test/e2e && pnpm run test:ui  # UIモードで実行
 
 詳細は [test/e2e/CLAUDE.md](https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/test/e2e/CLAUDE.md) を参照してください。
 
+#### 管理画面の本文サイズ上限のスモークテスト
+
+管理画面のレポート作成は、CSV の全件を Server Action（`createReport`）の引数として送ります。この本文の上限は `apps/admin/next.config.ts` の `serverActions.bodySizeLimit` と、middleware（Basic 認証）に渡すために本文を複製するときの上限 `proxyClientMaxBodySize` の両方で決まります（値は `apps/admin/app/utils/requestBodyLimit.ts`）。jest やダミーサーバーの E2E は Next のサーバーと middleware を通らないので、この上限の誤りを検出できません。設定や Next のバージョンを変えたときは、`next build` した standalone に大きな本文を送って確かめます。
+
+```bash
+cd apps/admin
+npx next build
+node scripts/smoke-server-action-body-limit.mjs 15 40   # 送る本文のサイズ（MiB）。既定は 15
+```
+
+スクリプトは standalone の `server.js` と、受け取った件数を数えるだけの偽の API を起動し、ブラウザと同じ形で `POST /create` を送ります。全件が API に届けば `OK`、届かなければ `FAIL` と admin のログの末尾を出して終了コード 1 を返します。実在の API キーや LLM は使いません。
+
 #### パイプラインE2Eテスト（LLM API使用）
 
 **実際のLLM APIを使用して分析パイプライン全体をテストします。**

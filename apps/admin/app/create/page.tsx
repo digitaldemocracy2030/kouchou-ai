@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  SERVER_ACTION_BODY_SIZE_LIMIT_BYTES,
+  SERVER_ACTION_BODY_SIZE_LIMIT_MB,
+  estimateServerActionBodyBytes,
+} from "@/app/utils/requestBodyLimit";
 import { Header } from "@/components/Header";
 import { toaster } from "@/components/ui/toaster";
 import { Box, Button, Field, HStack, Heading, Presence, Tabs, Text, VStack, useDisclosure } from "@chakra-ui/react";
@@ -218,26 +223,41 @@ export default function Page() {
     // 調査概要が空の場合は空文字列を使用
     const intro = basicInfo.intro.trim();
 
+    const request: PreparedReport["request"] = {
+      input: basicInfo.input,
+      question,
+      intro,
+      comments,
+      cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
+      provider: aiSettings.provider,
+      model: aiSettings.model,
+      embedding_model: aiSettings.isEmbeddingModelDisabled() ? undefined : aiSettings.embeddingModel || undefined,
+      workers: aiSettings.workers,
+      prompt: promptData,
+      analysis_mode: aiSettings.analysisMode,
+      is_pubcom: aiSettings.isPubcomMode,
+      inputType: inputData.inputType,
+      is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
+      enable_source_link: aiSettings.enableSourceLink,
+      local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
+      userApiKey: aiSettings.userApiKey.trim() || undefined,
+    };
+
+    // 送信データ（comments 全件の JSON）が Server Action の本文上限を超えると、サーバー側で上限エラーや
+    // 解析エラーになり、汎用の失敗トーストしか出ない。送る前に見積もって具体的に案内する
+    const bodyBytes = estimateServerActionBodyBytes(request);
+    if (bodyBytes > SERVER_ACTION_BODY_SIZE_LIMIT_BYTES) {
+      toaster.create({
+        type: "error",
+        title: "送信データが大きすぎます",
+        description: `送信データ（意見 ${comments.length} 件）が約 ${Math.ceil(bodyBytes / 1024 / 1024)} MB あり、上限（約 ${SERVER_ACTION_BODY_SIZE_LIMIT_MB} MB）を超えています。CSV などの入力を分割するか、不要な属性列を外してください`,
+      });
+      setLoading(false);
+      return;
+    }
+
     setPrepared({
-      request: {
-        input: basicInfo.input,
-        question,
-        intro,
-        comments,
-        cluster: [clusterSettings.clusterLv1, clusterSettings.clusterLv2],
-        provider: aiSettings.provider,
-        model: aiSettings.model,
-        embedding_model: aiSettings.isEmbeddingModelDisabled() ? undefined : aiSettings.embeddingModel || undefined,
-        workers: aiSettings.workers,
-        prompt: promptData,
-        analysis_mode: aiSettings.analysisMode,
-        is_pubcom: aiSettings.isPubcomMode,
-        inputType: inputData.inputType,
-        is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
-        enable_source_link: aiSettings.enableSourceLink,
-        local_llm_address: aiSettings.provider === "local" ? aiSettings.localLLMAddress : undefined,
-        userApiKey: aiSettings.userApiKey.trim() || undefined,
-      },
+      request,
       commentColumn: isPluginInput ? pluginData.pluginSelectedCommentColumn : inputData.selectedCommentColumn,
       attributeColumns: [
         ...(isPluginInput ? pluginData.pluginSelectedAttributeColumns : inputData.selectedAttributeColumns),
