@@ -31,7 +31,13 @@ REVALIDATE_URL=http://public-viewer:3000/api/revalidate
 EOL
 
 echo "Starting Docker environment..."
-docker compose up -d --build
+if ! docker compose up -d --build; then
+  echo "" >&2
+  echo "Failed to start the Docker environment." >&2
+  echo "Please check the error messages above and try again." >&2
+  read -p "Press Enter to exit..."
+  exit 1
+fi
 
 echo ""
 echo "Setup completed!"

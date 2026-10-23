@@ -5,6 +5,8 @@ on:
     paths:
       - setup_linux.sh
       - setup_mac.sh
+      - start_linux.sh
+      - start_mac.sh
       - .env.example
       - compose.yaml
       - scripts/check_setup_env.py
@@ -14,6 +16,8 @@ on:
     paths:
       - setup_linux.sh
       - setup_mac.sh
+      - start_linux.sh
+      - start_mac.sh
       - .env.example
       - compose.yaml
       - scripts/check_setup_env.py
@@ -42,3 +46,29 @@ jobs:
 
       - name: Check generated .env
         run: python3 scripts/check_setup_env.py .env
+
+      - name: Exit non-zero when docker compose fails
+        env:
+          SETUP_SCRIPT: ${{ matrix.script }}
+        run: |
+          mkdir -p .ci-bin-fail
+          printf '#!/bin/sh\nif [ "$1" = info ]; then exit 0; fi\necho "stub: docker $* failed" >&2\nexit 17\n' > .ci-bin-fail/docker
+          chmod +x .ci-bin-fail/docker
+          start_script="${SETUP_SCRIPT/setup_/start_}"
+          for script in "$SETUP_SCRIPT" "$start_script"; do
+            set +e
+            out=$(printf 'sk-test\nAIza-test\n\n' | PATH="$PWD/.ci-bin-fail:$PATH" bash "./$script" 2>&1)
+            code=$?
+            set -e
+            echo "$out"
+            if [ "$code" -eq 0 ]; then
+              echo "::error::$script exited 0 although docker compose failed"
+              exit 1
+            fi
+            if echo "$out" | grep -q -e 'Setup completed!' -e 'is now running!'; then
+              echo "::error::$script printed a success message although docker compose failed"
+              exit 1
+            fi
+          done
+          # docker compose が成功する場合、start スクリプトは従来どおり exit 0
+          PATH="$PWD/.ci-bin:$PATH" bash "./$start_script" </dev/null

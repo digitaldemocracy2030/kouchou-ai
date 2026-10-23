@@ -7,7 +7,13 @@ if ! docker info > /dev/null 2>&1; then
   exit 1
 fi
 
-docker compose up -d
+if ! docker compose up -d; then
+  echo "" >&2
+  echo "Failed to start Kouchou-AI." >&2
+  echo "Please check the error messages above and try again." >&2
+  read -p "Press Enter to exit..."
+  exit 1
+fi
 
 echo ""
 echo "Kouchou-AI is now running!"
