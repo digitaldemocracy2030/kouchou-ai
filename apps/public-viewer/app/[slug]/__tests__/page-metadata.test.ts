@@ -35,7 +35,9 @@ afterEach(() => {
 });
 
 describe("[slug] generateMetadata（静的書き出し）", () => {
-  it("og:image を NEXT_PUBLIC_SITE_URL とベースパス付きの絶対 URL に解決させる", async () => {
+  // レポート別の OGP 画像（opengraph-image）は静的書き出しでは生成されないので、
+  // copy-image が出力に置く共通画像 /meta/ogp.png を指す（トップページと同じ）
+  it("og:image を、出力に存在する共通画像の NEXT_PUBLIC_SITE_URL とベースパス付きの絶対 URL に解決させる", async () => {
     const metadata = await generateMetadataWith({
       NEXT_PUBLIC_OUTPUT_MODE: "export",
       NEXT_PUBLIC_STATIC_SHELL: undefined,
@@ -47,9 +49,7 @@ describe("[slug] generateMetadata（静的書き出し）", () => {
     expect(metadata.metadataBase).toBeInstanceOf(URL);
     const images = metadata.openGraph?.images as string[];
     // Next はこの組み合わせで og:image の絶対 URL を作る
-    expect(resolveUrl(images[0], metadata.metadataBase as URL)?.href).toBe(
-      "https://example.org/kouchou/my-report/opengraph-image.png",
-    );
+    expect(resolveUrl(images[0], metadata.metadataBase as URL)?.href).toBe("https://example.org/kouchou/meta/ogp.png");
   });
 
   it("NEXT_PUBLIC_SITE_URL が未設定なら警告する", async () => {

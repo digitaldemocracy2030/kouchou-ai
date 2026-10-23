@@ -105,6 +105,20 @@ test.describe("Client Static - レポート詳細のレスポンシブデザイ�
   }
 });
 
+test.describe("Client Static - OGP", () => {
+  test("og:image が出力に存在する画像を指す", async ({ page, request }) => {
+    await page.goto("/test-report-1");
+    const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
+    expect(ogImage).toBeTruthy();
+
+    // e2e のビルドは NEXT_PUBLIC_SITE_URL を設定しないので、og:image のホストは公開先と一致しない。
+    // パスだけを取り出し、静的出力にそのファイルがあることを確かめる
+    const response = await request.get(new URL(ogImage as string, "http://localhost").pathname);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toContain("image/png");
+  });
+});
+
 test.describe("Client Static - パフォーマンス", () => {
   test("レポート詳細の初期読み込み時間", async ({ page }) => {
     const startTime = Date.now();

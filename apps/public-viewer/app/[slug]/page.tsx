@@ -112,9 +112,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 
     if (process.env.NEXT_PUBLIC_OUTPUT_MODE === "export") {
+      // 静的書き出しではレポート別の OGP 画像（opengraph-image）を生成しない
+      // （scripts/rename-file.mjs がビルド対象から外す）ので、copy-image が出力に置く共通画像を指す。
       // metadataBase がベースパスを含むので、ここではベースパスを付けない
       metaData.openGraph = {
-        images: [`/${slug}/opengraph-image.png`],
+        images: ["/meta/ogp.png"],
       };
     }
 

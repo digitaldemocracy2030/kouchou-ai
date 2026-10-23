@@ -84,7 +84,7 @@ current `main`（`d5c9ece`）の `apps/admin` / `apps/public-viewer` / `apps/sta
 
 - **OGP 動的画像**: `app/[slug]/_op-image.tsx` が `import { ImageResponse } from "next/og"`（内部に Satori/resvg wasm を Node 上で実行）。SSR モードでは `opengraph-image.tsx` 経由で **runtime に Node が必要**。
   - 🔴 **export ビルドではレポートごとの OGP 画像は生成されない**。`scripts/rename-file.mjs:9` が `NEXT_PUBLIC_OUTPUT_MODE=export` のとき `app/[slug]/opengraph-image.tsx` と `app/[slug]/opengraph-image.png`（route ディレクトリ）の**両方**を `_` 付きへ改名し、Next の private folder 規約でビルド対象から外すため（`build:static` が `scripts/with-renamed-files.mjs` 経由で改名し、ビルドの成否にかかわらず復元する）。
-  - このため `app/[slug]/page.tsx` が export 時にだけ設定する `openGraph.images: [`/${slug}/opengraph-image.png`]`（`getMetadataBase()` が返す metadataBase で絶対 URL に解決される）は、**生成されないファイルを指している**。
+  - このため `app/[slug]/page.tsx` は export 時の `openGraph.images` を、`scripts/copy-image.mjs` が出力の `meta/` に置く共通画像 `/meta/ogp.png`（トップページと同じ。`getMetadataBase()` が返す metadataBase で絶対 URL に解決される）にしている。以前は生成されない `/${slug}/opengraph-image.png` を指していた。レポートごとの画像を export で出すには、route handler が placeholder の slug `-` でも prerender される（`/reports/-` の 404 でビルドが落ちる）問題と、レポート数に比例するビルド時間・API 負荷・Google Fonts 取得への対処が要る。
   - 初版のこの節は「export 用に build 時へ静的 PNG を書き出す」と記載していたが、実際の挙動は上記のとおりで、誤りだったため訂正する。
 
 → public-viewer は **runtime Node 依存は export で解決済**。残るのは「export ビルド自体が Node + Next + API 到達を要する」build 時依存のみ（OGP 画像はそもそも export では生成されない）。
