@@ -236,6 +236,61 @@ it("CSV の解析中にスプレッドシートのタブへ移ると、解析結
   expect(latest.selectedCommentColumn).toBe("自由記述");
 });
 
+it("CSV タブに戻ってから解析が終わるまで、移動元の列選択を残さず解析中として扱う", async () => {
+  const { result } = renderHook(() => useInputData(jest.fn()));
+  const file = shortAnswerCsv();
+  act(() => {
+    result.current.setCsv(file);
+  });
+  act(() => {
+    result.current.setInputType("spreadsheet");
+  });
+  act(() => {
+    result.current.setCsvColumns(["id", "comment"]);
+    result.current.setSelectedCommentColumn("comment");
+  });
+
+  let finish!: () => void;
+  const rows = await actualParseCsv(file);
+  jest.mocked(parseCsv).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = () => resolve(rows);
+    }),
+  );
+  act(() => {
+    result.current.setInputType("file");
+  });
+  expect(result.current.csvParsing).toBe(true);
+  expect(result.current.csvColumns).toEqual([]);
+  expect(result.current.selectedCommentColumn).toBe("");
+
+  await act(async () => finish());
+  await settleParses();
+  expect(result.current.csvParsing).toBe(false);
+  expect(result.current.csvColumns).toEqual(["回答"]);
+  expect(result.current.selectedCommentColumn).toBe("回答");
+});
+
+it("解析中に別のタブへ移ると、解析中の印を外す", async () => {
+  const { result } = renderHook(() => useInputData(jest.fn()));
+  const file = shortAnswerCsv();
+  act(() => {
+    result.current.setCsv(file);
+  });
+  act(() => {
+    result.current.setInputType("spreadsheet");
+  });
+  jest.mocked(parseCsv).mockReturnValueOnce(new Promise(() => {}));
+  act(() => {
+    result.current.setInputType("file");
+  });
+  expect(result.current.csvParsing).toBe(true);
+  act(() => {
+    result.current.setInputType("spreadsheet");
+  });
+  expect(result.current.csvParsing).toBe(false);
+});
+
 it("getBestCommentColumn は id・comment-id 列を選ばない", () => {
   const data = [
     { id: "csv-1", "comment-id": "c-0001", 回答: "はい" },

@@ -30,6 +30,8 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
   const [csvColumns, setCsvColumns] = useState<string[]>([]);
   const [selectedCommentColumn, setSelectedCommentColumn] = useState<string>("");
   const [selectedAttributeColumns, setSelectedAttributeColumns] = useState<string[]>([]);
+  // CSV タブに戻ったときの再解析が終わっていないか（終わるまで作成を受け付けない）
+  const [csvParsing, setCsvParsing] = useState<boolean>(false);
 
   /**
    * 最適なカラムを選択する関数
@@ -60,6 +62,7 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
    */
   const handleCsvChange = useCallback((file: File | null) => {
     ++csvReloadVersion.current;
+    setCsvParsing(false);
     setCsv(file);
   }, []);
 
@@ -144,12 +147,19 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
       setInputType(newType);
       inputTypeRef.current = newType;
       const version = ++csvReloadVersion.current;
+      setCsvParsing(false);
 
       if (newType === "file" && csv) {
+        // 解析が終わるまで、移動元のタブの列・コメント列の選択を残さない
+        setCsvColumns([]);
+        setSelectedCommentColumn("");
+        setCsvParsing(true);
         // CSVのカラムを再構築（CsvFileTab と同じく合成 id 列は候補に入れない）
         parseCsv(csv)
           .then((parsed) => {
-            if (version !== csvReloadVersion.current || parsed.length === 0) return;
+            if (version !== csvReloadVersion.current) return;
+            setCsvParsing(false);
+            if (parsed.length === 0) return;
             const rows = parsed as unknown as Record<string, unknown>[];
             setCsvColumns(getCsvColumnCandidates(rows));
             setSelectedCommentColumn(getBestCommentColumn(rows) || "");
@@ -157,6 +167,7 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
           })
           .catch((error) => {
             if (version !== csvReloadVersion.current) return;
+            setCsvParsing(false);
             showErrorToast(toaster, error, "CSVファイルの読み込みに失敗しました");
           });
       } else if (newType === "spreadsheet" && spreadsheetData.length > 0) {
@@ -180,6 +191,7 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
   return {
     inputType,
     csv,
+    csvParsing,
     spreadsheetUrl,
     spreadsheetImported,
     spreadsheetLoading,
