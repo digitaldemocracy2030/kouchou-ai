@@ -4,8 +4,6 @@ Azure は config のモデル名（管理画面の固定値 azure-server など�
 デプロイを使う。使っていないモデル名や内部値を、公開される冒頭の文に載せない。
 """
 
-import json
-
 import pytest
 
 from analysis_core.steps.hierarchical_aggregation import create_custom_intro
@@ -18,7 +16,6 @@ def _intro(tmp_path, provider, model):
     inputs.mkdir()
     (inputs / "r.csv").write_text("comment-id,comment-body\n1,a\n2,b\n", encoding="utf-8")
     (outputs / "r" / "args.csv").write_text("arg-id,argument\nA1_0,x\n", encoding="utf-8")
-    (outputs / "r" / "hierarchical_result.json").write_text(json.dumps({"config": {}}), encoding="utf-8")
     config = {
         "_output_base_dir": str(outputs),
         "_input_base_dir": str(inputs),
@@ -30,9 +27,7 @@ def _intro(tmp_path, provider, model):
     }
     if provider is not None:
         config["provider"] = provider
-    create_custom_intro(config)
-    result = json.loads((outputs / "r" / "hierarchical_result.json").read_text(encoding="utf-8"))
-    return result["config"]["intro"]
+    return create_custom_intro(config)
 
 
 @pytest.mark.parametrize("model", ["azure-server", "gpt-4o"])
