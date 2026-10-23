@@ -220,6 +220,23 @@ def _ensure_error_status_payload(slug: str, error_override: str | None = None) -
 
 UPLOAD_FAILED_ERROR = "Failed to upload report artifacts to storage"
 
+# SIGKILL（9）で終了したとき。subprocess は -9、シェル経由やコンテナでは 128 + 9 = 137 になる。
+# signal.SIGKILL は Windows に無いので数値で持つ。
+_SIGKILL = 9
+_SIGKILL_RETCODES = (-_SIGKILL, 128 + _SIGKILL)
+SIGKILL_ERROR = (
+    "analysis-core was killed by SIGKILL; this usually means it ran out of memory (OOM kill). "
+    "Increase the memory available to the API container, or reduce the number of comments. "
+    "See error_log_excerpt"
+)
+
+
+def _error_message_for_retcode(retcode: int) -> str | None:
+    """終了コードから分かる失敗の理由を返す。分からなければ None（既定のエラー文を使う）。"""
+    if retcode in _SIGKILL_RETCODES:
+        return SIGKILL_ERROR
+    return None
+
 
 def _sync_report_artifacts_to_storage(slug: str) -> bool:
     """成果物・入力・設定ファイルをストレージに同期し、全て成功したかを返す"""
@@ -361,7 +378,7 @@ def _monitor_process(process: subprocess.Popen, slug: str, log_file: Any | None 
             _finalize_completed_report(slug)
 
         else:
-            _ensure_error_status_payload(slug)
+            _ensure_error_status_payload(slug, _error_message_for_retcode(retcode))
             set_status_unless_deleted(slug, "error")
     finally:
         if log_file is not None:

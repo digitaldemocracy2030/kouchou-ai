@@ -2,6 +2,8 @@ import subprocess
 import sys
 import threading
 
+import pytest
+
 from src.schemas.admin_report import Comment, Prompt, ReportInput
 
 
@@ -800,6 +802,44 @@ def test_monitor_process_persists_error_log_excerpt_when_process_fails(monkeypat
     assert status_data["error_log_path"] == report_launcher.ANALYSIS_LOG_FILENAME
     assert status_data["error_log_excerpt"] == "line 1\nline 2\nRuntimeError: boom"
     assert calls["statuses"] == [(slug, "error")]
+
+
+@pytest.mark.parametrize("retcode", [-9, 137])
+def test_monitor_process_reports_possible_oom_when_killed_by_sigkill(monkeypatch, tmp_path, retcode):
+    """OOM kill（SIGKILL）で落ちたときは、メモリ不足の可能性をエラー文に出す。"""
+    import json
+
+    from src.services import report_launcher
+
+    slug = "demo"
+    report_dir = tmp_path / "reports"
+    config_dir = tmp_path / "configs"
+    (report_dir / slug).mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+    (report_dir / slug / report_launcher.ANALYSIS_LOG_FILENAME).write_text("clustering 10%", encoding="utf-8")
+
+    monkeypatch.setattr(report_launcher.settings, "REPORT_DIR", report_dir)
+    monkeypatch.setattr(report_launcher.settings, "CONFIG_DIR", config_dir)
+    statuses = []
+
+    def fake_set_status_unless_deleted(current_slug, status):
+        statuses.append((current_slug, status))
+        return True
+
+    monkeypatch.setattr(report_launcher, "set_status_unless_deleted", fake_set_status_unless_deleted)
+
+    class DummyProcess:
+        def wait(self):
+            return retcode
+
+    report_launcher._monitor_process(DummyProcess(), slug)
+
+    status_data = json.loads((report_dir / slug / "hierarchical_status.json").read_text(encoding="utf-8"))
+    assert status_data["status"] == "error"
+    assert "SIGKILL" in status_data["error"]
+    assert "out of memory" in status_data["error"]
+    assert status_data["error_log_excerpt"] == "clustering 10%"
+    assert statuses == [(slug, "error")]
 
 
 def test_execute_aggregation_runs_monitor_flow_and_preserves_existing_status(monkeypatch, tmp_path):
