@@ -401,8 +401,9 @@ export AZURE_CHATCOMPLETION_ENDPOINT="https://your-resource.openai.azure.com"
 export AZURE_CHATCOMPLETION_DEPLOYMENT_NAME="your-chat-deployment-name"
 export AZURE_CHATCOMPLETION_VERSION="2024-10-21"
 export AZURE_CHATCOMPLETION_API_KEY="your-key"
-# 推論モデル（o 系 / GPT-5,6 系）をモデル名と違うデプロイ名で使う場合は、実モデル名も設定する
-# （推論モデルには temperature を送らないため。名前によらず指定するなら AZURE_CHATCOMPLETION_REASONING=true）
+# 推論モデル（o 系 / GPT-5,6 系）をモデル名と違うデプロイ名で使う場合は、実モデル ID も設定する
+# （推論モデルには temperature を送らないため。実モデル名とデプロイ名のどちらかが推論モデル名なら推論とみなす。
+#   表示名ではなく gpt-5-mini のようなモデル ID を入れる。名前によらず指定するなら AZURE_CHATCOMPLETION_REASONING=true / false）
 # export AZURE_CHATCOMPLETION_MODEL_NAME="gpt-5-mini"
 
 # 埋め込み（"is_embedded_at_local": true なら不要）

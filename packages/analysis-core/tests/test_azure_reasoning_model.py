@@ -121,10 +121,45 @@ def test_reasoning_model_name_with_custom_deployment_omits_temperature(azure, kw
     assert azure.sent[0]["seed"] == 0
 
 
+# MODEL_NAME に表示名（モデル ID の形でない値）を入れ、デプロイ名はモデル名どおりにしている既存環境
+DISPLAY_NAME_WITH_MODEL_DEPLOYMENT = [
+    pytest.param("gpt-5-mini", "Azure GPT-5 mini", id="gpt-5-mini/Azure GPT-5 mini"),
+    pytest.param("gpt-5-mini", "GPT 5 mini", id="gpt-5-mini/GPT 5 mini"),
+    pytest.param("gpt-5-mini", "azure/gpt-5-mini", id="gpt-5-mini/azure-slash"),
+    pytest.param("o3-mini", "Azure OpenAI o3-mini", id="o3-mini/Azure OpenAI o3-mini"),
+]
+
+
 @pytest.mark.parametrize("kwargs", PATHS)
-def test_non_reasoning_model_name_with_reasoning_like_deployment_sends_temperature(azure, kwargs):
-    """デプロイ名が推論モデルに見えても、MODEL_NAME が通常モデルなら temperature=0 を送る"""
+@pytest.mark.parametrize(("deployment", "model_name"), DISPLAY_NAME_WITH_MODEL_DEPLOYMENT)
+def test_reasoning_deployment_with_display_model_name_omits_temperature(azure, deployment, model_name, kwargs):
+    """MODEL_NAME が表示名でも、デプロイ名が推論モデル名なら temperature を送らない（どちらかが推論なら推論）"""
+    azure.configure(deployment, model_name=model_name, reject_temperature=True)
+
+    _call(kwargs)
+
+    assert len(azure.sent) == 1
+    assert "temperature" not in azure.sent[0]
+
+
+@pytest.mark.parametrize("kwargs", PATHS)
+def test_reasoning_like_deployment_with_non_reasoning_model_name_omits_temperature(azure, kwargs):
+    """デプロイ名が推論モデルに見えれば、MODEL_NAME が通常モデルでも temperature を外す側に倒す
+
+    temperature を外して通常モデルに送っても 400 にはならない（決定性が下がるだけ）が、
+    推論モデルに temperature=0 を送ると 400 になるため、迷ったら外す。
+    """
     azure.configure("o1-team-deploy", model_name="gpt-4o")
+
+    _call(kwargs)
+
+    assert "temperature" not in azure.sent[0]
+
+
+@pytest.mark.parametrize("kwargs", PATHS)
+def test_non_reasoning_model_with_reasoning_like_deployment_sends_temperature_when_explicit_false(azure, kwargs):
+    """デプロイ名が推論モデルに見えても、REASONING=false を明示すれば temperature=0 を送る"""
+    azure.configure("o1-team-deploy", model_name="gpt-4o", reasoning="false")
 
     _call(kwargs)
 
@@ -161,7 +196,7 @@ def test_reasoning_override_false_sends_temperature(azure, value):
 
 @pytest.mark.parametrize("value", ["", "auto", "maybe"])
 def test_reasoning_override_auto_or_unknown_uses_names(azure, value):
-    """空・auto・解釈できない値は自動判定（MODEL_NAME → デプロイ名）に任せる"""
+    """空・auto・解釈できない値は自動判定（MODEL_NAME とデプロイ名）に任せる"""
     azure.configure("kouchou-chat", model_name="gpt-5-mini", reasoning=value)
     _call({})
     assert "temperature" not in azure.sent[0]

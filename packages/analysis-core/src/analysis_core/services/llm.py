@@ -54,8 +54,13 @@ def _is_azure_reasoning_deployment(deployment: str | None) -> bool:
 
     Azure のデプロイ名は管理者が自由に付けるので、モデル名と一致するとは限らない。
     1. AZURE_CHATCOMPLETION_REASONING が true / false なら、それに従う（明示指定）
-    2. AZURE_CHATCOMPLETION_MODEL_NAME（実モデル名）が設定されていれば、その名前で判定する
-    3. どちらも無ければ、従来どおりデプロイ名で判定する
+    2. そうでなければ、AZURE_CHATCOMPLETION_MODEL_NAME（実モデル名）とデプロイ名の
+       どちらかが推論モデル名なら推論モデルとみなす
+
+    推論モデルに temperature=0 を送ると 400 になるが、通常モデルから temperature を外しても
+    決定性が下がるだけで失敗はしない。MODEL_NAME に表示名（例: 'Azure GPT-5 mini'）が入っている
+    既存環境もあるので、どちらか一方でも推論モデルに見えれば外す側に倒す。
+    推論モデルに見えるデプロイ名で通常モデルを使う場合は REASONING=false を明示する。
     """
     override = (os.getenv("AZURE_CHATCOMPLETION_REASONING") or "").strip().lower()
     if override in {"1", "true", "on", "yes"}:
@@ -68,8 +73,8 @@ def _is_azure_reasoning_deployment(deployment: str | None) -> bool:
             "（true / false / auto のいずれかを指定してください）"
         )
 
-    model_name = (os.getenv("AZURE_CHATCOMPLETION_MODEL_NAME") or "").strip()
-    return _is_openai_reasoning_model(model_name or deployment)
+    model_name = os.getenv("AZURE_CHATCOMPLETION_MODEL_NAME")
+    return _is_openai_reasoning_model(model_name) or _is_openai_reasoning_model(deployment)
 
 
 def _model_supports_openai_flex(model: str | None) -> bool:
@@ -270,7 +275,7 @@ def request_to_azure_chatcompletion(
                 "timeout": timeout_seconds,
             }
             # 推論モデル(o系/GPT-5,6系)は temperature 指定を拒否するため外す。
-            # 判定は実モデル名（未設定ならデプロイ名）か明示指定で行う。
+            # 判定は明示指定、なければ実モデル名・デプロイ名のどちらかが推論モデル名か。
             if not _is_azure_reasoning_deployment(deployment):
                 parse_kwargs["temperature"] = 0
             response = client.beta.chat.completions.parse(**parse_kwargs)
@@ -299,7 +304,7 @@ def request_to_azure_chatcompletion(
                 "timeout": timeout_seconds,
             }
             # 推論モデル(o系/GPT-5,6系)は temperature 指定を拒否するため外す。
-            # 判定は実モデル名（未設定ならデプロイ名）か明示指定で行う。
+            # 判定は明示指定、なければ実モデル名・デプロイ名のどちらかが推論モデル名か。
             if not _is_azure_reasoning_deployment(deployment):
                 payload["temperature"] = 0
             if response_format:
