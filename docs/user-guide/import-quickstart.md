@@ -74,45 +74,56 @@ result = orchestrator.run_default()
 
 ## 3. 個別ステップの実行
 
-特定のステップだけを実行することもできます。
+特定のステップだけを実行するには、`PipelineOrchestrator.from_config()` に `only` を渡します（CLI の `--only` と同じ動きです）。
 
-```python
-from analysis_core.steps import (
-    extraction,
-    embedding,
-    hierarchical_clustering,
-    hierarchical_initial_labelling,
-    hierarchical_merge_labelling,
-    hierarchical_overview,
-    hierarchical_aggregation,
-)
-
-# 各ステップは config 辞書と output_base_dir を受け取る
-# extraction(config, output_base_dir)
-```
+`analysis_core.steps` の各ステップ関数（`extraction` など）は、パイプラインが補った設定（出力先・入力先・既定のプロンプトなど）が入った config を前提にしています。手で書いた config を渡して直接呼び出すと動かないため、オーケストレータ経由で実行してください。
 
 ### 抽出のみを実行
 
-```python
-from pathlib import Path
-from analysis_core.steps import extraction
+設定ファイル `my-analysis.json` を用意します。出力先は設定ファイル名から決まり、この例では `outputs/my-analysis/` になります。
 
-config = {
-    "input": "my-comments",
-    "provider": "openai",
-    "extraction": {
-        "workers": 1,
-        "limit": 10,
-        "prompt": "あなたは専門的なリサーチアシスタントです...",
-        "model": "gpt-4o-mini",
-        "properties": [],
-    },
+```json
+{
+  "name": "市民意見分析",
+  "question": "市民からどのような意見が寄せられていますか？",
+  "input": "my-comments",
+  "model": "gpt-4o-mini",
+  "provider": "openai",
+  "is_embedded_at_local": false,
+  "extraction": {
+    "workers": 1,
+    "limit": 10
+  }
 }
-
-extraction(config, Path("./outputs/my-analysis"))
 ```
 
+```python
+from pathlib import Path
+from analysis_core import PipelineOrchestrator
+
+orchestrator = PipelineOrchestrator.from_config(
+    "my-analysis.json",
+    only="extraction",
+    input_base_dir=Path("./inputs"),
+    output_base_dir=Path("./outputs"),
+)
+result = orchestrator.run_default()
+print(f"成功: {result.success}")
+```
+
+`only` には `extraction`、`embedding`、`hierarchical_clustering`、`hierarchical_initial_labelling`、`hierarchical_merge_labelling`、`hierarchical_overview`、`hierarchical_aggregation` などのステップ名を指定できます。2 つ目以降のステップは、前のステップの出力（`args.csv` など）が出力先に揃っている必要があります。たとえば `only="hierarchical_aggregation"` とすると、LLM を呼ばずに `hierarchical_result.json` だけを作り直せます。
+
 ## 4. 結果の読み込みと利用
+
+`hierarchical_result.json` の主な項目は次のとおりです。
+
+| 項目 | 内容 |
+|------|------|
+| `comment_num` | 入力コメント数 |
+| `overview` | AI が生成した全体の要約 |
+| `arguments` | 抽出された意見のリスト。各要素に `arg_id`・`argument`（意見本文）・`comment_id`（元コメントの ID）・`x` / `y`（散布図の座標）・`cluster_ids`（所属クラスタの ID）などが入ります |
+| `clusters` | クラスタのリスト。各要素に `level`（`0` は全体、`1` 以降が各階層）・`id`・`label`・`takeaway`（説明）・`value`（意見数）・`parent`（親クラスタの ID）などが入ります |
+| `comments` | 現在は常に空です。元のコメント本文は入力 CSV から読み込んでください |
 
 ### 結果JSONの読み込み
 
@@ -121,33 +132,53 @@ import json
 from pathlib import Path
 
 result_path = Path("outputs/my-analysis/hierarchical_result.json")
-with open(result_path) as f:
+with open(result_path, encoding="utf-8") as f:
     data = json.load(f)
 
 # 基本情報
 print(f"コメント数: {data['comment_num']}")
+print(f"意見数: {len(data['arguments'])}")
 print(f"要約: {data['overview']}")
 
-# クラスター情報
-for cluster in data['clusters']:
-    level = cluster.get('level', 0)
-    label = cluster.get('label', 'N/A')
-    args = cluster.get('arguments', [])
-    print(f"{'  ' * level}[{label}] ({len(args)}件)")
+# クラスター情報（第1階層と、その下の第2階層。意見数は value に入っている）
+clusters = data['clusters']
+for parent in [c for c in clusters if c['level'] == 1]:
+    print(f"[{parent['label']}] ({parent['value']}件)")
+    for child in [c for c in clusters if c['parent'] == parent['id']]:
+        print(f"  [{child['label']}] ({child['value']}件)")
 ```
 
 ### 意見データの取得
 
 ```python
-# 抽出された意見
-arguments = data['arguments']
-for arg_id, arg in list(arguments.items())[:5]:
-    print(f"{arg_id}: {arg['argument']}")
+import csv
 
-# 元のコメント
-comments = data['comments']
-for comment_id, comment in list(comments.items())[:5]:
-    print(f"{comment_id}: {comment['comment-body'][:50]}...")
+# 抽出された意見（リスト）
+for arg in data['arguments'][:5]:
+    print(f"{arg['arg_id']}: {arg['argument']}")
+
+# 元のコメント本文は結果JSONに入っていないため、入力CSVから comment_id で引く
+with open("inputs/my-comments.csv", encoding="utf-8-sig") as f:
+    comments = {row['comment-id']: row['comment-body'] for row in csv.DictReader(f)}
+
+for arg in data['arguments'][:5]:
+    print(f"{arg['comment_id']}: {comments[arg['comment_id']][:50]}...")
+```
+
+### 埋め込みベクトルの読み込み
+
+`embeddings.pkl` には、意見ごとに `arg-id` と `embedding` を持つ辞書のリストが保存されています。
+
+```python
+import pickle
+import numpy as np
+
+with open("outputs/my-analysis/embeddings.pkl", "rb") as f:
+    records = pickle.load(f)
+
+arg_ids = [r['arg-id'] for r in records]
+vectors = np.array([r['embedding'] for r in records])
+print(vectors.shape)  # (意見数, 埋め込みの次元数)
 ```
 
 ## 5. Pandas での分析
@@ -156,22 +187,21 @@ for comment_id, comment in list(comments.items())[:5]:
 import pandas as pd
 import json
 
-with open("outputs/my-analysis/hierarchical_result.json") as f:
+with open("outputs/my-analysis/hierarchical_result.json", encoding="utf-8") as f:
     data = json.load(f)
 
 # 意見をDataFrameに変換
-args_list = [
-    {"id": k, **v}
-    for k, v in data['arguments'].items()
-]
-df_args = pd.DataFrame(args_list)
+df_args = pd.DataFrame(data['arguments'])
 
-print(df_args.head())
+print(df_args[['arg_id', 'argument', 'comment_id']].head())
 print(f"\n意見数: {len(df_args)}")
 
-# クラスター別の集計
-if 'cluster-id' in df_args.columns:
-    print(df_args.groupby('cluster-id').size())
+# 第1階層のクラスター別の集計
+# cluster_ids は ['0', '1_3', '2_7'] のような形で、先頭の '0' は全体、2 番目が第1階層のクラスタ ID
+df_args['cluster_level1'] = df_args['cluster_ids'].str[1]
+labels = {c['id']: c['label'] for c in data['clusters']}
+counts = df_args.groupby('cluster_level1').size().rename(index=labels)
+print(counts.sort_values(ascending=False))
 ```
 
 ## 6. Matplotlib での可視化
@@ -185,14 +215,14 @@ import matplotlib.pyplot as plt
 # 日本語フォントの設定（環境に応じて変更）
 plt.rcParams['font.family'] = 'Hiragino Sans'
 
-with open("outputs/my-analysis/hierarchical_result.json") as f:
+with open("outputs/my-analysis/hierarchical_result.json", encoding="utf-8") as f:
     data = json.load(f)
 
-# レベル1のクラスターを取得
-clusters = [c for c in data['clusters'] if c.get('level') == 1]
+# レベル1のクラスターを取得（意見数は value に入っている）
+clusters = [c for c in data['clusters'] if c['level'] == 1]
 labels = [c['label'][:15] + '...' if len(c['label']) > 15 else c['label']
           for c in clusters]
-counts = [len(c.get('arguments', [])) for c in clusters]
+counts = [c['value'] for c in clusters]
 
 plt.figure(figsize=(10, 6))
 plt.barh(labels, counts, color='steelblue')
@@ -200,36 +230,6 @@ plt.xlabel('意見数')
 plt.title('クラスター別意見数')
 plt.tight_layout()
 plt.savefig('cluster_chart.png', dpi=150)
-plt.show()
-```
-
-### UMAP埋め込みの散布図
-
-```python
-import pickle
-import numpy as np
-import matplotlib.pyplot as plt
-from umap import UMAP
-
-# 埋め込みベクトルの読み込み
-with open("outputs/my-analysis/embeddings.pkl", "rb") as f:
-    embeddings = pickle.load(f)
-
-# numpy配列に変換
-vectors = np.array(list(embeddings.values()))
-
-# UMAPで2次元に削減
-reducer = UMAP(n_components=2, random_state=42)
-coords = reducer.fit_transform(vectors)
-
-# 散布図の描画
-plt.figure(figsize=(10, 8))
-plt.scatter(coords[:, 0], coords[:, 1], alpha=0.6, s=30)
-plt.title('意見の分布（UMAP）')
-plt.xlabel('UMAP 1')
-plt.ylabel('UMAP 2')
-plt.tight_layout()
-plt.savefig('umap_scatter.png', dpi=150)
 plt.show()
 ```
 

@@ -223,10 +223,10 @@ cat outputs/config/hierarchical_overview.txt
 ```python
 import json
 
-with open('outputs/config/hierarchical_result.json') as f:
+with open('outputs/config/hierarchical_result.json', encoding='utf-8') as f:
     data = json.load(f)
 
-print(f"クラスター数: {len(data['clusters'])}")
+print(f"第1階層のクラスター数: {sum(1 for c in data['clusters'] if c['level'] == 1)}")
 print(f"コメント数: {data['comment_num']}")
 print(f"要約: {data['overview']}")
 ```
@@ -454,13 +454,13 @@ export GEMINI_API_KEY="your-key"
 import json
 import matplotlib.pyplot as plt
 
-with open('outputs/config/hierarchical_result.json') as f:
+with open('outputs/config/hierarchical_result.json', encoding='utf-8') as f:
     data = json.load(f)
 
-# クラスターごとの意見数を棒グラフで表示
-clusters = [c for c in data['clusters'] if c.get('level') == 1]
-labels = [c['label'][:20] + '...' for c in clusters]
-counts = [len(c.get('arguments', [])) for c in clusters]
+# クラスターごとの意見数を棒グラフで表示（意見数は value に入っている）
+clusters = [c for c in data['clusters'] if c['level'] == 1]
+labels = [c['label'][:20] + '...' if len(c['label']) > 20 else c['label'] for c in clusters]
+counts = [c['value'] for c in clusters]
 
 plt.figure(figsize=(10, 6))
 plt.barh(labels, counts)
