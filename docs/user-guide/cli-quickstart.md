@@ -288,7 +288,7 @@ Job already running and locked. Try again in 5 minutes.
 CLI で分析を実行すると、使用した UMAP モデルが各レポートの出力先に `outputs/<レポート名>/umap_model.pkl` として保存されます（`hierarchical_clustering.save_umap_model` が `false` のときは保存しません。後述）。新しいレポートを作るときに既存レポートのモデルを指定すると、UMAP を学習し直さず（`fit_transform` ではなく）既存の平面へ `transform` で投影するため、**同じ座標平面上に別データを並べられます**。
 
 > この機能は現状 CLI 専用です。WebUI（管理画面）からは提供していません。
-> 管理画面で作成・複製したレポートは `save_umap_model: false` で実行されるため `umap_model.pkl` が無く、投影元には使えません。投影元にするレポートは CLI で作成してください。
+> 管理画面で作成・複製したレポートは、既定で `save_umap_model: false` で実行されるため `umap_model.pkl` が無く、投影元には使えません（複製元の config ファイルに `save_umap_model: true` を明示していた場合だけは、複製でもその値を引き継いで保存します）。投影元にするレポートは CLI で作成してください。
 
 `hierarchical_clustering.reuse_umap_model` に、使い回したい既存レポートを指定します。
 

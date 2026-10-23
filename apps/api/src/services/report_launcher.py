@@ -97,14 +97,16 @@ def disable_umap_model_saving(config: dict[str, Any]) -> dict[str, Any]:
 
     save_umap_model を持たない config（この設定より前に作ったレポートの config ファイル、
     hierarchical_clustering が無い・null のもの）にも false を入れる。指定が無いと
-    analysis-core の既定（保存する）になるため。明示した値（手で true にしたもの）は変えない。
+    analysis-core の既定（保存する）になるため。null も analysis-core では保存する扱いなので、
+    未指定と同じく false にする。明示した true / false（手で true にしたもの）は変えない。
     """
     if resolve_analysis_mode(config) != "hierarchical":
         return config
     clustering = config.get("hierarchical_clustering")
     if not isinstance(clustering, dict):
         clustering = config["hierarchical_clustering"] = {}
-    clustering.setdefault("save_umap_model", False)
+    if clustering.get("save_umap_model") is None:
+        clustering["save_umap_model"] = False
     return config
 
 

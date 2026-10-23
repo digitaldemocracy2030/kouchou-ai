@@ -596,6 +596,20 @@ def test_duplicate_keeps_explicit_save_umap_model_true(monkeypatch, tmp_path):
     assert written["hierarchical_clustering"]["save_umap_model"] is True
 
 
+def test_duplicate_treats_null_save_umap_model_as_unset(monkeypatch, tmp_path):
+    """save_umap_model: null は analysis-core では保存する扱いなので、未指定と同じく false にする。"""
+    source_config = {
+        **_CONFIG_WITHOUT_SAVE_FLAG,
+        "hierarchical_clustering": {"cluster_nums": [2, 4], "save_umap_model": None},
+    }
+    report_duplicate, env = _setup_umap_saving_env(monkeypatch, tmp_path, source_config=source_config)
+
+    _duplicate(report_duplicate, reuse=False, cluster=None)
+
+    written = json.loads((env.configs / "copy.json").read_text(encoding="utf-8"))
+    assert written["hierarchical_clustering"]["save_umap_model"] is False
+
+
 def test_duplicate_from_embedded_config_does_not_save_umap_model(monkeypatch, tmp_path):
     embedded = {
         "name": "old",
