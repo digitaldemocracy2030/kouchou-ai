@@ -17,13 +17,19 @@
 1. 以下のコマンドを実行して、Dockerをインストールします：
 ```bash
 sudo apt-get update
-sudo apt-get install -y docker.io docker-compose
+sudo apt-get install -y docker.io docker-compose-v2
 sudo systemctl enable docker
 sudo systemctl start docker
 sudo usermod -aG docker $USER
 ```
+   セットアップスクリプトは `docker compose`（Docker Compose v2）を使います。`docker-compose` パッケージ（旧来の v1）では動かないので、`docker-compose-v2` を入れてください。[Docker 公式の手順](https://docs.docker.com/engine/install/ubuntu/)で `docker-ce` と `docker-compose-plugin` を入れても構いません。
 2. 一度ログアウトして再ログインし、Docker権限を反映させます。
-3. 以下のコマンドでDockerが正常に動作していることを確認します：`docker --version`
+3. 以下のコマンドでDockerとDocker Composeが正常に動作していることを確認します：
+```bash
+docker --version
+docker compose version
+```
+   `docker compose version` でバージョンが表示されず、`unknown command` などのエラーになる場合は、Docker Compose v2 が入っていません。手順 1 の `docker-compose-v2` のインストールを確認してください。
 
 ### 2. 広聴AIのダウンロード
 
