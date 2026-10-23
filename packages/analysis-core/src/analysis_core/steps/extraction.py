@@ -1,4 +1,3 @@
-import concurrent.futures
 import json
 import logging
 import os
@@ -14,6 +13,7 @@ from analysis_core.core.utils import read_input_csv
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.parse_json_list import parse_extraction_response
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
+from analysis_core.steps._pool import iter_pool_completed
 
 COMMA_AND_SPACE_AND_RIGHT_BRACKET = re.compile(r",\s*(\])")
 EXTRACTION_WAIT_TIMEOUT_SECONDS = DEFAULT_REQUEST_TIMEOUT_SECONDS
@@ -107,10 +107,16 @@ def extraction(config):
     argument_map = {}
     relation_rows = []
 
-    for i in tqdm(range(0, len(comment_ids), workers)):
-        batch = comment_ids[i : i + workers]
-        batch_inputs = [comments_lookup[id]["comment-body"] for id in batch]
-        batch_results = extract_batch(
+    # 全回答を 1 つのプール（workers 本）で回す。workers 件ずつのバッチの完了を待つと、
+    # バッチ内で最も遅い 1 件の応答が終わるまで他の worker が遊ぶ。
+    batch_inputs = [comments_lookup[id]["comment-body"] for id in comment_ids]
+    with tqdm(total=len(comment_ids)) as progress_bar:
+
+        def on_progress(count):
+            progress_bar.update(count)
+            update_progress(config, incr=count)
+
+        all_results = extract_batch(
             batch_inputs,
             prompt,
             model,
@@ -120,34 +126,34 @@ def extraction(config):
             config,
             timeout_seconds,
             user_api_key,
-            comment_ids=batch,
+            comment_ids=comment_ids,
             diagnostics_path=diagnostics_path,
+            on_progress=on_progress,
         )
 
-        for comment_id, extracted_args in zip(batch, batch_results, strict=False):
-            for j, arg in enumerate(extracted_args):
-                # 同じ文面でも回答ごとに別の意見として扱う。回答をまたいでまとめると、
-                # 集計で意見1件に回答1件分の属性・URLしか残らず、他の回答者の帰属が消える。
-                key = (comment_id, arg)
-                if key not in argument_map:
-                    # argumentテーブルに追加
-                    arg_id = f"A{comment_id}_{j}"
-                    argument = arg
-                    argument_map[key] = {
-                        "arg-id": arg_id,
-                        "argument": argument,
-                    }
-                else:
-                    arg_id = argument_map[key]["arg-id"]
-
-                # relationテーブルにcommentとargの関係を追加
-                relation_row = {
+    # 結果は入力順に並んでいるので、args.csv / relations.csv の行順は回答の順のまま
+    for comment_id, extracted_args in zip(comment_ids, all_results, strict=True):
+        for j, arg in enumerate(extracted_args):
+            # 同じ文面でも回答ごとに別の意見として扱う。回答をまたいでまとめると、
+            # 集計で意見1件に回答1件分の属性・URLしか残らず、他の回答者の帰属が消える。
+            key = (comment_id, arg)
+            if key not in argument_map:
+                # argumentテーブルに追加
+                arg_id = f"A{comment_id}_{j}"
+                argument = arg
+                argument_map[key] = {
                     "arg-id": arg_id,
-                    "comment-id": comment_id,
+                    "argument": argument,
                 }
-                relation_rows.append(relation_row)
+            else:
+                arg_id = argument_map[key]["arg-id"]
 
-        update_progress(config, incr=len(batch))
+            # relationテーブルにcommentとargの関係を追加
+            relation_row = {
+                "arg-id": arg_id,
+                "comment-id": comment_id,
+            }
+            relation_rows.append(relation_row)
 
     # DataFrame化
     results = pl.DataFrame(list(argument_map.values()))
@@ -173,65 +179,34 @@ def extract_batch(
     user_api_key=None,
     comment_ids=None,
     diagnostics_path=None,
+    on_progress=None,
 ):
-    """Run argument extraction concurrently for a batch of comment texts."""
-    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
-        futures_with_index = [
-            (
-                i,
-                executor.submit(
-                    extract_arguments,
-                    input,
-                    prompt,
-                    model,
-                    provider,
-                    local_llm_address,
-                    timeout_seconds,
-                    user_api_key,
-                ),
-            )
-            for i, input in enumerate(batch)
-        ]
+    """Run argument extraction concurrently with a pool of ``workers`` threads.
 
-        # 1 リクエストの上限は各プロバイダの SDK に渡す timeout_seconds が担う。
-        # バッチ側で同じ値の待機上限を重ねると、Flex (最大 900 秒) や SDK 内部の再試行で
-        # timeout_seconds を超えて成功した応答まで TimeoutError として捨ててしまう。
-        # 実行中の future は cancel できず executor の終了時に待つことになるため、
-        # バッチ側の待機上限は所要時間も短くしない。
-        concurrent.futures.wait([f for _, f in futures_with_index])
-        results = [[] for _ in range(len(batch))]
-        failures = {}
-        total_token_input = 0
-        total_token_output = 0
-        total_token_usage = 0
+    空いた worker にはすぐ次の回答を渡し、結果は入力順に返す。
+    失敗を検知したら新しい要求は出さず、実行中の要求の完了を待ってから
+    ExtractionBatchError を送出する（完了した要求のトークンは集計し、診断ファイルにも書く）。
+    トークン集計・進捗（on_progress）・診断ファイルへの追記は、workers 件の完了ごとに
+    呼び出し元のスレッドでまとめて行う。
+    """
+    results = [[] for _ in range(len(batch))]
+    failures = {}
+    flush_every = max(1, int(workers))
+    pending = {"count": 0, "input": 0, "output": 0, "total": 0, "diagnostics": []}
 
-        for i, future in futures_with_index:
-            try:
-                result = future.result()
-                if isinstance(result, tuple) and len(result) == 4:
-                    items, token_input, token_output, token_total = result
-                    results[i] = items
-                    total_token_input += token_input
-                    total_token_output += token_output
-                    total_token_usage += token_total
-                else:
-                    results[i] = result
-            except Exception as e:
-                failures[i] = type(e).__name__
-
+    def flush():
+        if pending["count"] == 0:
+            return
         if config is not None:
-            config["total_token_usage"] = config.get("total_token_usage", 0) + total_token_usage
-            config["token_usage_input"] = config.get("token_usage_input", 0) + total_token_input
-            config["token_usage_output"] = config.get("token_usage_output", 0) + total_token_output
+            config["total_token_usage"] = config.get("total_token_usage", 0) + pending["total"]
+            config["token_usage_input"] = config.get("token_usage_input", 0) + pending["input"]
+            config["token_usage_output"] = config.get("token_usage_output", 0) + pending["output"]
             print(
-                f"Extraction batch: input={total_token_input}, output={total_token_output}, total={total_token_usage} tokens"
+                f"Extraction batch: input={pending['input']}, output={pending['output']}, total={pending['total']} tokens"
             )
-
-        if diagnostics_path is not None:
+        if diagnostics_path is not None and pending["diagnostics"]:
             with open(diagnostics_path, "a", encoding="utf-8") as diagnostic_file:
-                for index, items in enumerate(results):
-                    if index not in failures and items:
-                        continue
+                for index in sorted(pending["diagnostics"]):
                     record = {
                         "comment_id": comment_ids[index] if comment_ids is not None else index,
                         "comment": batch[index],
@@ -239,9 +214,39 @@ def extract_batch(
                         "error_type": failures.get(index),
                     }
                     diagnostic_file.write(json.dumps(record, ensure_ascii=False) + "\n")
-        if failures:
-            raise ExtractionBatchError(failures, comment_ids)
-        return results
+        if on_progress is not None:
+            on_progress(pending["count"])
+        pending.update(count=0, input=0, output=0, total=0, diagnostics=[])
+
+    def run(input):
+        return extract_arguments(input, prompt, model, provider, local_llm_address, timeout_seconds, user_api_key)
+
+    # 1 リクエストの上限は各プロバイダの SDK に渡す timeout_seconds が担う。
+    # プール側で同じ値の待機上限を重ねると、Flex (最大 900 秒) や SDK 内部の再試行で
+    # timeout_seconds を超えて成功した応答まで TimeoutError として捨ててしまう。
+    for i, future in iter_pool_completed(run, batch, workers, stop=lambda: bool(failures)):
+        try:
+            result = future.result()
+            if isinstance(result, tuple) and len(result) == 4:
+                items, token_input, token_output, token_total = result
+                results[i] = items
+                pending["input"] += token_input
+                pending["output"] += token_output
+                pending["total"] += token_total
+            else:
+                results[i] = result
+        except Exception as e:
+            failures[i] = type(e).__name__
+        if i in failures or not results[i]:
+            pending["diagnostics"].append(i)
+        pending["count"] += 1
+        if pending["count"] >= flush_every:
+            flush()
+    flush()
+
+    if failures:
+        raise ExtractionBatchError(failures, comment_ids)
+    return results
 
 
 def extract_arguments(

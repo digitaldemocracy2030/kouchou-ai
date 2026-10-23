@@ -7,9 +7,9 @@ for example, policy proposals without any viewer change. Nothing is removed from
 the analysis; the labels only add information.
 """
 
-import concurrent.futures
 import json
 import os
+from collections.abc import Callable
 from typing import Any
 
 import polars as pl
@@ -19,6 +19,7 @@ from analysis_core.core import update_progress
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
 from analysis_core.steps._labelling import record_usage
+from analysis_core.steps._pool import iter_pool_completed
 from analysis_core.steps.opinion_labels import (
     DEFAULT_LABEL_IDS,
     InvalidClassificationResponse,
@@ -92,40 +93,44 @@ def classify_batch(
     config: dict | None = None,
     timeout_seconds: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
     user_api_key: str | None = None,
+    on_progress: Callable[[int], None] | None = None,
 ) -> list[dict[str, bool]]:
-    """Classify a batch concurrently. Any failure aborts the batch with the failed arg-ids."""
-    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = [
-            executor.submit(
-                classify_argument,
-                text,
-                prompt,
-                label_ids,
-                model,
-                provider,
-                local_llm_address,
-                timeout_seconds,
-                user_api_key,
-            )
-            for text in texts
-        ]
-        # 1 リクエストの上限は SDK に渡す timeout_seconds が担う。バッチ側で同じ値の
-        # 待機上限を重ねると、遅れて成功した応答まで TimeoutError として捨ててしまう。
-        concurrent.futures.wait(futures)
+    """Classify opinions with a pool of ``workers`` threads. Any failure aborts with the failed arg-ids.
 
-        results: list[dict[str, bool]] = [{} for _ in texts]
-        failures: dict[str, str] = {}
-        for arg_id, future in zip(arg_ids, futures, strict=True):
-            try:
-                labels, token_input, token_output, token_total = future.result()
-            except InvalidClassificationResponse:
-                failures[arg_id] = "invalid_response"
-                continue
-            except Exception as exc:
-                failures[arg_id] = type(exc).__name__
-                continue
+    空いた worker にはすぐ次の意見を渡し、結果は入力順に返す。失敗を検知したら新しい要求は
+    出さず、実行中の要求の完了を待ってから ClassificationBatchError を送出する。
+    進捗（on_progress）は workers 件の完了ごとにまとめて呼ぶ。
+    """
+
+    def run(text: str):
+        return classify_argument(
+            text, prompt, label_ids, model, provider, local_llm_address, timeout_seconds, user_api_key
+        )
+
+    results: list[dict[str, bool]] = [{} for _ in texts]
+    failures: dict[str, str] = {}
+    flush_every = max(1, int(workers))
+    completed = 0
+    # 1 リクエストの上限は SDK に渡す timeout_seconds が担う。プール側で同じ値の
+    # 待機上限を重ねると、遅れて成功した応答まで TimeoutError として捨ててしまう。
+    for index, future in iter_pool_completed(run, texts, workers, stop=lambda: bool(failures)):
+        arg_id = arg_ids[index]
+        try:
+            labels, token_input, token_output, token_total = future.result()
+        except InvalidClassificationResponse:
+            failures[arg_id] = "invalid_response"
+        except Exception as exc:
+            failures[arg_id] = type(exc).__name__
+        else:
             record_usage(config, token_input, token_output, token_total)
-            results[arg_ids.index(arg_id)] = labels
+            results[index] = labels
+        completed += 1
+        if completed >= flush_every:
+            if on_progress is not None:
+                on_progress(completed)
+            completed = 0
+    if completed and on_progress is not None:
+        on_progress(completed)
 
     if failures:
         raise ClassificationBatchError(failures)
@@ -181,26 +186,21 @@ def opinion_classification(config: dict) -> None:
     texts = [str(value) for value in arguments["argument"].to_list()]
     update_progress(config, total=len(arg_ids))
 
-    rows: list[dict[str, bool]] = []
-    for start in range(0, len(arg_ids), workers):
-        batch_ids = arg_ids[start : start + workers]
-        batch_texts = texts[start : start + workers]
-        rows.extend(
-            classify_batch(
-                batch_ids,
-                batch_texts,
-                prompt,
-                label_ids,
-                model,
-                workers,
-                provider,
-                config.get("local_llm_address"),
-                config,
-                timeout_seconds,
-                user_api_key,
-            )
-        )
-        update_progress(config, incr=len(batch_ids))
+    # 全件を 1 つのプール（workers 本）で回す（バッチの最も遅い 1 件を待たない）
+    rows = classify_batch(
+        arg_ids,
+        texts,
+        prompt,
+        label_ids,
+        model,
+        workers,
+        provider,
+        config.get("local_llm_address"),
+        config,
+        timeout_seconds,
+        user_api_key,
+        on_progress=lambda count: update_progress(config, incr=count),
+    )
 
     write_classifications(f"{output_base_dir}/{dataset}/{CLASSIFICATIONS_FILENAME}", arg_ids, rows, label_ids)
     summary = build_summary(rows, label_ids, provider=provider, model=model)
