@@ -11,7 +11,7 @@ jest.mock("./actions", () => ({ duplicateReport: jest.fn() }));
 jest.mock("@/components/ui/toaster", () => ({ toaster: { create: jest.fn() } }));
 const serverCatalog = require("../../../../../api/src/services/model_catalog.json");
 
-it("複製画面も廃止済み設定を保ち、新モデルを未確認で選択できる", async () => {
+it("複製画面も廃止済み設定を保ち、未検証と検証済みモデルを区別する", async () => {
   global.fetch = jest.fn(async (url) => {
     if (String(url).endsWith("/config"))
       return {
@@ -51,6 +51,9 @@ it("複製画面も廃止済み設定を保ち、新モデルを未確認で選�
   await waitFor(() => expect(model).toBeDisabled());
   expect(provider).toBeEnabled();
   await user.selectOptions(provider, "openai");
-  await screen.findByRole("option", { name: "GPT-5.6 Luna（動作未確認）" });
+  await screen.findByRole("option", { name: "GPT-5.6 Luna" });
   expect(model).toBeEnabled();
+  await user.selectOptions(model, "gpt-5.6-luna");
+  expect(model).toHaveValue("gpt-5.6-luna");
+  expect(screen.getByRole("option", { name: "o3-mini（提供終了・再選択してください）" })).toBeDisabled();
 });

@@ -89,7 +89,7 @@ it("OpenAIからAzureへ切り替えると固定表示になり、戻すとモ�
   render(<Settings />);
   const provider = screen.getByRole("combobox", { name: "AIプロバイダー" });
   const model = screen.getByRole("combobox", { name: "AIモデル" });
-  await screen.findByRole("option", { name: /GPT-4o（/ });
+  await screen.findByRole("option", { name: "GPT-4o" });
   await user.selectOptions(model, "gpt-4o");
   expect(model).toHaveValue("gpt-4o");
   await user.selectOptions(provider, "azure");
@@ -97,10 +97,19 @@ it("OpenAIからAzureへ切り替えると固定表示になり、戻すとモ�
   expect(model).toHaveDisplayValue("サーバー設定を使用");
   await user.selectOptions(provider, "openai");
   expect(model).toBeEnabled();
-  await screen.findByRole("option", { name: /o3-mini/ });
-  await user.selectOptions(model, "o3-mini");
-  expect(model).toHaveValue("o3-mini");
+  await screen.findByRole("option", { name: "GPT-5.6 Terra" });
+  await user.selectOptions(model, "gpt-5.6-terra");
+  expect(model).toHaveValue("gpt-5.6-terra");
   expect(screen.queryByText(/Azure OpenAIでは/)).not.toBeInTheDocument();
+});
+
+it("検証済みの4モデルに未検証表示を付けず、提供終了モデルは選択できない", async () => {
+  render(<Settings />);
+  const model = screen.getByRole("combobox", { name: "AIモデル" });
+  for (const label of ["GPT-4o mini", "GPT-4o", "GPT-5.6 Terra", "GPT-5.6 Luna"]) {
+    expect(await within(model).findByRole("option", { name: label })).toBeEnabled();
+  }
+  expect(within(model).getByRole("option", { name: "o3-mini（提供終了・再選択してください）" })).toBeDisabled();
 });
 
 it("埋め込みモデルをチャットモデルとは別に選択でき、チャット一覧には混ざらない", async () => {

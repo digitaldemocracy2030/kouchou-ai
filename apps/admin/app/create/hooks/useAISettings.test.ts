@@ -16,23 +16,27 @@ beforeEach(() => {
   });
 });
 
-it("保存済みの提供終了モデルを置換せず再選択を求める", async () => {
-  window.localStorage.setItem("kouchou_ai_provider", JSON.stringify("gemini"));
-  window.localStorage.setItem("kouchou_ai_model", JSON.stringify("gemini-1.5-pro"));
+it.each([
+  ["gemini", "gemini-1.5-pro", "gemini-3.8-flash"],
+  ["openai", "o3-mini", "gpt-4o-mini"],
+])("保存済みの提供終了モデル %s/%s を置換せず再選択を求める", async (provider, model, replacement) => {
+  window.localStorage.setItem("kouchou_ai_provider", JSON.stringify(provider));
+  window.localStorage.setItem("kouchou_ai_model", JSON.stringify(model));
   const { result } = renderHook(() => useAISettings());
   await waitFor(() => expect(result.current.modelError).toContain("再選択"));
-  expect(result.current.model).toBe("gemini-1.5-pro");
+  expect(result.current.model).toBe(model);
   act(() =>
-    result.current.handleModelChange({ target: { value: "gemini-3.8-flash" } } as React.ChangeEvent<HTMLSelectElement>),
+    result.current.handleModelChange({ target: { value: replacement } } as React.ChangeEvent<HTMLSelectElement>),
   );
   expect(result.current.modelError).toBe("");
 });
 
 it("未検証モデルを保存して再読込しても選択可能", async () => {
-  window.localStorage.setItem("kouchou_ai_model", JSON.stringify("gpt-5.6-terra"));
+  window.localStorage.setItem("kouchou_ai_provider", JSON.stringify("gemini"));
+  window.localStorage.setItem("kouchou_ai_model", JSON.stringify("gemini-3.8-flash"));
   const { result } = renderHook(() => useAISettings());
   await waitFor(() => expect(result.current.modelError).toBe(""));
-  expect(result.current.model).toBe("gpt-5.6-terra");
+  expect(result.current.model).toBe("gemini-3.8-flash");
   expect(result.current.getCurrentModels().find((m) => m.value === result.current.model)?.verified).toBe(false);
 });
 
