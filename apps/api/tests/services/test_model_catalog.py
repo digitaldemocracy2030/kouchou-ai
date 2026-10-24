@@ -17,13 +17,32 @@ def _fixed_today(year, month, day):
     return FixedDate
 
 
-def test_requested_models_are_selectable_but_unverified(monkeypatch):
+def test_verified_openai_models_are_selectable_with_evidence(client):
+    from src.routers.admin_report import verify_admin_api_key
+
+    client.app.dependency_overrides[verify_admin_api_key] = lambda: "test"
+    try:
+        response = client.get("/admin/models?provider=openai")
+        assert response.status_code == 200
+        rows = {row["value"]: row for row in response.json()}
+        for model in ("gpt-4o-mini", "gpt-4o", "gpt-5.6-terra", "gpt-5.6-luna"):
+            assert rows[model]["verified"] is True
+            assert rows[model]["available"] is True
+            assert rows[model]["deprecated"] is False
+            assert rows[model]["verification_source"] == (
+                "https://github.com/digitaldemocracy2030/kouchou-ai/issues/912#issuecomment-6381103311"
+            )
+        assert rows["o3-mini"]["available"] is False
+        assert rows["o3-mini"]["deprecated"] is True
+        assert rows["o3-mini"]["verified"] is False
+    finally:
+        client.app.dependency_overrides.pop(verify_admin_api_key, None)
+
+
+def test_requested_gemini_models_are_selectable_but_unverified(monkeypatch):
     # 単価には適用期限 (valid_until) があるので、単価を確認した日に固定して実行日に依存させない
     monkeypatch.setattr("src.services.model_catalog.date", _fixed_today(2026, 9, 8))
-    for provider, ids in (
-        ("openai", ["gpt-5.6-terra", "gpt-5.6-luna"]),
-        ("gemini", ["gemini-3.8-flash", "gemini-3.5-flash-lite"]),
-    ):
+    for provider, ids in (("gemini", ["gemini-3.8-flash", "gemini-3.5-flash-lite"]),):
         for model in ids:
             row = next(r for r in models_for_provider(provider) if r["value"] == model)
             assert row["available"] is True
@@ -166,7 +185,7 @@ def test_api_delivers_verification_and_nullable_price(client):
         response = client.get("/admin/models?provider=openai")
         assert response.status_code == 200
         row = next(r for r in response.json() if r["value"] == "gpt-5.6-terra")
-        assert row["verified"] is False
+        assert row["verified"] is True
         assert row["available"] is True
         assert row["price"]["input"] == 2
         assert client.get("/admin/llm-pricing").json()["azure"]["azure-server"] is None
