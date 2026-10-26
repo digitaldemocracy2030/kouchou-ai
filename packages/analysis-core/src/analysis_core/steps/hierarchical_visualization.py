@@ -134,7 +134,6 @@ def build_html(
 
     data = dict(data)
     data["arguments"] = [{**a, "url": _resolve_url(a)} for a in args]
-    args = data["arguments"]
 
     tree_html = _render_tree(data)
     embedded = _safe_inline_json(data)
