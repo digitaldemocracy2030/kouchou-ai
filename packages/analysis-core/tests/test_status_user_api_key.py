@@ -22,7 +22,11 @@ def test_update_status_does_not_write_user_api_key(tmp_path):
     config = {
         "output_dir": "demo",
         "user_api_key": SECRET,
-        "previous": {"user_api_key": SECRET, "status": "completed"},
+        "previous": {
+            "user_api_key": SECRET,
+            "status": "completed",
+            "completed_jobs": [{"step": "extraction", "params": {"user_api_key": SECRET}}],
+        },
     }
 
     update_status(config, {"status": "running"}, tmp_path)
@@ -31,7 +35,9 @@ def test_update_status_does_not_write_user_api_key(tmp_path):
     assert SECRET not in status_text
     status = json.loads(status_text)
     assert status["status"] == "running"
-    assert status["previous"] == {"status": "completed"}
+    # previous は入れ子にせず previously_completed_jobs に畳む。その中のキーも除く
+    assert "previous" not in status
+    assert status["previously_completed_jobs"] == [{"step": "extraction", "params": {}}]
     # ステップに渡すためのメモリ上の config からは消さない
     assert config["user_api_key"] == SECRET
     assert config["previous"]["user_api_key"] == SECRET
@@ -74,7 +80,7 @@ def test_update_progress_with_legacy_config_keeps_orchestrator_status(tmp_path):
     assert status["status"] == "running"
     assert status["current_job"] == "extraction"
     assert status["plan"] == main_config["plan"]
-    assert status["previous"] == main_config["previous"]
+    assert status["previously_completed_jobs"] == [{"step": "extraction"}]
     assert status["completed_jobs"] == []
     assert status["current_jop_tasks"] == 4
     assert status["current_job_progress"] == 3
@@ -186,7 +192,7 @@ def test_initialization_skips_api_key_validation_when_only_aggregation_runs(tmp_
 
     for name in ("OPENAI_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "USER_API_KEY"):
         monkeypatch.setenv(name, "")
-    monkeypatch.setattr("analysis_core.core.orchestration.load_dotenv", lambda **_: None)
+    monkeypatch.setattr("analysis_core.core.orchestration.load_env_file", lambda **_: None)
 
     config = initialization(
         config_path=_write_job_config(tmp_path, provider),
@@ -205,7 +211,7 @@ def test_initialization_still_validates_api_keys_when_llm_step_runs(tmp_path, mo
 
     monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("USER_API_KEY", "")
-    monkeypatch.setattr("analysis_core.core.orchestration.load_dotenv", lambda **_: None)
+    monkeypatch.setattr("analysis_core.core.orchestration.load_env_file", lambda **_: None)
 
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
         initialization(
@@ -225,7 +231,7 @@ def test_from_dict_skips_api_key_validation_when_plan_has_no_llm_step(tmp_path, 
 
     monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("USER_API_KEY", "")
-    monkeypatch.setattr("analysis_core.core.orchestration.load_dotenv", lambda **_: None)
+    monkeypatch.setattr("analysis_core.core.orchestration.load_env_file", lambda **_: None)
     plan = [
         {"step": "extraction", "run": False, "reason": "forced another step with -o"},
         {"step": "hierarchical_aggregation", "run": True, "reason": "forced this step with -o"},
