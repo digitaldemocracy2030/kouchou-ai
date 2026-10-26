@@ -110,7 +110,13 @@ def initial_labelling(
         local_llm_address=local_llm_address,
         config=config,  # configを渡す
     )
-    results = run_labelling_batch(process_func, cluster_ids, workers, "hierarchical_initial_labelling")
+    results = run_labelling_batch(
+        process_func,
+        cluster_ids,
+        workers,
+        "hierarchical_initial_labelling",
+        secrets=((config or {}).get("user_api_key"),),
+    )
     return pl.DataFrame(results)
 
 

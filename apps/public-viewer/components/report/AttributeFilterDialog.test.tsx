@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom";
 import { Provider } from "@/components/ui/provider";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { AttributeFilterDialog } from "./AttributeFilterDialog";
 import type { AttributeMeta, NumericRangeFilters } from "./attributeFilterUtils";
@@ -109,5 +110,30 @@ describe("AttributeFilterDialog の数値範囲入力", () => {
     const { minInput, maxInput } = await renderDialog({ age: [25, 40] });
     expect(minInput.value).toBe("25");
     expect(maxInput.value).toBe("40");
+  });
+});
+
+describe("AttributeFilterDialog の属性 0 件の案内", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it.each([
+    ["en", "This report has no attributes available for filtering."],
+    ["ko", "이 보고서에는 필터링에 사용할 수 있는 속성 정보가 없습니다."],
+  ])("%s でも閲覧者向けの文言を出す（作成者向けの CSV の案内は出さない）", async (lang, expected) => {
+    window.history.replaceState(null, "", `/report?lang=${lang}`);
+    render(
+      <Provider>
+        <LanguageProvider>
+          <AttributeFilterDialog attributes={[]} onApplyFilters={() => {}} onClose={() => {}} />
+        </LanguageProvider>
+      </Provider>,
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.getByText(expected)).toBeInTheDocument();
+    expect(screen.queryByText(/CSV/)).not.toBeInTheDocument();
   });
 });

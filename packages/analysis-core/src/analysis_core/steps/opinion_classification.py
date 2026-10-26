@@ -8,6 +8,7 @@ the analysis; the labels only add information.
 """
 
 import json
+import logging
 import os
 from collections.abc import Callable
 from typing import Any
@@ -16,6 +17,7 @@ import polars as pl
 from pydantic import BaseModel, create_model
 
 from analysis_core.core import update_progress
+from analysis_core.services.error_summary import summarize_exception
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
 from analysis_core.steps._labelling import record_usage
@@ -117,10 +119,13 @@ def classify_batch(
         arg_id = arg_ids[index]
         try:
             labels, token_input, token_output, token_total = future.result()
-        except InvalidClassificationResponse:
+        except InvalidClassificationResponse as exc:
             failures[arg_id] = "invalid_response"
+            logging.error("意見分類に失敗しました。意見 %s: %s", arg_id, summarize_exception(exc, (user_api_key,)))
         except Exception as exc:
+            # status には分類名（型名）だけを残し、理由は秘密情報を伏せて通常ログに出す
             failures[arg_id] = type(exc).__name__
+            logging.error("意見分類に失敗しました。意見 %s: %s", arg_id, summarize_exception(exc, (user_api_key,)))
         else:
             record_usage(config, token_input, token_output, token_total)
             results[index] = labels

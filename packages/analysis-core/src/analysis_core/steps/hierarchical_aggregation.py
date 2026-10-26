@@ -10,6 +10,7 @@ import polars as pl
 
 from analysis_core.core.utils import atomic_output_path, read_input_csv, write_json_atomic
 from analysis_core.steps.extraction import filter_empty_comments
+from analysis_core.steps.hierarchical_translation import TRANSLATIONS_FILENAME, fresh_translations
 
 
 def json_serialize_numpy(obj: Any) -> Any:
@@ -132,7 +133,6 @@ def hierarchical_aggregation(config) -> bool:
         #     comments, arguments, hidden_properties_map
         # )
         results["comment_num"] = len(comments)
-        results["translations"] = _build_translations(config)
         # 属性情報のカラムは、元データに対して指定したカラムとclassificationするカテゴリを合わせたもの
         results["propertyMap"] = _build_property_map(arguments, comments, hidden_properties_map, config)
 
@@ -147,6 +147,8 @@ def hierarchical_aggregation(config) -> bool:
         results = json_serialize_numpy(results)
         # TODO: サンプリングロジックを実装したいが、現状は全件抽出
         results["config"]["intro"] = create_custom_intro(config)
+        # 訳は原文（ラベル・概要・イントロなど）が確定してから、それに合うものだけを入れる
+        results["translations"] = _build_translations(config, results)
 
         # 公開 API が読み続けるファイルなので、一時ファイルに書いてから差し替え、1 回で書き終える
         write_json_atomic(path, results)
@@ -477,15 +479,25 @@ def _build_comments_value(
     return comment_dict
 
 
-def _build_translations(config):
+def _build_translations(config, results):
+    """出力ディレクトリの translations.json から、今の原文に合う訳を取り出す。
+
+    kouchou-translate は訳を translations.json にも残す。集計は hierarchical_result.json を毎回作り直すので、
+    ここで読み直さないと、編集後の再集計で訳が消える。原文が変わった項目の訳は fresh_translations が落とす。
+    """
     output_base_dir = config.get("_output_base_dir", "outputs")
+    path = f"{output_base_dir}/{config['output_dir']}/{TRANSLATIONS_FILENAME}"
 
     languages = list(config.get("translation", {}).get("languages", []))
-    if len(languages) > 0:
-        with open(f"{output_base_dir}/{config['output_dir']}/translations.json", encoding="utf-8") as f:
-            translations = f.read()
-        return json.loads(translations)
-    return {}
+    if not os.path.exists(path):
+        if len(languages) > 0:
+            raise FileNotFoundError(f"config.translation.languages is set but {path} does not exist")
+        return {}
+    with open(path, encoding="utf-8") as f:
+        stored = json.load(f)
+    if not isinstance(stored, dict):
+        return {}
+    return fresh_translations(stored, results)
 
 
 def _build_property_map(

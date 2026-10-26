@@ -186,6 +186,33 @@ class TestVerifyApiKey:
             assert call.call_args.kwargs["timeout_seconds"] == 30
 
     @pytest.mark.parametrize(
+        ("address", "expected_api_key"),
+        [
+            ("https://gateway.example.com", "gateway-token"),
+            ("https://gateway.example.co", "not-needed"),
+        ],
+    )
+    def test_verify_local_sends_key_only_to_allowed_base_urls(self, client, monkeypatch, address, expected_api_key):
+        """接続確認もモデル一覧・パイプラインと同じ規則で LOCAL_LLM_API_KEY を付ける"""
+        from unittest.mock import MagicMock
+
+        monkeypatch.setenv("LOCAL_LLM_API_KEY", "gateway-token")
+        monkeypatch.setenv("LOCAL_LLM_ALLOWED_BASE_URLS", "https://gateway.example.com")
+        llm_client = MagicMock()
+        llm_client.chat.completions.create.return_value = MagicMock(
+            usage=None, choices=[MagicMock(message=MagicMock(content="ok"))]
+        )
+        with patch("analysis_core.services.llm.OpenAI", return_value=llm_client) as openai_cls:
+            response = client.get(
+                "/admin/environment/verify",
+                params={"provider": "local", "model": "llama3", "local_llm_address": address},
+                headers={"x-api-key": "test-api-key"},
+            )
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        assert openai_cls.call_args.kwargs["api_key"] == expected_api_key
+
+    @pytest.mark.parametrize(
         "params",
         [
             {"provider": "unknown"},

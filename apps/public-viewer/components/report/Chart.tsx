@@ -2,6 +2,7 @@ import { ScatterLevelSwitch } from "@/components/charts/ScatterLevelSwitch";
 import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins";
 import type { ChartRenderContext } from "@/components/charts/plugins/types";
 import { FullscreenToolbar } from "@/components/report/FullscreenToolbar";
+import { LanguageToggle } from "@/components/report/LanguageToggle";
 import type { ChartType, Result } from "@/type";
 import { Box, Dialog, Portal } from "@chakra-ui/react";
 
@@ -100,6 +101,8 @@ export function Chart({
                       disabledModeOverrides={disabledModeOverrides}
                     />
                   )}
+                  {/* 全画面のまま表示言語を切り替えられるようにする（通常表示の切替と状態を共有） */}
+                  <LanguageToggle size="sm" />
                 </FullscreenToolbar>
                 <Box w="100%" flex="1" minH={0} overflow={selectedChart === "hierarchyList" ? "auto" : "hidden"}>
                   {plugin?.render(renderContext)}

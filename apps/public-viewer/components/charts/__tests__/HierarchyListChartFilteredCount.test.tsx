@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom";
 import { Provider } from "@/components/ui/provider";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import type { Argument, Cluster } from "@/type";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { HierarchyListChart } from "../HierarchyListChart";
@@ -82,6 +83,28 @@ describe("HierarchyListChart のクラスタ件数", () => {
     expect(screen.getByText("(4件)")).toBeInTheDocument();
     expect(screen.getByText("(3件)")).toBeInTheDocument();
     expect(screen.getByText("(1件)")).toBeInTheDocument();
+    expect(screen.queryByText(/フィルター後/)).not.toBeInTheDocument();
+  });
+});
+
+describe("HierarchyListChart のクラスタ件数（表示言語）", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("英語ではフィルター後・全件の件数も英語で出す", async () => {
+    window.history.replaceState(null, "", "/report?lang=en");
+    render(
+      <Provider>
+        <LanguageProvider>
+          <HierarchyListChart clusterList={clusters} argumentList={args} filteredArgumentIds={["A1", "A4"]} />
+        </LanguageProvider>
+      </Provider>,
+    );
+    fireEvent.click(screen.getAllByLabelText("Expand")[0]);
+    fireEvent.click(screen.getByText(/Show child groups/));
+
+    expect(screen.getByText("(2 after filter / 4 total)")).toBeInTheDocument();
     expect(screen.queryByText(/フィルター後/)).not.toBeInTheDocument();
   });
 });

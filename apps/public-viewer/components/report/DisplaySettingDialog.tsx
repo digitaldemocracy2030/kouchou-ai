@@ -1,6 +1,7 @@
 import { DialogBody, DialogCloseTrigger, DialogContent, DialogFooter, DialogRoot } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { useMessages } from "@/lib/i18n/LanguageContext";
 import { Box, Button, HStack, Spacer, Text } from "@chakra-ui/react";
 import { useState } from "react";
 
@@ -25,6 +26,7 @@ export function DisplaySettingDialog({
   showConvexHull = true,
   onToggleConvexHull,
 }: Props) {
+  const messages = useMessages();
   const [maxDensity, setMaxDensity] = useState(currentMaxDensity);
   const [minValue, setMinValue] = useState(currentMinValue);
 
@@ -40,14 +42,14 @@ export function DisplaySettingDialog({
           {/* 全体に影響する設定 */}
           <Box mb={6} mt={4}>
             <Text fontWeight="bold" mb={2} fontSize="md">
-              表示設定
+              {messages.displaySettings}
             </Text>
             <Text fontSize="sm" mb={5}>
-              「全体図」「詳細クラスタ」および「濃い意見グループ」に関する設定項目です。
+              {messages.displaySettingsDescription}
             </Text>
             <Box p={2} borderRadius="md" borderWidth="1px" borderColor="gray.200" mb={2}>
               <HStack gap={2} alignItems="center">
-                <Text fontSize="sm">意見グループ名を表示</Text>
+                <Text fontSize="sm">{messages.showClusterLabels}</Text>
                 <Spacer />
                 <Switch
                   checked={showClusterLabels}
@@ -58,7 +60,7 @@ export function DisplaySettingDialog({
             </Box>
             <Box p={2} borderRadius="md" borderWidth="1px" borderColor="gray.200" mb={2}>
               <HStack gap={2} alignItems="center">
-                <Text fontSize="sm">意見グループの境界線を表示</Text>
+                <Text fontSize="sm">{messages.showConvexHull}</Text>
                 <Spacer />
                 <Switch checked={showConvexHull} onChange={() => onToggleConvexHull?.(!showConvexHull)} size="sm" />
               </HStack>
@@ -71,13 +73,13 @@ export function DisplaySettingDialog({
           {/* 濃い意見グループに関する設定 */}
           <Box mb={4}>
             <Text fontWeight="bold" mb={2} fontSize="md">
-              濃い意見グループ設定
+              {messages.denseSettings}
             </Text>
             <Text fontSize="sm" mb={5}>
-              「濃い意見グループ」に関する設定項目です。
+              {messages.denseSettingsDescription}
             </Text>
             <Slider
-              label={`上位何％の意見グループを表示するか: ${maxDensity * 100}%`}
+              label={messages.densityPercentLabel(maxDensity * 100)}
               step={0.1}
               min={0.1}
               max={1}
@@ -91,7 +93,7 @@ export function DisplaySettingDialog({
           </Box>
           <Box>
             <Slider
-              label={`意見グループのサンプル数の最小数: ${minValue}`}
+              label={messages.minSamplesLabel(minValue)}
               step={1}
               min={0}
               max={10}
@@ -107,7 +109,7 @@ export function DisplaySettingDialog({
         <DialogFooter justifyContent={"space-between"}>
           <Spacer />
           <Box>
-            <Button onClick={onApply}>設定を適用</Button>
+            <Button onClick={onApply}>{messages.apply}</Button>
           </Box>
         </DialogFooter>
         <DialogCloseTrigger />

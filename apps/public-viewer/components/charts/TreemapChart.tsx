@@ -1,16 +1,11 @@
 import { toIdSet } from "@/lib/argumentIndex";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { type Messages, getMessages } from "@/lib/i18n/messages";
 import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
 import type { Argument, Cluster } from "@/type";
 import type { Layout, TreemapData } from "plotly.js";
 import { useCallback, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
-
-// Plotly の設定。参照を安定させて、再描画のたびに Plotly.react が走らないようにする
-const PLOTLY_CONFIG = {
-  responsive: true,
-  displayModeBar: false,
-  locale: "ja",
-};
 
 type Props = {
   clusterList: Cluster[];
@@ -30,6 +25,7 @@ export function buildTreemapFigure(
   argumentList: Argument[],
   level: string,
   filteredArgumentIds: string[] | undefined,
+  messages: Messages = getMessages("ja"),
 ): { data: Partial<TreemapData>; layout: Partial<Layout> } {
   // フィルタリングが有効かどうかをチェック
   const isFilteringActive = !!filteredArgumentIds;
@@ -101,7 +97,7 @@ export function buildTreemapFigure(
       const filteredCount = clusterCounts[node.id];
 
       if (filteredCount < originalCount) {
-        takeaway = `${takeaway}<br><br>元の件数: ${originalCount}<br>フィルター後: ${filteredCount}`;
+        takeaway = `${takeaway}<br><br>${messages.originalCount}: ${originalCount}<br>${messages.afterFilterCount}: ${filteredCount}`;
       }
     }
 
@@ -142,9 +138,7 @@ export function buildTreemapFigure(
     hoverlabel: {
       align: "left",
     },
-    texttemplate: isFilteringActive
-      ? "%{label}<br>%{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}"
-      : "%{label}<br>%{value:,}件<br>全意見の %{percentRoot:.2%}",
+    texttemplate: isFilteringActive ? messages.treemapTextFiltered : messages.treemapText,
     maxdepth: TREEMAP_MAX_DEPTH,
     pathbar: {
       thickness: 28,
@@ -176,11 +170,14 @@ export function buildTreemapFigure(
  * onTreeZoomへ通知して、React側の表示階層と説明を同期する。
  */
 export function TreemapChart({ clusterList, argumentList, onHover, level, onTreeZoom, filteredArgumentIds }: Props) {
+  const { language, messages } = useLanguage();
   // react-plotly は data・layout・config のどれかの参照が変わると Plotly.react で描き直すので、どれも memo して渡す
   const figure = useMemo(
-    () => buildTreemapFigure(clusterList, argumentList, level, filteredArgumentIds),
-    [clusterList, argumentList, level, filteredArgumentIds],
+    () => buildTreemapFigure(clusterList, argumentList, level, filteredArgumentIds, messages),
+    [clusterList, argumentList, level, filteredArgumentIds, messages],
   );
+  // Plotly の設定。参照を安定させて、再描画のたびに Plotly.react が走らないようにする（言語の切替時だけ作り直す）
+  const plotlyConfig = useMemo(() => ({ responsive: true, displayModeBar: false, locale: language }), [language]);
   const data = useMemo(() => [figure.data], [figure]);
 
   // react-plotly はイベントハンドラを、描画データが変わって描き直すときにしか付け替えない。
@@ -204,7 +201,7 @@ export function TreemapChart({ clusterList, argumentList, onHover, level, onTree
       layout={figure.layout}
       useResizeHandler={true}
       style={{ width: "100%", height: "100%" }}
-      config={PLOTLY_CONFIG}
+      config={plotlyConfig}
       onUpdate={darkenPathbar}
       onUnhover={darkenPathbar}
       onHover={handleHover}

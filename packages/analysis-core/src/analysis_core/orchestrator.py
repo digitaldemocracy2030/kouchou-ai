@@ -343,7 +343,10 @@ class PipelineOrchestrator:
             get_specs_path_for_mode,
             load_specs,
             plan_requires_api_key,
+            plan_runs_step,
+            resolve_user_api_key,
             validate_api_keys,
+            validate_embedding_keys,
         )
 
         # Normalize config with defaults
@@ -376,9 +379,14 @@ class PipelineOrchestrator:
         else:
             normalized["plan"] = decide_what_to_run(normalized, previous, specs, output_base)
 
-        # Validate API keys early (fail-fast) when the plan calls the LLM / embedding API
+        # Validate API keys early (fail-fast) when the plan calls the LLM / embedding API.
+        # Same key resolution as the steps themselves (config, then USER_API_KEY).
         if plan_requires_api_key(normalized["plan"], specs):
-            validate_api_keys(normalized.get("provider", "openai"), normalized.get("user_api_key"))
+            provider = normalized.get("provider", "openai")
+            user_api_key = resolve_user_api_key(normalized)
+            validate_api_keys(provider, user_api_key)
+            if plan_runs_step(normalized["plan"], "embedding"):
+                validate_embedding_keys(provider, bool(normalized.get("is_embedded_at_local", False)), user_api_key)
 
         return cls(
             config=normalized,

@@ -1,7 +1,8 @@
 import "@testing-library/jest-dom";
 import { Provider } from "@/components/ui/provider";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import type { Result } from "@/type";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import fixture from "../dev/viewer-fixture.json";
 import { Chart } from "./Chart";
 
@@ -85,5 +86,83 @@ describe("全画面の粒度切替が選べるモードの判定", () => {
     const { filtered } = resultWithoutDeepestLevel();
     await renderFullscreen({ result: filtered });
     expect(screen.getByRole("button", { name: "詳細クラスタ" })).toBeDisabled();
+  });
+});
+
+describe("全画面ツールバーの言語切替", () => {
+  const result = {
+    arguments: [],
+    clusters: [{ level: 1, id: "1", label: "交通", takeaway: "", value: 1, parent: "0", density_rank_percentile: 0 }],
+    comments: {},
+    propertyMap: {},
+    translations: {},
+    overview: "",
+    config: {},
+    comment_num: 0,
+  } as unknown as Result;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, "", "/report-1");
+  });
+
+  it("全画面表示のツールバーに言語切替があり、全画面のまま切り替えられる", () => {
+    render(
+      <Provider>
+        <LanguageProvider>
+          <Chart
+            result={result}
+            selectedChart="scatterAll"
+            isFullscreen
+            onExitFullscreen={() => {}}
+            showClusterLabels
+            onToggleClusterLabels={() => {}}
+            showConvexHull
+            treemapLevel="0"
+            onTreeZoom={() => {}}
+          />
+        </LanguageProvider>
+      </Provider>,
+    );
+    const toolbar = document.getElementById("fullScreenButtons");
+    expect(toolbar).not.toBeNull();
+    expect(toolbar).toContainElement(screen.getByTestId("language-toggle"));
+    expect(toolbar).toContainElement(screen.getByRole("button", { name: "全画面終了" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "한국어" }));
+
+    expect(toolbar).toContainElement(screen.getByRole("button", { name: "전체 화면 종료" }));
+    expect(screen.getByTestId("scatter")).toBeInTheDocument();
+    expect(window.location.search).toBe("?lang=ko");
+  });
+
+  it("全画面の粒度切替のボタン名も、全画面のまま表示言語に合わせて変わる", async () => {
+    render(
+      <Provider>
+        <LanguageProvider>
+          <Chart
+            result={structuredClone(fixture) as unknown as Result}
+            selectedChart="scatterAll"
+            isFullscreen
+            onExitFullscreen={() => {}}
+            onChangeChart={() => {}}
+            showClusterLabels
+            onToggleClusterLabels={() => {}}
+            showConvexHull
+            treemapLevel="0"
+            onTreeZoom={() => {}}
+          />
+        </LanguageProvider>
+      </Provider>,
+    );
+    await flush();
+    expect(screen.getByRole("group", { name: "クラスタの粒度" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "詳細クラスタ" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.getByRole("group", { name: "Cluster granularity" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Detailed clusters" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "詳細クラスタ" })).not.toBeInTheDocument();
   });
 });

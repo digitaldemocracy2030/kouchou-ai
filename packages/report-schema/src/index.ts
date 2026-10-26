@@ -184,6 +184,31 @@ export type ClusterUpdate = {
 export type Comments = Record<string, { comment: string }>;
 
 /**
+ * レポート本文の翻訳（1言語分）。analysis-core の translate CLI が生成する。
+ * 各フィールドは省略可能で、無い文言は元の言語で表示する。
+ */
+export type ReportTranslation = {
+  /** クラスタID → ラベル・説明の訳 */
+  clusters?: Record<string, { label?: string; takeaway?: string }>;
+  /** 概要の訳 */
+  overview?: string;
+  /** 問いの訳 */
+  question?: string;
+  /** イントロの訳 */
+  intro?: string;
+  /** 意見ID → 訳（費用が大きいので既定では生成しない） */
+  arguments?: Record<string, string>;
+  /** 生成に使ったモデル等（表示には使わない） */
+  meta?: Record<string, unknown>;
+};
+
+/**
+ * 翻訳情報。キーは言語コード（"en", "ko" など）。
+ * 値は ReportTranslation か、Talk to the City 由来の旧形式（元の文字列 → 訳文）。
+ */
+export type ReportTranslations = Record<string, ReportTranslation | Record<string, string>>;
+
+/**
  * 分析結果
  */
 export type Result = {
@@ -195,8 +220,8 @@ export type Result = {
   comments: Comments;
   /** プロパティマッピング情報 */
   propertyMap: Record<string, unknown>;
-  /** 翻訳情報 */
-  translations: Record<string, unknown>;
+  /** 翻訳情報（言語コードごと。無い・空なら元の言語だけ表示する） */
+  translations?: ReportTranslations;
   /** 解析概要 */
   overview: string;
   /** 設定情報 */
@@ -392,12 +417,7 @@ export type JaLocaleType = {
  * 利用可能なチャートタイプ
  * 既知のID + プラグインで追加される任意ID
  */
-export type ChartType =
-  | "scatterAll"
-  | "scatterDensity"
-  | "treemap"
-  | "hierarchyList"
-  | (string & {});
+export type ChartType = "scatterAll" | "scatterDensity" | "treemap" | "hierarchyList" | (string & {});
 
 /**
  * 散布図密度設定のパラメータ

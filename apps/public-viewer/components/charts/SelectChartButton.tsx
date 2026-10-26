@@ -1,5 +1,7 @@
 import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useMessages } from "@/lib/i18n/LanguageContext";
+import type { Messages } from "@/lib/i18n/messages";
 import type { ChartType, Result } from "@/type";
 import { Box, Button, HStack, Icon, SegmentGroup, Stack } from "@chakra-ui/react";
 import { CogIcon, Filter, FullscreenIcon } from "lucide-react";
@@ -80,6 +82,18 @@ export function resolveChartModes(
   });
 }
 
+/**
+ * モード名と無効時の説明を表示言語の辞書で上書きする。通常のモード選択と全画面の粒度切替で共有する。
+ * 組み込みモードは messages を優先し、外部プラグインは manifest の文言（mode.label / mode.tooltip）をそのまま使う。
+ */
+export function localizeChartMode(mode: ResolvedChartMode, messages: Messages): ResolvedChartMode {
+  return {
+    ...mode,
+    label: messages.chartModes[mode.id] ?? mode.label,
+    tooltip: mode.isDisabled ? (messages.chartModeDisabled[mode.id] ?? mode.tooltip) : undefined,
+  };
+}
+
 const SegmentItemWithIcon = (icon: ComponentType, text: string, selected: boolean) => {
   return (
     <Stack
@@ -117,15 +131,19 @@ export function SelectChartButton({
   showAttentionFilterBadge,
   attentionFilterBadgeCount,
 }: Props) {
+  const messages = useMessages();
   // Generate items from plugin registry, filtered by enabledCharts
   const items = useMemo(() => {
-    return resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides).map((mode) => ({
-      value: mode.id,
-      label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id),
-      isDisabled: mode.isDisabled,
-      tooltip: mode.tooltip,
-    }));
-  }, [selected, result, disabledModeOverrides, enabledCharts, chartOrder]);
+    // resolveChartModes で並び順・無効判定を一元化し、文言だけ表示言語の辞書で上書きする。
+    return resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides)
+      .map((mode) => localizeChartMode(mode, messages))
+      .map((mode) => ({
+        value: mode.id,
+        label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id),
+        isDisabled: mode.isDisabled,
+        tooltip: mode.tooltip,
+      }));
+  }, [selected, result, disabledModeOverrides, enabledCharts, chartOrder, messages]);
 
   // Calculate dynamic tab width based on mode count
   const modeCount = items.length;
@@ -159,8 +177,8 @@ export function SelectChartButton({
 
         <HStack gap={1} justifySelf={["end"]} alignSelf={"center"}>
           {onClickAttentionFilter && (
-            <Tooltip content={"フィルタ"} openDelay={0} closeDelay={0}>
-              <Button aria-label="フィルタ" onClick={onClickAttentionFilter} variant="outline" h={"50px"}>
+            <Tooltip content={messages.filter} openDelay={0} closeDelay={0}>
+              <Button aria-label={messages.filter} onClick={onClickAttentionFilter} variant="outline" h={"50px"}>
                 <Box display="flex" alignItems="center" gap={1}>
                   <Icon>
                     <Filter size={16} />
@@ -175,14 +193,21 @@ export function SelectChartButton({
             </Tooltip>
           )}
 
-          <Tooltip content={"表示設定"} openDelay={0} closeDelay={0}>
+          <Tooltip content={messages.displaySettings} openDelay={0} closeDelay={0}>
             <Button onClick={onClickDensitySetting} variant={"outline"} h={"50px"} w={"50px"} p={0}>
               <Icon as={CogIcon} />
             </Button>
           </Tooltip>
 
-          <Tooltip content={"全画面表示"} openDelay={0} closeDelay={0}>
-            <Button aria-label="全画面表示" onClick={onClickFullscreen} variant={"outline"} h={"50px"} w={"50px"} p={0}>
+          <Tooltip content={messages.fullscreen} openDelay={0} closeDelay={0}>
+            <Button
+              aria-label={messages.fullscreen}
+              onClick={onClickFullscreen}
+              variant={"outline"}
+              h={"50px"}
+              w={"50px"}
+              p={0}
+            >
               <Icon as={FullscreenIcon} />
             </Button>
           </Tooltip>

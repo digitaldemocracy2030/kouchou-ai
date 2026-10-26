@@ -92,14 +92,15 @@ async def get_local_llm_models(address: str | None = None) -> list[dict]:
         address = "localhost:11434"  # Ollamaのデフォルトポート
 
     # パイプライン (analysis_core) と同じ規則で接続先を決め、同じ認証情報を送る
-    from analysis_core.services.llm import resolve_local_llm_base_url
+    from analysis_core.services.llm import resolve_local_llm_api_key, resolve_local_llm_base_url
 
     base_url = resolve_local_llm_base_url(address)
 
     try:
         client = OpenAI(
             base_url=base_url,
-            api_key=os.environ.get("LOCAL_LLM_API_KEY", "not-needed"),  # OllamaとLM Studioは認証不要
+            # 管理画面は入力途中のアドレスでも自動取得するので、鍵は許可した接続先にだけ付ける
+            api_key=resolve_local_llm_api_key(base_url),
         )
 
         import asyncio
