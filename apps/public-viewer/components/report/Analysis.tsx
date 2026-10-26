@@ -55,36 +55,36 @@ type StepDetail = {
 };
 
 /** 分析手順の各ステップで表示するモデル名・ソースコード・プロンプトを設定から取り出す。 */
-function getStepDetail(step: string, config: Config): StepDetail | undefined {
+function getStepDetail(step: string, config: Config, azureLabel: string): StepDetail | undefined {
   switch (step) {
     case "extraction":
       return {
-        model: chatModelDisplayName(config, config.extraction.model),
+        model: chatModelDisplayName(config, config.extraction.model, azureLabel),
         sourceCode: config.extraction.source_code,
         prompt: config.extraction.prompt,
       };
     case "embedding":
       return {
-        model: embeddingModelDisplayName(config),
+        model: embeddingModelDisplayName(config, azureLabel),
         sourceCode: config.embedding.source_code,
       };
     case "hierarchical_clustering":
       return { sourceCode: config.hierarchical_clustering.source_code };
     case "hierarchical_initial_labelling":
       return {
-        model: chatModelDisplayName(config, config.hierarchical_initial_labelling.model),
+        model: chatModelDisplayName(config, config.hierarchical_initial_labelling.model, azureLabel),
         sourceCode: config.hierarchical_initial_labelling.source_code,
         prompt: config.hierarchical_initial_labelling.prompt,
       };
     case "hierarchical_merge_labelling":
       return {
-        model: chatModelDisplayName(config, config.hierarchical_merge_labelling.model),
+        model: chatModelDisplayName(config, config.hierarchical_merge_labelling.model, azureLabel),
         sourceCode: config.hierarchical_merge_labelling.source_code,
         prompt: config.hierarchical_merge_labelling.prompt,
       };
     case "hierarchical_overview":
       return {
-        model: chatModelDisplayName(config, config.hierarchical_overview.model),
+        model: chatModelDisplayName(config, config.hierarchical_overview.model, azureLabel),
         sourceCode: config.hierarchical_overview.source_code,
         prompt: config.hierarchical_overview.prompt,
       };
@@ -173,7 +173,7 @@ export function Analysis({ result }: ReportProps) {
           <TimelineRoot size={"lg"}>
             {result.config.plan.map((p) => {
               const text = messages.steps[p.step];
-              const detail = getStepDetail(p.step, result.config);
+              const detail = getStepDetail(p.step, result.config, messages.azureServerModel);
               const title = text ? `${text.title}${detail?.model ? ` (${detail.model})` : ""}` : p.step;
               return (
                 <TimelineItem key={p.step}>

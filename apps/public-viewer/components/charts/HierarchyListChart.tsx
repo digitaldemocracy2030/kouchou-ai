@@ -292,7 +292,7 @@ export function HierarchyListChart({
               {node.label}
               <Text as="span" fontWeight="normal" fontSize="sm" color="gray.500" ml={2}>
                 {filteredCounts
-                  ? `(フィルター後 ${filteredCounts.get(node.id) ?? 0}件 / 全${node.value}件)`
+                  ? `(${messages.filteredOfTotalCount(filteredCounts.get(node.id) ?? 0, node.value)})`
                   : `(${messages.opinionCount(node.value)})`}
               </Text>
             </Text>

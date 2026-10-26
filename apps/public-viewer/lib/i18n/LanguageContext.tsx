@@ -37,6 +37,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(resolveInitialLanguage(window.location.search, window.localStorage));
   }, []);
 
+  // <html> はルートレイアウトのものをクライアント遷移の間も使い回す。レポートを離れたら（一覧へ戻るなど）
+  // マウント時の lang に戻し、日本語のページが en / ko のまま読み上げられないようにする
+  useEffect(() => {
+    const originalLang = document.documentElement.lang;
+    return () => {
+      document.documentElement.lang = originalLang;
+    };
+  }, []);
+
   useEffect(() => {
     document.documentElement.lang = getMessages(language).htmlLang;
   }, [language]);

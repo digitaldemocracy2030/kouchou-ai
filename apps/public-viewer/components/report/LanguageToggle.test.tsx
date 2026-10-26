@@ -3,6 +3,7 @@ import { Provider } from "@/components/ui/provider";
 import { LanguageProvider, useLanguage, useLocalizedResult } from "@/lib/i18n/LanguageContext";
 import type { Result } from "@/type";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { StrictMode } from "react";
 import { LanguageToggle } from "./LanguageToggle";
 
 const result = {
@@ -90,4 +91,32 @@ it("Provider が無くても日本語で描画できる（テスト・開発用�
   expect(screen.getByRole("heading", { name: "レポート" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "English" }));
   expect(screen.getByRole("heading", { name: "レポート" })).toBeInTheDocument();
+});
+
+it("レポートを離れると <html lang> をマウント前の値に戻す（一覧へ戻ったときに en / ko を残さない）", () => {
+  document.documentElement.lang = "ja";
+  const { unmount } = renderToggle();
+  fireEvent.click(screen.getByRole("button", { name: "English" }));
+  expect(document.documentElement.lang).toBe("en");
+
+  unmount();
+  expect(document.documentElement.lang).toBe("ja");
+});
+
+it("StrictMode の二重実行でも、戻す先はマウント前の値のまま", () => {
+  document.documentElement.lang = "ja";
+  const { unmount } = render(
+    <StrictMode>
+      <Provider>
+        <LanguageProvider>
+          <LanguageToggle />
+        </LanguageProvider>
+      </Provider>
+    </StrictMode>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "한국어" }));
+  expect(document.documentElement.lang).toBe("ko");
+
+  unmount();
+  expect(document.documentElement.lang).toBe("ja");
 });

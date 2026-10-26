@@ -18,6 +18,9 @@ const ja = {
   // Overview
   report: "レポート",
   opinionCount: (n: number) => `${n.toLocaleString()}件`,
+  /** 階層リストの件数（属性フィルターの適用中） */
+  filteredOfTotalCount: (filtered: number, total: number) =>
+    `フィルター後 ${filtered.toLocaleString()}件 / 全${total.toLocaleString()}件`,
   /** 意見グループ一覧の件数の後ろに付ける（属性フィルターの適用中） */
   filteredCountSuffix: "（フィルター後）",
 
@@ -143,6 +146,8 @@ const ja = {
   hide: "非表示",
   sourceCode: "ソースコード",
   prompt: "プロンプト",
+  /** provider=azure のとき、モデル名の代わりに出す（実際のモデルはサーバーのデプロイ設定で決まる） */
+  azureServerModel: "Azure OpenAI のサーバー設定",
   close: "閉じる",
   steps: {
     extraction: { title: "抽出", description: ["コメントデータから意見を抽出するステップです。"] },
@@ -204,6 +209,8 @@ const en: Messages = {
 
   report: "Report",
   opinionCount: (n) => `${n.toLocaleString()} opinions`,
+  filteredOfTotalCount: (filtered, total) =>
+    `${filtered.toLocaleString()} after filter / ${total.toLocaleString()} total`,
   filteredCountSuffix: " (filtered)",
 
   readingGuideLabel: "How to read this report",
@@ -318,6 +325,7 @@ const en: Messages = {
   hide: "Hide",
   sourceCode: "Source code",
   prompt: "Prompt",
+  azureServerModel: "Azure OpenAI server settings",
   close: "Close",
   steps: {
     extraction: { title: "Extraction", description: ["Extracts opinions from the comment data."] },
@@ -376,6 +384,8 @@ const ko: Messages = {
 
   report: "보고서",
   opinionCount: (n) => `${n.toLocaleString()}건`,
+  filteredOfTotalCount: (filtered, total) =>
+    `필터 후 ${filtered.toLocaleString()}건 / 전체 ${total.toLocaleString()}건`,
   filteredCountSuffix: " (필터 후)",
 
   readingGuideLabel: "보고서 읽는 법",
@@ -488,6 +498,7 @@ const ko: Messages = {
   hide: "숨기기",
   sourceCode: "소스 코드",
   prompt: "프롬프트",
+  azureServerModel: "Azure OpenAI 서버 설정",
   close: "닫기",
   steps: {
     extraction: { title: "추출", description: ["댓글 데이터에서 의견을 추출하는 단계입니다."] },

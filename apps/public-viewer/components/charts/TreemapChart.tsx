@@ -7,7 +7,6 @@ import type { Layout, TreemapData } from "plotly.js";
 import { useCallback, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
 
-
 type Props = {
   clusterList: Cluster[];
   argumentList: Argument[];

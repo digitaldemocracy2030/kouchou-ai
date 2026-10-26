@@ -12,15 +12,19 @@ const GEMINI_DEFAULT_EMBEDDING_MODEL = "gemini-embedding-001";
 const OPENAI_EMBEDDING_ALIASES = new Set(["text-embedding-3-large", "text-embedding-3-small"]);
 
 /** 分析手順に出す LLM のモデル名。`model` は各ステップの config に記録されたモデル名 */
-export function chatModelDisplayName(config: Config, model: string): string {
-  if (config.provider === "azure") return AZURE_SERVER_MODEL_LABEL;
+export function chatModelDisplayName(
+  config: Config,
+  model: string,
+  azureLabel: string = AZURE_SERVER_MODEL_LABEL,
+): string {
+  if (config.provider === "azure") return azureLabel;
   return model;
 }
 
 /** 分析手順に出す埋め込みモデル名（実際に埋め込みに使ったもの） */
-export function embeddingModelDisplayName(config: Config): string {
+export function embeddingModelDisplayName(config: Config, azureLabel: string = AZURE_SERVER_MODEL_LABEL): string {
   if (config.is_embedded_at_local) return LOCAL_EMBEDDING_MODEL;
-  if (config.provider === "azure") return AZURE_SERVER_MODEL_LABEL;
+  if (config.provider === "azure") return azureLabel;
   const model = config.embedding?.model ?? "";
   if (config.provider === "gemini" && (!model || OPENAI_EMBEDDING_ALIASES.has(model))) {
     return GEMINI_DEFAULT_EMBEDDING_MODEL;

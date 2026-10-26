@@ -64,3 +64,18 @@ describe("embeddingModelDisplayName", () => {
     ).toBe("text-embedding-3-large");
   });
 });
+
+describe("Azure の表示名の差し替え（表示言語）", () => {
+  it("呼び出し側が渡した文言を使う", () => {
+    expect(chatModelDisplayName(config({ provider: "azure" }), "gpt-4o", "Azure OpenAI server settings")).toBe(
+      "Azure OpenAI server settings",
+    );
+    expect(embeddingModelDisplayName(config({ provider: "azure" }), "Azure OpenAI server settings")).toBe(
+      "Azure OpenAI server settings",
+    );
+    // Azure 以外はモデル名のまま
+    expect(chatModelDisplayName(config({ provider: "openai" }), "gpt-4o", "Azure OpenAI server settings")).toBe(
+      "gpt-4o",
+    );
+  });
+});
