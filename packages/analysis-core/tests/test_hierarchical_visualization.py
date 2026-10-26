@@ -13,6 +13,7 @@ import pytest
 
 from analysis_core.steps.hierarchical_visualization import (
     SOFT_COLORS,
+    _render_tree,
     build_html,
     hierarchical_visualization,
 )
@@ -92,6 +93,44 @@ class TestBuildHtml:
         # The JS source-link flag is flipped on
         assert "const ENABLE_SOURCE_LINK = true;" in out
 
+    @pytest.mark.parametrize(
+        "bad_url",
+        [
+            "javascript:alert(document.domain)",
+            "  JavaScript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "vbscript:msgbox(1)",
+        ],
+    )
+    def test_non_http_source_urls_are_dropped(self, bad_url: str) -> None:
+        payload = _minimal_payload()
+        # Add a level-2 layer so the tree renders per-argument source links
+        payload["clusters"] += [
+            {"id": "2_1", "level": 2, "label": "a2", "value": 1, "parent": "1_1", "takeaway": ""},
+            {"id": "2_2", "level": 2, "label": "b2", "value": 1, "parent": "1_2", "takeaway": ""},
+        ]
+        payload["arguments"][0]["cluster_ids"] = ["0", "1_1", "2_1"]
+        payload["arguments"][1]["cluster_ids"] = ["0", "1_2", "2_2"]
+        payload["arguments"][0]["url"] = bad_url
+        payload["arguments"][1]["url"] = "https://example.com/ok"
+        for url_pattern in (None, "https://example.com/r/{comment_id}"):
+            out = build_html(payload, url_pattern=url_pattern)
+            lowered = out.lower()
+            assert "javascript:" not in lowered
+            assert "vbscript:" not in lowered
+            assert "data:text/html" not in lowered
+            # http(s) URLs keep working in the tree link and the inlined payload
+            assert 'href="https://example.com/ok"' in out
+            assert '"url":"https://example.com/ok"' in out
+
+    def test_url_pattern_fills_in_for_rejected_source_url(self) -> None:
+        payload = _minimal_payload()
+        payload["arguments"][0]["url"] = "javascript:alert(1)"
+        out = build_html(payload, url_pattern="https://example.com/r/{comment_id}")
+        assert "javascript:" not in out.lower()
+        # The unsafe url is dropped first, so the url_pattern link is used instead
+        assert '"url":"https://example.com/r/1"' in out
+
     def test_no_url_pattern_disables_source_link(self) -> None:
         out = build_html(_minimal_payload())
         assert "const ENABLE_SOURCE_LINK = false;" in out
@@ -147,8 +186,40 @@ class TestBuildHtml:
 
         out = build_html(payload)
 
-        assert "<\\/script>" in out
+        assert "\\u003c/script\\u003e" in out
         assert "</script> second" not in out
+
+    @pytest.mark.parametrize(
+        ("overview", "argument"),
+        [
+            # 同じ意見の中で「<!--」の後に「<script」が来る
+            ("plain overview", "例: <!--<script> のような書き方は避けて"),
+            # 概要と意見にまたがる（埋め込み JSON の中で、概要の後に意見が並ぶ）
+            ("概要 <!-- メモ", "<script タグについて"),
+        ],
+    )
+    def test_markup_in_payload_does_not_break_embedded_json(self, overview: str, argument: str) -> None:
+        payload = _minimal_payload()
+        payload["overview"] = overview
+        payload["arguments"][0]["argument"] = argument
+        payload["arguments"][1]["argument"] = "a & b > c </script>"
+
+        out = build_html(payload)
+
+        match = re.search(r'<script id="report-data" type="application/json">(.*?)</script>', out, flags=re.S)
+        assert match is not None
+        embedded = match.group(1)
+        # HTML の字句解析が script data の状態を変える文字（<）を JSON に残さない
+        assert "<" not in embedded
+        assert ">" not in embedded
+        assert "&" not in embedded
+        # JSON としては元の値のまま読める
+        decoded = json.loads(embedded)
+        assert decoded["overview"] == overview
+        assert decoded["arguments"][0]["argument"] == argument
+        assert decoded["arguments"][1]["argument"] == "a & b > c </script>"
+        # 本体のスクリプトは report-data の後ろに別の要素として残る
+        assert out.index("const SOFT_COLORS") > match.end()
 
 
 class TestHierarchicalVisualizationStep:
@@ -289,6 +360,17 @@ class TestArgumentListsInTree:
         assert any('href="https://example.com/r/1"' in i for i in items)
         assert any('href="https://example.com/r/2"' in i for i in items)
 
+    def test_single_level_tree_list_drops_non_http_source_link(self) -> None:
+        payload = _minimal_payload()
+        payload["arguments"][0]["url"] = "javascript:alert(1)"
+        payload["arguments"][1]["url"] = "https://example.com/ok"
+        # build_html を通さず木だけを描いても、level 1 の一覧で http(s) 以外のリンクを出さない
+        for out in (build_html(payload), _render_tree(payload)):
+            items = _arg_items(out)
+            assert len(items) == 2
+            assert not any("javascript:" in i.lower() for i in items)
+            assert any('href="https://example.com/ok"' in i for i in items)
+
     def test_two_level_tree_lists_each_argument_once(self) -> None:
         payload = _minimal_payload()
         payload["arguments"][0]["cluster_ids"] = ["0", "1_1", "2_1"]
@@ -313,3 +395,24 @@ class TestArgumentListsInTree:
         assert len(items) == 2
         assert sum("alpha" in i for i in items) == 1
         assert sum("beta" in i for i in items) == 1
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://example.com/r/1", "https://example.com/r/1"),
+        ("  http://example.com  ", "http://example.com"),
+        ("https://:80/path", None),
+        ("https://user@", None),
+        ("https://user@:443", None),
+        ("http:///no-host", None),
+        ("https://[::1", None),
+        ("javascript:alert(1)", None),
+        (None, None),
+    ],
+)
+def test_safe_source_url_requires_http_scheme_and_hostname(url, expected) -> None:
+    from analysis_core.steps.hierarchical_visualization import _safe_source_url
+
+    assert _safe_source_url(url) == expected
+

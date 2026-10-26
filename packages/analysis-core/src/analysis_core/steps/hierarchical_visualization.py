@@ -33,6 +33,7 @@ import zipfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 PLOTLY_CDN = "https://cdn.plot.ly/plotly-2.35.2.min.js"
 
@@ -120,15 +121,19 @@ def build_html(
     levels = sorted({c["level"] for c in data["clusters"] if c["level"] > 0})
     default_level = levels[0] if levels else 1
 
-    if url_pattern:
-        # Inject the resolved URL onto each argument so the JS click handler
-        # has it at hand. Mutates a shallow copy so the original isn't touched.
-        data = dict(data)
-        data["arguments"] = [
-            {**a, "url": a.get("url") or url_pattern.format(comment_id=a.get("comment_id"))}
-            for a in args
-        ]
-        args = data["arguments"]
+    # Source URLs come from the input CSV and end up in <a href> and
+    # window.open(); drop anything that is not http(s) (e.g. javascript:).
+    # When url_pattern is given, it fills in for missing or rejected URLs so
+    # the JS click handler has one at hand. Works on a shallow copy so the
+    # original isn't touched.
+    def _resolve_url(a: dict[str, Any]) -> str | None:
+        url = _safe_source_url(a.get("url"))
+        if url is None and url_pattern:
+            url = _safe_source_url(url_pattern.format(comment_id=a.get("comment_id")))
+        return url
+
+    data = dict(data)
+    data["arguments"] = [{**a, "url": _resolve_url(a)} for a in args]
 
     tree_html = _render_tree(data)
     embedded = _safe_inline_json(data)
@@ -239,9 +244,38 @@ python hierarchical_visualization.py hierarchical_result.json -o report.html
     )
 
 
+def _safe_source_url(url: Any) -> str | None:
+    """Return ``url`` only when it is an absolute http(s) URL, else ``None``."""
+    if not isinstance(url, str):
+        return None
+    url = url.strip()
+    try:
+        parsed = urlparse(url)
+        # netloc だけでは "https://:80" や "https://user@" も通るので、ホスト名まで確かめる
+        hostname = parsed.hostname
+    except ValueError:
+        return None
+    if parsed.scheme.lower() not in ("http", "https") or not hostname:
+        return None
+    return url
+
+
 def _safe_inline_json(data: Any) -> str:
-    """Serialize JSON safely for embedding inside a ``<script>`` tag."""
-    return json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    """Serialize JSON safely for embedding inside a ``<script>`` tag.
+
+    The HTML tokenizer reads script data before JavaScript sees it: besides
+    ``</script>``, a ``<!--`` followed later by ``<script`` switches it into the
+    "double escaped" state, where ``</script>`` no longer closes the element and
+    the rest of the page is swallowed. Escape every ``<`` / ``>`` / ``&`` as a
+    JSON Unicode escape so the payload never contains markup characters.
+    ``JSON.parse`` (and ``json.loads``) yield exactly the same values.
+    """
+    return (
+        json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
 
 
 def _count_at(data: dict[str, Any], level: int) -> int:
@@ -280,7 +314,7 @@ def _render_tree(data: dict[str, Any]) -> str:
         for a in members:
             comment_id = html.escape(str(a.get("comment_id", "")))
             argument = html.escape(a.get("argument", ""))
-            url = a.get("url")
+            url = _safe_source_url(a.get("url"))
             link = f' <a href="{html.escape(url)}" target="_blank" rel="noopener" class="src-link">↗</a>' if url else ""
             lines.append(f'<li><span class="comment-id">#{comment_id}</span> {argument}{link}</li>')
         lines.append("</ul>")
