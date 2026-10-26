@@ -6,6 +6,7 @@ import {
   DEFAULT_LANGUAGE,
   type Language,
   SUPPORTED_LANGUAGES,
+  getBrowserStorage,
   persistLanguage,
   resolveInitialLanguage,
   withLanguageQuery,
@@ -34,7 +35,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
 
   useEffect(() => {
-    setLanguageState(resolveInitialLanguage(window.location.search, window.localStorage));
+    setLanguageState(resolveInitialLanguage(window.location.search, getBrowserStorage()));
   }, []);
 
   // <html> はルートレイアウトのものをクライアント遷移の間も使い回す。レポートを離れたら（一覧へ戻るなど）
@@ -53,7 +54,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLanguage = useCallback((next: Language) => {
     if (!SUPPORTED_LANGUAGES.includes(next)) return;
     setLanguageState(next);
-    persistLanguage(next, window.localStorage);
+    persistLanguage(next, getBrowserStorage());
     const search = withLanguageQuery(window.location.search, next);
     window.history.replaceState(
       window.history.state,

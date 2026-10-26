@@ -59,6 +59,18 @@ export function withLanguageQuery(search: string, language: Language): string {
   return next ? `?${next}` : "";
 }
 
+/**
+ * `window.localStorage` を安全に取り出す。サンドボックスの iframe やサイトデータを拒否した設定では、
+ * プロパティを読んだだけで SecurityError になるので、そのときは null を返す。
+ */
+export function getBrowserStorage(): StorageLike | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function persistLanguage(language: Language, storage: StorageLike | null | undefined): void {
   try {
     storage?.setItem(LANGUAGE_STORAGE_KEY, language);

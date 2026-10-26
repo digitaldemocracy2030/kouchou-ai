@@ -1,4 +1,10 @@
-import { normalizeLanguage, persistLanguage, resolveInitialLanguage, withLanguageQuery } from "../languages";
+import {
+  getBrowserStorage,
+  normalizeLanguage,
+  persistLanguage,
+  resolveInitialLanguage,
+  withLanguageQuery,
+} from "../languages";
 
 function storage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
@@ -63,3 +69,22 @@ describe("withLanguageQuery", () => {
     expect(withLanguageQuery("?lang=en", "ja")).toBe("");
   });
 });
+
+describe("getBrowserStorage", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("localStorage のプロパティを読んだだけで例外になる環境では null を返す", () => {
+    jest.spyOn(window, "localStorage", "get").mockImplementation(() => {
+      throw new DOMException("The operation is insecure.", "SecurityError");
+    });
+    expect(getBrowserStorage()).toBeNull();
+    expect(resolveInitialLanguage("", getBrowserStorage())).toBe("ja");
+  });
+
+  it("使える環境では localStorage を返す", () => {
+    expect(getBrowserStorage()).toBe(window.localStorage);
+  });
+});
+
