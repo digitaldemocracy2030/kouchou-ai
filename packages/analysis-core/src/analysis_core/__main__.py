@@ -13,6 +13,7 @@ from pathlib import Path
 from analysis_core import __version__
 from analysis_core.core import plan_requires_input, validate_input_file
 from analysis_core.orchestrator import PipelineOrchestrator
+from analysis_core.services.error_summary import redact_secrets
 
 
 def main() -> int:
@@ -156,7 +157,7 @@ def main() -> int:
         else:
             print("Pipeline failed!")
             if result.error:
-                print(f"Error: {result.error}")
+                print(f"Error: {redact_secrets(result.error)}")
 
         print()
         print(f"Duration: {result.total_duration_seconds:.2f} seconds")
@@ -173,12 +174,12 @@ def main() -> int:
                 status = "OK" if step.success else "FAILED"
                 print(f"  [{status}] {step.step_name} ({step.duration_seconds:.2f}s)")
                 if step.error:
-                    print(f"         Error: {step.error}")
+                    print(f"         Error: {redact_secrets(step.error)}")
 
         return 0 if result.success else 1
 
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Error: {redact_secrets(str(e))}", file=sys.stderr)
         return 1
 
 

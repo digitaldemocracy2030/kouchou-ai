@@ -185,9 +185,14 @@ def test_refusals_on_text_paths_are_sent_once(monkeypatch, provider, model, cont
     monkeypatch.setattr(llm, "OpenAI", lambda *args, **kwargs: _FakeOpenAIClient(content, finish_reason, counter))
     monkeypatch.delenv("OPENROUTER_FORCE_JSON_FALLBACK", raising=False)
 
-    with pytest.raises(ValueError, match="malformed JSON"):
+    # 本文が空の content_filter は llm.py が LLMSafetyBlockError（ValueError の子）として区別する。
+    # 本文で返る拒否は、従来どおり JSON として読めない応答として扱う。どちらも送り直さない。
+    expected = "blocked" if finish_reason == "content_filter" else "malformed JSON"
+    with pytest.raises(ValueError, match=expected) as error:
         extraction.extract_arguments("回答", "p", model, provider, None, 30, "sk-test-not-a-real-key")
 
+    if finish_reason == "content_filter":
+        assert isinstance(error.value, llm.LLMSafetyBlockError)
     assert counter["requests"] == 1
 
 

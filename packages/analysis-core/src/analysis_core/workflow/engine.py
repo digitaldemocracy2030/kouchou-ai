@@ -14,6 +14,7 @@ from analysis_core.plugin import (
     StepInputs,
     get_registry,
 )
+from analysis_core.services.error_summary import redact_secrets
 from analysis_core.workflow.definition import (
     StepResult,
     WorkflowDefinition,
@@ -201,7 +202,8 @@ class WorkflowEngine:
                     on_step_complete(step_id, result.step_results[step_id])
 
             except Exception as e:
-                error_msg = f"Step '{step_id}' failed: {str(e)}"
+                # SDK の例外メッセージには API キー（の一部）が入ることがある。ログ・status に出る前に伏せる
+                error_msg = f"Step '{step_id}' failed: {redact_secrets(str(e))}"
                 print(f"Error: {error_msg}")
 
                 if step.optional:

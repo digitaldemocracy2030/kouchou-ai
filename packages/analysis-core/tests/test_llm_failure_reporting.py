@@ -322,3 +322,131 @@ def test_openai_auth_error_log_is_redacted(monkeypatch, caplog):
             llm.request_to_openai([{"role": "user", "content": "hi"}], model="gpt-4o-mini", user_api_key="k")
     assert "Incorrect API key provided" in caplog.text
     assert "AbCdEfGh" not in caplog.text
+
+
+# --- status のエラー文・スタックトレースの伏せ字 ---------------------------------
+
+USER_KEY_MARKER = "ukey-MARKER-7f3a9c51"
+SERVER_KEY_MARKER = "srv-MARKER-c0ffee42"
+
+
+def _status_config(tmp_path):
+    report = tmp_path / "outputs" / "report"
+    report.mkdir(parents=True)
+    return report, {
+        "output_dir": "report",
+        "provider": "openai",
+        "_output_base_dir": str(tmp_path / "outputs"),
+        "user_api_key": USER_KEY_MARKER,
+    }
+
+
+def _raise_sdk_like_error():
+    # プロバイダ SDK の認証エラーは、受け取ったキー（の一部）をメッセージに含めることがある
+    raise RuntimeError(
+        f"Error code: 401 - Incorrect API key provided: {USER_KEY_MARKER}. "
+        f"server key {SERVER_KEY_MARKER}, masked sk-proj-abcd************************wxyz"
+    )
+
+
+def test_termination_redacts_keys_in_error_and_stack_trace(tmp_path, monkeypatch):
+    from analysis_core.core.orchestration import termination
+
+    monkeypatch.setenv("OPENAI_API_KEY", SERVER_KEY_MARKER)
+    report, config = _status_config(tmp_path)
+
+    with pytest.raises(RuntimeError):
+        try:
+            _raise_sdk_like_error()
+        except RuntimeError as error:
+            termination(config, error)
+
+    text = (report / "hierarchical_status.json").read_text(encoding="utf-8")
+    status = json.loads(text)
+    assert USER_KEY_MARKER not in text
+    assert SERVER_KEY_MARKER not in text
+    assert "sk-proj-abcd" not in text
+    assert "user_api_key" not in status
+    assert status["status"] == "error"
+    assert status["error"].startswith("RuntimeError: Error code: 401")
+    assert "[REDACTED]" in status["error"]
+    assert "[REDACTED]" in status["error_stack_trace"]
+    assert "_raise_sdk_like_error" in status["error_stack_trace"]
+    # 呼び出し元の config（実行中に使う値）にも伏せ字済みの文面だけが残る
+    assert USER_KEY_MARKER not in config["error"]
+    assert USER_KEY_MARKER not in config["error_stack_trace"]
+
+
+def test_update_status_redacts_user_api_key_from_env(tmp_path, monkeypatch):
+    """PipelineOrchestrator の失敗時（update_status に直接エラーを渡す経路）も伏せ字にする。"""
+    import traceback
+
+    from analysis_core.core.orchestration import update_status
+
+    monkeypatch.setenv("USER_API_KEY", USER_KEY_MARKER)
+    report, config = _status_config(tmp_path)
+    del config["user_api_key"]
+
+    try:
+        _raise_sdk_like_error()
+    except RuntimeError as error:
+        update_status(
+            config,
+            {"status": "error", "error": str(error), "error_stack_trace": traceback.format_exc()},
+        )
+
+    text = (report / "hierarchical_status.json").read_text(encoding="utf-8")
+    assert USER_KEY_MARKER not in text
+    assert "sk-proj-abcd" not in text
+    assert json.loads(text)["error"].startswith("Error code: 401")
+
+
+def test_update_status_leaves_non_error_fields_untouched(tmp_path):
+    from analysis_core.core.orchestration import update_status
+
+    report, config = _status_config(tmp_path)
+    long_slug = "a" * 40  # 伏せ字のパターン（32 文字以上のトークン）に当たる値でも、エラー以外は変えない
+    update_status(config, {"status": "running", "current_job": long_slug})
+
+    status = json.loads((report / "hierarchical_status.json").read_text(encoding="utf-8"))
+    assert status["current_job"] == long_slug
+
+
+def test_workflow_step_error_is_redacted_in_output_and_status(tmp_path, monkeypatch, capsys):
+    """API が使う workflow 経路でも、ステップの例外メッセージは伏せ字にしてから出力・status に書く。
+
+    出力（analysis.log）は API が error_log_excerpt として status に写すので、ここも塞ぐ。
+    """
+    from analysis_core.orchestrator import PipelineOrchestrator
+
+    # analysis_core.steps は同名の関数 extraction を再エクスポートするので、モジュールは sys.modules から取る
+    extraction_module = importlib.import_module("analysis_core.steps.extraction")
+
+    monkeypatch.setenv("USER_API_KEY", USER_KEY_MARKER)
+    monkeypatch.setenv("OPENAI_API_KEY", SERVER_KEY_MARKER)
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    (inputs / "input.csv").write_text("comment-id,comment-body\nc1,good\n")
+    report = tmp_path / "outputs" / "report"
+    report.mkdir(parents=True)
+    config = {
+        "input": "input",
+        "output_dir": "report",
+        "provider": "openai",
+        "_input_base_dir": str(inputs),
+        "_output_base_dir": str(tmp_path / "outputs"),
+        "extraction": {"model": "m", "prompt": "p", "workers": 1, "limit": 1, "properties": []},
+        "plan": [{"step": "extraction", "run": True}],
+    }
+    monkeypatch.setattr(extraction_module, "extraction", lambda *args, **kwargs: _raise_sdk_like_error())
+
+    result = PipelineOrchestrator(config).run_default()
+
+    assert not result.success
+    output = capsys.readouterr()
+    text = (report / "hierarchical_status.json").read_text(encoding="utf-8")
+    for written in (output.out, output.err, text, result.error):
+        assert USER_KEY_MARKER not in written
+        assert SERVER_KEY_MARKER not in written
+        assert "sk-proj-abcd" not in written
+    assert "Error code: 401" in json.loads(text)["error"]

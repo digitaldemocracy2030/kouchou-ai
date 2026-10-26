@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 from analysis_core.core.utils import read_input_csv, write_json_atomic
 from analysis_core.env_file import load_env_file
+from analysis_core.services.error_summary import redact_secrets
 from analysis_core.services.timeouts import openai_flex_timeout_from_env
 
 # Default specs - can be overridden
@@ -48,6 +49,20 @@ def sync_without_html_keys(config: dict[str, Any]) -> None:
 
 # ステップに渡すために config に入りうるが、ファイルや応答には書き出さないキー
 SECRET_CONFIG_KEYS = frozenset({"user_api_key"})
+
+
+# 例外のメッセージやスタックトレースを入れるキー。プロバイダ SDK の例外メッセージには
+# API キー（の一部）が入ることがあるので、status に書く前に伏せ字にする
+_ERROR_TEXT_KEYS = ("error", "error_stack_trace")
+
+
+def redact_error_texts(config: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+    """``updates`` のエラー文・スタックトレースの秘密情報を伏せ字にしたコピーを返す。"""
+    secrets = (resolve_user_api_key(config),)
+    return {
+        key: redact_secrets(value, secrets) if key in _ERROR_TEXT_KEYS and isinstance(value, str) else value
+        for key, value in updates.items()
+    }
 
 
 def strip_secret_keys(obj: Any) -> Any:
@@ -692,6 +707,7 @@ def update_status(
 
     output_dir = config["output_dir"]
 
+    updates = redact_error_texts(config, updates)
     for key, value in updates.items():
         if value is None and key in config:
             del config[key]
