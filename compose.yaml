@@ -31,6 +31,9 @@ services:
       # 既定ではホストのループバック（127.0.0.1）だけに公開し、同じ LAN の他の端末からは接続できないようにする
       # 他の端末から接続させたい場合だけ .env の HOST_BIND_ADDRESS を変える（admin の BASIC_AUTH_* も設定すること）
       - "${HOST_BIND_ADDRESS:-127.0.0.1}:8000:8000"
+    # ローカル開発では ./apps/api をマウントしているので、コードの変更を反映するホットリロード（--reload）付きで起動する
+    # （イメージの既定の CMD は本番向けに --reload なし。コンテナ内の待ち受けは 0.0.0.0、ホストへの公開範囲は上の ports で決まる）
+    command: ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     volumes:
       - ./apps/api:/app
     environment:
