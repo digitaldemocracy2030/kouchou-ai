@@ -623,6 +623,69 @@ def resolve_local_llm_base_url(address: str) -> str:
 
 _resolve_local_llm_base_url = resolve_local_llm_base_url
 
+_LOCAL_LLM_NO_API_KEY = "not-needed"  # Ollama / LM Studio は認証不要
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+_warned_local_llm_key_without_allowlist = False
+
+
+def _local_llm_base_url_identity(base_url: str) -> tuple:
+    """base URL を比較用に正規化する（スキーム・ホストの大小文字、既定ポート、末尾の / を揃える）"""
+    parts = urlsplit(base_url)
+    scheme = parts.scheme.lower()
+    port = parts.port or _DEFAULT_PORTS.get(scheme)
+    return (
+        scheme,
+        parts.username,
+        parts.password,
+        (parts.hostname or "").lower(),
+        port,
+        parts.path.rstrip("/"),
+        parts.query,
+    )
+
+
+def resolve_local_llm_api_key(base_url: str) -> str:
+    """`base_url`（resolve_local_llm_base_url の結果）へ送る API キーを返す
+
+    LOCAL_LLM_API_KEY は認証付きの OpenAI 互換ゲートウェイ向けの鍵。LOCAL_LLM_ALLOWED_BASE_URLS
+    （カンマ区切り。`address` と同じ形式で書ける）に一致する接続先にだけ付け、それ以外には
+    `"not-needed"` を送る。管理画面のモデル一覧は入力途中のアドレスでも自動取得するので、
+    打ち間違えた接続先へ鍵を送らないようにする。許可リストが空なら従来どおりどの接続先にも付ける。
+    モデル一覧・接続確認・パイプライン（チャット・埋め込み）のすべてがこの判定を使う。
+    """
+    global _warned_local_llm_key_without_allowlist
+
+    api_key = os.environ.get("LOCAL_LLM_API_KEY") or ""
+    if not api_key:
+        return _LOCAL_LLM_NO_API_KEY
+
+    raw_allowlist = os.environ.get("LOCAL_LLM_ALLOWED_BASE_URLS", "")
+    entries = [entry.strip() for entry in raw_allowlist.split(",") if entry.strip()]
+    if not raw_allowlist.strip():
+        if not _warned_local_llm_key_without_allowlist:
+            _warned_local_llm_key_without_allowlist = True
+            logging.warning(
+                "LOCAL_LLM_API_KEY is set but LOCAL_LLM_ALLOWED_BASE_URLS is empty; "
+                "the key is sent to any local LLM address. Set LOCAL_LLM_ALLOWED_BASE_URLS "
+                "to the gateway base URL(s) to restrict it."
+            )
+        return api_key
+
+    try:
+        target = _local_llm_base_url_identity(base_url)
+    except ValueError:
+        return _LOCAL_LLM_NO_API_KEY
+    for index, entry in enumerate(entries):
+        try:
+            allowed = _local_llm_base_url_identity(resolve_local_llm_base_url(entry))
+        except ValueError:
+            # 項目に認証情報が含まれうるので、値そのものはログに出さない
+            logging.warning("Ignoring an invalid entry (#%d) in LOCAL_LLM_ALLOWED_BASE_URLS", index + 1)
+            continue
+        if allowed == target:
+            return api_key
+    return _LOCAL_LLM_NO_API_KEY
+
 
 def _to_strict_json_schema(schema: Any) -> Any:
     """pydantic のスキーマを、OpenAI の strict 構造化出力が受け付ける形に直したコピーを返す
@@ -679,7 +742,7 @@ def request_to_local_llm(
     token_usage_total = 0  # 合計トークン使用量を追跡する変数
 
     base_url = _resolve_local_llm_base_url(address)
-    api_key = os.environ.get("LOCAL_LLM_API_KEY", "not-needed")
+    api_key = resolve_local_llm_api_key(base_url)
 
     try:
         client = OpenAI(
@@ -805,7 +868,7 @@ def request_to_local_llm_embed(args, model, address="localhost:11434"):
         埋め込みベクトルのリスト
     """
     base_url = _resolve_local_llm_base_url(address)
-    api_key = os.environ.get("LOCAL_LLM_API_KEY", "not-needed")
+    api_key = resolve_local_llm_api_key(base_url)
 
     try:
         client = OpenAI(

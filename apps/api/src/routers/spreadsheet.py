@@ -8,6 +8,7 @@ from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 
 from src.config import settings
+from src.services.report_duplicate import ReportIdInUseError, guard_unused_report_id, slug_exists_anywhere
 from src.services.spreadsheet_service import delete_input_file, process_spreadsheet_url
 from src.utils.logger import setup_logger
 from src.utils.slug_utils import validate_slug
@@ -37,6 +38,21 @@ async def verify_admin_api_key(api_key: str = Security(api_key_header)) -> str:
     return api_key
 
 
+def ensure_not_existing_report(file_name: str) -> None:
+    """既存レポートの入力 CSV（inputs/<slug>.csv）を取り込み・クリアで上書き・削除させない。
+
+    作成前の取り込みで作られる inputs/<id>.csv だけの状態は、再取り込み・クリアを許すため衝突に含めない。
+    ファイル名として不正な値は、ここでは判定せず呼び出し先の検証（400）に任せる。
+    """
+    valid, _ = validate_filename(file_name)
+    if valid and slug_exists_anywhere(file_name, include_input=False):
+        raise _report_id_in_use(ReportIdInUseError(file_name))
+
+
+def _report_id_in_use(error: ReportIdInUseError) -> HTTPException:
+    return HTTPException(status_code=409, detail=str(error))
+
+
 class SpreadsheetInput(BaseModel):
     url: str
     file_name: str
@@ -59,6 +75,7 @@ async def import_spreadsheet(
     Raises:
         HTTPException: インポート処理中にエラーが発生した場合
     """
+    ensure_not_existing_report(input_data.file_name)
     try:
         # 外部 HTTP 取得を含む同期処理なので、イベントループを塞がないよう threadpool で実行する
         file_path = await run_in_threadpool(process_spreadsheet_url, input_data.url, input_data.file_name)
@@ -68,6 +85,9 @@ async def import_spreadsheet(
             "file_path": str(file_path),
             "file_name": input_data.file_name,
         }
+    except ReportIdInUseError as e:
+        # 取得中に同じ ID でレポートが作られた
+        raise _report_id_in_use(e) from e
     except ValueError as e:
         slogger.error(f"スプレッドシートのインポートエラー: {e}")
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -141,11 +161,16 @@ async def delete_input(file_name: str, api_key: str = Depends(verify_admin_api_k
         raise HTTPException(status_code=400, detail=message)
 
     try:
-        delete_input_file(file_name)
+        # 既存レポートの判定から削除までをレポート作成と同じロックで囲み、
+        # 判定のあとに作られたレポートの入力 CSV を消さない
+        with guard_unused_report_id(file_name):
+            delete_input_file(file_name)
         return {
             "status": "success",
             "message": f"{file_name}.csvの削除が完了しました",
         }
+    except ReportIdInUseError as e:
+        raise _report_id_in_use(e) from e
     except FileNotFoundError as e:
         slogger.warning(f"削除対象のファイルが見つかりません: {e}")
         # ファイルが見つからない場合も成功として扱う（冪等性のため）

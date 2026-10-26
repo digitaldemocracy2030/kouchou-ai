@@ -11,6 +11,7 @@ Usage:
     4. The plugin will become available in the admin UI
 """
 
+import json
 import logging
 import re
 from typing import Any
@@ -23,6 +24,24 @@ from src.plugins.registry import PluginRegistry
 
 logger = logging.getLogger("uvicorn")
 
+
+def _describe_http_error(e: Any, api_key: str) -> str:
+    """Build a user-facing message from a googleapiclient HttpError.
+
+    ``str(HttpError)`` includes the request URI, which carries the API key as the
+    ``key=`` query parameter. Use only the status and reason, and mask the key
+    in case it still appears.
+    """
+    status = getattr(getattr(e, "resp", None), "status", None)
+    reason = getattr(e, "reason", "") or ""
+    message = f"YouTube APIエラー (HTTP {status})"
+    if reason:
+        message += f": {reason}"
+    if api_key:
+        message = message.replace(api_key, "***")
+    return message
+
+
 # YouTube URL patterns
 VIDEO_PATTERNS = [
     r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})",
@@ -30,6 +49,58 @@ VIDEO_PATTERNS = [
     r"youtube\.com/v/([a-zA-Z0-9_-]{11})",
 ]
 PLAYLIST_PATTERN = r"youtube\.com/playlist\?list=([a-zA-Z0-9_-]+)"
+
+# クォータ・レート制限を表す YouTube Data API の reason
+QUOTA_REASONS = {"quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded", "userRateLimitExceeded"}
+# その動画に固有の失敗を表す reason（プレイリスト取り込みでは、その動画だけを飛ばしてよい）
+VIDEO_SPECIFIC_REASONS = {"commentsDisabled", "videoNotFound", "commentThreadNotFound"}
+
+
+class YouTubeVideoSkippableError(ValueError):
+    """その動画に固有の失敗（コメント無効・動画が無いなど）。プレイリストでは飛ばして続ける。"""
+
+
+def _http_error_reasons(error: Any) -> list[tuple[str, str]]:
+    """HttpError の応答本文から (reason, domain) の一覧を取り出す。"""
+    try:
+        data = json.loads(error.content.decode("utf-8"))
+        errors = data["error"].get("errors", [])
+    except (AttributeError, ValueError, KeyError, TypeError):
+        return []
+    if not isinstance(errors, list):
+        return []
+    return [(str(item.get("reason", "")), str(item.get("domain", ""))) for item in errors if isinstance(item, dict)]
+
+
+def _error_from_http_error(error: Any, video_id: str, api_key: str = "") -> ValueError:
+    """HttpError を、status と reason から決めた利用者向けの文言の例外に変える。
+
+    HttpError の文字列（キー入りのリクエスト URI）は使わない。
+    """
+    status = getattr(error.resp, "status", None)
+    reasons = _http_error_reasons(error)
+    reason_names = {reason for reason, _ in reasons}
+
+    if status == 429 or reason_names & QUOTA_REASONS:
+        return ValueError(
+            "YouTube APIの利用上限（クォータまたはレート制限）に達したため、取り込みを中止しました。"
+            "時間をおいて再実行してください。"
+        )
+    if isinstance(status, int) and status >= 500:
+        return ValueError(
+            f"YouTube APIが一時的にエラーを返したため（HTTP {status}）、取り込みを中止しました。"
+            "時間をおいて再実行してください。"
+        )
+    if "commentsDisabled" in reason_names:
+        return YouTubeVideoSkippableError(f"この動画はコメントが無効になっています: {video_id}")
+    if status == 404 or reason_names & VIDEO_SPECIFIC_REASONS:
+        return YouTubeVideoSkippableError(f"動画が見つかりません: {video_id}")
+    # 非公開・メンバー限定などで、その動画のコメントだけを読めない場合
+    if any(reason == "forbidden" and domain.startswith("youtube.") for reason, domain in reasons):
+        return YouTubeVideoSkippableError(f"この動画のコメントを取得する権限がありません: {video_id}")
+    if status == 403:
+        return ValueError("YouTube APIへのアクセスが拒否されました。APIキーの設定を確認してください。")
+    return ValueError(f"{_describe_http_error(error, api_key)}（動画 {video_id} のコメントを取得できませんでした）")
 
 
 def parse_youtube_url(url: str) -> tuple[str | None, str | None]:
@@ -158,7 +229,7 @@ class YouTubePlugin(InputPlugin):
             video_response = youtube.videos().list(part="snippet", id=video_id).execute()
 
             if not video_response.get("items"):
-                raise ValueError(f"Video not found: {video_id}")
+                raise YouTubeVideoSkippableError(f"動画が見つかりません: {video_id}")
 
             video_title = video_response["items"][0]["snippet"]["title"]
 
@@ -217,15 +288,8 @@ class YouTubePlugin(InputPlugin):
                 request = youtube.commentThreads().list_next(request, response)
 
         except HttpError as e:
-            if e.resp.status == 403:
-                raise ValueError(
-                    "YouTube APIへのアクセスが拒否されました。APIキーを確認してください。"
-                    "また、この動画のコメントが無効になっている可能性があります。"
-                ) from e
-            elif e.resp.status == 404:
-                raise ValueError(f"動画が見つかりません: {video_id}") from e
-            else:
-                raise ValueError(f"YouTube APIエラー: {e}") from e
+            # 応答には利用者向けの文言だけを返し、HttpError の詳細は連鎖させない
+            raise _error_from_http_error(e, video_id, api_key) from None
 
         logger.info(f"Fetched {len(comments)} comments from YouTube video {video_id}")
         return pl.DataFrame(comments)
@@ -262,6 +326,7 @@ class YouTubePlugin(InputPlugin):
             # Fetch comments from each video
             comments_per_video = max(max_results // len(video_ids), 10) if video_ids else max_results
 
+            skipped_video_ids = []
             for video_id in video_ids:
                 try:
                     video_comments = self._fetch_video_comments(video_id, api_key, comments_per_video, include_replies)
@@ -269,16 +334,25 @@ class YouTubePlugin(InputPlugin):
 
                     if sum(len(df) for df in all_comments) >= max_results:
                         break
-                except ValueError as e:
-                    # Skip videos with disabled comments
+                except YouTubeVideoSkippableError as e:
+                    # コメント無効・動画が無いなど、その動画に固有の失敗だけを飛ばす。
+                    # クォータ超過や一時的なエラーは取り込み全体の失敗として上へ伝える。
                     logger.warning(f"Skipping video {video_id}: {e}")
+                    skipped_video_ids.append(video_id)
                     continue
 
+            if video_ids and len(skipped_video_ids) == len(video_ids):
+                raise ValueError(
+                    f"プレイリスト内の動画（{len(video_ids)}本）からコメントを取得できませんでした。"
+                    "コメントが無効か、動画が非公開・削除済みの可能性があります。"
+                )
+
         except HttpError as e:
+            # HttpError の文字列と属性にはキー入りの URI があるので、例外の連鎖を切る
             if e.resp.status == 404:
-                raise ValueError(f"プレイリストが見つかりません: {playlist_id}") from e
+                raise ValueError(f"プレイリストが見つかりません: {playlist_id}") from None
             else:
-                raise ValueError(f"YouTube APIエラー: {e}") from e
+                raise ValueError(_describe_http_error(e, api_key)) from None
 
         expected_columns: list[tuple[str, pl.DataType, object]] = [
             ("comment-id", pl.Utf8, ""),
