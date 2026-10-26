@@ -96,6 +96,8 @@ nav:
       - Windowsセットアップ: self-hosting/windows-setup.md
       - Macセットアップ: self-hosting/mac-setup.md
       - Linuxセットアップ: self-hosting/linux-setup.md
+      - セキュリティ情報:
+          - ユーザー API キーの書き出し（v4.2.0 で修正）: self-hosting/security/user-api-key-leak-2026-10.md
   - ユーザーガイド:
       - 始め方の選び方: user-guide/choosing-how-to-start.md
       - レポートの読み方: user-guide/report-reading-guide.md
