@@ -1,6 +1,8 @@
 """取り込み・クリア・作成が既存レポートの入力 CSV / レポートを上書き・削除しないことのテスト"""
 
 import json
+import os
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -11,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.routers import admin_report, plugins, spreadsheet
-from src.services import report_duplicate, report_status, spreadsheet_service
+from src.services import report_duplicate, report_launcher, report_status, spreadsheet_service
 
 EXISTING_SLUG = "city-survey"
 ORIGINAL_CSV = "comment-id,comment\n1,original\n"
@@ -43,6 +45,7 @@ def env(tmp_path: Path):
         patch.object(report_status, "STATE_FILE", dirs.state_file),
         patch.object(spreadsheet_service, "settings", fake_settings),
         patch.object(report_duplicate, "settings", fake_settings),
+        patch.object(report_launcher, "settings", fake_settings),
     ):
         yield dirs
     report_status.load_status()
@@ -165,3 +168,121 @@ class TestCreateReportGuard:
 
         assert response.status_code == 200
         mock_launch.assert_called_once()
+
+
+# ---- 判定と保存・削除の間にレポート作成が割り込む競合 ----
+
+RACE_SLUG = "race-id"
+# 割り込ませる作成（別スレッド）がロック待ちで止まっていると見なすまでの待ち時間
+CREATE_WAIT_SECONDS = 0.5
+
+
+def _create_body(input_slug: str) -> dict:
+    body = TestCreateReportGuard._body(input_slug)
+    body["comments"] = [{"id": "1", "comment": "created report data"}]
+    return body
+
+
+def _create_report(client) -> None:
+    """レポートを作成する（analysis-core の起動だけ止め、status 登録と入力 CSV の保存は実際に行う）"""
+    response = client.post("/admin/reports", json=_create_body(RACE_SLUG))
+    assert response.status_code == 200, response.text
+
+
+def _create_report_in_thread(client) -> threading.Thread:
+    """別スレッドでレポート作成を始め、ロック待ちで止まらなければ完了まで待つ"""
+    thread = threading.Thread(target=_create_report, args=(client,))
+    thread.start()
+    thread.join(timeout=CREATE_WAIT_SECONDS)
+    return thread
+
+
+def _assert_created_input_intact(env) -> None:
+    assert report_status.slug_exists(RACE_SLUG)
+    input_path = env.input_dir / f"{RACE_SLUG}.csv"
+    assert input_path.exists(), "作成したレポートの入力 CSV が削除された"
+    assert "created report data" in input_path.read_text(encoding="utf-8"), "作成したレポートの入力 CSV が上書きされた"
+
+
+@pytest.fixture
+def no_launch():
+    with patch.object(report_launcher, "_launch_analysis_process"):
+        yield
+
+
+class TestCreateRacingWithImportAndClear:
+    def test_spreadsheet_import_rechecks_after_fetch(self, client, env, no_launch):
+        """取り込みの外部取得中に作成されたレポートの入力 CSV を、取得後の保存で上書きしない"""
+        df = pl.DataFrame({"comment-id": ["1"], "comment": ["other data"]})
+
+        def fetch_while_creating(*_args, **_kwargs):
+            _create_report(client)
+            return df
+
+        with (
+            patch.object(spreadsheet_service, "parse_spreadsheet_url", return_value=("sheet", None)),
+            patch.object(spreadsheet_service, "fetch_public_spreadsheet", side_effect=fetch_while_creating),
+        ):
+            response = client.post(
+                "/admin/spreadsheet/import",
+                json={"url": "https://docs.google.com/spreadsheets/d/x/edit", "file_name": RACE_SLUG},
+            )
+
+        assert response.status_code == 409
+        _assert_created_input_intact(env)
+
+    def test_spreadsheet_import_holds_lock_while_saving(self, client, env, no_launch):
+        """取り込みの判定から保存までの間に始まった作成は、保存が終わるまで待ち、自分の入力 CSV を書く"""
+        real_save = spreadsheet_service.save_as_csv
+        threads = []
+
+        def save_while_creating(df, file_name):
+            threads.append(_create_report_in_thread(client))
+            return real_save(df, file_name)
+
+        p1, p2 = _fake_sheet()
+        with p1, p2, patch.object(spreadsheet_service, "save_as_csv", side_effect=save_while_creating):
+            response = client.post(
+                "/admin/spreadsheet/import",
+                json={"url": "https://docs.google.com/spreadsheets/d/x/edit", "file_name": RACE_SLUG},
+            )
+            threads[0].join()
+
+        assert response.status_code == 200
+        _assert_created_input_intact(env)
+
+    def test_plugin_import_rechecks_after_fetch(self, client, env, no_launch):
+        """プラグインの外部取得中に作成されたレポートの入力 CSV を、取得後の保存で上書きしない"""
+        fake_plugin = MagicMock()
+
+        def fetch_while_creating(*_args, **_kwargs):
+            _create_report(client)
+            return pl.DataFrame({"comment-id": ["1"], "comment": ["other data"]})
+
+        fake_plugin.fetch_data.side_effect = fetch_while_creating
+        with patch.object(plugins.PluginRegistry, "get_plugin", return_value=fake_plugin):
+            response = client.post(
+                "/admin/plugins/youtube/import",
+                json={"source": "https://example.com/v", "fileName": RACE_SLUG},
+            )
+
+        assert response.json()["success"] is False
+        fake_plugin.save_to_csv.assert_not_called()
+        _assert_created_input_intact(env)
+
+    def test_delete_holds_lock_while_removing(self, client, env, no_launch):
+        """クリアの判定から削除までの間に始まった作成は、削除が終わるまで待ち、その入力 CSV は消されない"""
+        (env.input_dir / f"{RACE_SLUG}.csv").write_text(ORIGINAL_CSV, encoding="utf-8")
+        real_remove = os.remove
+        threads = []
+
+        def remove_while_creating(path):
+            threads.append(_create_report_in_thread(client))
+            real_remove(path)
+
+        with patch.object(spreadsheet_service.os, "remove", side_effect=remove_while_creating):
+            response = client.delete(f"/admin/inputs/{RACE_SLUG}")
+            threads[0].join()
+
+        assert response.status_code == 200
+        _assert_created_input_intact(env)

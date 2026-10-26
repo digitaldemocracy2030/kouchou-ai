@@ -8,7 +8,7 @@ from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 
 from src.config import settings
-from src.services.report_duplicate import slug_exists_anywhere
+from src.services.report_duplicate import ReportIdInUseError, guard_unused_report_id, slug_exists_anywhere
 from src.services.spreadsheet_service import delete_input_file, process_spreadsheet_url
 from src.utils.logger import setup_logger
 from src.utils.slug_utils import validate_slug
@@ -46,10 +46,11 @@ def ensure_not_existing_report(file_name: str) -> None:
     """
     valid, _ = validate_filename(file_name)
     if valid and slug_exists_anywhere(file_name, include_input=False):
-        raise HTTPException(
-            status_code=409,
-            detail=f"ID {file_name} は既存のレポートで使われています。別のIDを指定してください",
-        )
+        raise _report_id_in_use(ReportIdInUseError(file_name))
+
+
+def _report_id_in_use(error: ReportIdInUseError) -> HTTPException:
+    return HTTPException(status_code=409, detail=str(error))
 
 
 class SpreadsheetInput(BaseModel):
@@ -84,6 +85,9 @@ async def import_spreadsheet(
             "file_path": str(file_path),
             "file_name": input_data.file_name,
         }
+    except ReportIdInUseError as e:
+        # 取得中に同じ ID でレポートが作られた
+        raise _report_id_in_use(e) from e
     except ValueError as e:
         slogger.error(f"スプレッドシートのインポートエラー: {e}")
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -155,14 +159,18 @@ async def delete_input(file_name: str, api_key: str = Depends(verify_admin_api_k
     valid, message = validate_filename(file_name)
     if not valid:
         raise HTTPException(status_code=400, detail=message)
-    ensure_not_existing_report(file_name)
 
     try:
-        delete_input_file(file_name)
+        # 既存レポートの判定から削除までをレポート作成と同じロックで囲み、
+        # 判定のあとに作られたレポートの入力 CSV を消さない
+        with guard_unused_report_id(file_name):
+            delete_input_file(file_name)
         return {
             "status": "success",
             "message": f"{file_name}.csvの削除が完了しました",
         }
+    except ReportIdInUseError as e:
+        raise _report_id_in_use(e) from e
     except FileNotFoundError as e:
         slogger.warning(f"削除対象のファイルが見つかりません: {e}")
         # ファイルが見つからない場合も成功として扱う（冪等性のため）

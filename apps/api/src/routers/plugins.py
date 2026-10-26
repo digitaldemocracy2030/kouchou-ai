@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from src.plugins.base import PluginConfigError
 from src.plugins.registry import PluginRegistry, load_builtin_plugins
 from src.routers.admin_report import verify_admin_api_key
-from src.services.report_duplicate import slug_exists_anywhere
+from src.services.report_duplicate import ReportIdInUseError, guard_unused_report_id, slug_exists_anywhere
 from src.utils.slug_utils import validate_slug
 
 logger = logging.getLogger("uvicorn")
@@ -156,7 +156,7 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
             filePath=None,
             commentCount=0,
             comments=[],
-            error=f"ID {request.fileName} は既存のレポートで使われています。別のIDを指定してください",
+            error=str(ReportIdInUseError(request.fileName)),
         )
 
     try:
@@ -168,7 +168,10 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
         )
 
         # Save to CSV
-        file_path = plugin.save_to_csv(df, request.fileName)
+        # 取得はロックの外で行い、取得中に同じ ID でレポートが作られていないかを保存の直前に
+        # 確かめる。判定から保存までをレポート作成と同じロックで囲む
+        with guard_unused_report_id(request.fileName):
+            file_path = plugin.save_to_csv(df, request.fileName)
 
         logger.info(f"Imported {len(df)} comments from {plugin_id} to {file_path}")
 
@@ -180,6 +183,14 @@ async def import_data(plugin_id: str, request: ImportRequest) -> ImportResponse:
             error=None,
         )
 
+    except ReportIdInUseError as e:
+        return ImportResponse(
+            success=False,
+            filePath=None,
+            commentCount=0,
+            comments=[],
+            error=str(e),
+        )
     except PluginConfigError as e:
         logger.error(f"Plugin configuration error: {e}")
         return ImportResponse(
