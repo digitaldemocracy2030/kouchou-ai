@@ -246,13 +246,19 @@ def test_initialization_still_validates_api_keys_when_llm_step_runs(tmp_path, mo
 
 def test_from_dict_skips_api_key_validation_when_plan_has_no_llm_step(tmp_path, monkeypatch):
     from analysis_core import PipelineOrchestrator
+    from analysis_core.core.orchestration import get_specs_path_for_mode, load_specs
 
     monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("USER_API_KEY", "")
     monkeypatch.setattr("analysis_core.core.orchestration.load_env_file", lambda **_: None)
+    # -o hierarchical_aggregation の計画と同じく、全ステップを書く。
+    # run_workflow は計画に無いステップを実行するので、書かれていないステップは実行するとみなされる。
+    specs = load_specs(get_specs_path_for_mode("hierarchical"))
     plan = [
-        {"step": "extraction", "run": False, "reason": "forced another step with -o"},
-        {"step": "hierarchical_aggregation", "run": True, "reason": "forced this step with -o"},
+        {"step": spec["step"], "run": False, "reason": "forced another step with -o"}
+        if spec["step"] != "hierarchical_aggregation"
+        else {"step": spec["step"], "run": True, "reason": "forced this step with -o"}
+        for spec in specs
     ]
     base = {"name": "demo", "input": "demo", "question": "Test?", "provider": "gemini", "model": "dummy"}
 

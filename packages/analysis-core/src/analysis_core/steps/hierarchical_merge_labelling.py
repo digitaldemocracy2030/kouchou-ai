@@ -202,6 +202,7 @@ def merge_labelling(clusters_df: pl.DataFrame, cluster_id_columns: list[str], co
             current_cluster_ids,
             config["hierarchical_merge_labelling"]["workers"],
             f"hierarchical_merge_labelling ({current_columns.id})",
+            secrets=(config.get("user_api_key"),),
         )
 
         current_result_df = pl.DataFrame(responses)

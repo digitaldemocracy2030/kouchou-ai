@@ -14,7 +14,8 @@ from pydantic import BaseModel, ValidationError
 from tenacity import retry, retry_if_exception, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from analysis_core.env_file import load_env_file
-from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, positive_timeout
+from analysis_core.services.error_summary import redact_secrets
+from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, openai_flex_timeout_from_env
 
 try:  # Optional dependency
     from google import genai
@@ -35,8 +36,67 @@ _OPENAI_FLEX_EXCLUDED_TOKENS = frozenset(
     {"pro", "chat", "codex", "realtime", "audio", "search", "transcribe", "tts", "image"}
 )
 _OPENAI_FLEX_EXACT_MODELS = frozenset({"o3", "o4-mini"})
-# Flex はレイテンシが大きいため、OpenAI は 15 分程度のタイムアウトを推奨している。
-DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS = 900
+
+
+class LLMResponseBlockedError(ValueError):
+    """モデルが応答を拒否した・安全フィルタに止められたなどで、応答本文が得られなかった。
+
+    抽出・ラベル生成・意見分類は失敗を例外の型名で記録するので、形式不正の ValueError と
+    区別できる専用の型にする。拒否の文面などの応答本文はメッセージに入れない。
+    """
+
+
+class LLMRefusalError(LLMResponseBlockedError):
+    """モデルが回答を拒否した（OpenAI 系の message.refusal）。"""
+
+
+class LLMSafetyBlockError(LLMResponseBlockedError):
+    """プロバイダの安全・コンテンツフィルタで入力または応答が止められた。"""
+
+
+# Gemini で応答本文が無いまま止まる finish_reason
+_GEMINI_BLOCK_REASONS = frozenset({"SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION", "IMAGE_SAFETY"})
+# Gemini で入力が止められたときの block_reason（BLOCKED_REASON_UNSPECIFIED 以外）
+_GEMINI_PROMPT_BLOCK_REASONS = frozenset({"SAFETY", "OTHER", "BLOCKLIST", "PROHIBITED_CONTENT", "IMAGE_SAFETY"})
+
+
+def _enum_name(value: Any) -> str | None:
+    """SDK の enum（str 継承）や文字列から名前を取り出す。それ以外は None。"""
+    name = getattr(value, "name", None)
+    if isinstance(name, str):
+        return name
+    return value if isinstance(value, str) else None
+
+
+def _raise_if_openai_response_blocked(response: Any, provider_label: str) -> None:
+    """OpenAI 互換の応答で、拒否・コンテンツフィルタによって本文が無い場合に専用の例外にする。"""
+    choices = getattr(response, "choices", None)
+    if not isinstance(choices, list) or not choices:
+        return
+    choice = choices[0]
+    message = getattr(choice, "message", None)
+    if isinstance(getattr(message, "refusal", None), str) and message.refusal:
+        raise LLMRefusalError(f"{provider_label}: the model refused to answer (message.refusal is set)")
+    if getattr(choice, "finish_reason", None) == "content_filter" and not getattr(message, "content", None):
+        raise LLMSafetyBlockError(f"{provider_label}: the response was blocked (finish_reason=content_filter)")
+
+
+def _raise_if_gemini_response_blocked(response: Any) -> None:
+    """Gemini で入力・応答が安全ブロックなどで止められ、本文が無い場合に専用の例外にする。"""
+    feedback = getattr(response, "prompt_feedback", None)
+    block_reason = getattr(feedback, "block_reason", None) if feedback is not None else None
+    if _enum_name(block_reason) in _GEMINI_PROMPT_BLOCK_REASONS:
+        raise LLMSafetyBlockError(f"Gemini: the prompt was blocked (block_reason={_enum_name(block_reason)})")
+    candidates = getattr(response, "candidates", None)
+    if not isinstance(candidates, list) or not candidates:
+        return
+    candidate = candidates[0]
+    finish_reason = getattr(candidate, "finish_reason", None)
+    if _enum_name(finish_reason) not in _GEMINI_BLOCK_REASONS:
+        return
+    content = getattr(candidate, "content", None)
+    if not (getattr(content, "parts", None) if content is not None else None):
+        raise LLMSafetyBlockError(f"Gemini: the response was blocked (finish_reason={_enum_name(finish_reason)})")
 
 
 def _normalize_model_name(model: str | None) -> str:
@@ -103,16 +163,11 @@ def _should_use_openai_flex(model: str | None) -> bool:
 
 
 def _openai_flex_timeout_seconds(timeout_seconds: int) -> int:
-    """Flex 利用時のタイムアウト。通常のタイムアウトと OPENAI_FLEX_TIMEOUT_SECONDS の大きい方を使う。"""
-    # 空文字は未設定として扱う (.env.example の空欄をそのまま使えるように)
-    raw = (os.getenv("OPENAI_FLEX_TIMEOUT_SECONDS") or "").strip() or str(DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS)
-    try:
-        flex_timeout = positive_timeout(raw)
-    except ValueError as exc:
-        raise ValueError(
-            f"OPENAI_FLEX_TIMEOUT_SECONDS must be a positive integer number of seconds (got {raw!r})"
-        ) from exc
-    return max(timeout_seconds, flex_timeout)
+    """Flex 利用時のタイムアウト。通常のタイムアウトと OPENAI_FLEX_TIMEOUT_SECONDS の大きい方を使う。
+
+    不正な値は起動時の validate_api_keys で変数名つきのエラーにして止める。
+    """
+    return max(timeout_seconds, openai_flex_timeout_from_env())
 
 
 def _is_openai_flex_unavailable(error: openai.RateLimitError) -> bool:
@@ -196,7 +251,9 @@ def request_to_openai(
             # Flex はリソース不足時に 429 (resource_unavailable) を返し、課金されない。
             # "auto" は自動選択で再び Flex になり得るため、"default" で標準処理を明示する。
             # 以降のリトライは標準処理のみで行い、Flex を叩き直さない。
-            logging.warning(f"OpenAI Flex processing unavailable, falling back to standard tier: {e}")
+            logging.warning(
+                f"OpenAI Flex processing unavailable, falling back to standard tier: {redact_secrets(str(e), (user_api_key,))}"
+            )
             fallback_payload = {**payload, "service_tier": "default", "timeout": timeout_seconds}
             response = _send_openai_chat_request(client, fallback_payload, use_pydantic)
 
@@ -205,15 +262,16 @@ def request_to_openai(
             token_usage_output = response.usage.completion_tokens or 0
             token_usage_total = response.usage.total_tokens or 0
 
+        _raise_if_openai_response_blocked(response, "OpenAI")
         return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
     except openai.RateLimitError as e:
-        logging.warning(f"OpenAI API rate limit hit: {e}")
+        logging.warning(f"OpenAI API rate limit hit: {redact_secrets(str(e), (user_api_key,))}")
         raise
     except openai.AuthenticationError as e:
-        logging.error(f"OpenAI API authentication error: {str(e)}")
+        logging.error(f"OpenAI API authentication error: {redact_secrets(str(e), (user_api_key,))}")
         raise
     except openai.BadRequestError as e:
-        logging.error(f"OpenAI API bad request error: {str(e)}")
+        logging.error(f"OpenAI API bad request error: {redact_secrets(str(e), (user_api_key,))}")
         raise
 
 
@@ -283,8 +341,15 @@ def request_to_azure_chatcompletion(
                 token_usage_input = response.usage.prompt_tokens or 0
                 token_usage_output = response.usage.completion_tokens or 0
                 token_usage_total = response.usage.total_tokens or 0
+            _raise_if_openai_response_blocked(response, "Azure OpenAI")
+            parsed_message = response.choices[0].message.parsed
+            if parsed_message is None:
+                finish_reason = getattr(response.choices[0], "finish_reason", None)
+                raise ValueError(
+                    f"Azure OpenAI: the structured response has no parsed content (finish_reason={finish_reason})"
+                )
             return (
-                response.choices[0].message.parsed.model_dump(),
+                parsed_message.model_dump(),
                 token_usage_input,
                 token_usage_output,
                 token_usage_total,
@@ -317,15 +382,16 @@ def request_to_azure_chatcompletion(
                 token_usage_output = response.usage.completion_tokens or 0
                 token_usage_total = response.usage.total_tokens or 0
 
+            _raise_if_openai_response_blocked(response, "Azure OpenAI")
             return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
     except openai.RateLimitError as e:
-        logging.warning(f"OpenAI API rate limit hit: {e}")
+        logging.warning(f"OpenAI API rate limit hit: {redact_secrets(str(e), (api_key,))}")
         raise
     except openai.AuthenticationError as e:
-        logging.error(f"OpenAI API authentication error: {str(e)}")
+        logging.error(f"OpenAI API authentication error: {redact_secrets(str(e), (api_key,))}")
         raise
     except openai.BadRequestError as e:
-        logging.error(f"OpenAI API bad request error: {str(e)}")
+        logging.error(f"OpenAI API bad request error: {redact_secrets(str(e), (api_key,))}")
         raise
 
 
@@ -467,6 +533,8 @@ def request_to_gemini_chatcompletion(
             except Exception as log_ex:
                 logging.debug("[Gemini] Response meta logging failed: %s", log_ex)
 
+            # 安全ブロックでは response.text が None になり、呼び出し側で形式不正と区別できなくなる
+            _raise_if_gemini_response_blocked(response)
             text = response.text
             if isinstance(json_schema, type) and issubclass(json_schema, BaseModel):
                 try:
@@ -483,25 +551,25 @@ def request_to_gemini_chatcompletion(
         except genai_errors.ClientError as e:
             error_code = getattr(e, "code", None)
             if error_code == 401:
-                logging.error(f"Gemini API authentication error: {e}")
+                logging.error(f"Gemini API authentication error: {redact_secrets(str(e), (api_key,))}")
                 raise
             if error_code == 400:
-                logging.error(f"Gemini API bad request error: {e}")
+                logging.error(f"Gemini API bad request error: {redact_secrets(str(e), (api_key,))}")
                 raise
             if error_code == 429:
                 pass  # Handle rate limit below
             else:
-                logging.error(f"Gemini API client error: {e}")
+                logging.error(f"Gemini API client error: {redact_secrets(str(e), (api_key,))}")
                 raise
         except genai_errors.ServerError as e:
-            logging.error(f"Gemini API server error: {e}")
+            logging.error(f"Gemini API server error: {redact_secrets(str(e), (api_key,))}")
             raise
         except Exception as e:
             error_code = getattr(e, "code", None)
             is_rate_limit = error_code == 429
 
             if not is_rate_limit:
-                logging.error(f"Gemini API error: {e}")
+                logging.error(f"Gemini API error: {redact_secrets(str(e), (api_key,))}")
                 raise
 
         # Rate limit handling with exponential backoff
@@ -554,6 +622,69 @@ def resolve_local_llm_base_url(address: str) -> str:
 
 
 _resolve_local_llm_base_url = resolve_local_llm_base_url
+
+_LOCAL_LLM_NO_API_KEY = "not-needed"  # Ollama / LM Studio は認証不要
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+_warned_local_llm_key_without_allowlist = False
+
+
+def _local_llm_base_url_identity(base_url: str) -> tuple:
+    """base URL を比較用に正規化する（スキーム・ホストの大小文字、既定ポート、末尾の / を揃える）"""
+    parts = urlsplit(base_url)
+    scheme = parts.scheme.lower()
+    port = parts.port or _DEFAULT_PORTS.get(scheme)
+    return (
+        scheme,
+        parts.username,
+        parts.password,
+        (parts.hostname or "").lower(),
+        port,
+        parts.path.rstrip("/"),
+        parts.query,
+    )
+
+
+def resolve_local_llm_api_key(base_url: str) -> str:
+    """`base_url`（resolve_local_llm_base_url の結果）へ送る API キーを返す
+
+    LOCAL_LLM_API_KEY は認証付きの OpenAI 互換ゲートウェイ向けの鍵。LOCAL_LLM_ALLOWED_BASE_URLS
+    （カンマ区切り。`address` と同じ形式で書ける）に一致する接続先にだけ付け、それ以外には
+    `"not-needed"` を送る。管理画面のモデル一覧は入力途中のアドレスでも自動取得するので、
+    打ち間違えた接続先へ鍵を送らないようにする。許可リストが空なら従来どおりどの接続先にも付ける。
+    モデル一覧・接続確認・パイプライン（チャット・埋め込み）のすべてがこの判定を使う。
+    """
+    global _warned_local_llm_key_without_allowlist
+
+    api_key = os.environ.get("LOCAL_LLM_API_KEY") or ""
+    if not api_key:
+        return _LOCAL_LLM_NO_API_KEY
+
+    raw_allowlist = os.environ.get("LOCAL_LLM_ALLOWED_BASE_URLS", "")
+    entries = [entry.strip() for entry in raw_allowlist.split(",") if entry.strip()]
+    if not raw_allowlist.strip():
+        if not _warned_local_llm_key_without_allowlist:
+            _warned_local_llm_key_without_allowlist = True
+            logging.warning(
+                "LOCAL_LLM_API_KEY is set but LOCAL_LLM_ALLOWED_BASE_URLS is empty; "
+                "the key is sent to any local LLM address. Set LOCAL_LLM_ALLOWED_BASE_URLS "
+                "to the gateway base URL(s) to restrict it."
+            )
+        return api_key
+
+    try:
+        target = _local_llm_base_url_identity(base_url)
+    except ValueError:
+        return _LOCAL_LLM_NO_API_KEY
+    for index, entry in enumerate(entries):
+        try:
+            allowed = _local_llm_base_url_identity(resolve_local_llm_base_url(entry))
+        except ValueError:
+            # 項目に認証情報が含まれうるので、値そのものはログに出さない
+            logging.warning("Ignoring an invalid entry (#%d) in LOCAL_LLM_ALLOWED_BASE_URLS", index + 1)
+            continue
+        if allowed == target:
+            return api_key
+    return _LOCAL_LLM_NO_API_KEY
 
 
 def _to_strict_json_schema(schema: Any) -> Any:
@@ -611,7 +742,7 @@ def request_to_local_llm(
     token_usage_total = 0  # 合計トークン使用量を追跡する変数
 
     base_url = _resolve_local_llm_base_url(address)
-    api_key = os.environ.get("LOCAL_LLM_API_KEY", "not-needed")
+    api_key = resolve_local_llm_api_key(base_url)
 
     try:
         client = OpenAI(
@@ -654,10 +785,11 @@ def request_to_local_llm(
             token_usage_output = response.usage.completion_tokens or 0
             token_usage_total = response.usage.total_tokens or 0
 
+        _raise_if_openai_response_blocked(response, "LocalLLM")
         return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
     except Exception as e:
         logging.error(
-            f"LocalLLM API error: {e}, model:{model}, address:{address}, is_json:{is_json}, json_schema:{json_schema}, response_format:{response_format}"
+            f"LocalLLM API error: {redact_secrets(str(e))}, model:{model}, address:{address}, is_json:{is_json}, json_schema:{json_schema}, response_format:{response_format}"
         )
         raise
 
@@ -736,7 +868,7 @@ def request_to_local_llm_embed(args, model, address="localhost:11434"):
         埋め込みベクトルのリスト
     """
     base_url = _resolve_local_llm_base_url(address)
-    api_key = os.environ.get("LOCAL_LLM_API_KEY", "not-needed")
+    api_key = resolve_local_llm_api_key(base_url)
 
     try:
         client = OpenAI(
@@ -757,7 +889,7 @@ def request_to_local_llm_embed(args, model, address="localhost:11434"):
         #     （wrong model のまま成果物が出る）
         # 黙ってモデルを swap せず、原因の分かる形で fail-fast する。サーバー内蔵の
         # 埋め込みモデルを使いたい場合は is_embedded_at_local を有効にすること。
-        logging.error(f"LocalLLM embedding API error: {e}")
+        logging.error(f"LocalLLM embedding API error: {redact_secrets(str(e))}")
         raise RuntimeError(
             f"ローカルLLMの埋め込みAPI呼び出しに失敗しました (model={model!r}, address={address!r}): {e}. "
             "エンドポイント・モデル設定を確認してください。"
@@ -1240,6 +1372,7 @@ def _openrouter_structured_parse(
     except ValidationError as e:
         raise _OpenRouterStructuredOutputIgnored(_extract_raw_token_usage(raw_response), e) from e
     token_usage_input, token_usage_output, token_usage_total = _extract_token_usage(response)
+    _raise_if_openai_response_blocked(response, "OpenRouter")
     return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
 
 
@@ -1249,8 +1382,11 @@ def _openrouter_json_fallback(
     messages: list[dict],
     json_schema: dict | type[BaseModel] | None,
     timeout_seconds: int,
+    api_key: str | None = None,
 ) -> tuple[str, int, int, int]:
     """structured outputs 非対応モデル向けのフォールバック経路。
+
+    `api_key` はログの伏せ字に使う（環境変数に無い、引数で渡されたキーも完全一致で伏せる）。
 
     ローカル LLM 経路と同様に `chat.completions.create` を使い、
     まず `response_format={"type": "json_object"}` を試す。これも非対応なら
@@ -1292,13 +1428,14 @@ def _openrouter_json_fallback(
         try:
             response = client.chat.completions.create(**payload)
             token_usage_input, token_usage_output, token_usage_total = _extract_token_usage(response)
+            _raise_if_openai_response_blocked(response, "OpenRouter")
             content = _extract_json_text(response.choices[0].message.content)
             return content, token_usage_input, token_usage_output, token_usage_total
         except openai.BadRequestError as e:
             last_error = e
             logging.warning(
                 "OpenRouter JSON fallback attempt failed "
-                f"(model={model}, response_format={payload.get('response_format')}): {e}"
+                f"(model={model}, response_format={payload.get('response_format')}): {redact_secrets(str(e), (api_key,))}"
             )
             continue
     # すべての fallback 試行が BadRequestError で失敗
@@ -1349,16 +1486,18 @@ def request_to_openrouter_chatcompletion(
                     if isinstance(e, _OpenRouterStructuredOutputIgnored):
                         spent_usage = e.usage
                     logging.warning(
-                        f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {e}"
+                        f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {redact_secrets(str(e), (api_key,))}"
                     )
-            content, *fallback_usage = _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
+            content, *fallback_usage = _openrouter_json_fallback(
+                client, model, messages, json_schema, timeout_seconds, api_key
+            )
             token_usage_input, token_usage_output, token_usage_total = (
                 spent + added for spent, added in zip(spent_usage, fallback_usage, strict=True)
             )
             return content, token_usage_input, token_usage_output, token_usage_total
 
         if structured_dict_schema and prefer_json_fallback:
-            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, api_key)
 
         payload: dict[str, Any] = {
             "model": model,
@@ -1381,20 +1520,21 @@ def request_to_openrouter_chatcompletion(
                 raise
             # dict スキーマでも structured outputs 非対応なら JSON モードへ fallback
             logging.warning(
-                f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {e}"
+                f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {redact_secrets(str(e), (api_key,))}"
             )
-            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, api_key)
 
         token_usage_input, token_usage_output, token_usage_total = _extract_token_usage(response)
+        _raise_if_openai_response_blocked(response, "OpenRouter")
         return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
     except openai.RateLimitError as e:
-        logging.warning(f"OpenRouter API rate limit hit: {e}")
+        logging.warning(f"OpenRouter API rate limit hit: {redact_secrets(str(e), (api_key,))}")
         raise
     except openai.AuthenticationError as e:
-        logging.error(f"OpenRouter API authentication error: {str(e)}")
+        logging.error(f"OpenRouter API authentication error: {redact_secrets(str(e), (api_key,))}")
         raise
     except openai.BadRequestError as e:
-        logging.error(f"OpenRouter API bad request error: {str(e)}")
+        logging.error(f"OpenRouter API bad request error: {redact_secrets(str(e), (api_key,))}")
         raise
 
 

@@ -14,6 +14,7 @@ from analysis_core.plugin import (
     StepInputs,
     get_registry,
 )
+from analysis_core.services.error_summary import redact_secrets
 from analysis_core.workflow.definition import (
     StepResult,
     WorkflowDefinition,
@@ -201,7 +202,10 @@ class WorkflowEngine:
                     on_step_complete(step_id, result.step_results[step_id])
 
             except Exception as e:
-                error_msg = f"Step '{step_id}' failed: {str(e)}"
+                # SDK の例外メッセージには API キー（の一部）が入ることがある。ログ・status に出る前に伏せる。
+                # 環境変数に無く config / ctx でだけ渡されたユーザーのキーも完全一致で伏せる
+                user_api_keys = (ctx.user_api_key, config.get("user_api_key"))
+                error_msg = f"Step '{step_id}' failed: {redact_secrets(str(e), user_api_keys)}"
                 print(f"Error: {error_msg}")
 
                 if step.optional:

@@ -34,5 +34,25 @@ def _request_timeout_from_env() -> int:
 DEFAULT_REQUEST_TIMEOUT_SECONDS = _request_timeout_from_env()
 
 
+# Flex はレイテンシが大きいため、OpenAI は 15 分程度のタイムアウトを推奨している。
+DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS = 900
+
+
+def openai_flex_timeout_from_env() -> int:
+    """OPENAI_FLEX_TIMEOUT_SECONDS を読む。不正な値は変数名を示す ValueError にする。
+
+    リクエストのたびに検証すると、エラーが抽出などの失敗（型名だけの記録）に埋もれるので、
+    起動時の validate_api_keys からも呼んで即座に止める。
+    """
+    # 空文字は未設定として扱う (.env.example の空欄をそのまま使えるように)
+    raw = (os.getenv("OPENAI_FLEX_TIMEOUT_SECONDS") or "").strip() or str(DEFAULT_OPENAI_FLEX_TIMEOUT_SECONDS)
+    try:
+        return positive_timeout(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"OPENAI_FLEX_TIMEOUT_SECONDS must be a positive integer number of seconds (got {raw!r})"
+        ) from exc
+
+
 def resolve_timeout(value: object = None) -> int:
     return DEFAULT_REQUEST_TIMEOUT_SECONDS if value is None else positive_timeout(value)
