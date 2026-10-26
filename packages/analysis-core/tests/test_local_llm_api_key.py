@@ -115,3 +115,21 @@ def test_key_value_is_not_logged(monkeypatch, caplog):
     monkeypatch.setenv("LOCAL_LLM_ALLOWED_BASE_URLS", "https://gateway.example.com")
     llm.resolve_local_llm_api_key("https://gateway.example.co/v1")
     assert "gateway-token" not in caplog.text
+
+
+@pytest.mark.parametrize("raw", [",", " , ,", ",,"])
+def test_separator_only_allowlist_does_not_fall_back_to_any_url(monkeypatch, raw):
+    """区切り文字だけの許可リストは空（互換動作）扱いにせず、どこにも付けない"""
+    monkeypatch.setenv("LOCAL_LLM_API_KEY", "gateway-token")
+    monkeypatch.setenv("LOCAL_LLM_ALLOWED_BASE_URLS", raw)
+    assert llm.resolve_local_llm_api_key("https://gateway.example.com/v1") == NO_KEY
+
+
+def test_invalid_allowlist_entry_value_is_not_logged(monkeypatch, caplog):
+    """読めない項目に認証情報が含まれていても、ログには値を出さない"""
+    monkeypatch.setenv("LOCAL_LLM_API_KEY", "gateway-token")
+    monkeypatch.setenv("LOCAL_LLM_ALLOWED_BASE_URLS", "https://user:s3cret@gateway.example.com:abc")
+    llm.resolve_local_llm_api_key("https://gateway.example.com/v1")
+    assert "LOCAL_LLM_ALLOWED_BASE_URLS" in caplog.text
+    assert "s3cret" not in caplog.text
+

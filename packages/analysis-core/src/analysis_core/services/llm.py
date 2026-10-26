@@ -593,7 +593,7 @@ def resolve_local_llm_api_key(base_url: str) -> str:
 
     raw_allowlist = os.environ.get("LOCAL_LLM_ALLOWED_BASE_URLS", "")
     entries = [entry.strip() for entry in raw_allowlist.split(",") if entry.strip()]
-    if not entries:
+    if not raw_allowlist.strip():
         if not _warned_local_llm_key_without_allowlist:
             _warned_local_llm_key_without_allowlist = True
             logging.warning(
@@ -607,11 +607,12 @@ def resolve_local_llm_api_key(base_url: str) -> str:
         target = _local_llm_base_url_identity(base_url)
     except ValueError:
         return _LOCAL_LLM_NO_API_KEY
-    for entry in entries:
+    for index, entry in enumerate(entries):
         try:
             allowed = _local_llm_base_url_identity(resolve_local_llm_base_url(entry))
         except ValueError:
-            logging.warning("Ignoring an invalid entry in LOCAL_LLM_ALLOWED_BASE_URLS: %r", entry)
+            # 項目に認証情報が含まれうるので、値そのものはログに出さない
+            logging.warning("Ignoring an invalid entry (#%d) in LOCAL_LLM_ALLOWED_BASE_URLS", index + 1)
             continue
         if allowed == target:
             return api_key
