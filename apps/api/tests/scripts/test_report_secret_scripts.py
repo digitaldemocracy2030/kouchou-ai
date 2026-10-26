@@ -2,6 +2,9 @@
 
 import importlib.util
 import json
+import os
+import socket
+import subprocess
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -213,3 +216,151 @@ def test_scrub_slug_covers_status_without_result(tmp_path):
 
     assert scrub.main(["--report-dir", str(root), "--slug", "running", "--apply", "--no-backup"]) == 0
     assert SECRET not in status_path.read_text(encoding="utf-8")
+
+
+# --- --sync-storage / --revalidate（API の src を使う経路）---
+# 実際の Azure や公開ビューアには繋がず、作業ディレクトリに偽の src パッケージを置いて確かめる。
+
+_FAKE_SRC = {
+    "src/__init__.py": "",
+    "src/config.py": """
+import os
+from pathlib import Path
+
+
+class _Settings:
+    REPORT_DIR = Path(os.environ["FAKE_REPORT_DIR"])
+    REVALIDATE_URL = os.environ["FAKE_REVALIDATE_URL"]
+    REVALIDATE_SECRET = "revalidate-secret-for-test"
+
+
+settings = _Settings()
+""",
+    "src/services/__init__.py": "",
+    "src/services/storage.py": """
+import os
+
+
+class _FakeStorage:
+    def upload_file(self, local_path, remote_path):
+        with open(os.environ["FAKE_UPLOAD_LOG"], "a", encoding="utf-8") as f:
+            f.write(remote_path + "\\n")
+        return True
+
+
+def get_storage_service():
+    return _FakeStorage()
+""",
+}
+
+
+def _start_revalidate_server(status_code):
+    requests_seen = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            length = int(self.headers.get("Content-Length", 0))
+            requests_seen.append(json.loads(self.rfile.read(length)))
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, requests_seen
+
+
+def _unused_local_url():
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    return f"http://127.0.0.1:{port}/api/revalidate"
+
+
+def _run_scrub_as_script(cwd, report_dir, revalidate_url, *extra):
+    """``python scripts/scrub_report_secrets.py ...`` と同じく、sys.path[0] が scripts/ の状態で動かす。"""
+    for rel, body in _FAKE_SRC.items():
+        (cwd / rel).parent.mkdir(parents=True, exist_ok=True)
+        (cwd / rel).write_text(body, encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    env.update(
+        FAKE_REPORT_DIR=str(report_dir),
+        FAKE_REVALIDATE_URL=revalidate_url,
+        FAKE_UPLOAD_LOG=str(cwd / "uploads.log"),
+    )
+    return subprocess.run(
+        [sys.executable, str(SCRIPTS_DIR / "scrub_report_secrets.py"), "--report-dir", str(report_dir), *extra],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+
+def test_scrub_sync_storage_and_revalidate_with_report_dir(report_dir_with_status, tmp_path):
+    cwd = tmp_path / "api"
+    cwd.mkdir()
+    server, seen = _start_revalidate_server(200)
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/api/revalidate"
+        proc = _run_scrub_as_script(
+            cwd, report_dir_with_status, url, "--apply", "--no-backup", "--sync-storage", "--revalidate"
+        )
+    finally:
+        server.shutdown()
+
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "ModuleNotFoundError" not in proc.stderr
+    uploaded = (cwd / "uploads.log").read_text(encoding="utf-8").split()
+    assert sorted(uploaded) == ["outputs/leaked/hierarchical_result.json", "outputs/leaked/hierarchical_status.json"]
+    # キャッシュ破棄は公開される結果ファイルの分だけ
+    assert [r["tag"] for r in seen] == ["report-leaked"]
+    assert "エラー 0 件" in proc.stdout
+    assert SECRET not in (report_dir_with_status / "leaked" / "hierarchical_result.json").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("failure", ["http_401", "unreachable"])
+def test_scrub_revalidate_failure_is_reported_as_error(report_dir, tmp_path, failure):
+    cwd = tmp_path / "api"
+    cwd.mkdir()
+    server = None
+    if failure == "http_401":
+        server, _ = _start_revalidate_server(401)
+        url = f"http://127.0.0.1:{server.server_port}/api/revalidate"
+    else:
+        url = _unused_local_url()
+    try:
+        proc = _run_scrub_as_script(cwd, report_dir, url, "--apply", "--no-backup", "--revalidate")
+    finally:
+        if server is not None:
+            server.shutdown()
+
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "[ERROR] leaked: キャッシュ破棄に失敗（ファイルは修正済み）" in proc.stdout
+    assert "-> キャッシュを破棄" not in proc.stdout
+    assert "エラー 1 件" in proc.stdout
+    # ファイル自体の修正は済んでいる
+    assert SECRET not in (report_dir / "leaked" / "hierarchical_result.json").read_text(encoding="utf-8")
+
+
+def test_scrub_sync_storage_without_api_src_exits_with_message(report_dir, tmp_path):
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPTS_DIR / "scrub_report_secrets.py"), "--report-dir", str(report_dir)]
+        + ["--apply", "--no-backup", "--sync-storage"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert proc.returncode == 2
+    assert "apps/api（src/ がある場所）で実行してください" in proc.stderr
+    assert "Traceback" not in proc.stderr
+    # import できないと分かった時点で止め、ファイルは書き換えない
+    assert SECRET in (report_dir / "leaked" / "hierarchical_result.json").read_text(encoding="utf-8")

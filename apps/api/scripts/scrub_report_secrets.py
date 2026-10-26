@@ -33,6 +33,10 @@ API サーバーのコンテナ（作業ディレクトリ apps/api）で実行�
   --sync-storage を付けないと、再起動時に修正前のファイルで上書きされる。
 - 静的書き出し（ZIP）や管理画面からダウンロード済みの JSON は、このスクリプトでは直せない。
 - 漏れたキーそのものは、利用者に無効化・再発行してもらう必要がある。
+- --revalidate は公開ビューアの応答（HTTP 200）を確かめ、失敗したら [ERROR] として終了コード 1 を返す。
+  そのときファイルは修正済みなので、再実行しても対象にならない。REVALIDATE_URL / REVALIDATE_SECRET を
+  確かめたうえで、公開ビューアの URL を check_report_secret_leak.py で確認すること
+  （古い版の公開ビューアは、破棄後の最初のアクセスでまだ古いページを返すことがある）。
 """
 
 from __future__ import annotations
@@ -52,6 +56,7 @@ STATUS_SECRET_KEYS = {"user_api_key"}
 RESULT_FILE = "hierarchical_result.json"
 STATUS_FILE = "hierarchical_status.json"
 REMOTE_REPORT_DIR_PREFIX = "outputs"  # src.services.report_sync.ReportSyncService と同じ
+REVALIDATE_TIMEOUT_SECONDS = 10
 
 
 def _is_non_public(key: Any) -> bool:
@@ -122,9 +127,38 @@ def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
         raise
 
 
+def _add_api_to_sys_path() -> None:
+    """API の ``src`` パッケージを import できるよう、作業ディレクトリ（apps/api）を sys.path に足す。
+
+    ``python scripts/scrub_report_secrets.py`` では sys.path[0] が scripts/ になり、``src`` が見つからない。
+    """
+    cwd = str(Path.cwd())
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+
+
+def _revalidate_report_cache(slug: str) -> None:
+    """公開ビューアのキャッシュ破棄を要求し、成功（HTTP 200）しなければ例外を投げる。
+
+    API の invalidate_report_cache は失敗をログに出すだけで呼び出し元に伝えないので、ここでは直接呼ぶ。
+    """
+    import requests  # type: ignore
+
+    from src.config import settings  # type: ignore
+
+    response = requests.post(
+        settings.REVALIDATE_URL,
+        json={"tag": f"report-{slug}", "secret": settings.REVALIDATE_SECRET},
+        timeout=REVALIDATE_TIMEOUT_SECONDS,
+        headers={"Content-Type": "application/json"},
+    )
+    if response.status_code != 200:
+        raise RuntimeError(f"公開ビューアが HTTP {response.status_code} を返しました")
+
+
 def _default_report_dir() -> Path | None:
     try:
-        sys.path.insert(0, str(Path.cwd()))
+        _add_api_to_sys_path()
         from src.config import settings  # type: ignore
 
         return Path(settings.REPORT_DIR)
@@ -163,15 +197,17 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--sync-storage / --revalidate は --apply と一緒に指定してください")
 
     storage = None
-    invalidate = None
+    if args.sync_storage or args.revalidate:
+        # --report-dir を指定すると _default_report_dir() を通らないので、ここでも足す
+        _add_api_to_sys_path()
+        try:
+            import src.config  # type: ignore  # noqa: F401
+        except ModuleNotFoundError as e:
+            parser.error(f"API の src を import できません（{e}）。apps/api（src/ がある場所）で実行してください")
     if args.sync_storage:
         from src.services.storage import get_storage_service  # type: ignore
 
         storage = get_storage_service()
-    if args.revalidate:
-        from src.services.report_status import invalidate_report_cache  # type: ignore
-
-        invalidate = invalidate_report_cache
 
     paths: list[Path] = []
     if args.slug:
@@ -218,12 +254,20 @@ def main(argv: list[str] | None = None) -> int:
                 if storage.upload_file(str(path), remote) is False:
                     raise RuntimeError(f"ストレージへのアップロードに失敗: {remote}")
                 print(f"          -> ストレージへ反映: {remote}")
-            if invalidate is not None and name == RESULT_FILE:
-                invalidate(slug)
-                print("          -> キャッシュ破棄を要求")
         except Exception as e:
             print(f"[ERROR] {target}: {e}")
             failed += 1
+            continue
+        if args.revalidate and name == RESULT_FILE:
+            try:
+                _revalidate_report_cache(slug)
+            except Exception as e:
+                print(f"[ERROR] {target}: キャッシュ破棄に失敗（ファイルは修正済み）: {e}")
+                failed += 1
+                continue
+            print(
+                "          -> キャッシュを破棄（公開ビューアの URL を check_report_secret_leak.py で確認してください）"
+            )
 
     mode = "修正" if args.apply else "確認のみ（--apply で修正）"
     print(f"\n{mode}: 対象 {len(paths)} 件 / 要修正 {affected} 件 / エラー {failed} 件")
