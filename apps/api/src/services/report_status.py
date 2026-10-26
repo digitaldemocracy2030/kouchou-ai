@@ -259,6 +259,32 @@ def invalidate_report_cache(slug: str) -> None:
         logger.error(f"Failed to call revalidate API for {slug}: {e}")
 
 
+def _sync_status_and_invalidate(slug: str) -> None:
+    """status の変更をストレージへ同期し、public-viewer のキャッシュを破棄する
+
+    同期に失敗しても（StatusStorageSyncError を投げても）ローカルの変更は有効なので、
+    キャッシュは必ず破棄する。
+    """
+    try:
+        sync_status_to_storage()
+    finally:
+        invalidate_report_cache(slug)
+
+
+def mark_report_deleted(slug: str) -> None:
+    """レポートを削除済みにし、ストレージへ同期して public-viewer のキャッシュを破棄する
+
+    ストレージへ同期しないと、再起動時の復元で削除が取り消される。キャッシュを破棄しないと、
+    公開中だったレポートのページが削除後も ISR のキャッシュから配信され続ける。
+
+    Raises:
+        ValueError: 指定されたスラッグのレポートが存在しない場合
+        StatusStorageSyncError: ストレージへの同期に失敗した場合
+    """
+    set_status(slug, ReportStatus.DELETED.value)
+    _sync_status_and_invalidate(slug)
+
+
 def update_report_visibility_state(slug: str, new_visibility: ReportVisibility) -> str:
     with _lock:
         if slug not in _report_status:
@@ -268,11 +294,8 @@ def update_report_visibility_state(slug: str, new_visibility: ReportVisibility) 
 
         save_status()
         visibility = _report_status[slug]["visibility"]
-        try:
-            sync_status_to_storage()
-        finally:
-            # 同期に失敗してもローカルの変更は有効なので、キャッシュは破棄する
-            invalidate_report_cache(slug)
+    # revalidate の HTTP 呼び出しで status のロックを塞がないよう、ロックの外で行う
+    _sync_status_and_invalidate(slug)
     return visibility
 
 
@@ -362,10 +385,7 @@ def update_report_config(slug: str, updated_config: ReportConfigUpdate) -> dict:
 
         save_status()
         updated_report = _report_status[slug]
-        try:
-            sync_status_to_storage()
-        finally:
-            invalidate_report_cache(slug)
+    _sync_status_and_invalidate(slug)
     return updated_report
 
 

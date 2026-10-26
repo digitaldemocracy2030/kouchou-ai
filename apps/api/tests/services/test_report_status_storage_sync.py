@@ -96,6 +96,33 @@ class TestStatusSyncedToStorage:
         response = client.delete("/admin/reports/test-slug")
         assert response.status_code == 500
 
+    def test_delete_endpoint_invalidates_viewer_cache(self, status_env, client):
+        """削除で public-viewer の ISR キャッシュを破棄する（公開中だったページを配信し続けない）"""
+        with patch("src.services.report_status.invalidate_report_cache") as mock_invalidate:
+            response = client.delete("/admin/reports/test-slug")
+        assert response.status_code == 200
+        mock_invalidate.assert_called_once_with("test-slug")
+
+    def test_delete_endpoint_invalidates_viewer_cache_even_when_upload_fails(self, status_env, client):
+        """ストレージへの同期に失敗しても、ローカルでは削除済みなのでキャッシュは破棄する"""
+        _, storage = status_env
+        storage.upload_file.return_value = False
+        with patch("src.services.report_status.invalidate_report_cache") as mock_invalidate:
+            response = client.delete("/admin/reports/test-slug")
+        assert response.status_code == 500
+        mock_invalidate.assert_called_once_with("test-slug")
+        assert report_status._report_status["test-slug"]["status"] == "deleted"
+
+    def test_visibility_change_invalidates_viewer_cache_even_when_upload_fails(self, status_env):
+        _, storage = status_env
+        storage.upload_file.return_value = False
+        with (
+            patch("src.services.report_status.invalidate_report_cache") as mock_invalidate,
+            pytest.raises(report_status.StatusStorageSyncError),
+        ):
+            report_status.update_report_visibility_state("test-slug", ReportVisibility.PRIVATE)
+        mock_invalidate.assert_called_once_with("test-slug")
+
     def test_update_report_config_uploads_status(self, status_env):
         status_file, storage = status_env
         from src.schemas.report_config import ReportConfigUpdate
