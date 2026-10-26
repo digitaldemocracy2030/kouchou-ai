@@ -2,7 +2,7 @@ import { system } from "@/components/theme/system";
 import type { Report } from "@/type";
 import { ReportVisibility } from "@/type";
 import { ChakraProvider } from "@chakra-ui/react";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ReportCard } from "./ReportCard";
 
 // Next の useRouter は refresh の前後で同じオブジェクトを返すので、mock も安定した 1 つのオブジェクトにする
@@ -203,5 +203,50 @@ describe("ReportCard の進捗表示と一覧の取り直し", () => {
     await advance(60_000, 1000);
     expect(mockRouter.refresh).not.toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("error のカードの削除ボタン", () => {
+  // ツールチップの位置計算（floating-ui）が使う。jsdom には無いので、何もしないものを置く
+  const originalResizeObserver = global.ResizeObserver;
+  beforeAll(() => {
+    global.ResizeObserver = jest
+      .fn()
+      .mockImplementation(() => ({ observe: jest.fn(), unobserve: jest.fn(), disconnect: jest.fn() }));
+  });
+  afterAll(() => {
+    global.ResizeObserver = originalResizeObserver;
+  });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn(async () => stepJson({ status: "error", current_step: "extraction" }));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("アイコンだけのボタンにも「レポートを削除」という名前があり、押すと削除の確認ダイアログが開く", async () => {
+    renderCard(errorReport);
+    await advance(100);
+
+    const button = screen.getByRole("button", { name: "レポートを削除" });
+    fireEvent.click(button);
+    await advance(100);
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("ホバーすると「レポートを削除」のツールチップが出る", async () => {
+    renderCard(errorReport);
+    await advance(100);
+
+    const button = screen.getByRole("button", { name: "レポートを削除" });
+    fireEvent.pointerMove(button);
+    fireEvent.pointerEnter(button);
+    await advance(500);
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("レポートを削除");
   });
 });
