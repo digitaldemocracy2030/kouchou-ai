@@ -87,4 +87,3 @@ describe("getBrowserStorage", () => {
     expect(getBrowserStorage()).toBe(window.localStorage);
   });
 });
-
