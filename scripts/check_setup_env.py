@@ -91,8 +91,9 @@ def check_secrets(generated: dict[str, str]) -> list[str]:
     errors = []
     for key, forbidden in SECRET_KEYS.items():
         if generated.get(key, "") in forbidden:
+            # 秘密値はログに出さない（キー名だけを示す）
             errors.append(
-                f"{key} が固定値または空（{generated.get(key, '')!r}）。セットアップスクリプトでランダムに生成する"
+                f"{key} が固定値または空。セットアップスクリプトでランダムに生成する"
             )
     for key, mirror in SECRET_KEY_PAIRS:
         if generated.get(key) != generated.get(mirror):
