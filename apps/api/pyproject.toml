@@ -30,15 +30,6 @@ dependencies = [
 # For local dev: pip install -e ../../packages/analysis-core
 # In Docker: analysis-core is installed in the same image.
 
-# Optional dependencies for plugins
-[project.optional-dependencies]
-youtube = [
-    "google-api-python-client>=2.150.0",
-]
-all-plugins = [
-    "google-api-python-client>=2.150.0",
-]
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

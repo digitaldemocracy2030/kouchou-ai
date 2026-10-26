@@ -17,6 +17,7 @@ import re
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+import httpx
 import polars as pl
 
 from src.plugins.base import InputPlugin, PluginManifest, PluginSetting, SettingType
@@ -24,16 +25,64 @@ from src.plugins.registry import PluginRegistry
 
 logger = logging.getLogger("uvicorn")
 
+YOUTUBE_API_BASE_URL = "https://www.googleapis.com/youtube/v3"
+YOUTUBE_API_TIMEOUT_SECONDS = 30.0
 
-def _describe_http_error(e: Any, api_key: str) -> str:
-    """Build a user-facing message from a googleapiclient HttpError.
 
-    ``str(HttpError)`` includes the request URI, which carries the API key as the
-    ``key=`` query parameter. Use only the status and reason, and mask the key
-    in case it still appears.
+class YouTubeAPIError(Exception):
+    """YouTube Data API がエラーを返した（HTTP status と応答本文を持つ）。"""
+
+    def __init__(self, status: int, content: bytes):
+        self.status = status
+        self.content = content
+        try:
+            self.reason = str(json.loads(content.decode("utf-8"))["error"]["message"])
+        except (ValueError, KeyError, TypeError):
+            self.reason = ""
+        super().__init__(f"YouTube API error (HTTP {status}): {self.reason}")
+
+
+def _new_http_client(api_key: str, **kwargs: Any) -> httpx.Client:
+    # キーは URL の key= ではなくヘッダーで送り、エラー文やログに出る URL にキーを載せない
+    return httpx.Client(
+        base_url=YOUTUBE_API_BASE_URL,
+        headers={"X-Goog-Api-Key": api_key},
+        timeout=YOUTUBE_API_TIMEOUT_SECONDS,
+        **kwargs,
+    )
+
+
+def _api_get(client: httpx.Client, resource: str, **params: Any) -> dict[str, Any]:
+    """YouTube Data API の list 系を 1 ページ分呼ぶ。失敗は YouTubeAPIError で返す。"""
+    try:
+        response = client.get(f"/{resource}", params=params)
+    except httpx.HTTPError:
+        # 接続失敗・タイムアウトなど。httpx の例外は連鎖させない
+        raise ValueError("YouTube APIに接続できませんでした。時間をおいて再実行してください。") from None
+    if response.status_code >= 400:
+        raise YouTubeAPIError(response.status_code, response.content)
+    return response.json()
+
+
+def _paginate(client: httpx.Client, resource: str, **params: Any):
+    """nextPageToken をたどって、1 ページずつ応答を返す。"""
+    page_token = None
+    while True:
+        page_params = {**params, "pageToken": page_token} if page_token else params
+        response = _api_get(client, resource, **page_params)
+        yield response
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            return
+
+
+def _describe_http_error(e: YouTubeAPIError, api_key: str) -> str:
+    """Build a user-facing message from a YouTubeAPIError.
+
+    Use only the status and reason, and mask the key in case it appears.
     """
-    status = getattr(getattr(e, "resp", None), "status", None)
-    reason = getattr(e, "reason", "") or ""
+    status = e.status
+    reason = e.reason
     message = f"YouTube APIエラー (HTTP {status})"
     if reason:
         message += f": {reason}"
@@ -60,8 +109,8 @@ class YouTubeVideoSkippableError(ValueError):
     """その動画に固有の失敗（コメント無効・動画が無いなど）。プレイリストでは飛ばして続ける。"""
 
 
-def _http_error_reasons(error: Any) -> list[tuple[str, str]]:
-    """HttpError の応答本文から (reason, domain) の一覧を取り出す。"""
+def _http_error_reasons(error: YouTubeAPIError) -> list[tuple[str, str]]:
+    """エラー応答の本文から (reason, domain) の一覧を取り出す。"""
     try:
         data = json.loads(error.content.decode("utf-8"))
         errors = data["error"].get("errors", [])
@@ -72,12 +121,9 @@ def _http_error_reasons(error: Any) -> list[tuple[str, str]]:
     return [(str(item.get("reason", "")), str(item.get("domain", ""))) for item in errors if isinstance(item, dict)]
 
 
-def _error_from_http_error(error: Any, video_id: str, api_key: str = "") -> ValueError:
-    """HttpError を、status と reason から決めた利用者向けの文言の例外に変える。
-
-    HttpError の文字列（キー入りのリクエスト URI）は使わない。
-    """
-    status = getattr(error.resp, "status", None)
+def _error_from_http_error(error: YouTubeAPIError, video_id: str, api_key: str = "") -> ValueError:
+    """YouTubeAPIError を、status と reason から決めた利用者向けの文言の例外に変える。"""
+    status = error.status
     reasons = _http_error_reasons(error)
     reason_names = {reason for reason, _ in reasons}
 
@@ -212,21 +258,17 @@ class YouTubePlugin(InputPlugin):
         self, video_id: str, api_key: str, max_results: int, include_replies: bool
     ) -> pl.DataFrame:
         """Fetch comments from a single video."""
-        try:
-            from googleapiclient.discovery import build
-            from googleapiclient.errors import HttpError
-        except ImportError as e:
-            raise ImportError(
-                "google-api-python-client is required for YouTube plugin. "
-                "Install with: pip install google-api-python-client"
-            ) from e
+        with _new_http_client(api_key) as client:
+            return self._fetch_video_comments_with(client, video_id, api_key, max_results, include_replies)
 
-        youtube = build("youtube", "v3", developerKey=api_key)
+    def _fetch_video_comments_with(
+        self, client: httpx.Client, video_id: str, api_key: str, max_results: int, include_replies: bool
+    ) -> pl.DataFrame:
         comments = []
 
         try:
             # First, get video info
-            video_response = youtube.videos().list(part="snippet", id=video_id).execute()
+            video_response = _api_get(client, "videos", part="snippet", id=video_id)
 
             if not video_response.get("items"):
                 raise YouTubeVideoSkippableError(f"動画が見つかりません: {video_id}")
@@ -234,16 +276,16 @@ class YouTubePlugin(InputPlugin):
             video_title = video_response["items"][0]["snippet"]["title"]
 
             # Fetch comment threads
-            request = youtube.commentThreads().list(
+            pages = _paginate(
+                client,
+                "commentThreads",
                 part="snippet,replies",
                 videoId=video_id,
                 maxResults=min(100, max_results),  # API max is 100 per request
                 textFormat="plainText",
             )
 
-            while request and len(comments) < max_results:
-                response = request.execute()
-
+            for response in pages:
                 for item in response.get("items", []):
                     # Top-level comment
                     snippet = item["snippet"]["topLevelComment"]["snippet"]
@@ -284,11 +326,11 @@ class YouTubePlugin(InputPlugin):
                     if len(comments) >= max_results:
                         break
 
-                # Get next page
-                request = youtube.commentThreads().list_next(request, response)
+                if len(comments) >= max_results:
+                    break
 
-        except HttpError as e:
-            # 応答には利用者向けの文言だけを返し、HttpError の詳細は連鎖させない
+        except YouTubeAPIError as e:
+            # 応答には利用者向けの文言だけを返し、エラーの詳細は連鎖させない
             raise _error_from_http_error(e, video_id, api_key) from None
 
         logger.info(f"Fetched {len(comments)} comments from YouTube video {video_id}")
@@ -298,28 +340,22 @@ class YouTubePlugin(InputPlugin):
         self, playlist_id: str, api_key: str, max_results: int, include_replies: bool
     ) -> pl.DataFrame:
         """Fetch comments from all videos in a playlist."""
-        try:
-            from googleapiclient.discovery import build
-            from googleapiclient.errors import HttpError
-        except ImportError as e:
-            raise ImportError(
-                "google-api-python-client is required for YouTube plugin. "
-                "Install with: pip install google-api-python-client"
-            ) from e
+        with _new_http_client(api_key) as client:
+            return self._fetch_playlist_comments_with(client, playlist_id, api_key, max_results, include_replies)
 
-        youtube = build("youtube", "v3", developerKey=api_key)
+    def _fetch_playlist_comments_with(
+        self, client: httpx.Client, playlist_id: str, api_key: str, max_results: int, include_replies: bool
+    ) -> pl.DataFrame:
         all_comments = []
 
         try:
             # Get playlist items
-            request = youtube.playlistItems().list(part="snippet", playlistId=playlist_id, maxResults=50)
-
             video_ids = []
-            while request and len(video_ids) < 50:  # Limit to 50 videos
-                response = request.execute()
+            for response in _paginate(client, "playlistItems", part="snippet", playlistId=playlist_id, maxResults=50):
                 for item in response.get("items", []):
                     video_ids.append(item["snippet"]["resourceId"]["videoId"])
-                request = youtube.playlistItems().list_next(request, response)
+                if len(video_ids) >= 50:  # Limit to 50 videos
+                    break
 
             logger.info(f"Found {len(video_ids)} videos in playlist {playlist_id}")
 
@@ -329,7 +365,9 @@ class YouTubePlugin(InputPlugin):
             skipped_video_ids = []
             for video_id in video_ids:
                 try:
-                    video_comments = self._fetch_video_comments(video_id, api_key, comments_per_video, include_replies)
+                    video_comments = self._fetch_video_comments_with(
+                        client, video_id, api_key, comments_per_video, include_replies
+                    )
                     all_comments.append(video_comments)
 
                     if sum(len(df) for df in all_comments) >= max_results:
@@ -347,9 +385,9 @@ class YouTubePlugin(InputPlugin):
                     "コメントが無効か、動画が非公開・削除済みの可能性があります。"
                 )
 
-        except HttpError as e:
-            # HttpError の文字列と属性にはキー入りの URI があるので、例外の連鎖を切る
-            if e.resp.status == 404:
+        except YouTubeAPIError as e:
+            # 応答には利用者向けの文言だけを返し、エラーの詳細は連鎖させない
+            if e.status == 404:
                 raise ValueError(f"プレイリストが見つかりません: {playlist_id}") from None
             else:
                 raise ValueError(_describe_http_error(e, api_key)) from None

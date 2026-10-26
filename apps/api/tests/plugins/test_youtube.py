@@ -1,12 +1,9 @@
 """Test cases for YouTube plugin."""
 
-import json
-import sys
-import types
-from types import SimpleNamespace
-
+import httpx
 import pytest
 
+import src.plugins.youtube as youtube_module
 from src.plugins.youtube import YouTubePlugin, parse_youtube_url
 
 PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf"
@@ -15,103 +12,127 @@ COMMENTS_PER_VIDEO = 3
 FAKE_API_KEY = "fake-youtube-key"
 
 
-class FakeHttpError(Exception):
-    """googleapiclient.errors.HttpError と同じ形 (resp, content: bytes, uri) の偽物。"""
-
-    def __init__(self, resp, content, uri=None):
-        if not isinstance(content, bytes):
-            raise TypeError("HTTP content should be bytes")
-        self.resp = resp
-        self.content = content
-        self.uri = uri
-        data = json.loads(content.decode("utf-8"))
-        self.reason = data["error"]["message"]
-        self.error_details = data["error"].get("errors", "")
-        super().__init__(f'<HttpError {resp.status} when requesting {uri} returned "{self.reason}">')
-
-
-def _http_error(status: int, reason: str, domain: str = "youtube.commentThread") -> FakeHttpError:
-    content = json.dumps(
-        {
-            "error": {
-                "code": status,
-                "message": f"message for {reason}",
-                "errors": [{"message": f"message for {reason}", "domain": domain, "reason": reason}],
-            }
+def _error_body(status: int, reason: str, domain: str) -> dict:
+    return {
+        "error": {
+            "code": status,
+            "message": f"message for {reason}",
+            "errors": [{"message": f"message for {reason}", "domain": domain, "reason": reason}],
         }
-    ).encode("utf-8")
-    uri = f"https://youtube.googleapis.com/youtube/v3/commentThreads?key={FAKE_API_KEY}&alt=json"
-    return FakeHttpError(SimpleNamespace(status=status, reason="error"), content, uri=uri)
+    }
 
 
-class _Request:
-    def __init__(self, fn):
-        self._fn = fn
-
-    def execute(self):
-        return self._fn()
+def _http_error(status: int, reason: str, domain: str = "youtube.commentThread") -> httpx.Response:
+    return httpx.Response(status, json=_error_body(status, reason, domain))
 
 
-class FakeYouTube:
-    """playlistItems / videos / commentThreads だけを持つ YouTube クライアントの偽物。"""
+class FakeYouTubeServer:
+    """YouTube Data API の playlistItems / videos / commentThreads だけを返す偽物（実 API は呼ばない）。"""
 
-    def __init__(self, failures: dict[str, FakeHttpError]):
-        self.failures = failures
+    def __init__(self):
+        # 動画 ID → commentThreads が返すエラー応答
+        self.failures: dict[str, httpx.Response] = {}
+        self.requests: list[httpx.Request] = []
 
-    def playlistItems(self):  # noqa: N802 - SDK と同じ名前
-        items = [{"snippet": {"resourceId": {"videoId": vid}}} for vid in VIDEO_IDS]
-        return SimpleNamespace(
-            list=lambda **kwargs: _Request(lambda: {"items": items}),
-            list_next=lambda request, response: None,
-        )
-
-    def videos(self):
-        return SimpleNamespace(
-            list=lambda **kwargs: _Request(lambda: {"items": [{"snippet": {"title": f"title {kwargs['id']}"}}]})
-        )
-
-    def commentThreads(self):  # noqa: N802 - SDK と同じ名前
-        def list_(**kwargs):
-            video_id = kwargs["videoId"]
-
-            def execute():
-                if video_id in self.failures:
-                    raise self.failures[video_id]
-                return {
-                    "items": [
-                        {
-                            "snippet": {
-                                "topLevelComment": {
-                                    "id": f"{video_id}-c{i}",
-                                    "snippet": {"textDisplay": f"comment {i}", "authorDisplayName": "a"},
-                                }
-                            }
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        resource = request.url.path.rsplit("/", 1)[-1]
+        params = request.url.params
+        if resource == "playlistItems":
+            # 2 ページに分けて返し、nextPageToken をたどることを確かめる
+            if params.get("pageToken") == "page2":
+                ids, next_token = VIDEO_IDS[3:], None
+            else:
+                ids, next_token = VIDEO_IDS[:3], "page2"
+            body: dict = {"items": [{"snippet": {"resourceId": {"videoId": vid}}} for vid in ids]}
+            if next_token:
+                body["nextPageToken"] = next_token
+            return httpx.Response(200, json=body)
+        if resource == "videos":
+            return httpx.Response(200, json={"items": [{"snippet": {"title": f"title {params['id']}"}}]})
+        if resource == "commentThreads":
+            video_id = params["videoId"]
+            if video_id in self.failures:
+                return self.failures[video_id]
+            items = [
+                {
+                    "snippet": {
+                        "topLevelComment": {
+                            "id": f"{video_id}-c{i}",
+                            "snippet": {"textDisplay": f"comment {i}", "authorDisplayName": "a"},
                         }
-                        for i in range(COMMENTS_PER_VIDEO)
-                    ]
+                    }
                 }
+                for i in range(COMMENTS_PER_VIDEO)
+            ]
+            return httpx.Response(200, json={"items": items})
+        return httpx.Response(404, json=_error_body(404, "notFound", "global"))
 
-            return _Request(execute)
 
-        return SimpleNamespace(list=list_, list_next=lambda request, response: None)
+def _use_transport(monkeypatch, handler) -> None:
+    original = youtube_module._new_http_client
+    monkeypatch.setattr(
+        youtube_module,
+        "_new_http_client",
+        lambda api_key: original(api_key, transport=httpx.MockTransport(handler)),
+    )
 
 
 @pytest.fixture
 def fake_youtube(monkeypatch):
-    """googleapiclient を偽物に差し替え、動画ごとの失敗を指定できるようにする（実 API は呼ばない）。"""
-    failures: dict[str, FakeHttpError] = {}
-    googleapiclient = types.ModuleType("googleapiclient")
-    discovery = types.ModuleType("googleapiclient.discovery")
-    errors = types.ModuleType("googleapiclient.errors")
-    discovery.build = lambda *args, **kwargs: FakeYouTube(failures)
-    errors.HttpError = FakeHttpError
-    googleapiclient.discovery = discovery
-    googleapiclient.errors = errors
-    monkeypatch.setitem(sys.modules, "googleapiclient", googleapiclient)
-    monkeypatch.setitem(sys.modules, "googleapiclient.discovery", discovery)
-    monkeypatch.setitem(sys.modules, "googleapiclient.errors", errors)
+    """YouTube Data API への HTTP を偽物の応答に差し替え、動画ごとの失敗を指定できるようにする。"""
+    server = FakeYouTubeServer()
+    _use_transport(monkeypatch, server.handle)
     monkeypatch.setenv("YOUTUBE_API_KEY", FAKE_API_KEY)
-    return failures
+    return server
+
+
+class TestRequests:
+    """YouTube Data API への送り方"""
+
+    def test_api_key_is_sent_in_header_not_url(self, fake_youtube):
+        YouTubePlugin().fetch_data(PLAYLIST_URL, max_results=1000)
+        assert fake_youtube.requests
+        for request in fake_youtube.requests:
+            assert request.headers["X-Goog-Api-Key"] == FAKE_API_KEY
+            assert FAKE_API_KEY not in str(request.url)
+            assert "key" not in request.url.params
+
+    def test_playlist_follows_next_page_token(self, fake_youtube):
+        df = YouTubePlugin().fetch_data(PLAYLIST_URL, max_results=1000)
+        assert len(df) == len(VIDEO_IDS) * COMMENTS_PER_VIDEO
+        playlist_requests = [r for r in fake_youtube.requests if r.url.path.endswith("/playlistItems")]
+        assert [r.url.params.get("pageToken") for r in playlist_requests] == [None, "page2"]
+
+    def test_comment_threads_stop_at_max_results(self, monkeypatch):
+        """max_results に達したら、次のページを取りに行かない。"""
+        calls: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request)
+            if request.url.path.endswith("/videos"):
+                return httpx.Response(200, json={"items": [{"snippet": {"title": "t"}}]})
+            page = int(request.url.params.get("pageToken") or 0)
+            items = [
+                {"snippet": {"topLevelComment": {"id": f"c{page}-{i}", "snippet": {"textDisplay": "x"}}}}
+                for i in range(2)
+            ]
+            return httpx.Response(200, json={"items": items, "nextPageToken": str(page + 1)})
+
+        _use_transport(monkeypatch, handler)
+        df = YouTubePlugin()._fetch_video_comments("dQw4w9WgXcQ", FAKE_API_KEY, 3, False)
+        assert len(df) == 3
+        assert len([r for r in calls if r.url.path.endswith("/commentThreads")]) == 2
+
+    def test_connection_error_is_user_facing(self, monkeypatch):
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectTimeout("timed out", request=request)
+
+        _use_transport(monkeypatch, handler)
+        with pytest.raises(ValueError) as exc_info:
+            YouTubePlugin()._fetch_video_comments("dQw4w9WgXcQ", FAKE_API_KEY, 10, False)
+        assert "接続できませんでした" in str(exc_info.value)
+        assert exc_info.value.__cause__ is None
 
 
 class TestPlaylistErrorHandling:
@@ -130,7 +151,7 @@ class TestPlaylistErrorHandling:
         ],
     )
     def test_video_specific_failures_are_skipped(self, fake_youtube, status, reason, domain):
-        fake_youtube[VIDEO_IDS[2]] = _http_error(status, reason, domain)
+        fake_youtube.failures[VIDEO_IDS[2]] = _http_error(status, reason, domain)
         df = YouTubePlugin().fetch_data(PLAYLIST_URL, max_results=1000)
         assert len(df) == (len(VIDEO_IDS) - 1) * COMMENTS_PER_VIDEO
         assert not any(url.startswith(f"https://www.youtube.com/watch?v={VIDEO_IDS[2]}") for url in df["url"])
@@ -148,25 +169,25 @@ class TestPlaylistErrorHandling:
         ],
     )
     def test_quota_and_transient_failures_abort_the_import(self, fake_youtube, status, reason, domain, expected):
-        fake_youtube[VIDEO_IDS[2]] = _http_error(status, reason, domain)
+        fake_youtube.failures[VIDEO_IDS[2]] = _http_error(status, reason, domain)
         with pytest.raises(ValueError) as exc_info:
             YouTubePlugin().fetch_data(PLAYLIST_URL, max_results=1000)
         assert expected in str(exc_info.value)
 
     def test_failure_on_first_video_does_not_return_empty_success(self, fake_youtube):
-        fake_youtube[VIDEO_IDS[0]] = _http_error(429, "rateLimitExceeded", "usageLimits")
+        fake_youtube.failures[VIDEO_IDS[0]] = _http_error(429, "rateLimitExceeded", "usageLimits")
         with pytest.raises(ValueError):
             YouTubePlugin().fetch_data(PLAYLIST_URL, max_results=1000)
 
     def test_all_videos_skipped_is_an_error(self, fake_youtube):
         for vid in VIDEO_IDS:
-            fake_youtube[vid] = _http_error(403, "commentsDisabled")
+            fake_youtube.failures[vid] = _http_error(403, "commentsDisabled")
         with pytest.raises(ValueError) as exc_info:
             YouTubePlugin().fetch_data(PLAYLIST_URL, max_results=1000)
         assert "コメントを取得できませんでした" in str(exc_info.value)
 
     def test_single_video_comments_disabled_message(self, fake_youtube):
-        fake_youtube[VIDEO_IDS[0]] = _http_error(403, "commentsDisabled")
+        fake_youtube.failures[VIDEO_IDS[0]] = _http_error(403, "commentsDisabled")
         with pytest.raises(ValueError) as exc_info:
             YouTubePlugin().fetch_data(f"https://www.youtube.com/watch?v={VIDEO_IDS[0]}", max_results=10)
         assert "コメントが無効" in str(exc_info.value)
@@ -269,52 +290,26 @@ class TestYouTubePlugin:
 SECRET_KEY = "AIzaSECRETKEY1234567890"
 
 
-class _FakeResp:
-    def __init__(self, status: int):
-        self.status = status
+def _install_failing_api(monkeypatch, failing_call: str, status: int):
+    """failing_call への要求だけがエラー応答（本文に Bad Request）を返すようにする。"""
 
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith(f"/{failing_call}"):
+            body = _error_body(status, "badRequest", "global")
+            body["error"]["message"] = "Bad Request"
+            return httpx.Response(status, json=body)
+        return httpx.Response(200, json={"items": []})
 
-class _FakeHttpError(Exception):
-    """googleapiclient.errors.HttpError と同じく str にキー入り URI を含む偽物"""
-
-    def __init__(self, status: int, uri: str, reason: str):
-        super().__init__()
-        self.resp = _FakeResp(status)
-        self.uri = uri
-        self.reason = reason
-
-    def __str__(self) -> str:
-        return f'<HttpError {self.resp.status} when requesting {self.uri} returned "{self.reason}">'
-
-
-def _install_fake_googleapiclient(monkeypatch, failing_call: str, status: int):
-    import sys
-    import types
-    from unittest.mock import MagicMock
-
-    uri = f"https://youtube.googleapis.com/youtube/v3/{failing_call}?alt=json&key={SECRET_KEY}"
-    error = _FakeHttpError(status, uri, "Bad Request")
-
-    client = MagicMock()
-    getattr(client, failing_call).return_value.list.return_value.execute.side_effect = error
-
-    discovery = types.ModuleType("googleapiclient.discovery")
-    discovery.build = lambda *args, **kwargs: client
-    errors = types.ModuleType("googleapiclient.errors")
-    errors.HttpError = _FakeHttpError
-    root = types.ModuleType("googleapiclient")
-    monkeypatch.setitem(sys.modules, "googleapiclient", root)
-    monkeypatch.setitem(sys.modules, "googleapiclient.discovery", discovery)
-    monkeypatch.setitem(sys.modules, "googleapiclient.errors", errors)
+    _use_transport(monkeypatch, handler)
 
 
 class TestYouTubeErrorMessagesDoNotLeakApiKey:
-    """HttpError の文字列（キー入り URI）をエラーメッセージに含めない"""
+    """エラーメッセージとトレースバックに API キーを含めない"""
 
     def test_video_http_error_message_hides_api_key(self, monkeypatch):
         import pytest
 
-        _install_fake_googleapiclient(monkeypatch, "videos", 400)
+        _install_failing_api(monkeypatch, "videos", 400)
         with pytest.raises(ValueError) as exc_info:
             YouTubePlugin()._fetch_video_comments("dQw4w9WgXcQ", SECRET_KEY, 10, False)
 
@@ -327,7 +322,7 @@ class TestYouTubeErrorMessagesDoNotLeakApiKey:
     def test_playlist_http_error_message_hides_api_key(self, monkeypatch):
         import pytest
 
-        _install_fake_googleapiclient(monkeypatch, "playlistItems", 500)
+        _install_failing_api(monkeypatch, "playlistItems", 500)
         with pytest.raises(ValueError) as exc_info:
             YouTubePlugin()._fetch_playlist_comments("PLxxxx", SECRET_KEY, 10, False)
 
@@ -347,10 +342,10 @@ class TestYouTubeErrorMessagesDoNotLeakApiKey:
         ],
     )
     def test_traceback_does_not_chain_http_error(self, monkeypatch, method, failing_call, status):
-        """logger.exception などでトレースバックを出しても、連鎖した HttpError からキーが出ない"""
+        """logger.exception などでトレースバックを出しても、連鎖した例外からキーが出ない"""
         import traceback
 
-        _install_fake_googleapiclient(monkeypatch, failing_call, status)
+        _install_failing_api(monkeypatch, failing_call, status)
         with pytest.raises(ValueError) as exc_info:
             getattr(YouTubePlugin(), method)("dQw4w9WgXcQ", SECRET_KEY, 10, False)
 
