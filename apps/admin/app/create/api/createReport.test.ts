@@ -42,6 +42,18 @@ it("成功時は success:true を返す", async () => {
   await expect(createReport(baseParams)).resolves.toEqual({ success: true });
 });
 
+it("ユーザー API キーは x-user-api-key ヘッダーで送り、リダイレクト先へは転送しない", async () => {
+  mockFetch.mockResolvedValue({ ok: true, status: 202 } as unknown as Response);
+
+  await createReport({ ...baseParams, userApiKey: "user-key" });
+
+  const [url, options] = mockFetch.mock.calls[0];
+  expect(url).toBe("http://localhost:8000/admin/reports");
+  expect(options.headers["x-user-api-key"]).toBe("user-key");
+  expect(options.redirect).toBe("error");
+  expect(options.body).not.toContain("user-key");
+});
+
 it("既存IDで 409 が返ったら重複を伝えるメッセージを返す", async () => {
   mockFetch.mockResolvedValue(errorResponse(409, "Conflict", { detail: "Report already exists" }));
 

@@ -36,6 +36,7 @@ describe("verifyApiKey", () => {
     expect(fetch).toHaveBeenCalledWith("http://localhost:8000/admin/environment/verify?provider=openai", {
       method: "GET",
       cache: "no-store",
+      redirect: "error",
       headers: {
         "x-api-key": "test-api-key",
         "Content-Type": "application/json",
@@ -100,6 +101,7 @@ describe("verifyApiKey", () => {
     expect(fetch).toHaveBeenCalledWith("http://localhost:8000/admin/environment/verify?provider=openai", {
       method: "GET",
       cache: "no-store",
+      redirect: "error",
       headers: {
         "x-api-key": "test-api-key",
         "x-user-api-key": "user-test-key",

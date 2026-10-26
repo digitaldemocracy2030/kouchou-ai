@@ -56,6 +56,8 @@ export async function duplicateReport(sourceSlug: string, params: DuplicateParam
       method: "POST",
       headers,
       body: JSON.stringify(body),
+      // x-user-api-key は fetch のリダイレクトで外されないので、リダイレクト先へ鍵を転送しない
+      redirect: "error",
     });
 
     if (!response.ok) {

@@ -25,6 +25,8 @@ describe("duplicateReport", () => {
       "http://localhost:8000/admin/reports/source/duplicate",
       expect.objectContaining({
         method: "POST",
+        // 鍵を載せた要求をリダイレクト先へ転送しない
+        redirect: "error",
         headers: {
           "x-api-key": "admin-key",
           "Content-Type": "application/json",
