@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """既存レポートの hierarchical_result.json / hierarchical_status.json から非公開キーを取り除く（レポートは温存）。
 
-PR #868 (2026-05-29 merge) から PR #1026 の修正までの間に生成・再集計されたレポートでは、
+PR #868 (2026-05-29 merge、v4.1.0 に含まれる) から PR #1136 の修正までの間に生成・再集計されたレポートでは、
 ``config.user_api_key``（管理画面で入力したユーザー API キー）、サーバー内部パス
 （``_output_base_dir`` などの ``_`` 始まりのキー）、前回 status の ``error_stack_trace`` が
 hierarchical_result.json に書き出されていた。
