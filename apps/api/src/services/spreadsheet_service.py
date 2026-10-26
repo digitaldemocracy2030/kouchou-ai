@@ -7,6 +7,7 @@ import polars as pl
 import requests
 
 from src.config import settings
+from src.services.report_duplicate import ReportIdInUseError, guard_unused_report_id
 from src.utils.logger import setup_logger
 from src.utils.validation import validate_filename
 
@@ -89,7 +90,12 @@ def process_spreadsheet_url(url: str, file_name: str) -> Path:
     try:
         sheet_id, sheet_name = parse_spreadsheet_url(url)
         df = fetch_public_spreadsheet(sheet_id, sheet_name)
-        return save_as_csv(df, file_name)
+        # 取得はロックの外で行い、取得中に同じ ID でレポートが作られていないかを保存の直前に
+        # 確かめる。判定から保存までをレポート作成と同じロックで囲む
+        with guard_unused_report_id(file_name):
+            return save_as_csv(df, file_name)
+    except ReportIdInUseError:
+        raise
     except Exception as e:
         slogger.error(f"スプレッドシートURL処理エラー: {e}")
         raise ValueError(f"スプレッドシートの処理に失敗しました: {e}") from e

@@ -297,6 +297,7 @@ export default function Page({ params }: PageProps) {
         newSlug: newSlug.trim() || undefined,
         reuseEnabled,
         overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
+        userApiKey: aiSettings.userApiKey.trim() || undefined,
       });
 
       if (result.success) {

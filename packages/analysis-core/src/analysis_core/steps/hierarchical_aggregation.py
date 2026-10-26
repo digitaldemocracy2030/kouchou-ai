@@ -38,6 +38,28 @@ def json_serialize_numpy(obj: Any) -> Any:
         return obj
 
 
+_NON_PUBLIC_CONFIG_KEYS = {"user_api_key", "error_stack_trace"}
+
+
+def _public_config(obj: Any) -> Any:
+    """hierarchical_result.json に書き出す config から非公開のキーを再帰的に除く。
+
+    hierarchical_result.json は公開 API・静的エクスポート・Blob 同期でそのまま配布されるため、
+    ユーザー入力の API キー、サーバー内部パス（`_` 始まりのランタイムキー）、
+    前回 status に含まれうるスタックトレースを残さない。
+    """
+    if isinstance(obj, dict):
+        return {
+            k: _public_config(v)
+            for k, v in obj.items()
+            if not (isinstance(k, str) and (k.startswith("_") or k in _NON_PUBLIC_CONFIG_KEYS))
+        }
+    # tuple も JSON では配列になるので、中の dict を同じく除く（書き出しは list で同じ形になる）
+    if isinstance(obj, (list, tuple)):
+        return [_public_config(item) for item in obj]
+    return obj
+
+
 class Argument(TypedDict):
     arg_id: str
     argument: str
@@ -81,7 +103,7 @@ def hierarchical_aggregation(config) -> bool:
             "propertyMap": {},
             "translations": {},
             "overview": "",
-            "config": config,
+            "config": _public_config(config),
         }
 
         arguments = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/args.csv")

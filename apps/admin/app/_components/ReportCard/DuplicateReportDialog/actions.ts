@@ -5,6 +5,8 @@ import { ADMIN_API_KEY_MISSING_MESSAGE, getApiBaseUrl } from "@/app/utils/api";
 type DuplicateParams = {
   newSlug?: string;
   reuseEnabled: boolean;
+  // 再実行するステップで使うユーザー入力の API キー。本文ではなく x-user-api-key ヘッダーで送る
+  userApiKey?: string;
   overrides?: {
     question?: string;
     intro?: string;
@@ -41,14 +43,21 @@ export async function duplicateReport(sourceSlug: string, params: DuplicateParam
     body.overrides = params.overrides;
   }
 
+  const headers: Record<string, string> = {
+    "x-api-key": adminApiKey,
+    "Content-Type": "application/json",
+  };
+  if (params.userApiKey) {
+    headers["x-user-api-key"] = params.userApiKey;
+  }
+
   try {
     const response = await fetch(`${getApiBaseUrl()}/admin/reports/${encodedSourceSlug}/duplicate`, {
       method: "POST",
-      headers: {
-        "x-api-key": adminApiKey,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(body),
+      // x-user-api-key は fetch のリダイレクトで外されないので、リダイレクト先へ鍵を転送しない
+      redirect: "error",
     });
 
     if (!response.ok) {

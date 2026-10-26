@@ -1,4 +1,3 @@
-import { ApiConnectionError } from "@/components/ApiConnectionError";
 import { ReportShell } from "@/components/report/ReportShell";
 import { ReportView } from "@/components/report/ReportView";
 import { Reporter } from "@/components/reporter/Reporter";
@@ -60,19 +59,26 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  if (!isStaticExportBuild()) {
-    return {
-      title: "広聴AI",
-    };
-  }
-
   // shell ビルドはビルド時にレポートを読まないので、タイトルもレポートに依存させない。
   if (isStaticShellBuild()) {
     // The Python packager and shell navigation own per-report head metadata.
     return {};
   }
 
+  const { getMetadataBase } = await import("@/app/utils/image-src");
+
+  // SSR / ISR でもレポートを取得して metadata を作る。限定公開レポートに noindex を
+  // 付けるためで、fetch は Page 本体と同じ URL・tag なので重複排除される。
+  // 取得に失敗したときの既定値にも metadataBase を付ける。無いと SSR では og:image
+  // （opengraph-image）が Next の既定の http://localhost:<PORT> を指してしまう。
+  // NEXT_PUBLIC_SITE_URL が不正だと getMetadataBase() が例外を投げるので、try の中で付ける。
+  const fallbackMetadata: Metadata = isStaticExportBuild() ? {} : { title: "広聴AI" };
+
   try {
+    if (!isStaticExportBuild()) {
+      const metadataBase = getMetadataBase();
+      if (metadataBase) fallbackMetadata.metadataBase = metadataBase;
+    }
     const slug = (await params).slug;
     const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`, {
       next: { tags: ["meta"] },
@@ -84,25 +90,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       },
       next: { tags: [`report-${slug}`] },
     });
-    if (!metaResponse.ok || !resultResponse.ok) {
-      return {};
+    if (!resultResponse.ok) {
+      return fallbackMetadata;
     }
 
-    const { getMetadataBase } = await import("@/app/utils/image-src");
+    const result: Result = await resultResponse.json();
+    // visibilityが"unlisted"の場合、noindexを設定（meta の取得に失敗しても付ける）
+    const robots: Metadata["robots"] =
+      result.visibility === ReportVisibility.UNLISTED ? { index: false, follow: false } : undefined;
+
+    if (!metaResponse.ok) {
+      return robots ? { ...fallbackMetadata, robots } : fallbackMetadata;
+    }
 
     const meta: Meta = await metaResponse.json();
-    const result: Result = await resultResponse.json();
     const metaData: Metadata = {
       title: meta.reporter ? `${result.config.question} - ${meta.reporter}` : result.config.question,
       description: `${result.overview}`,
     };
 
-    // visibilityが"unlisted"の場合、noindexを設定
-    if (result.visibility === ReportVisibility.UNLISTED) {
-      metaData.robots = {
-        index: false,
-        follow: false,
-      };
+    if (robots) {
+      metaData.robots = robots;
     }
 
     // og:image などの相対 URL を公開先の絶対 URL に解決させる（静的エクスポート時も必要）
@@ -122,7 +130,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     return metaData;
   } catch (_e) {
-    return {};
+    return fallbackMetadata;
   }
 }
 
@@ -135,27 +143,26 @@ export default async function Page({ params }: PageProps) {
   const slug = (await params).slug;
   const apiUrl = getApiBaseUrl();
 
-  let metaResponse: Response;
-  let resultResponse: Response;
-
-  try {
-    metaResponse = await fetch(`${apiUrl}/meta/metadata.json`, {
-      next: { tags: ["meta"] },
-    });
-    resultResponse = await fetch(`${apiUrl}/reports/${slug}`, {
-      headers: {
-        "x-api-key": process.env.NEXT_PUBLIC_PUBLIC_API_KEY || "",
-        "Content-Type": "application/json",
-      },
-      next: { tags: [`report-${slug}`] },
-    });
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    return <ApiConnectionError apiUrl={apiUrl} errorMessage={errorMessage} isServerSide={true} />;
-  }
+  // fetch の失敗は握りつぶさずに throw する。エラー画面を正常な描画として返すと
+  // ISR がそれをキャッシュし、正常なページを置き換えてしまう。throw すれば再生成の
+  // 失敗時は古いページが残り、初回描画では error.tsx が使われる。
+  const metaResponse = await fetch(`${apiUrl}/meta/metadata.json`, {
+    next: { tags: ["meta"] },
+  });
+  const resultResponse = await fetch(`${apiUrl}/reports/${slug}`, {
+    headers: {
+      "x-api-key": process.env.NEXT_PUBLIC_PUBLIC_API_KEY || "",
+      "Content-Type": "application/json",
+    },
+    next: { tags: [`report-${slug}`] },
+  });
 
   if (metaResponse.status === 404 || resultResponse.status === 404) {
     notFound();
+  }
+  // 404 以外の失敗（API の 5xx など）も、エラーの応答をレポートとして描画せずに throw する
+  if (!metaResponse.ok || !resultResponse.ok) {
+    throw new Error(`Failed to fetch report: meta=${metaResponse.status}, result=${resultResponse.status}`);
   }
 
   const meta: Meta = await metaResponse.json();

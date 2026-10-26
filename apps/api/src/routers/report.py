@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from src.config import settings
 from src.schemas.public_report_result import PublicReportResult
-from src.schemas.report import Report, ReportStatus, ReportVisibility
+from src.schemas.report import PublicReport, ReportStatus, ReportVisibility
 from src.schemas.visualization_config import DEFAULT_REPORT_DISPLAY_CONFIG, parse_saved_visualization_config
 from src.services.report_status import load_status_as_reports
 from src.utils.slug_utils import validate_slug
@@ -41,12 +41,14 @@ async def verify_public_api_key(api_key: str = Security(api_key_header)):
 
 
 @router.get("/reports", dependencies=[Depends(verify_public_api_key)])
-async def reports() -> list[Report]:
+async def reports() -> list[PublicReport]:
     all_reports = load_status_as_reports()
-    ready_reports = [
-        report for report in all_reports if report.status == ReportStatus.READY and report.is_publicly_visible
+    # 公開用の項目だけに絞る（複製元の slug や管理用の情報を返さない）
+    return [
+        PublicReport.from_report(report)
+        for report in all_reports
+        if report.status == ReportStatus.READY and report.is_publicly_visible
     ]
-    return ready_reports
 
 
 @router.get("/reports/{slug}")

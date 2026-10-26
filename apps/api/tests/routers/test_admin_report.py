@@ -624,7 +624,12 @@ class TestEditRejectsDeletedOrProcessingReport:
     @pytest.fixture
     def status_file(self, tmp_path):
         path = tmp_path / "report_status.json"
-        with patch.object(report_status, "STATE_FILE", path):
+        # DELETE は report_status.json をストレージへ同期する。同期元のパスも同じ一時ファイルに
+        # そろえる（テストの STORAGE_TYPE は local なので、アップロードは何もしない）
+        with (
+            patch.object(report_status, "STATE_FILE", path),
+            patch.object(report_sync.ReportSyncService, "LOCAL_STATUS_FILE_PATH", path),
+        ):
             yield path
 
     def _write_status(self, path, status):

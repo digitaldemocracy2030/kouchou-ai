@@ -37,10 +37,11 @@ from src.services.report_status import (
     add_analysis_data,
     invalidate_report_cache,
     load_status_as_reports,
-    set_status,
+    mark_report_deleted,
     update_report_config,
     update_report_visibility_state,
 )
+from src.services.report_sync import ReportSyncService
 from src.utils.logger import setup_logger
 from src.utils.slug_utils import validate_slug
 
@@ -307,7 +308,9 @@ async def get_current_step(slug: str) -> dict:
 async def delete_report(slug: str, api_key: str = Depends(verify_admin_api_key)) -> ORJSONResponse:
     validate_slug(slug)
     try:
-        set_status(slug, ReportStatus.DELETED.value)
+        # ストレージへの同期と public-viewer のキャッシュ破棄（revalidate の HTTP 呼び出し）を
+        # 含むため、イベントループを塞がないよう threadpool で実行する
+        await run_in_threadpool(mark_report_deleted, slug)
         return ORJSONResponse(
             content={"message": f"Report {slug} marked as deleted"},
             headers={
@@ -512,6 +515,13 @@ async def update_visualization_config(
             json.dump(config.model_dump(), f, ensure_ascii=False, indent=2)
 
         await run_in_threadpool(invalidate_report_cache, slug)
+
+        # ストレージへ同期しないと、再起動時の復元で古い可視化設定に戻る
+        synced = await run_in_threadpool(
+            ReportSyncService().sync_report_file_to_storage, slug, "visualization_config.json"
+        )
+        if not synced:
+            raise Exception(f"Failed to sync visualization config to storage for {slug}")
 
         return {
             "success": True,

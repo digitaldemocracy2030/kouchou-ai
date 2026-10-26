@@ -45,3 +45,31 @@ class Report(SchemaBaseModel):
     def is_publicly_visible(self) -> bool:
         """レポートが一般ユーザーに公開表示可能かどうかを返す"""
         return self.visibility == ReportVisibility.PUBLIC
+
+
+class PublicReport(SchemaBaseModel):
+    """公開 API (GET /reports) 用のレポート一覧項目
+
+    複製元の slug（限定公開レポートの推測不能な slug でありうる）や、トークン使用量・
+    推定コスト・プロバイダー・モデルといった管理用の情報は含めない。
+    """
+
+    slug: str
+    title: str
+    description: str
+    status: ReportStatus
+    visibility: ReportVisibility
+    is_pubcom: bool = False
+    created_at: str | None = None
+
+    @classmethod
+    def from_report(cls, report: Report) -> "PublicReport":
+        return cls(
+            slug=report.slug,
+            title=report.title,
+            description=report.description,
+            status=report.status,
+            visibility=report.visibility,
+            is_pubcom=report.is_pubcom,
+            created_at=report.created_at,
+        )

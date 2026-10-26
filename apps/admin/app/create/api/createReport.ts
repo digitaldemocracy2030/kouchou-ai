@@ -84,6 +84,8 @@ export async function createReport({
     const response = await fetch(`${getApiBaseUrl()}/admin/reports`, {
       method: "POST",
       headers,
+      // x-user-api-key は fetch のリダイレクトで外されないので、リダイレクト先へ鍵を転送しない
+      redirect: "error",
       body: JSON.stringify({
         input,
         question,
