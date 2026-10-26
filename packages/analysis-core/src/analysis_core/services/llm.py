@@ -252,7 +252,7 @@ def request_to_openai(
             # "auto" は自動選択で再び Flex になり得るため、"default" で標準処理を明示する。
             # 以降のリトライは標準処理のみで行い、Flex を叩き直さない。
             logging.warning(
-                f"OpenAI Flex processing unavailable, falling back to standard tier: {redact_secrets(str(e))}"
+                f"OpenAI Flex processing unavailable, falling back to standard tier: {redact_secrets(str(e), (user_api_key,))}"
             )
             fallback_payload = {**payload, "service_tier": "default", "timeout": timeout_seconds}
             response = _send_openai_chat_request(client, fallback_payload, use_pydantic)
@@ -265,13 +265,13 @@ def request_to_openai(
         _raise_if_openai_response_blocked(response, "OpenAI")
         return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
     except openai.RateLimitError as e:
-        logging.warning(f"OpenAI API rate limit hit: {redact_secrets(str(e))}")
+        logging.warning(f"OpenAI API rate limit hit: {redact_secrets(str(e), (user_api_key,))}")
         raise
     except openai.AuthenticationError as e:
-        logging.error(f"OpenAI API authentication error: {redact_secrets(str(e))}")
+        logging.error(f"OpenAI API authentication error: {redact_secrets(str(e), (user_api_key,))}")
         raise
     except openai.BadRequestError as e:
-        logging.error(f"OpenAI API bad request error: {redact_secrets(str(e))}")
+        logging.error(f"OpenAI API bad request error: {redact_secrets(str(e), (user_api_key,))}")
         raise
 
 
@@ -385,13 +385,13 @@ def request_to_azure_chatcompletion(
             _raise_if_openai_response_blocked(response, "Azure OpenAI")
             return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
     except openai.RateLimitError as e:
-        logging.warning(f"OpenAI API rate limit hit: {redact_secrets(str(e))}")
+        logging.warning(f"OpenAI API rate limit hit: {redact_secrets(str(e), (api_key,))}")
         raise
     except openai.AuthenticationError as e:
-        logging.error(f"OpenAI API authentication error: {redact_secrets(str(e))}")
+        logging.error(f"OpenAI API authentication error: {redact_secrets(str(e), (api_key,))}")
         raise
     except openai.BadRequestError as e:
-        logging.error(f"OpenAI API bad request error: {redact_secrets(str(e))}")
+        logging.error(f"OpenAI API bad request error: {redact_secrets(str(e), (api_key,))}")
         raise
 
 
@@ -551,25 +551,25 @@ def request_to_gemini_chatcompletion(
         except genai_errors.ClientError as e:
             error_code = getattr(e, "code", None)
             if error_code == 401:
-                logging.error(f"Gemini API authentication error: {redact_secrets(str(e))}")
+                logging.error(f"Gemini API authentication error: {redact_secrets(str(e), (api_key,))}")
                 raise
             if error_code == 400:
-                logging.error(f"Gemini API bad request error: {redact_secrets(str(e))}")
+                logging.error(f"Gemini API bad request error: {redact_secrets(str(e), (api_key,))}")
                 raise
             if error_code == 429:
                 pass  # Handle rate limit below
             else:
-                logging.error(f"Gemini API client error: {redact_secrets(str(e))}")
+                logging.error(f"Gemini API client error: {redact_secrets(str(e), (api_key,))}")
                 raise
         except genai_errors.ServerError as e:
-            logging.error(f"Gemini API server error: {redact_secrets(str(e))}")
+            logging.error(f"Gemini API server error: {redact_secrets(str(e), (api_key,))}")
             raise
         except Exception as e:
             error_code = getattr(e, "code", None)
             is_rate_limit = error_code == 429
 
             if not is_rate_limit:
-                logging.error(f"Gemini API error: {redact_secrets(str(e))}")
+                logging.error(f"Gemini API error: {redact_secrets(str(e), (api_key,))}")
                 raise
 
         # Rate limit handling with exponential backoff
@@ -1319,8 +1319,11 @@ def _openrouter_json_fallback(
     messages: list[dict],
     json_schema: dict | type[BaseModel] | None,
     timeout_seconds: int,
+    api_key: str | None = None,
 ) -> tuple[str, int, int, int]:
     """structured outputs 非対応モデル向けのフォールバック経路。
+
+    `api_key` はログの伏せ字に使う（環境変数に無い、引数で渡されたキーも完全一致で伏せる）。
 
     ローカル LLM 経路と同様に `chat.completions.create` を使い、
     まず `response_format={"type": "json_object"}` を試す。これも非対応なら
@@ -1369,7 +1372,7 @@ def _openrouter_json_fallback(
             last_error = e
             logging.warning(
                 "OpenRouter JSON fallback attempt failed "
-                f"(model={model}, response_format={payload.get('response_format')}): {redact_secrets(str(e))}"
+                f"(model={model}, response_format={payload.get('response_format')}): {redact_secrets(str(e), (api_key,))}"
             )
             continue
     # すべての fallback 試行が BadRequestError で失敗
@@ -1420,16 +1423,18 @@ def request_to_openrouter_chatcompletion(
                     if isinstance(e, _OpenRouterStructuredOutputIgnored):
                         spent_usage = e.usage
                     logging.warning(
-                        f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {redact_secrets(str(e))}"
+                        f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {redact_secrets(str(e), (api_key,))}"
                     )
-            content, *fallback_usage = _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
+            content, *fallback_usage = _openrouter_json_fallback(
+                client, model, messages, json_schema, timeout_seconds, api_key
+            )
             token_usage_input, token_usage_output, token_usage_total = (
                 spent + added for spent, added in zip(spent_usage, fallback_usage, strict=True)
             )
             return content, token_usage_input, token_usage_output, token_usage_total
 
         if structured_dict_schema and prefer_json_fallback:
-            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, api_key)
 
         payload: dict[str, Any] = {
             "model": model,
@@ -1452,21 +1457,21 @@ def request_to_openrouter_chatcompletion(
                 raise
             # dict スキーマでも structured outputs 非対応なら JSON モードへ fallback
             logging.warning(
-                f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {redact_secrets(str(e))}"
+                f"OpenRouter structured outputs unsupported (model={model}); falling back to JSON mode: {redact_secrets(str(e), (api_key,))}"
             )
-            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds)
+            return _openrouter_json_fallback(client, model, messages, json_schema, timeout_seconds, api_key)
 
         token_usage_input, token_usage_output, token_usage_total = _extract_token_usage(response)
         _raise_if_openai_response_blocked(response, "OpenRouter")
         return response.choices[0].message.content, token_usage_input, token_usage_output, token_usage_total
     except openai.RateLimitError as e:
-        logging.warning(f"OpenRouter API rate limit hit: {redact_secrets(str(e))}")
+        logging.warning(f"OpenRouter API rate limit hit: {redact_secrets(str(e), (api_key,))}")
         raise
     except openai.AuthenticationError as e:
-        logging.error(f"OpenRouter API authentication error: {redact_secrets(str(e))}")
+        logging.error(f"OpenRouter API authentication error: {redact_secrets(str(e), (api_key,))}")
         raise
     except openai.BadRequestError as e:
-        logging.error(f"OpenRouter API bad request error: {redact_secrets(str(e))}")
+        logging.error(f"OpenRouter API bad request error: {redact_secrets(str(e), (api_key,))}")
         raise
 
 

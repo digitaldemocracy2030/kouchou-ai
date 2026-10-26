@@ -12,6 +12,7 @@ from pathlib import Path
 
 from analysis_core import __version__
 from analysis_core.core import plan_requires_input, validate_input_file
+from analysis_core.core.orchestration import resolve_user_api_key
 from analysis_core.orchestrator import PipelineOrchestrator
 from analysis_core.services.error_summary import redact_secrets
 
@@ -98,6 +99,8 @@ def main() -> int:
         print(f"Error: Config file not found: {args.config}", file=sys.stderr)
         return 1
 
+    # 失敗の文面の伏せ字に使う、config / USER_API_KEY で渡されたユーザーのキー
+    user_api_keys: tuple[str | None, ...] = ()
     try:
         # Initialize the orchestrator
         orchestrator = PipelineOrchestrator.from_config(
@@ -112,6 +115,7 @@ def main() -> int:
             input_base_dir=args.input_dir,
             reuse_from=args.reuse_from,
         )
+        user_api_keys = (resolve_user_api_key(orchestrator.config),)
 
         plan = orchestrator.get_plan()
         should_validate_input = args.validate_input or args.dry_run or (
@@ -157,7 +161,7 @@ def main() -> int:
         else:
             print("Pipeline failed!")
             if result.error:
-                print(f"Error: {redact_secrets(result.error)}")
+                print(f"Error: {redact_secrets(result.error, user_api_keys)}")
 
         print()
         print(f"Duration: {result.total_duration_seconds:.2f} seconds")
@@ -174,12 +178,12 @@ def main() -> int:
                 status = "OK" if step.success else "FAILED"
                 print(f"  [{status}] {step.step_name} ({step.duration_seconds:.2f}s)")
                 if step.error:
-                    print(f"         Error: {redact_secrets(step.error)}")
+                    print(f"         Error: {redact_secrets(step.error, user_api_keys)}")
 
         return 0 if result.success else 1
 
     except Exception as e:
-        print(f"Error: {redact_secrets(str(e))}", file=sys.stderr)
+        print(f"Error: {redact_secrets(str(e), user_api_keys)}", file=sys.stderr)
         return 1
 
 
