@@ -58,7 +58,7 @@
 
 | 依存 | 難易度 | 方針 |
 |---|---|---|
-| Server Action 15本（proxy） | 低 | 両モードで動く client API モジュールへ置換（CSV / JSON ダウンロードは、client が FastAPI の応答を `response.blob()` で直接受け取り、base64 の往復をなくす。Windows 向け CSV の BOM は client 側で付ける）。`createReport` は Server Action の本文上限（100MB）と `proxyClientMaxBodySize` から外れる。FastAPI 側には本文の上限が無いので、送信前の見積もりによる上限の検査は client に残す |
+| `NEXT_PUBLIC_ADMIN_API_KEY` を使う Server Action 15本（`duplicateReport` 以外） | 低 | 両モードで動く client API モジュールへ置換（CSV / JSON ダウンロードは、client が FastAPI の応答を `response.blob()` で直接受け取り、base64 の往復をなくす。Windows 向け CSV の BOM は client 側で付ける）。`createReport` は Server Action の本文上限（100MB）と `proxyClientMaxBodySize` から外れる。FastAPI 側には本文の上限が無いので、送信前の見積もりによる上限の検査は client に残す |
 | `duplicateReport` / `config` route（`ADMIN_API_KEY`） | 中 | local desktop の threat model で client 露出許容 or FastAPI 直 |
 | `healthcheck` route | 低 | export で不要化 |
 | `page.tsx` server fetch | 中 | client fetch + loading 化 |
@@ -118,7 +118,7 @@
 ## 4. 総括 — 完了条件への含意
 
 1. **runtime Node 依存一覧（第1項）**: 上記の通り棚卸し完了。admin は proxy + 設定、public-viewer は export 済、builder は runtime build。
-2. **admin を static serve する最小方針（第2項）の素材**: §1-5 の通り、proxy 15本の client 化 + `output:export` + API key threat model 決定でほぼ完了。
+2. **admin を static serve する最小方針（第2項）の素材**: §1-5 の通り、`NEXT_PUBLIC_ADMIN_API_KEY` を使う Server Action 15本の client 化 + `output:export` + API key threat model 決定でほぼ完了。
 3. **static-site-builder の責務（第3項）**: ここが本丸。runtime `next build` を ① 事前ビルド済み成果物の配布、② FastAPI/Python 側での静的レポート生成、のどちらに倒すかが単一exe化の成否を決める。
 
 次のステップは、§1-5 の admin export 化を prototype branch で実装し、`apps/admin` が Node server なしでビルド・起動できることを検証することです（完了条件の prototype 項に対応）。
