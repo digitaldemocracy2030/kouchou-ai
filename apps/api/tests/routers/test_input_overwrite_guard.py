@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.routers import admin_report, plugins, spreadsheet
-from src.services import report_status, spreadsheet_service
+from src.services import report_duplicate, report_status, spreadsheet_service
 
 EXISTING_SLUG = "city-survey"
 ORIGINAL_CSV = "comment-id,comment\n1,original\n"
@@ -42,6 +42,7 @@ def env(tmp_path: Path):
         patch.object(report_status, "settings", fake_settings),
         patch.object(report_status, "STATE_FILE", dirs.state_file),
         patch.object(spreadsheet_service, "settings", fake_settings),
+        patch.object(report_duplicate, "settings", fake_settings),
     ):
         yield dirs
     report_status.load_status()

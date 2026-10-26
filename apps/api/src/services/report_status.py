@@ -155,18 +155,6 @@ def slug_exists(slug: str) -> bool:
     return slug in _report_status
 
 
-def report_slug_in_use(slug: str) -> bool:
-    """slug が既存レポート（status・config・outputs のいずれか）に使われているかを返す。
-
-    inputs/<slug>.csv は作成前の取り込み（スプレッドシート・プラグイン）でも作られるため判定に含めない。
-    """
-    if slug_exists(slug):
-        return True
-    if (settings.CONFIG_DIR / f"{slug}.json").exists():
-        return True
-    return (settings.REPORT_DIR / slug).exists()
-
-
 def delete_report_from_status(slug: str) -> None:
     with _lock:
         if slug in _report_status:

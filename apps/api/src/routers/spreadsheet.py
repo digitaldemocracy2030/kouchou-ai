@@ -8,7 +8,7 @@ from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 
 from src.config import settings
-from src.services.report_status import report_slug_in_use
+from src.services.report_duplicate import slug_exists_anywhere
 from src.services.spreadsheet_service import delete_input_file, process_spreadsheet_url
 from src.utils.logger import setup_logger
 from src.utils.slug_utils import validate_slug
@@ -42,8 +42,10 @@ def ensure_not_existing_report(file_name: str) -> None:
     """既存レポートの入力 CSV（inputs/<slug>.csv）を取り込み・クリアで上書き・削除させない。
 
     作成前の取り込みで作られる inputs/<id>.csv だけの状態は、再取り込み・クリアを許すため衝突に含めない。
+    ファイル名として不正な値は、ここでは判定せず呼び出し先の検証（400）に任せる。
     """
-    if report_slug_in_use(file_name):
+    valid, _ = validate_filename(file_name)
+    if valid and slug_exists_anywhere(file_name, include_input=False):
         raise HTTPException(
             status_code=409,
             detail=f"ID {file_name} は既存のレポートで使われています。別のIDを指定してください",
