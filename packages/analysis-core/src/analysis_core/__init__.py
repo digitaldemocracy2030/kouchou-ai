@@ -19,7 +19,7 @@ Example (Legacy mode):
     result = orchestrator.run()
 """
 
-__version__ = "0.1.4"
+__version__ = "0.2.0"
 
 from analysis_core.config import PipelineConfig
 from analysis_core.orchestrator import PipelineOrchestrator, PipelineResult, StepResult
