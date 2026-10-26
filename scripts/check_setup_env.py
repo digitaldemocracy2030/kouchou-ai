@@ -45,11 +45,11 @@ OPTIONAL_KEYS = {
 
 # 既定のセットアップで固定値になっていてはいけない秘密値と、同じ値にそろえるべきキーの組
 # 固定値だと、到達できる第三者が既知の値で admin API や revalidate を呼べてしまう
-SECRET_KEYS = {
+RANDOMIZED_KEYS = {
     "ADMIN_API_KEY": {"admin", ""},
     "REVALIDATE_SECRET": {"revalidate-secret", ""},
 }
-SECRET_KEY_PAIRS = [("ADMIN_API_KEY", "NEXT_PUBLIC_ADMIN_API_KEY")]
+MIRRORED_KEY_PAIRS = [("ADMIN_API_KEY", "NEXT_PUBLIC_ADMIN_API_KEY")]
 
 # compose.yaml のポート公開は、既定でループバックだけにバインドする
 LOOPBACK_PORT_PREFIXES = ("127.0.0.1:", "${HOST_BIND_ADDRESS:-127.0.0.1}:")
@@ -87,15 +87,15 @@ def find_compose_ports(text: str) -> list[str]:
     return entries
 
 
-def check_secrets(generated: dict[str, str]) -> list[str]:
+def check_randomized_keys(generated: dict[str, str]) -> list[str]:
     errors = []
-    for key, forbidden in SECRET_KEYS.items():
+    for key, forbidden in RANDOMIZED_KEYS.items():
         if generated.get(key, "") in forbidden:
             # 秘密値はログに出さない（キー名だけを示す）
             errors.append(
                 f"{key} が固定値または空。セットアップスクリプトでランダムに生成する"
             )
-    for key, mirror in SECRET_KEY_PAIRS:
+    for key, mirror in MIRRORED_KEY_PAIRS:
         if generated.get(key) != generated.get(mirror):
             errors.append(f"{mirror} は {key} と同じ値にする")
     return errors
@@ -140,7 +140,7 @@ def main() -> int:
             f"{key} は OPTIONAL_KEYS にあるが、.env.example にない（OPTIONAL_KEYS から削除）"
         )
 
-    errors.extend(check_secrets(generated))
+    errors.extend(check_randomized_keys(generated))
     errors.extend(check_compose_ports(compose_text))
 
     if errors:
