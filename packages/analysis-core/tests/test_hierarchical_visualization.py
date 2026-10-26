@@ -186,8 +186,40 @@ class TestBuildHtml:
 
         out = build_html(payload)
 
-        assert "<\\/script>" in out
+        assert "\\u003c/script\\u003e" in out
         assert "</script> second" not in out
+
+    @pytest.mark.parametrize(
+        ("overview", "argument"),
+        [
+            # 同じ意見の中で「<!--」の後に「<script」が来る
+            ("plain overview", "例: <!--<script> のような書き方は避けて"),
+            # 概要と意見にまたがる（埋め込み JSON の中で、概要の後に意見が並ぶ）
+            ("概要 <!-- メモ", "<script タグについて"),
+        ],
+    )
+    def test_markup_in_payload_does_not_break_embedded_json(self, overview: str, argument: str) -> None:
+        payload = _minimal_payload()
+        payload["overview"] = overview
+        payload["arguments"][0]["argument"] = argument
+        payload["arguments"][1]["argument"] = "a & b > c </script>"
+
+        out = build_html(payload)
+
+        match = re.search(r'<script id="report-data" type="application/json">(.*?)</script>', out, flags=re.S)
+        assert match is not None
+        embedded = match.group(1)
+        # HTML の字句解析が script data の状態を変える文字（<）を JSON に残さない
+        assert "<" not in embedded
+        assert ">" not in embedded
+        assert "&" not in embedded
+        # JSON としては元の値のまま読める
+        decoded = json.loads(embedded)
+        assert decoded["overview"] == overview
+        assert decoded["arguments"][0]["argument"] == argument
+        assert decoded["arguments"][1]["argument"] == "a & b > c </script>"
+        # 本体のスクリプトは report-data の後ろに別の要素として残る
+        assert out.index("const SOFT_COLORS") > match.end()
 
 
 class TestHierarchicalVisualizationStep:

@@ -260,8 +260,21 @@ def _safe_source_url(url: Any) -> str | None:
 
 
 def _safe_inline_json(data: Any) -> str:
-    """Serialize JSON safely for embedding inside a ``<script>`` tag."""
-    return json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    """Serialize JSON safely for embedding inside a ``<script>`` tag.
+
+    The HTML tokenizer reads script data before JavaScript sees it: besides
+    ``</script>``, a ``<!--`` followed later by ``<script`` switches it into the
+    "double escaped" state, where ``</script>`` no longer closes the element and
+    the rest of the page is swallowed. Escape every ``<`` / ``>`` / ``&`` as a
+    JSON Unicode escape so the payload never contains markup characters.
+    ``JSON.parse`` (and ``json.loads``) yield exactly the same values.
+    """
+    return (
+        json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
 
 
 def _count_at(data: dict[str, Any], level: int) -> int:
