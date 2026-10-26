@@ -3,6 +3,8 @@ import json
 import os
 import shutil
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -167,6 +169,34 @@ def slug_exists_anywhere(slug: str, include_input: bool = True) -> bool:
     if (settings.REPORT_DIR / slug).exists():
         return True
     return False
+
+
+class ReportIdInUseError(Exception):
+    """入力 CSV を保存・削除しようとした ID が、既存のレポートで使われていることを表す例外"""
+
+    def __init__(self, slug: str):
+        super().__init__(f"ID {slug} は既存のレポートで使われています。別のIDを指定してください")
+        self.slug = slug
+
+
+@contextmanager
+def guard_unused_report_id(slug: str) -> Iterator[None]:
+    """既存レポートの ID でないことを確かめ、その判定を保ったまま入力 CSV の保存・削除を行わせる
+
+    レポート作成（launch_report_generation）は report_status のロック内で status に登録してから
+    入力 CSV を書く。判定から保存・削除までを同じロックで囲むと、作成と交差しても
+    「保存・削除のあとに作成が登録して入力 CSV を書き直す」か「作成の登録後に判定して拒否する」の
+    どちらかになり、作成したレポートの入力 CSV を上書き・削除しない。
+    外部からの取得など時間のかかる処理は、このブロックの外で行うこと。
+    作成前の取り込みで作られる inputs/<id>.csv だけの状態は、再取り込み・クリアを許すため衝突に含めない。
+
+    Raises:
+        ReportIdInUseError: 既存のレポートで使われている ID の場合
+    """
+    with report_status._lock:
+        if slug_exists_anywhere(slug, include_input=False):
+            raise ReportIdInUseError(slug)
+        yield
 
 
 def _load_report_result(slug: str) -> dict:
