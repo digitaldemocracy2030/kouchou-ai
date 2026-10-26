@@ -79,3 +79,18 @@ describe("[slug] generateMetadata（metadata.json の項目欠け）", () => {
     expect(metadata.title).toBe("問い");
   });
 });
+
+describe("[slug] generateMetadata（NEXT_PUBLIC_SITE_URL が不正）", () => {
+  it("SSR で URL として読めない値でも例外にせず、既定の metadata を返す", async () => {
+    global.fetch = jest.fn(async () => {
+      throw new Error("API down");
+    }) as unknown as typeof fetch;
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    const metadata = await generateMetadataWith({
+      NEXT_PUBLIC_OUTPUT_MODE: undefined,
+      NEXT_PUBLIC_SITE_URL: "not a url",
+    });
+    expect(metadata.title).toBe("広聴AI");
+    expect(metadata.metadataBase).toBeUndefined();
+  });
+});

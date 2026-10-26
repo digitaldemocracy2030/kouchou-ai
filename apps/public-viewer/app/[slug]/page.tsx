@@ -71,9 +71,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // 付けるためで、fetch は Page 本体と同じ URL・tag なので重複排除される。
   // 取得に失敗したときの既定値にも metadataBase を付ける。無いと SSR では og:image
   // （opengraph-image）が Next の既定の http://localhost:<PORT> を指してしまう。
-  const fallbackMetadata: Metadata = isStaticExportBuild() ? {} : { title: "広聴AI", metadataBase: getMetadataBase() };
+  // NEXT_PUBLIC_SITE_URL が不正だと getMetadataBase() が例外を投げるので、try の中で付ける。
+  const fallbackMetadata: Metadata = isStaticExportBuild() ? {} : { title: "広聴AI" };
 
   try {
+    if (!isStaticExportBuild()) {
+      const metadataBase = getMetadataBase();
+      if (metadataBase) fallbackMetadata.metadataBase = metadataBase;
+    }
     const slug = (await params).slug;
     const metaResponse = await fetch(`${getApiBaseUrl()}/meta/metadata.json`, {
       next: { tags: ["meta"] },

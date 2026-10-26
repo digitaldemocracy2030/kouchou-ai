@@ -285,6 +285,7 @@ class TestReportsListEndpoint:
         assert set(body[0]) == {"slug", "title", "description", "status", "visibility", "isPubcom", "createdAt"}
         # public-viewer が使う項目は残す
         assert body[0]["title"] == "複製"
+        assert body[0]["description"] == "説明"
         assert body[0]["visibility"] == "public"
         assert body[0]["status"] == "ready"
         assert body[0]["isPubcom"] is False
