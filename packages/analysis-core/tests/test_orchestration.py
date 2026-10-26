@@ -701,6 +701,33 @@ class TestInitializationEmbeddingKeys:
         )
         assert orchestrator.get_plan() == plan
 
+    def test_from_dict_reads_user_api_key_from_env_like_initialization(self, tmp_path, monkeypatch):
+        """from_dict も initialization と同じく、config に無ければ環境変数 USER_API_KEY を鍵として使う。"""
+        from analysis_core import PipelineOrchestrator
+
+        _set_azure_env(
+            monkeypatch,
+            embedding={**AZURE_EMBEDDING_ENV, "AZURE_EMBEDDING_API_KEY": ""},
+        )
+        monkeypatch.setenv("AZURE_CHATCOMPLETION_API_KEY", "")
+        config = {"name": "demo", "input": "demo", "question": "Test?", "provider": "azure"}
+
+        with pytest.raises(RuntimeError, match="AZURE_CHATCOMPLETION_API_KEY"):
+            PipelineOrchestrator.from_dict(
+                config=dict(config),
+                output_dir="demo",
+                output_base_dir=tmp_path / "outputs",
+                input_base_dir=tmp_path / "inputs",
+            )
+
+        monkeypatch.setenv("USER_API_KEY", "user-key-from-env")
+        PipelineOrchestrator.from_dict(
+            config=dict(config),
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
 
 class TestValidateConfig:
     """Test config validation."""
