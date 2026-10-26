@@ -251,3 +251,172 @@ def test_make_llm_request_passes_schema_and_records_usage(monkeypatch):
     assert seen["local_llm_address"] == "host:1234"
     assert seen["json_schema"] is TRANSLATION_SCHEMA
     assert usage == {"total_token_usage": 3, "token_usage_input": 2, "token_usage_output": 1}
+
+
+# --- 結果 JSON の上書き・再集計との両立 -------------------------------------------
+
+USER_KEY_MARKER = "ukey-MARKER-translate-7f3a"
+
+
+def _aggregation_config(tmp_path):
+    """2 クラスタの最小の成果物を置き、hierarchical_aggregation に渡す config を返す。"""
+    inputs = tmp_path / "inputs"
+    outputs = tmp_path / "outputs" / "r1"
+    inputs.mkdir()
+    outputs.mkdir(parents=True)
+    (inputs / "r1.csv").write_text("comment-id,comment-body\nc1,hello\nc2,world\n", encoding="utf-8")
+    (outputs / "args.csv").write_text("arg-id,argument\nAc1_0,バス\nAc2_0,自転車\n", encoding="utf-8")
+    (outputs / "relations.csv").write_text("arg-id,comment-id\nAc1_0,c1\nAc2_0,c2\n", encoding="utf-8")
+    (outputs / "hierarchical_clusters.csv").write_text(
+        "arg-id,argument,x,y,cluster-level-1-id\nAc1_0,バス,0.1,0.2,1_0\nAc2_0,自転車,0.3,0.4,1_1\n",
+        encoding="utf-8",
+    )
+    (outputs / "hierarchical_merge_labels.csv").write_text(
+        "level,id,label,description,value,parent,density_rank_percentile\n"
+        "1,1_0,交通,交通の説明,1,0,0.5\n1,1_1,自転車,自転車の説明,1,0,0.5\n",
+        encoding="utf-8",
+    )
+    (outputs / "hierarchical_overview.txt").write_text("全体の概要", encoding="utf-8")
+    config = {
+        "output_dir": "r1",
+        "input": "r1",
+        "question": "まちの課題は？",
+        "intro": "イントロ",
+        "model": "m",
+        "provider": "openai",
+        "is_pubcom": False,
+        "extraction": {"limit": 10, "categories": {}},
+        "hierarchical_aggregation": {"hidden_properties": {}},
+        "_output_base_dir": str(outputs.parent),
+        "_input_base_dir": str(inputs),
+    }
+    return config, outputs
+
+
+def _aggregate(config):
+    from analysis_core.steps.hierarchical_aggregation import hierarchical_aggregation
+
+    assert hierarchical_aggregation(dict(config)) is True
+
+
+def _translate_in_place(outputs, request, *extra):
+    return translate_cli.main(
+        ["--result", str(outputs / "hierarchical_result.json"), "--languages", "en", *extra], request=request
+    )
+
+
+def test_cli_translations_survive_reaggregation_and_drop_only_edited_items(tmp_path):
+    config, outputs = _aggregation_config(tmp_path)
+    _aggregate(config)
+    assert _translate_in_place(outputs, fake_request("EN")) == 0
+
+    # 訳は translations.json にも残り、原文の指紋は結果 JSON には書かない
+    stored = json.loads((outputs / "translations.json").read_text(encoding="utf-8"))
+    assert "source_hashes" in stored["en"]["meta"]
+    result = json.loads((outputs / "hierarchical_result.json").read_text(encoding="utf-8"))
+    assert "source_hashes" not in result["translations"]["en"]["meta"]
+    assert result["translations"]["en"]["clusters"]["1_1"]["label"] == "EN:自転車"
+
+    # 意見グループ名を 1 つ編集して再集計しても、他の訳は残り、編集した項目の古い訳は出ない
+    labels = outputs / "hierarchical_merge_labels.csv"
+    labels.write_text(labels.read_text(encoding="utf-8").replace("1_0,交通,", "1_0,公共交通,"), encoding="utf-8")
+    _aggregate(config)
+
+    result = json.loads((outputs / "hierarchical_result.json").read_text(encoding="utf-8"))
+    en = result["translations"]["en"]
+    # 根（"0"）と編集していない "1_1" だけが残る
+    assert set(en["clusters"]) == {"0", "1_1"}
+    assert en["clusters"]["1_1"] == {"label": "EN:自転車", "takeaway": "EN:自転車の説明"}
+    assert en["overview"] == "EN:全体の概要"
+    assert en["question"] == "EN:まちの課題は？"
+    assert "source_hashes" not in en["meta"]
+
+
+def test_reaggregation_without_translations_file_keeps_empty_translations(tmp_path):
+    config, outputs = _aggregation_config(tmp_path)
+    _aggregate(config)
+    assert json.loads((outputs / "hierarchical_result.json").read_text(encoding="utf-8"))["translations"] == {}
+
+
+def test_cli_does_not_write_when_result_changes_during_translation(tmp_path, capsys):
+    config, outputs = _aggregation_config(tmp_path)
+    _aggregate(config)
+    path = outputs / "hierarchical_result.json"
+    inner = fake_request("EN")
+
+    def request_while_editing(messages, json_schema):
+        # 翻訳の途中で、管理画面の編集による再集計が結果を作り直したことにする
+        if not inner.calls:
+            labels = outputs / "hierarchical_merge_labels.csv"
+            labels.write_text(
+                labels.read_text(encoding="utf-8").replace("1_0,交通,", "1_0,公共交通,"), encoding="utf-8"
+            )
+            _aggregate(config)
+        return inner(messages, json_schema)
+
+    assert _translate_in_place(outputs, request_while_editing) == 1
+    assert "更新されました" in capsys.readouterr().err
+    result = json.loads(path.read_text(encoding="utf-8"))
+    # 編集後の結果がそのまま残り、開始時の内容で巻き戻さない
+    assert any(c["label"] == "公共交通" for c in result["clusters"])
+    assert result["translations"] == {}
+    assert not (outputs / "translations.json").exists()
+
+
+def test_cli_refuses_while_pipeline_is_running(tmp_path, capsys):
+    from datetime import datetime, timedelta
+
+    config, outputs = _aggregation_config(tmp_path)
+    _aggregate(config)
+    status = {"status": "running", "lock_until": (datetime.now() + timedelta(minutes=5)).isoformat()}
+    (outputs / "hierarchical_status.json").write_text(json.dumps(status), encoding="utf-8")
+
+    def never(messages, json_schema):
+        pytest.fail("must not call the LLM while the pipeline is running")
+
+    assert _translate_in_place(outputs, never) == 1
+    assert "実行中" in capsys.readouterr().err
+
+    # ロックが切れた running（中断した実行の残り）は妨げない
+    status["lock_until"] = (datetime.now() - timedelta(minutes=5)).isoformat()
+    (outputs / "hierarchical_status.json").write_text(json.dumps(status), encoding="utf-8")
+    assert _translate_in_place(outputs, fake_request("EN")) == 0
+
+
+def test_cli_strips_user_api_key_from_old_result_and_writes_atomically(tmp_path, monkeypatch):
+    """修正前の版の結果 JSON に残った user_api_key は読まず、書き戻すときに取り除く。"""
+    import analysis_core.core.utils as utils
+
+    source = tmp_path / "hierarchical_result.json"
+    old = sample_result()
+    old["config"]["user_api_key"] = USER_KEY_MARKER
+    old["config"]["_output_base_dir"] = "/srv/internal"
+    source.write_text(json.dumps(old, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.delenv("USER_API_KEY", raising=False)
+
+    seen = {}
+
+    def fake_make_llm_request(**kwargs):
+        seen.update(kwargs)
+        return fake_request("EN")
+
+    monkeypatch.setattr(translate_cli, "make_llm_request", fake_make_llm_request)
+    written_paths = []
+    real_write = utils.write_json_atomic
+
+    def recording_write(path, data):
+        written_paths.append(str(path))
+        real_write(path, data)
+
+    monkeypatch.setattr(utils, "write_json_atomic", recording_write)
+
+    assert translate_cli.main(["--result", str(source), "--languages", "en"]) == 0
+
+    assert "user_api_key" not in seen
+    assert USER_KEY_MARKER not in json.dumps(seen, default=str)
+    for path in (source, tmp_path / "translations.json"):
+        text = path.read_text(encoding="utf-8")
+        assert USER_KEY_MARKER not in text
+        assert "/srv/internal" not in text
+    assert sorted(written_paths) == sorted([str(source), str(tmp_path / "translations.json")])
+    assert not list(tmp_path.glob(".*.tmp"))

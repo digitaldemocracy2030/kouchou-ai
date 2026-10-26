@@ -6,6 +6,13 @@ Usage:
 
 既定では意見グループ名・説明・概要・問い・イントロだけを翻訳し、意見本文は
 `--include-arguments` を付けたときだけ翻訳する（意見は件数が多く費用が大きいため）。
+
+--result を上書きするときは、同じディレクトリの translations.json にも訳を残す。集計
+（意見グループ名の編集後の再集計など）は hierarchical_result.json を作り直すので、訳は
+translations.json から読み直される。原文が変わった項目の訳は、そのとき落とされる。
+
+LLM の鍵は環境変数（サーバーの既定の鍵）だけを使う。結果 JSON の config に残った
+user_api_key は読まず、書き戻すときに config から取り除く。
 """
 
 from __future__ import annotations
@@ -13,18 +20,23 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from analysis_core.steps.hierarchical_translation import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_WORKERS,
+    SOURCE_HASHES_KEY,
+    TRANSLATIONS_FILENAME,
     RequestFn,
     TranslationError,
     build_translation_items,
     make_llm_request,
     merge_translations,
+    source_hashes,
     translate_result,
+    without_source_hashes,
 )
 
 
@@ -68,13 +80,64 @@ def _parse_languages(raw: str) -> list[str]:
     return languages
 
 
+def _pipeline_running(result_path: Path) -> bool:
+    """同じレポートで分析・再集計が実行中か（hierarchical_status.json が running で、ロックが切れていない）。"""
+    status_path = result_path.parent / "hierarchical_status.json"
+    try:
+        status = json.loads(status_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if not isinstance(status, dict) or status.get("status") != "running":
+        return False
+    try:
+        return datetime.fromisoformat(str(status.get("lock_until"))) > datetime.now()
+    except ValueError:
+        return False
+
+
+def _read_result(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _write_outputs(
+    args: argparse.Namespace,
+    result: dict[str, Any],
+    translations: dict[str, dict[str, Any]],
+) -> Path:
+    """訳を書き出す。--result の上書きなら translations.json にも残す。どちらも一時ファイルから差し替える。"""
+    from analysis_core.core.utils import write_json_atomic
+    from analysis_core.steps.hierarchical_aggregation import _public_config
+
+    output_path: Path = args.output or args.result
+    in_place = output_path.resolve() == args.result.resolve()
+    if in_place:
+        store_path = args.result.parent / TRANSLATIONS_FILENAME
+        try:
+            stored = json.loads(store_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            stored = {}
+        if not isinstance(stored, dict):
+            stored = {}
+        stored.update(translations)
+        write_json_atomic(store_path, stored)
+
+    merged = merge_translations(result, without_source_hashes(translations))
+    merged["translations"] = without_source_hashes(merged["translations"])
+    # 修正前の版で作った結果 JSON の config には user_api_key などが残っていることがある。集計と同じく取り除く
+    if isinstance(merged.get("config"), dict):
+        merged["config"] = _public_config(merged["config"])
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(output_path, merged)
+    return output_path
+
+
 def run(args: argparse.Namespace, request: RequestFn | None = None) -> int:
     """CLI 本体。request を渡すと LLM 呼び出しを差し替えられる（テスト用）。"""
     if not args.result.exists():
         print(f"Error: Result file not found: {args.result}", file=sys.stderr)
         return 1
     languages = _parse_languages(args.languages)
-    result: dict[str, Any] = json.loads(args.result.read_text(encoding="utf-8"))
+    result: dict[str, Any] = _read_result(args.result)
     config = result.get("config") or {}
 
     items = build_translation_items(result, include_arguments=args.include_arguments)
@@ -86,6 +149,13 @@ def run(args: argparse.Namespace, request: RequestFn | None = None) -> int:
     if args.dry_run:
         return 0
 
+    if _pipeline_running(args.result):
+        print(
+            "Error: このレポートは分析・再集計の実行中です。終わってから実行してください（結果は書き換えていません）",
+            file=sys.stderr,
+        )
+        return 1
+
     provider = args.provider or config.get("provider") or "openai"
     model = args.model or config.get("model")
     if not model:
@@ -93,6 +163,7 @@ def run(args: argparse.Namespace, request: RequestFn | None = None) -> int:
         return 1
     usage: dict[str, int] = {}
     if request is None:
+        # 鍵は環境変数から取る。結果 JSON の config.user_api_key は読まない
         request = make_llm_request(
             provider=provider,
             model=model,
@@ -116,10 +187,28 @@ def run(args: argparse.Namespace, request: RequestFn | None = None) -> int:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
-    output_path = args.output or args.result
-    merged = merge_translations(result, translations)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
+    # 翻訳の間に、管理画面の編集などで結果が作り直されていたら書かない。
+    # 開始時の内容で丸ごと書き戻すと編集を巻き戻し、古い原文から作った訳が新しい原文に付いてしまう。
+    try:
+        current = _read_result(args.result)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Error: 書き戻す前に結果 JSON を読み直せませんでした（{exc}）。何も書き換えていません", file=sys.stderr)
+        return 1
+    if build_translation_items(current, include_arguments=args.include_arguments) != items or _pipeline_running(
+        args.result
+    ):
+        print(
+            "Error: 翻訳の間にレポートの内容が更新されました（意見グループ名の編集・再集計など）。"
+            "何も書き換えていません。もう一度実行してください",
+            file=sys.stderr,
+        )
+        return 1
+
+    hashes = source_hashes(items)
+    for entry in translations.values():
+        entry["meta"][SOURCE_HASHES_KEY] = hashes
+
+    output_path = _write_outputs(args, current, translations)
     print(f"Wrote translations for {', '.join(languages)} to {output_path}")
     if usage:
         print(

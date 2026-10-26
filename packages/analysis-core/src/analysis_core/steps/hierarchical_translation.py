@@ -24,6 +24,7 @@ translations の形:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections.abc import Callable, Iterable
@@ -60,6 +61,13 @@ TRANSLATION_PROMPT = """あなたは市民の意見を分析したレポート�
 """
 
 DEFAULT_BATCH_SIZE = 10
+
+# レポートの出力ディレクトリに置く訳の保存先。集計（hierarchical_aggregation）は
+# hierarchical_result.json を毎回作り直すので、訳はここから読み直して結果に入れる。
+TRANSLATIONS_FILENAME = "translations.json"
+# translations.json の各言語の meta に、訳の元になった原文の指紋（項目 id → ハッシュ）を残すキー。
+# 集計はこれと今の原文を比べ、編集で原文が変わった項目の古い訳を捨てる。結果 JSON には書かない。
+SOURCE_HASHES_KEY = "source_hashes"
 DEFAULT_WORKERS = 2
 
 # OpenAI の json_schema 形式。services.llm は dict をそのまま response_format に渡し、
@@ -303,6 +311,65 @@ def translate_result(
         }
         translations[language] = entry
     return translations
+
+
+def _text_hash(texts: list[str]) -> str:
+    return hashlib.sha256(json.dumps(texts, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+
+
+def source_hashes(items: list[dict[str, Any]]) -> dict[str, str]:
+    """翻訳対象の項目 id → 原文の指紋。原文が変わったかどうかの判定に使う。"""
+    return {item["id"]: _text_hash(item["texts"]) for item in items}
+
+
+def without_source_hashes(translations: dict[str, Any]) -> dict[str, Any]:
+    """結果 JSON に書く形（meta から原文の指紋を除いたもの）を返す。"""
+    public: dict[str, Any] = {}
+    for language, entry in translations.items():
+        if isinstance(entry, dict) and isinstance(entry.get("meta"), dict) and SOURCE_HASHES_KEY in entry["meta"]:
+            entry = {**entry, "meta": {k: v for k, v in entry["meta"].items() if k != SOURCE_HASHES_KEY}}
+        public[language] = entry
+    return public
+
+
+def fresh_translations(stored: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    """translations.json の訳のうち、今の結果の原文から作られたものだけを結果 JSON の形で返す。
+
+    meta に原文の指紋が無い言語（手で置いた旧来の translations.json など）は、そのまま返す。
+    指紋がある言語は、原文が変わった項目・無くなった項目の訳を落とす（編集後に古い訳を出さないため）。
+    """
+    current = source_hashes(build_translation_items(result, include_arguments=True))
+    fresh: dict[str, Any] = {}
+    for language, entry in stored.items():
+        meta = entry.get("meta") if isinstance(entry, dict) else None
+        hashes = meta.get(SOURCE_HASHES_KEY) if isinstance(meta, dict) else None
+        if not isinstance(hashes, dict):
+            fresh[language] = entry
+            continue
+
+        def is_fresh(item_id: str) -> bool:
+            return item_id in current and hashes.get(item_id) == current[item_id]
+
+        kept: dict[str, Any] = {}
+        clusters = {
+            cluster_id: value
+            for cluster_id, value in (entry.get("clusters") or {}).items()
+            if is_fresh(f"cluster:{cluster_id}")
+        }
+        if clusters:
+            kept["clusters"] = clusters
+        for kind in ("overview", "question", "intro"):
+            if kind in entry and is_fresh(kind):
+                kept[kind] = entry[kind]
+        arguments = {
+            arg_id: value for arg_id, value in (entry.get("arguments") or {}).items() if is_fresh(f"argument:{arg_id}")
+        }
+        if arguments:
+            kept["arguments"] = arguments
+        if kept:
+            kept["meta"] = {k: v for k, v in meta.items() if k != SOURCE_HASHES_KEY}
+            fresh[language] = kept
+    return fresh
 
 
 def merge_translations(result: dict[str, Any], translations: dict[str, dict[str, Any]]) -> dict[str, Any]:

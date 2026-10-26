@@ -67,11 +67,14 @@ kouchou-translate --result outputs/<name>/hierarchical_result.json --languages e
 kouchou-translate --result outputs/<name>/hierarchical_result.json --languages en --dry-run
 ```
 
-`python -m analysis_core.translate` でも同じです。プロバイダーとモデルは結果 JSON の `config.provider` / `config.model` を既定にし、`--provider` `--model` `--local-llm-address` で上書きできます（`provider=local` なら Ollama などの OpenAI 互換 API）。API キーは分析時と同じ環境変数を使います。
+`python -m analysis_core.translate` でも同じです。プロバイダーとモデルは結果 JSON の `config.provider` / `config.model` を既定にし、`--provider` `--model` `--local-llm-address` で上書きできます（`provider=local` なら Ollama などの OpenAI 互換 API）。API キーはサーバーの環境変数（`OPENAI_API_KEY` など）を使います。結果 JSON の `config` に残った `user_api_key` は読まず、書き戻すときに `config` から取り除きます。
 
 - 既定で翻訳するのは意見グループ（label / takeaway）、`overview`、`config.question`、`config.intro` です。意見本文は件数が多く費用がかさむため、`--include-arguments` を付けたときだけ翻訳します。意見本文の訳が無い言語では、散布図のホバーや階層リストの意見は元の言語で表示されます。
 - 1リクエストに `--batch-size`（既定 10）件をまとめて送り、`--workers`（既定 2）で並列にします。欠けた項目は 1 件ずつ再送し、それでも失敗した項目があれば id と失敗種別だけを示して終了し、ファイルは書き換えません。
 - 既に他の言語の訳があればそのまま残し、同じ言語は上書きします。各言語の `meta` に使ったモデルと生成日時を記録します。
+- `--result` を上書きするときは、同じディレクトリの `translations.json` にも訳を残します。集計（管理画面で意見グループ名・タイトルを編集した後の再集計や、CLI の再実行）は `hierarchical_result.json` を作り直しますが、訳は `translations.json` から読み直されるので消えません。ただし、原文（意見グループ名・説明・概要・問い・イントロ・意見）が変わった項目の訳は、古い訳を出さないよう落とします（その項目は元の言語で表示されます）。編集した項目も訳したいときは、もう一度実行してください。`--output` で別ファイルに書き出すときは `translations.json` を作りません。
+- 書き込みは一時ファイルから差し替えるので、公開中のレポートが書きかけのファイルを読むことはありません。翻訳の間に結果が作り直された（編集・再集計があった）ときや、分析・再集計の実行中（`hierarchical_status.json` が running）のときは、何も書き換えずにエラーで終了します。もう一度実行してください。
+- 管理画面（API）でストレージ（Azure Blob など）を使って運用しているレポートでは、サーバー上で翻訳しただけではストレージの版は変わりません。ストレージに上がるのは次の再集計などで同期されたときで、それまでにサーバーが再起動すると、ストレージの版（訳の無い版）に戻ります。
 - 翻訳の品質は確認してください。意見グループ名は短い見出しとして訳すよう指示していますが、固有名詞や専門用語の訳語は元の言語で確認するのが安全です。
 
 `translations` の形:
