@@ -43,6 +43,24 @@ def test_update_status_does_not_write_user_api_key(tmp_path):
     assert config["previous"]["user_api_key"] == SECRET
 
 
+def test_update_status_strips_user_api_key_inside_tuples(tmp_path):
+    """tuple の中の dict も、キーを除いてから status に書き出す。"""
+    from analysis_core.core import update_status
+
+    (tmp_path / "demo").mkdir()
+    config = {
+        "output_dir": "demo",
+        "extra": ({"user_api_key": SECRET, "keep": 1}, ("nested", {"user_api_key": SECRET})),
+    }
+
+    update_status(config, {"status": "running"}, tmp_path)
+    status_text = (tmp_path / "demo" / "hierarchical_status.json").read_text(encoding="utf-8")
+    assert SECRET not in status_text
+    assert json.loads(status_text)["extra"] == [{"keep": 1}, ["nested", {}]]
+    # メモリ上の config からは消さない
+    assert config["extra"][0]["user_api_key"] == SECRET
+
+
 def test_update_progress_with_legacy_config_keeps_orchestrator_status(tmp_path):
     """縮小版 legacy_config の進捗更新で、本体 config の status を丸ごと上書きしない。"""
     from analysis_core.core import update_progress, update_status

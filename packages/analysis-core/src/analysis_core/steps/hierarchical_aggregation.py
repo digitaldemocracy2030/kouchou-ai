@@ -54,7 +54,8 @@ def _public_config(obj: Any) -> Any:
             for k, v in obj.items()
             if not (isinstance(k, str) and (k.startswith("_") or k in _NON_PUBLIC_CONFIG_KEYS))
         }
-    if isinstance(obj, list):
+    # tuple も JSON では配列になるので、中の dict を同じく除く（書き出しは list で同じ形になる）
+    if isinstance(obj, (list, tuple)):
         return [_public_config(item) for item in obj]
     return obj
 

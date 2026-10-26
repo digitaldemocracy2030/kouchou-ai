@@ -68,3 +68,32 @@ def test_public_config_is_recursive_and_non_mutating():
     config = {"a": 1, "_x": 2, "nested": [{"user_api_key": "k", "b": 3}]}
     assert _public_config(config) == {"a": 1, "nested": [{"b": 3}]}
     assert config["nested"][0]["user_api_key"] == "k"
+
+
+def test_public_config_filters_dicts_inside_tuples(tmp_path):
+    """tuple の中の dict も、非公開キーを除いてから結果ファイルに書き出す。"""
+    inputs, outputs = _write_fixture(tmp_path)
+    config = {
+        "output_dir": "r1",
+        "input": "r1",
+        "question": "q",
+        "intro": "i",
+        "model": "gpt-4o-mini",
+        "provider": "openai",
+        "is_pubcom": False,
+        "extraction": {"limit": 10, "categories": {}},
+        "hierarchical_aggregation": {"hidden_properties": {}},
+        "_output_base_dir": str(outputs.parent),
+        "_input_base_dir": str(inputs),
+        "extra": ({"user_api_key": SECRET, "_path": str(tmp_path), "keep": 1}, ("nested", {"user_api_key": SECRET})),
+    }
+
+    assert _public_config({"t": ({"user_api_key": SECRET, "b": 2},)}) == {"t": [{"b": 2}]}
+
+    assert hierarchical_aggregation(config) is True
+    raw = (outputs / "hierarchical_result.json").read_text(encoding="utf-8")
+    assert SECRET not in raw
+    assert str(tmp_path) not in raw
+    assert json.loads(raw)["config"]["extra"] == [{"keep": 1}, ["nested", {}]]
+    # 元の config は変更しない
+    assert config["extra"][0]["user_api_key"] == SECRET

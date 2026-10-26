@@ -53,7 +53,8 @@ def strip_secret_keys(obj: Any) -> Any:
     """``SECRET_CONFIG_KEYS`` を再帰的に除いたコピーを返す（元の dict は変更しない）。"""
     if isinstance(obj, dict):
         return {k: strip_secret_keys(v) for k, v in obj.items() if k not in SECRET_CONFIG_KEYS}
-    if isinstance(obj, list):
+    # tuple も JSON では配列になるので、中の dict を同じく除く
+    if isinstance(obj, (list, tuple)):
         return [strip_secret_keys(item) for item in obj]
     return obj
 
