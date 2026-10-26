@@ -251,9 +251,11 @@ def _safe_source_url(url: Any) -> str | None:
     url = url.strip()
     try:
         parsed = urlparse(url)
+        # netloc だけでは "https://:80" や "https://user@" も通るので、ホスト名まで確かめる
+        hostname = parsed.hostname
     except ValueError:
         return None
-    if parsed.scheme.lower() not in ("http", "https") or not parsed.netloc:
+    if parsed.scheme.lower() not in ("http", "https") or not hostname:
         return None
     return url
 

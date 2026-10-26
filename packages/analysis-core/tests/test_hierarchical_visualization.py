@@ -395,3 +395,24 @@ class TestArgumentListsInTree:
         assert len(items) == 2
         assert sum("alpha" in i for i in items) == 1
         assert sum("beta" in i for i in items) == 1
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://example.com/r/1", "https://example.com/r/1"),
+        ("  http://example.com  ", "http://example.com"),
+        ("https://:80/path", None),
+        ("https://user@", None),
+        ("https://user@:443", None),
+        ("http:///no-host", None),
+        ("https://[::1", None),
+        ("javascript:alert(1)", None),
+        (None, None),
+    ],
+)
+def test_safe_source_url_requires_http_scheme_and_hostname(url, expected) -> None:
+    from analysis_core.steps.hierarchical_visualization import _safe_source_url
+
+    assert _safe_source_url(url) == expected
+
