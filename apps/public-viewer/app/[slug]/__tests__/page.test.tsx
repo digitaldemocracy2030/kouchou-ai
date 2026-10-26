@@ -71,7 +71,24 @@ describe("[slug] page (SSR / ISR)", () => {
         throw new TypeError("fetch failed");
       }) as typeof fetch;
       const metadata = await generateMetadata({ params });
-      expect(metadata).toEqual({ title: "広聴AI" });
+      expect(metadata.title).toBe("広聴AI");
+      expect(metadata.robots).toBeUndefined();
+    });
+
+    it("SSR でも metadataBase を公開先の URL にする（og:image が localhost を指さない）", async () => {
+      process.env.NEXT_PUBLIC_SITE_URL = "https://example.org";
+      mockFetch(makeResult(ReportVisibility.PUBLIC));
+      const metadata = await generateMetadata({ params });
+      expect(String(metadata.metadataBase)).toBe("https://example.org/");
+    });
+
+    it("API に届かない場合の既定値でも metadataBase を公開先の URL にする", async () => {
+      process.env.NEXT_PUBLIC_SITE_URL = "https://example.org";
+      global.fetch = jest.fn(async () => {
+        throw new TypeError("fetch failed");
+      }) as typeof fetch;
+      const metadata = await generateMetadata({ params });
+      expect(String(metadata.metadataBase)).toBe("https://example.org/");
     });
   });
 
@@ -81,6 +98,11 @@ describe("[slug] page (SSR / ISR)", () => {
         throw new TypeError("fetch failed");
       }) as typeof fetch;
       await expect(Page({ params })).rejects.toThrow();
+    });
+
+    it("API が 404 を返した場合は notFound にする", async () => {
+      mockFetch({ detail: "Not found" }, 404);
+      await expect(Page({ params })).rejects.toThrow("NEXT_NOT_FOUND");
     });
   });
 });

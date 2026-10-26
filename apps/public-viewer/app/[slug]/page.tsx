@@ -65,9 +65,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {};
   }
 
+  const { getMetadataBase } = await import("@/app/utils/image-src");
+
   // SSR / ISR でもレポートを取得して metadata を作る。限定公開レポートに noindex を
   // 付けるためで、fetch は Page 本体と同じ URL・tag なので重複排除される。
-  const fallbackMetadata: Metadata = isStaticExportBuild() ? {} : { title: "広聴AI" };
+  // 取得に失敗したときの既定値にも metadataBase を付ける。無いと SSR では og:image
+  // （opengraph-image）が Next の既定の http://localhost:<PORT> を指してしまう。
+  const fallbackMetadata: Metadata = isStaticExportBuild() ? {} : { title: "広聴AI", metadataBase: getMetadataBase() };
 
   try {
     const slug = (await params).slug;
@@ -93,8 +97,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (!metaResponse.ok) {
       return robots ? { ...fallbackMetadata, robots } : fallbackMetadata;
     }
-
-    const { getMetadataBase } = await import("@/app/utils/image-src");
 
     const meta: Meta = await metaResponse.json();
     const metaData: Metadata = {
