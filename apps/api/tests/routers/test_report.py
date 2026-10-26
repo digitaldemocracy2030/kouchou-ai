@@ -232,7 +232,7 @@ class TestReportsListEndpoint:
 
     def test_reports_does_not_expose_source_slug_or_internal_fields(self, client: TestClient, test_settings):
         """公開一覧は複製元の slug（限定公開レポートの推測不能な slug を含みうる）や内部情報を返さない"""
-        from src.schemas.report import Report
+        from src.schemas.report import AnalysisData, Report
 
         reports = [
             Report(
@@ -249,6 +249,9 @@ class TestReportsListEndpoint:
                 estimated_cost=0.12,
                 provider="openai",
                 model="gpt-4o-mini",
+                analysis=AnalysisData(comment_num=10, arguments_num=20, cluster_num=3),
+                # 管理画面向けの警告コード（#1120）も公開一覧には出さない
+                warnings=["source_input_reconstructed"],
             ),
             Report(
                 slug="unlisted-secret-uuid",
@@ -265,6 +268,7 @@ class TestReportsListEndpoint:
         body = response.json()
         assert [r["slug"] for r in body] == ["public-copy"]
         assert "unlisted-secret-uuid" not in response.text
+        assert "source_input_reconstructed" not in response.text
         for key in (
             "sourceSlug",
             "tokenUsage",
@@ -273,8 +277,12 @@ class TestReportsListEndpoint:
             "estimatedCost",
             "provider",
             "model",
+            "analysis",
+            "warnings",
         ):
             assert key not in body[0]
+        # 返す項目は public-viewer の Report 型（apps/public-viewer/type.ts）と同じものだけ
+        assert set(body[0]) == {"slug", "title", "description", "status", "visibility", "isPubcom", "createdAt"}
         # public-viewer が使う項目は残す
         assert body[0]["title"] == "複製"
         assert body[0]["visibility"] == "public"
