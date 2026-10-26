@@ -155,6 +155,10 @@ export default async function Page({ params }: PageProps) {
   if (metaResponse.status === 404 || resultResponse.status === 404) {
     notFound();
   }
+  // 404 以外の失敗（API の 5xx など）も、エラーの応答をレポートとして描画せずに throw する
+  if (!metaResponse.ok || !resultResponse.ok) {
+    throw new Error(`Failed to fetch report: meta=${metaResponse.status}, result=${resultResponse.status}`);
+  }
 
   const meta: Meta = await metaResponse.json();
   const result: Result = await resultResponse.json();

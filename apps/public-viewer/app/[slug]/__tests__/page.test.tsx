@@ -100,6 +100,11 @@ describe("[slug] page (SSR / ISR)", () => {
       await expect(Page({ params })).rejects.toThrow();
     });
 
+    it("API が 404 以外のエラーを返した場合も、描画せずに throw する", async () => {
+      mockFetch({ detail: "Internal server error" }, 500);
+      await expect(Page({ params })).rejects.toThrow("result=500");
+    });
+
     it("API が 404 を返した場合は notFound にする", async () => {
       mockFetch({ detail: "Not found" }, 404);
       await expect(Page({ params })).rejects.toThrow("NEXT_NOT_FOUND");
