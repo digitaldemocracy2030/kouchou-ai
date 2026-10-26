@@ -23,6 +23,7 @@ OPTIONAL_KEYS = {
     "NEXT_PUBLIC_LOCAL_LLM_ADDRESS",  # admin の既定値 ollama:11434
     "OLLAMA_HOST_PORT",  # compose の既定値 11434
     "HOST_BIND_ADDRESS",  # compose の既定値 127.0.0.1
+    "OLLAMA_HOST_BIND_ADDRESS",  # compose の既定値 127.0.0.1
     "NEXT_PUBLIC_GA_MEASUREMENT_ID",  # 未設定なら計測なし
     "NEXT_PUBLIC_ADMIN_GA_MEASUREMENT_ID",
     "NEXT_PUBLIC_STATIC_EXPORT_BASE_PATH",  # 既定値は空
@@ -52,7 +53,11 @@ RANDOMIZED_KEYS = {
 MIRRORED_KEY_PAIRS = [("ADMIN_API_KEY", "NEXT_PUBLIC_ADMIN_API_KEY")]
 
 # compose.yaml のポート公開は、既定でループバックだけにバインドする
-LOOPBACK_PORT_PREFIXES = ("127.0.0.1:", "${HOST_BIND_ADDRESS:-127.0.0.1}:")
+LOOPBACK_PORT_PREFIXES = (
+    "127.0.0.1:",
+    "${HOST_BIND_ADDRESS:-127.0.0.1}:",
+    "${OLLAMA_HOST_BIND_ADDRESS:-127.0.0.1}:",
+)
 
 ENV_LINE = re.compile(r"^\s*([A-Z_][A-Z0-9_]*)=(.*)$")
 # compose.yaml の ${VAR} のうち、${VAR:-default} のような既定値がないもの

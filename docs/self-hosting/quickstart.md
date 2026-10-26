@@ -52,6 +52,10 @@
 !!! note "他の端末からのアクセス"
     既定では、各ポートはこの PC（127.0.0.1）からだけ接続できます。同じ LAN の他の端末から接続させたい場合は、`.env` の `HOST_BIND_ADDRESS` を `0.0.0.0` などに変更してください。その場合は、管理画面に `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` を設定し、`ADMIN_API_KEY` と `NEXT_PUBLIC_ADMIN_API_KEY` を推測されにくい同じ値に変更してください。
 
+    他の端末のブラウザは `localhost` ではこの PC に届かないので、`NEXT_PUBLIC_API_BASEPATH` と `NEXT_PUBLIC_CLIENT_BASEPATH` も、他の端末から届くこの PC のアドレス（例: `http://192.168.0.10:8000` と `http://192.168.0.10:3000`）に変えてください。`NEXT_PUBLIC_` で始まる値はビルド時に埋め込まれるので、変えたら `docker compose up -d --build` で作り直します。
+
+    Ollama（`--profile ollama`）のポートは認証がないため、`HOST_BIND_ADDRESS` を変えてもこの PC からだけ接続できるままです（`OLLAMA_HOST_BIND_ADDRESS` で別に設定します）。アプリはコンテナ間通信で Ollama に接続するので、通常は変える必要はありません。
+
     以前のバージョンでは各ポートがすべてのネットワークに公開されていました。他の端末やサーバー外から直接接続していた場合は、上記のとおり `HOST_BIND_ADDRESS` を設定してください。なお `PUBLIC_API_KEY`（公開ビューア用の API キー）はブラウザに配信される値なので秘密になりません。外部に公開する場合は、`ENVIRONMENT=production` に変更することも検討してください。
 
 ## ローカル開発（Dockerを使わずに起動）
@@ -160,4 +164,4 @@ Docker Desktop が起動しているか確認してください。
 
 他のアプリケーションが同じポートを使用している場合は、該当するアプリケーションを停止してください。
 
-レポート閲覧画面（3000）・管理画面（4000）・API（8000）のポートは `.env` では変えられません（`.env` で変えられるのは Ollama の `OLLAMA_HOST_PORT` だけです）。変える必要がある場合は、Docker で起動しているなら `compose.yaml` の `ports` のホスト側（`"8000:8000"` の左側）を、Docker を使わずに起動しているなら `apps/api/Makefile` の `--port 8000` や `apps/admin/package.json` の `-p 4000` を編集します。その場合は、`NEXT_PUBLIC_API_BASEPATH` や `NEXT_PUBLIC_CLIENT_BASEPATH` など、そのポートを指す URL の設定も合わせて変えてください。
+レポート閲覧画面（3000）・管理画面（4000）・API（8000）のポートは `.env` では変えられません（`.env` で変えられるのは Ollama の `OLLAMA_HOST_PORT` だけです）。変える必要がある場合は、Docker で起動しているなら `compose.yaml` の `ports` のホスト側（`"${HOST_BIND_ADDRESS:-127.0.0.1}:8000:8000"` の 2 つ目の `8000`）を、Docker を使わずに起動しているなら `apps/api/Makefile` の `--port 8000` や `apps/admin/package.json` の `-p 4000` を編集します。その場合は、`NEXT_PUBLIC_API_BASEPATH` や `NEXT_PUBLIC_CLIENT_BASEPATH` など、そのポートを指す URL の設定も合わせて変えてください。

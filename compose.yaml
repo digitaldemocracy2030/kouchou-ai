@@ -89,7 +89,8 @@ services:
     ports:
       # ホスト側のポート。ホストで別の Ollama が 11434 を使っている場合は .env の OLLAMA_HOST_PORT で変える
       # （アプリはコンテナ間通信の ollama:11434 で接続するため、この値を変えてもアプリ側の設定は不要）
-      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${OLLAMA_HOST_PORT:-11434}:11434"
+      # Ollama の API には認証がないので、HOST_BIND_ADDRESS とは別に OLLAMA_HOST_BIND_ADDRESS で公開範囲を決める（既定はループバック）
+      - "${OLLAMA_HOST_BIND_ADDRESS:-127.0.0.1}:${OLLAMA_HOST_PORT:-11434}:11434"
     volumes:
       - ollama-data:/root/.ollama
     restart: unless-stopped
