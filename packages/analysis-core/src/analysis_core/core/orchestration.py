@@ -64,7 +64,7 @@ def plan_requires_api_key(plan: list[dict[str, Any]] | None, specs: list[dict[st
     if not plan:
         return True
     api_steps = {spec["step"] for spec in specs if spec.get("use_llm", False)} | {"embedding"}
-    return any(step.get("run", True) and step.get("step") in api_steps for step in plan)
+    return any(plan_runs_step(plan, step) for step in api_steps)
 
 
 def resolve_user_api_key(config: dict[str, Any] | None = None) -> str | None:
@@ -73,6 +73,9 @@ def resolve_user_api_key(config: dict[str, Any] | None = None) -> str | None:
         user_api_key = config.get("user_api_key")
         if user_api_key:
             return str(user_api_key)
+    # services.llm reads .env when it is first imported, which may have happened in another
+    # working directory. Read it here too so a USER_API_KEY kept only in .env is found.
+    load_env_file(override=False)
     return os.getenv("USER_API_KEY") or None
 
 
@@ -362,8 +365,12 @@ def validate_embedding_keys(provider: str, is_embedded_at_local: bool, user_api_
 
 
 def plan_runs_step(plan: list[dict[str, Any]] | None, step: str) -> bool:
-    """Return True when the execution plan will run the given step."""
-    return any(item.get("step") == step and item.get("run", True) for item in (plan or []))
+    """Return True when the execution plan will run the given step.
+
+    Matches run_workflow, which skips only the steps marked ``run: false``:
+    a step missing from the plan (e.g. a partial plan given to from_dict) runs.
+    """
+    return next((bool(item.get("run", True)) for item in (plan or []) if item.get("step") == step), True)
 
 
 # step ごとの、true / false（または未指定）だけを受け付けるオプション

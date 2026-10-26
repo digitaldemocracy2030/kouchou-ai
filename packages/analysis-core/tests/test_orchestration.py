@@ -728,6 +728,95 @@ class TestInitializationEmbeddingKeys:
             input_base_dir=tmp_path / "inputs",
         )
 
+    def test_plan_treats_omitted_steps_as_running_like_workflow(self):
+        """run_workflow は run: false と明示したステップだけを飛ばす。計画の判定も、計画に無いステップは実行するとみなす。"""
+        from analysis_core.core.orchestration import (
+            get_specs_path_for_mode,
+            load_specs,
+            plan_requires_api_key,
+            plan_runs_step,
+        )
+
+        specs = load_specs(get_specs_path_for_mode("hierarchical"))
+        partial = [{"step": "extraction", "run": True}]
+        assert plan_runs_step(partial, "embedding") is True
+        assert plan_runs_step([{"step": "embedding", "run": False}], "embedding") is False
+        assert plan_runs_step([{"step": "embedding", "run": True}], "embedding") is True
+        # API を呼ばないステップだけが書かれた計画でも、書かれていない extraction などは実行される
+        assert plan_requires_api_key([{"step": "hierarchical_aggregation", "run": True}], specs) is True
+        all_api_steps_off = [
+            {"step": spec["step"], "run": False}
+            for spec in specs
+            if spec.get("use_llm", False) or spec["step"] == "embedding"
+        ]
+        assert plan_requires_api_key(all_api_steps_off, specs) is False
+
+    def test_from_dict_partial_plan_checks_embedding_env(self, tmp_path, monkeypatch):
+        """計画に embedding が無くても workflow では実行されるので、埋め込み側も開始前に確かめる。"""
+        from analysis_core import PipelineOrchestrator
+
+        _set_azure_env(monkeypatch)
+
+        with pytest.raises(RuntimeError, match="AZURE_EMBEDDING_"):
+            PipelineOrchestrator.from_dict(
+                config={
+                    "name": "demo",
+                    "input": "demo",
+                    "question": "Test?",
+                    "provider": "azure",
+                    "plan": [{"step": "extraction", "run": True}],
+                },
+                output_dir="demo",
+                output_base_dir=tmp_path / "outputs",
+                input_base_dir=tmp_path / "inputs",
+            )
+
+    @staticmethod
+    def _use_dotenv_with_user_api_key(tmp_path, monkeypatch):
+        """USER_API_KEY を作業ディレクトリの .env にだけ置く。
+
+        services.llm は import 時に .env を読むが、import した時の作業ディレクトリが違えば
+        この .env は読まれていない。先に import してから作業ディレクトリを移り、その状態を作る。
+        """
+        import analysis_core.services.llm  # noqa: F401
+
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / ".env").write_text("USER_API_KEY=user-key-from-dotenv\n", encoding="utf-8")
+        monkeypatch.chdir(project)
+        # setenv してから delenv すると、.env から読み込まれた値もテスト後に消える
+        monkeypatch.setenv("USER_API_KEY", "placeholder")
+        monkeypatch.delenv("USER_API_KEY")
+        monkeypatch.setenv("OPENAI_API_KEY", "")
+
+    def test_from_dict_reads_user_api_key_from_dotenv(self, tmp_path, monkeypatch):
+        """.env にだけ USER_API_KEY がある時も、開始前の検査で止めない（ステップは .env の鍵で動く）。"""
+        from analysis_core import PipelineOrchestrator
+
+        self._use_dotenv_with_user_api_key(tmp_path, monkeypatch)
+
+        PipelineOrchestrator.from_dict(
+            config={"name": "demo", "input": "demo", "question": "Test?", "provider": "openai"},
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+    def test_initialization_reads_user_api_key_from_dotenv(self, tmp_path, monkeypatch):
+        """initialization も同じく、.env の USER_API_KEY を開始前の検査で使う。"""
+        from analysis_core.core import initialization
+
+        self._use_dotenv_with_user_api_key(tmp_path, monkeypatch)
+        config_path = self._write_config(tmp_path, provider="openai")
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+        assert "user_api_key" not in config
+
 
 class TestValidateConfig:
     """Test config validation."""
