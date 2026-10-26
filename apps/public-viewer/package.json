@@ -22,6 +22,7 @@
   "dependencies": {
     "@kouchou-ai/report-schema": "workspace:*",
     "@chakra-ui/react": "^3.5.1",
+    "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@next/third-parties": "^16.3.8",
     "lucide-react": "^0.474.0",
