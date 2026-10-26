@@ -229,6 +229,7 @@ async def test_local_models_use_pipeline_address_resolution(monkeypatch, address
     from src.services.llm_models import get_local_llm_models
 
     monkeypatch.setenv("LOCAL_LLM_API_KEY", "gateway-token")
+    monkeypatch.delenv("LOCAL_LLM_ALLOWED_BASE_URLS", raising=False)
     client = MagicMock()
     client.models.list.return_value = MagicMock(data=[MagicMock(id="llama3")])
     with patch("src.services.llm_models.OpenAI", return_value=client) as openai_cls:
@@ -236,6 +237,35 @@ async def test_local_models_use_pipeline_address_resolution(monkeypatch, address
 
     assert models == [{"value": "llama3", "label": "llama3"}]
     openai_cls.assert_called_once_with(base_url=expected_base_url, api_key="gateway-token")
+
+
+@pytest.mark.parametrize(
+    ("address", "expected_api_key"),
+    [
+        # 許可した接続先と一致する時だけ鍵を付ける
+        ("https://gateway.example.com", "gateway-token"),
+        ("https://gateway.example.com/v1", "gateway-token"),
+        # 入力途中・打ち間違いのアドレスには付けない
+        ("https://gateway.example.co", "not-needed"),
+        ("https://gateway.example.com.evil.test", "not-needed"),
+        ("ollama:11434", "not-needed"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_local_models_send_key_only_to_allowed_base_urls(monkeypatch, address, expected_api_key):
+    """モデル一覧の自動取得は入力途中のアドレスでも走るので、LOCAL_LLM_API_KEY は許可した接続先にだけ送る"""
+    from unittest.mock import MagicMock
+
+    from src.services.llm_models import get_local_llm_models
+
+    monkeypatch.setenv("LOCAL_LLM_API_KEY", "gateway-token")
+    monkeypatch.setenv("LOCAL_LLM_ALLOWED_BASE_URLS", "https://gateway.example.com")
+    client = MagicMock()
+    client.models.list.return_value = MagicMock(data=[MagicMock(id="llama3")])
+    with patch("src.services.llm_models.OpenAI", return_value=client) as openai_cls:
+        await get_local_llm_models(address)
+
+    assert openai_cls.call_args.kwargs["api_key"] == expected_api_key
 
 
 @pytest.mark.asyncio
