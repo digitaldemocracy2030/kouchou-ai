@@ -815,13 +815,18 @@ def request_to_chat_ai(
         - provider="openrouter": OpenRouter APIを使用（OpenAIやGeminiのモデルにアクセス可能）
         - provider="gemini": Google Gemini APIを使用
         - 429（rate limit）は失敗として返さず、待って送り直す。同時に送る数もプロセス全体で自動で下げる
-          （services/rate_limit.py）。
+          （services/rate_limit.py）。Gemini は 429 を独自に送り直すので、この仕組みを通さない。
     """
-    return call_with_rate_limit(
-        lambda: _dispatch_chat_request(
+
+    def dispatch():
+        return _dispatch_chat_request(
             messages, model, is_json, json_schema, provider, local_llm_address, user_api_key, timeout_seconds
         )
-    )
+
+    if provider == "gemini":
+        # 送り直しの最中に共通の枠を占有せず、OpenAI 互換の経路の 429 による一時停止にも巻き込まれないようにする
+        return dispatch()
+    return call_with_rate_limit(dispatch)
 
 
 def _dispatch_chat_request(

@@ -258,3 +258,10 @@ def test_provider_functions_do_not_retry_429_themselves(monkeypatch):
         with pytest.raises(openai.RateLimitError):
             llm.request_to_azure_chatcompletion([{"role": "user", "content": "hi"}])
     assert client.chat.completions.create.call_count == 1
+
+
+def test_gemini_bypasses_shared_limiter(monkeypatch):
+    """Gemini は 429 を独自に送り直すので、共通の枠と一時停止を通さない。"""
+    monkeypatch.setattr(llm, "call_with_rate_limit", lambda fn: pytest.fail("Gemini must not use the shared limiter"))
+    monkeypatch.setattr(llm, "request_to_gemini_chatcompletion", lambda *args, **kwargs: ("ok", 1, 1, 2))
+    assert llm.request_to_chat_ai([{"role": "user", "content": "hi"}], provider="gemini")[0] == "ok"
