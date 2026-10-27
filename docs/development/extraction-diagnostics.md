@@ -1,6 +1,8 @@
 # 意見抽出の診断
 
-抽出処理は、正常に空のリストが返った場合と、形式不正・通信失敗を区別します。失敗した回答がある場合は分析を中断し、通常ログには回答IDと例外の種類に加えて、API キーなどを伏せ字にして 1 行・300 文字までに切り詰めた例外メッセージを表示します（レポートの status のエラー文は回答IDと例外の種類だけです）。
+抽出処理は、正常に空のリストが返った場合と、形式不正・通信失敗を区別します。失敗した回答がある場合は分析を中断し、通常ログには回答IDと例外の種類に加えて、API キーなどを伏せ字にして 1 行・300 文字までに切り詰めた例外メッセージを表示します（レポートの status のエラー文は回答IDと例外の種類、よくある種類にはその説明だけです）。
+
+ただし、プロバイダのコンテンツフィルタに止められた回答（`LLMSafetyBlockError`）は分析を中断せず、その回答だけを除外して続けます。送り直しても同じ結果になる回答ごとの拒否で、1 件のために分析全体が止まるのを避けるためです。除外した回答は、通常ログの警告（件数と回答ID）、診断の `status=blocked`、config の `extraction_blocked_comment_ids` に残ります。すべての回答が止められた場合は、その旨のエラーで中断します。
 
 パイプラインが止まったときに status に書くエラー文（`error`）とスタックトレース（`error_stack_trace`）、ステップの失敗として通常ログに出すメッセージも、同じ規則で API キーなどを伏せ字にします。プロバイダ SDK の例外メッセージには、受け取ったキー（の一部）が入ることがあるためです。
 
@@ -9,11 +11,12 @@
 - `comment_id` / `comment`: 入力の回答IDと原文。
 - `status=empty`: モデルの応答は正常だが、意見を抽出しなかった。入力の性質とプロンプトを照合する。
 - `status=error`: 抽出処理が失敗した。`error_type` を確認する。正常な空応答とは異なる。理由の詳細は同じ回答IDの通常ログの行を見る。
+- `status=blocked`: プロバイダのコンテンツフィルタに止められ、分析から除外した（`error_type` は `LLMSafetyBlockError`）。どの区分で止められたかは通常ログの警告の行にある。
 
 `error_type` のうち、次の 2 つはモデル・プロバイダが応答本文を返さなかったことを表します。
 
 - `LLMRefusalError`: モデルが回答を拒否した（OpenAI 系の `message.refusal`）。
-- `LLMSafetyBlockError`: プロバイダの安全・コンテンツフィルタで入力または応答が止められた（OpenAI 系の `finish_reason=content_filter`、Gemini の `block_reason` や `finish_reason=SAFETY` など）。
+- `LLMSafetyBlockError`: プロバイダの安全・コンテンツフィルタで入力または応答が止められた（OpenAI 系の `finish_reason=content_filter`、Azure OpenAI が入力を止めたときの 400 `code=content_filter`、Gemini の `block_reason` や `finish_reason=SAFETY` など）。抽出では、この種類の回答は除外して続けます。
 
 形式不正の応答は `ValueError` などになります。
 

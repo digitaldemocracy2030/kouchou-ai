@@ -12,7 +12,7 @@ from tqdm import tqdm
 from analysis_core.core import update_progress
 from analysis_core.core.utils import read_input_csv
 from analysis_core.services.error_summary import summarize_exception
-from analysis_core.services.llm import request_to_chat_ai
+from analysis_core.services.llm import LLMSafetyBlockError, request_to_chat_ai
 from analysis_core.services.parse_json_list import parse_extraction_response
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
 from analysis_core.steps._pool import iter_pool_completed
@@ -27,15 +27,37 @@ class ExtractionResponse(BaseModel):
     extractedOpinionList: list[str] = Field(..., description="抽出した意見のリスト")
 
 
+# 失敗の型名から、管理画面でエラーを読む人向けの説明を引く。理由の詳細（伏せ字済み）は分析ログにある。
+FAILURE_EXPLANATIONS = {
+    "AuthenticationError": "API キーが無効です",
+    "PermissionDeniedError": "API キーにこのモデルを使う権限がありません",
+    "NotFoundError": "モデル（Azure ではデプロイ名）が見つかりません",
+    "RateLimitError": "API の利用上限に達しました。時間をおくか、並列数を下げて再実行してください",
+    "BadRequestError": "API が要求を受け付けませんでした（モデル名や設定の誤りなど）",
+    "APITimeoutError": "API の応答が時間内に返りませんでした",
+    "APIConnectionError": "API に接続できませんでした",
+    "InternalServerError": "API 側でエラーが起きました。時間をおいて再実行してください",
+    "LLMRefusalError": "モデルが回答を拒否しました",
+    "ValueError": "LLM の応答を解釈できませんでした",
+    "ValidationError": "LLM の応答を解釈できませんでした",
+    "LengthFinishReasonError": "LLM の応答が途中で切れました",
+}
+
+
 class ExtractionBatchError(RuntimeError):
     """A batch contains failed responses and must not reach downstream analysis."""
 
     def __init__(self, failures, comment_ids=None):
         self.failures = failures
         identifiers = {comment_ids[i] if comment_ids is not None else i: reason for i, reason in failures.items()}
+        reasons = "、".join(
+            f"{name}（{FAILURE_EXPLANATIONS[name]}）" if name in FAILURE_EXPLANATIONS else name
+            for name in sorted(set(failures.values()))
+        )
         super().__init__(
-            f"意見抽出に失敗した回答が{len(failures)}件あります。分析を中断しました。"
+            f"意見抽出に失敗した回答が{len(failures)}件あります。分析を中断しました。理由: {reasons}。"
             f" ({'回答ID' if comment_ids is not None else 'batch index'} / error: {identifiers})"
+            " 詳しい理由は分析ログにあります。"
         )
 
 
@@ -174,6 +196,11 @@ def extraction(config):
     relation_df = pl.DataFrame(relation_rows)
 
     if len(results) == 0:
+        blocked_ids = config.get("extraction_blocked_comment_ids") or []
+        if blocked_ids:
+            raise RuntimeError(
+                f"抽出できた意見がありません。コンテンツフィルタに止められた回答が{len(blocked_ids)}件あります。"
+            )
         raise RuntimeError("result is empty, maybe bad prompt")
 
     results.write_csv(path)
@@ -200,11 +227,15 @@ def extract_batch(
     空いた worker にはすぐ次の回答を渡し、結果は入力順に返す。
     失敗を検知したら新しい要求は出さず、実行中の要求の完了を待ってから
     ExtractionBatchError を送出する（完了した要求のトークンは集計し、診断ファイルにも書く）。
+    ただしプロバイダのコンテンツフィルタに止められた回答（LLMSafetyBlockError）は、送り直しても
+    同じ結果になる回答ごとの拒否なので、中断せずにその回答だけを除外する。除外した回答は
+    警告ログと診断ファイル（status=blocked）に残し、件数と回答IDを config に書く。
     トークン集計・進捗（on_progress）・診断ファイルへの追記は、workers 件の完了ごとに
     呼び出し元のスレッドでまとめて行う。
     """
     results = [[] for _ in range(len(batch))]
     failures = {}
+    blocked = set()
     flush_every = max(1, int(workers))
     pending = {"count": 0, "input": 0, "output": 0, "total": 0, "diagnostics": []}
 
@@ -224,8 +255,8 @@ def extract_batch(
                     record = {
                         "comment_id": comment_ids[index] if comment_ids is not None else index,
                         "comment": batch[index],
-                        "status": "error" if index in failures else "empty",
-                        "error_type": failures.get(index),
+                        "status": "error" if index in failures else "blocked" if index in blocked else "empty",
+                        "error_type": failures.get(index, LLMSafetyBlockError.__name__ if index in blocked else None),
                     }
                     diagnostic_file.write(json.dumps(record, ensure_ascii=False) + "\n")
         if on_progress is not None:
@@ -249,6 +280,14 @@ def extract_batch(
                 pending["total"] += token_total
             else:
                 results[i] = result
+        except LLMSafetyBlockError as e:
+            blocked.add(i)
+            logging.warning(
+                "コンテンツフィルタに止められたため、この回答を分析から除外します。%s %s: %s",
+                "回答ID" if comment_ids is not None else "batch index",
+                comment_ids[i] if comment_ids is not None else i,
+                summarize_exception(e, (user_api_key,)),
+            )
         except Exception as e:
             # status と診断には分類名（型名）だけを残し、理由は秘密情報を伏せて通常ログに出す
             failures[i] = type(e).__name__
@@ -258,7 +297,7 @@ def extract_batch(
                 comment_ids[i] if comment_ids is not None else i,
                 summarize_exception(e, (user_api_key,)),
             )
-        if i in failures or not results[i]:
+        if i in failures or i in blocked or not results[i]:
             pending["diagnostics"].append(i)
         pending["count"] += 1
         if pending["count"] >= flush_every:
@@ -267,6 +306,19 @@ def extract_batch(
 
     if failures:
         raise ExtractionBatchError(failures, comment_ids)
+    if config is not None:
+        # 再実行で同じ config を使うときに、前回の除外が残らないようにする
+        config.pop("extraction_blocked_comment_ids", None)
+    if blocked:
+        blocked_ids = [comment_ids[i] if comment_ids is not None else i for i in sorted(blocked)]
+        logging.warning(
+            "コンテンツフィルタに止められた %d件の回答を分析から除外しました（%s: %s）",
+            len(blocked_ids),
+            "回答ID" if comment_ids is not None else "batch index",
+            blocked_ids,
+        )
+        if config is not None:
+            config["extraction_blocked_comment_ids"] = blocked_ids
     return results
 
 

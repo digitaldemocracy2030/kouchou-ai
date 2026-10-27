@@ -81,6 +81,22 @@ def _raise_if_openai_response_blocked(response: Any, provider_label: str) -> Non
         raise LLMSafetyBlockError(f"{provider_label}: the response was blocked (finish_reason=content_filter)")
 
 
+def _raise_if_prompt_blocked(error: openai.BadRequestError, provider_label: str) -> None:
+    """入力がコンテンツフィルタに止められた 400（code=content_filter）を LLMSafetyBlockError にする。
+
+    Azure OpenAI は入力が既定のフィルタ（Hate などの severity medium 以上）に当たると、応答ではなく
+    400 を返す。他の 400（モデル名・パラメータの誤り）と違って回答ごとに決まる拒否なので、型で区別する。
+    """
+    if getattr(error, "code", None) != "content_filter":
+        return
+    body = error.body if isinstance(error.body, dict) else {}
+    result = (body.get("innererror") or {}).get("content_filter_result") or {}
+    categories = sorted(name for name, value in result.items() if isinstance(value, dict) and value.get("filtered"))
+    raise LLMSafetyBlockError(
+        f"{provider_label}: the prompt was blocked by the content filter ({', '.join(categories) or 'unknown'})"
+    ) from error
+
+
 def _raise_if_gemini_response_blocked(response: Any) -> None:
     """Gemini で入力・応答が安全ブロックなどで止められ、本文が無い場合に専用の例外にする。"""
     feedback = getattr(response, "prompt_feedback", None)
@@ -272,6 +288,7 @@ def request_to_openai(
         raise
     except openai.BadRequestError as e:
         logging.error(f"OpenAI API bad request error: {redact_secrets(str(e), (user_api_key,))}")
+        _raise_if_prompt_blocked(e, "OpenAI")
         raise
 
 
@@ -392,6 +409,7 @@ def request_to_azure_chatcompletion(
         raise
     except openai.BadRequestError as e:
         logging.error(f"OpenAI API bad request error: {redact_secrets(str(e), (api_key,))}")
+        _raise_if_prompt_blocked(e, "Azure OpenAI")
         raise
 
 
