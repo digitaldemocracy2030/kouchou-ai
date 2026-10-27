@@ -253,3 +253,32 @@ def test_label_schema_has_no_top_level_description(module):
     schema = module.LabellingFromat.model_json_schema()
     assert "description" not in schema
     assert set(schema["properties"]) == {"label", "description"}
+
+
+@pytest.mark.parametrize("stage", ["initial", "merge"])
+def test_usage_of_length_cut_attempts_is_counted(monkeypatch, stage):
+    """途中切れの応答も課金されているので、送り直す前の回の usage も集計に含める。"""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    import openai
+
+    calls = {"count": 0}
+
+    def request(**kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            completion = MagicMock()
+            completion.usage = SimpleNamespace(prompt_tokens=100, completion_tokens=16384, total_tokens=16484)
+            raise openai.LengthFinishReasonError(completion=completion)
+        return '{"label":"label","description":"description"}', 2, 1, 3
+
+    monkeypatch.setattr(initial if stage == "initial" else merge, "request_to_chat_ai", request)
+    config = {
+        "provider": "openai",
+        "hierarchical_merge_labelling": {"sampling_num": 1, "prompt": "p", "model": "m", "workers": 1},
+    }
+    run_batch(stage, config)
+    successes = 4 if stage == "initial" else 2
+    assert config["total_token_usage"] == 16484 + 3 * successes
+    assert config["token_usage_output"] == 16384 + 1 * successes

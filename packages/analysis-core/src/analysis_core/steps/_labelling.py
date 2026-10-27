@@ -61,7 +61,18 @@ def _is_malformed_response(exc):
     )
 
 
-def _process_with_retry(process, cluster_id, stage):
+def _record_usage_of_failed_completion(config, exc):
+    """途中切れ（LengthFinishReasonError）の応答も課金されているので、取れる usage を集計に含める。
+
+    プロバイダ関数は usage を取り出す前に送出するので、ここで例外の completion から読む。usage が無ければ何もしない。
+    """
+    usage = getattr(getattr(exc, "completion", None), "usage", None)
+    if usage is None:
+        return
+    record_usage(config, usage.prompt_tokens or 0, usage.completion_tokens or 0, usage.total_tokens or 0)
+
+
+def _process_with_retry(process, cluster_id, stage, config=None):
     """形式不正・途中切れの応答なら、このクラスタだけを送り直す。
 
     gpt-4o は temperature=0 でも、まれに同じ語句を出力の上限（16384 トークン）まで繰り返し、
@@ -72,6 +83,8 @@ def _process_with_retry(process, cluster_id, stage):
         try:
             return process(cluster_id)
         except Exception as exc:
+            if isinstance(exc, openai.LengthFinishReasonError):
+                _record_usage_of_failed_completion(config, exc)
             if not _is_malformed_response(exc) or attempt >= LABELLING_MALFORMED_RESPONSE_MAX_ATTEMPTS:
                 raise
             # 応答本文はログに出さない（例外の種類だけを残す）
@@ -86,7 +99,7 @@ def _process_with_retry(process, cluster_id, stage):
     raise AssertionError("unreachable")  # pragma: no cover
 
 
-def run_labelling_batch(process, cluster_ids, workers, stage, secrets: Iterable[str | None] = ()):
+def run_labelling_batch(process, cluster_ids, workers, stage, secrets: Iterable[str | None] = (), config=None):
     """クラスタごとのラベル生成を並列に行い、失敗があればまとめて LabellingBatchError にする。
 
     形式不正・途中切れの応答は、そのクラスタだけを LABELLING_MALFORMED_RESPONSE_MAX_ATTEMPTS 回まで送り直す。
@@ -97,7 +110,8 @@ def run_labelling_batch(process, cluster_ids, workers, stage, secrets: Iterable[
     failures = {}
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = [
-            (cluster_id, executor.submit(_process_with_retry, process, cluster_id, stage)) for cluster_id in cluster_ids
+            (cluster_id, executor.submit(_process_with_retry, process, cluster_id, stage, config))
+            for cluster_id in cluster_ids
         ]
         for cluster_id, future in futures:
             try:

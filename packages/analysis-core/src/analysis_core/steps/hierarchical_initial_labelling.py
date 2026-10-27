@@ -116,6 +116,7 @@ def initial_labelling(
         workers,
         "hierarchical_initial_labelling",
         secrets=((config or {}).get("user_api_key"),),
+        config=config,
     )
     return pl.DataFrame(results)
 
