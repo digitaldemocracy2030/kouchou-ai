@@ -245,3 +245,11 @@ def test_api_errors_are_not_retried_here(monkeypatch, stage):
     with pytest.raises(LabellingBatchError):
         run_batch(stage, config)
     assert calls["count"] == (4 if stage == "initial" else 2)
+
+
+@pytest.mark.parametrize("module", [initial, merge])
+def test_label_schema_has_no_top_level_description(module):
+    """スキーマの description（クラスの docstring）があると gpt-4o が制御文字を繰り返すことがあるので付けない。"""
+    schema = module.LabellingFromat.model_json_schema()
+    assert "description" not in schema
+    assert set(schema["properties"]) == {"label", "description"}

@@ -211,8 +211,9 @@ def merge_labelling(clusters_df: pl.DataFrame, cluster_id_columns: list[str], co
 
 
 class LabellingFromat(BaseModel):
-    """ラベリング結果のフォーマットを定義する"""
-
+    # docstring を書かない。pydantic はクラスの docstring を JSON スキーマの description に入れ、
+    # gpt-4o（2024-11-20）は temperature=0 の構造化出力でこの description があると、ラベルに
+    # 制御文字（\u001c など）を出力の上限まで繰り返すことがある（同じ入力で 12 回中 8 回、無ければ 0 回）。
     label: str = Field(..., description="クラスタのラベル名")
     description: str = Field(..., description="クラスタの説明文")
 
