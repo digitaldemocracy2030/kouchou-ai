@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import openai
 import pytest
+from analysis_core.services import rate_limit
 from analysis_core.services.llm import (
     _openai_flex_timeout_seconds,
     _should_use_openai_flex,
@@ -23,6 +24,16 @@ from pydantic import BaseModel, Field
 # LLM_REQUEST_TIMEOUT_SECONDS から決まる。開発者の .env に左右されないよう、
 # 期待値は固定の 300 ではなく DEFAULT_REQUEST_TIMEOUT_SECONDS から取る。
 
+
+
+@pytest.fixture(autouse=True)
+def fast_rate_limit(monkeypatch):
+    """429 の送り直し（request_to_chat_ai が行う）を試験では待たない。"""
+    monkeypatch.setattr(rate_limit.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(rate_limit, "RATE_LIMIT_PAUSE_SECONDS", 0)
+    rate_limit.reset_rate_limiter()
+    yield
+    rate_limit.reset_rate_limiter()
 
 class TestLLMService:
     """LLMサービスのテスト"""
@@ -355,7 +366,7 @@ class TestLLMService:
         assert second_kwargs["timeout"] == 300
 
     def test_request_to_openai_flex_ordinary_rate_limit_retries_on_flex(self, flex_env, mock_openai_response):
-        """Flex利用中でもresource_unavailable以外の429は標準処理へ切り替えず、Flexのままリトライする"""
+        """Flex利用中でもresource_unavailable以外の429は標準処理へ切り替えず、Flexのまま送り直す(request_to_chat_ai が送り直す)"""
         messages = [{"role": "user", "content": "Hello, world!"}]
         mock_client = self._make_mock_openai_client(mock_openai_response)
         rate_limit_error = openai.RateLimitError(
@@ -363,18 +374,18 @@ class TestLLMService:
         )
         mock_client.chat.completions.create.side_effect = [rate_limit_error, mock_openai_response]
 
-        with (
-            patch("analysis_core.services.llm.OpenAI", return_value=mock_client),
-            patch("analysis_core.services.llm._send_openai_chat_request.retry.sleep"),
-        ):
-            response, *_ = request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=300)
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
+            response, *_ = request_to_chat_ai(
+                messages, model="gpt-5.6-terra", provider="openai", timeout_seconds=300
+            )
 
         assert response == "This is a test response"
         tiers = [c.kwargs["service_tier"] for c in mock_client.chat.completions.create.call_args_list]
         assert tiers == ["flex", "flex"]
 
-    def test_request_to_openai_flex_fallback_does_not_retry_flex_again(self, flex_env, mock_openai_response):
-        """標準処理へ切り替えた後に429が続いても、Flexを叩き直さず標準処理のみをリトライする"""
+    def test_request_to_chat_ai_flex_retry_after_standard_429_starts_from_flex(self, flex_env, mock_openai_response):
+        """標準処理で429になったら、request_to_chat_ai の送り直しは Flex から試し直す
+        (Flex のリソース不足は課金されず、空いていれば Flex で通る)"""
         messages = [{"role": "user", "content": "Hello, world!"}]
         mock_client = self._make_mock_openai_client(mock_openai_response)
         flex_unavailable = openai.RateLimitError(
@@ -386,22 +397,21 @@ class TestLLMService:
         mock_client.chat.completions.create.side_effect = [
             flex_unavailable,
             rate_limit_error,
-            rate_limit_error,
+            flex_unavailable,
             mock_openai_response,
         ]
 
-        with (
-            patch("analysis_core.services.llm.OpenAI", return_value=mock_client),
-            patch("analysis_core.services.llm._send_openai_chat_request.retry.sleep"),
-        ):
-            response, *_ = request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=300)
+        with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
+            response, *_ = request_to_chat_ai(
+                messages, model="gpt-5.6-terra", provider="openai", timeout_seconds=300
+            )
 
         assert response == "This is a test response"
         tiers = [c.kwargs["service_tier"] for c in mock_client.chat.completions.create.call_args_list]
-        assert tiers == ["flex", "default", "default", "default"]
+        assert tiers == ["flex", "default", "flex", "default"]
 
-    def test_request_to_openai_flex_fallback_reraises_after_standard_retries(self, flex_env, mock_openai_response):
-        """標準処理側で429が3回続いたら、Flexへ戻らずRateLimitErrorを再送出する(最大4リクエスト)"""
+    def test_request_to_openai_flex_fallback_reraises_standard_429(self, flex_env, mock_openai_response):
+        """標準処理側の429は、request_to_openai では送り直さずに再送出する(送り直しは request_to_chat_ai が行う)"""
         messages = [{"role": "user", "content": "Hello, world!"}]
         mock_client = self._make_mock_openai_client(mock_openai_response)
         flex_unavailable = openai.RateLimitError(
@@ -414,12 +424,11 @@ class TestLLMService:
 
         with (
             patch("analysis_core.services.llm.OpenAI", return_value=mock_client),
-            patch("analysis_core.services.llm._send_openai_chat_request.retry.sleep"),
             pytest.raises(openai.RateLimitError),
         ):
             request_to_openai(messages, model="gpt-5.6-terra", timeout_seconds=300)
 
-        assert mock_client.chat.completions.create.call_count == 4
+        assert mock_client.chat.completions.create.call_count == 2
 
     @pytest.mark.parametrize("raw", ["", "  "])
     def test_openai_flex_timeout_empty_env_uses_default(self, flex_env, raw):
@@ -436,7 +445,7 @@ class TestLLMService:
             _openai_flex_timeout_seconds(300)
 
     def test_request_to_openai_rate_limit_error_retry(self):
-        """request_to_openai: レート制限エラーが発生した場合は3回までリトライする"""
+        """request_to_chat_ai(openai): レート制限エラーが発生した場合は待って送り直す"""
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "Hello, world!"},
@@ -465,15 +474,18 @@ class TestLLMService:
         mock_client.chat.completions.create.side_effect = side_effects
 
         with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
-            # リトライ後に正常なレスポンスが返されることを確認
-            response, token_input, token_output, token_total = request_to_openai(messages, model="gpt-4")
+            # 送り直した後に正常なレスポンスが返されることを確認
+            response, token_input, token_output, token_total = request_to_chat_ai(
+                messages, model="gpt-4", provider="openai"
+            )
             assert response == "This is a test response after retry"
             assert token_input == 10
             assert token_output == 5
             assert token_total == 15
+            assert mock_client.chat.completions.create.call_count == 3
 
     def test_request_to_openai_rate_limit_error_max_retries(self):
-        """request_to_openai: レート制限エラーが4回発生した場合は例外を再発生させる"""
+        """request_to_openai: レート制限エラーは送り直さずに再発生させる(送り直しは request_to_chat_ai が行う)"""
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "Hello, world!"},
@@ -491,9 +503,9 @@ class TestLLMService:
         mock_client.chat.completions.create.side_effect = [rate_limit_error] * 4
 
         with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
-            # 3回リトライしても失敗するため、最終的に例外が発生する
             with pytest.raises(openai.RateLimitError):
                 request_to_openai(messages, model="gpt-4")
+            assert mock_client.chat.completions.create.call_count == 1
 
     def test_request_to_openai_authentication_error(self):
         """request_to_openai: 認証エラーが発生した場合は例外を再発生させる"""
@@ -740,9 +752,10 @@ class TestLLMService:
             with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 with pytest.raises(openai.RateLimitError):
                     request_to_azure_chatcompletion(messages)
+                assert mock_client.chat.completions.create.call_count == 1
 
     def test_request_to_azure_chatcompletion_rate_limit_error_retry(self):
-        """request_to_azure_chatcompletion: レート制限エラーが発生した場合は3回までリトライする"""
+        """request_to_chat_ai(azure): レート制限エラーが発生した場合は待って送り直す"""
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "Hello, world!"},
@@ -784,8 +797,8 @@ class TestLLMService:
 
         with patch.dict(os.environ, env_vars):
             with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
-                # リトライ後に正常なレスポンスが返されることを確認
-                response, token_input, token_output, token_total = request_to_azure_chatcompletion(messages)
+                # 送り直した後に正常なレスポンスが返されることを確認
+                response, token_input, token_output, token_total = request_to_chat_ai(messages, provider="azure")
                 assert response == "This is a test response after retry"
                 assert token_input == 10
                 assert token_output == 5
@@ -793,7 +806,7 @@ class TestLLMService:
                 assert mock_client.chat.completions.create.call_count == 3
 
     def test_request_to_azure_chatcompletion_rate_limit_error_max_retries(self):
-        """request_to_azure_chatcompletion: レート制限エラーが4回発生した場合は例外を再発生させる"""
+        """request_to_azure_chatcompletion: レート制限エラーは送り直さずに再発生させる(送り直しは request_to_chat_ai が行う)"""
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "Hello, world!"},
@@ -820,9 +833,9 @@ class TestLLMService:
 
         with patch.dict(os.environ, env_vars):
             with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
-                # 3回リトライしても失敗するため、最終的に例外が発生する
                 with pytest.raises(openai.RateLimitError):
                     request_to_azure_chatcompletion(messages)
+                assert mock_client.chat.completions.create.call_count == 1
 
     @staticmethod
     def _azure_env(deployment):
@@ -1146,7 +1159,7 @@ class TestLLMService:
             assert "Use AZURE_EMBEDDING_* variables, not AZURE_OPENAI_*" in error_message
 
     def test_request_to_chat_ai_use_openrouter_rate_limit(self):
-        """OpenRouterのレート制限エラーのテスト"""
+        """OpenRouterのレート制限エラーのテスト(送り直しの待ち時間の上限を超えたら送出する)"""
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "Hello!"},
@@ -1166,10 +1179,13 @@ class TestLLMService:
             "OPENROUTER_API_KEY": "test-api-key",
         }
 
-        with patch.dict(os.environ, env_vars):
-            with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
-                with pytest.raises(openai.RateLimitError):
-                    request_to_chat_ai(messages=messages, model=model, provider="openrouter")
+        with (
+            patch.dict(os.environ, env_vars),
+            patch.object(rate_limit, "RATE_LIMIT_MAX_WAIT_SECONDS", 0),
+            patch("analysis_core.services.llm.OpenAI", return_value=mock_client),
+            pytest.raises(openai.RateLimitError),
+        ):
+            request_to_chat_ai(messages=messages, model=model, provider="openrouter")
 
     def test_request_to_chat_ai_use_gemini(self):
         """Geminiを使用するテストケース"""
