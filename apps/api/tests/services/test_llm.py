@@ -25,7 +25,6 @@ from pydantic import BaseModel, Field
 # 期待値は固定の 300 ではなく DEFAULT_REQUEST_TIMEOUT_SECONDS から取る。
 
 
-
 @pytest.fixture(autouse=True)
 def fast_rate_limit(monkeypatch):
     """429 の送り直し（request_to_chat_ai が行う）を試験では待たない。"""
@@ -34,6 +33,7 @@ def fast_rate_limit(monkeypatch):
     rate_limit.reset_rate_limiter()
     yield
     rate_limit.reset_rate_limiter()
+
 
 class TestLLMService:
     """LLMサービスのテスト"""
@@ -375,9 +375,7 @@ class TestLLMService:
         mock_client.chat.completions.create.side_effect = [rate_limit_error, mock_openai_response]
 
         with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
-            response, *_ = request_to_chat_ai(
-                messages, model="gpt-5.6-terra", provider="openai", timeout_seconds=300
-            )
+            response, *_ = request_to_chat_ai(messages, model="gpt-5.6-terra", provider="openai", timeout_seconds=300)
 
         assert response == "This is a test response"
         tiers = [c.kwargs["service_tier"] for c in mock_client.chat.completions.create.call_args_list]
@@ -402,9 +400,7 @@ class TestLLMService:
         ]
 
         with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
-            response, *_ = request_to_chat_ai(
-                messages, model="gpt-5.6-terra", provider="openai", timeout_seconds=300
-            )
+            response, *_ = request_to_chat_ai(messages, model="gpt-5.6-terra", provider="openai", timeout_seconds=300)
 
         assert response == "This is a test response"
         tiers = [c.kwargs["service_tier"] for c in mock_client.chat.completions.create.call_args_list]
