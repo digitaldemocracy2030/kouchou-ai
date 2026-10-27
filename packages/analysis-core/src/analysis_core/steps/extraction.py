@@ -197,7 +197,8 @@ def extraction(config):
 
     if len(results) == 0:
         blocked_ids = config.get("extraction_blocked_comment_ids") or []
-        if blocked_ids:
+        # 全件が止められたときだけフィルタのせいと言う。止められなかった回答も意見 0 件なら、通常の空の結果として扱う
+        if blocked_ids and len(blocked_ids) == len(comment_ids):
             raise RuntimeError(
                 f"抽出できた意見がありません。コンテンツフィルタに止められた回答が{len(blocked_ids)}件あります。"
             )
@@ -304,10 +305,8 @@ def extract_batch(
             flush()
     flush()
 
-    if failures:
-        raise ExtractionBatchError(failures, comment_ids)
+    # 除外の記録は、ほかの失敗で中断するときも残す（再実行で同じ config を使うときに前回の値も残さない）
     if config is not None:
-        # 再実行で同じ config を使うときに、前回の除外が残らないようにする
         config.pop("extraction_blocked_comment_ids", None)
     if blocked:
         blocked_ids = [comment_ids[i] if comment_ids is not None else i for i in sorted(blocked)]
@@ -319,6 +318,8 @@ def extract_batch(
         )
         if config is not None:
             config["extraction_blocked_comment_ids"] = blocked_ids
+    if failures:
+        raise ExtractionBatchError(failures, comment_ids)
     return results
 
 

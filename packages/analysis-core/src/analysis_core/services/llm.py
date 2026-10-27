@@ -78,7 +78,16 @@ def _raise_if_openai_response_blocked(response: Any, provider_label: str) -> Non
     if isinstance(getattr(message, "refusal", None), str) and message.refusal:
         raise LLMRefusalError(f"{provider_label}: the model refused to answer (message.refusal is set)")
     if getattr(choice, "finish_reason", None) == "content_filter" and not getattr(message, "content", None):
-        raise LLMSafetyBlockError(f"{provider_label}: the response was blocked (finish_reason=content_filter)")
+        raise _response_blocked_error(provider_label)
+
+
+def _response_blocked_error(provider_label: str) -> LLMSafetyBlockError:
+    """応答がコンテンツフィルタで止められた（finish_reason=content_filter）ときの例外。
+
+    構造化出力（parse）の経路では、SDK が応答を返す前に ContentFilterFinishReasonError を送出するので、
+    呼び出し側でもこれに変換する。
+    """
+    return LLMSafetyBlockError(f"{provider_label}: the response was blocked (finish_reason=content_filter)")
 
 
 def _raise_if_prompt_blocked(error: openai.BadRequestError, provider_label: str) -> None:
@@ -290,6 +299,8 @@ def request_to_openai(
         logging.error(f"OpenAI API bad request error: {redact_secrets(str(e), (user_api_key,))}")
         _raise_if_prompt_blocked(e, "OpenAI")
         raise
+    except openai.ContentFilterFinishReasonError as e:
+        raise _response_blocked_error("OpenAI") from e
 
 
 @retry(
@@ -411,6 +422,8 @@ def request_to_azure_chatcompletion(
         logging.error(f"OpenAI API bad request error: {redact_secrets(str(e), (api_key,))}")
         _raise_if_prompt_blocked(e, "Azure OpenAI")
         raise
+    except openai.ContentFilterFinishReasonError as e:
+        raise _response_blocked_error("Azure OpenAI") from e
 
 
 def request_to_gemini_chatcompletion(

@@ -559,6 +559,29 @@ def test_azure_prompt_content_filter_raises_safety_block_error(azure_env):
     assert isinstance(error.value.__cause__, openai.BadRequestError)
 
 
+@pytest.mark.parametrize("provider", ["openai", "azure"])
+def test_structured_output_content_filter_raises_safety_block_error(provider, monkeypatch, azure_env):
+    """構造化出力（parse）の経路では、SDK が ContentFilterFinishReasonError を先に送出する。これも安全ブロックにする。"""
+    import openai
+
+    client = MagicMock()
+    client.beta.chat.completions.parse.side_effect = openai.ContentFilterFinishReasonError()
+    if provider == "azure":
+        with patch.object(llm, "AzureOpenAI", return_value=client):
+            with pytest.raises(llm.LLMSafetyBlockError, match="finish_reason=content_filter") as error:
+                llm.request_to_azure_chatcompletion(
+                    [{"role": "user", "content": "hi"}], json_schema=extraction.ExtractionResponse
+                )
+    else:
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-0000000000")
+        with patch.object(llm, "OpenAI", return_value=client):
+            with pytest.raises(llm.LLMSafetyBlockError, match="finish_reason=content_filter") as error:
+                llm.request_to_openai(
+                    [{"role": "user", "content": "hi"}], model="gpt-4o", json_schema=extraction.ExtractionResponse
+                )
+    assert isinstance(error.value.__cause__, openai.ContentFilterFinishReasonError)
+
+
 def test_azure_other_bad_request_stays_bad_request(azure_env):
     import openai
 

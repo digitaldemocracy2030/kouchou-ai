@@ -16,7 +16,7 @@
 `error_type` のうち、次の 2 つはモデル・プロバイダが応答本文を返さなかったことを表します。
 
 - `LLMRefusalError`: モデルが回答を拒否した（OpenAI 系の `message.refusal`）。
-- `LLMSafetyBlockError`: プロバイダの安全・コンテンツフィルタで入力または応答が止められた（OpenAI 系の `finish_reason=content_filter`、Azure OpenAI が入力を止めたときの 400 `code=content_filter`、Gemini の `block_reason` や `finish_reason=SAFETY` など）。抽出では、この種類の回答は除外して続けます。
+- `LLMSafetyBlockError`: プロバイダの安全・コンテンツフィルタで入力または応答が止められた（OpenAI 系の `finish_reason=content_filter`、OpenAI・Azure OpenAI が入力を止めたときの 400 `code=content_filter`、Gemini の `block_reason` や `finish_reason=SAFETY` など）。抽出では、この種類の回答は除外して続けます。
 
 形式不正の応答は `ValueError` などになります。
 

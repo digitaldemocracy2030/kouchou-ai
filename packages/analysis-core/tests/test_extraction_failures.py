@@ -180,9 +180,12 @@ def test_other_failures_still_stop_even_with_blocked_comments(monkeypatch):
         raise RuntimeError("private API error")
 
     monkeypatch.setattr(extraction, "extract_arguments", extract)
+    config = {"extraction_blocked_comment_ids": ["前回の残り"]}
     with pytest.raises(extraction.ExtractionBatchError) as error:
-        extraction.extract_batch(["blocked", "broken"], "p", "m", 1, config={}, comment_ids=["c1", "c2"])
+        extraction.extract_batch(["blocked", "broken"], "p", "m", 1, config=config, comment_ids=["c1", "c2"])
     assert error.value.failures == {1: "RuntimeError"}
+    # 中断するときも、今回の除外を記録する（前回の値は残さない）
+    assert config["extraction_blocked_comment_ids"] == ["c1"]
 
 
 def test_batch_error_message_explains_known_failure_types():
@@ -216,4 +219,32 @@ def test_all_comments_blocked_fails_with_content_filter_message(tmp_path, monkey
 
     monkeypatch.setattr(extraction, "request_to_chat_ai", request)
     with pytest.raises(RuntimeError, match="コンテンツフィルタに止められた回答が1件"):
+        extraction.extraction(config)
+
+
+def test_partly_blocked_and_rest_empty_is_not_blamed_on_the_filter(tmp_path, monkeypatch):
+    """止められなかった回答も意見 0 件なら、フィルタのせいとは言わず通常の空の結果として扱う。"""
+    from analysis_core.services.llm import LLMSafetyBlockError
+
+    inputs = tmp_path / "inputs"
+    outputs = tmp_path / "outputs"
+    inputs.mkdir()
+    (outputs / "report").mkdir(parents=True)
+    (inputs / "input.csv").write_text("comment-id,comment-body\nc1,bad\nc2,nothing\n")
+    config = {
+        "input": "input",
+        "output_dir": "report",
+        "provider": "azure",
+        "_input_base_dir": str(inputs),
+        "_output_base_dir": str(outputs),
+        "extraction": {"model": "m", "prompt": "p", "workers": 1, "limit": 2, "properties": []},
+    }
+
+    def request(**kwargs):
+        if kwargs["messages"][-1]["content"] == "bad":
+            raise LLMSafetyBlockError("blocked")
+        return '{"extractedOpinionList": []}', 2, 1, 3
+
+    monkeypatch.setattr(extraction, "request_to_chat_ai", request)
+    with pytest.raises(RuntimeError, match="result is empty"):
         extraction.extraction(config)
