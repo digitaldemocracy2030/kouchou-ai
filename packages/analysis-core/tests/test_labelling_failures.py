@@ -158,7 +158,8 @@ def test_successful_and_malformed_response_usage_is_retained(monkeypatch):
     with pytest.raises(LabellingBatchError) as error:
         run_batch("initial", config)
     assert error.value.failures == {"c1": "RuntimeError", "c2": "invalid_response"}
-    assert config["total_token_usage"] == 9
+    # 成功 2 件（c3, c4）と、形式不正で送り直した c2 の 3 回分。送り直した分も課金されるので含める
+    assert config["total_token_usage"] == 3 * 2 + 3 * 3
 
 
 def test_single_child_label_does_not_need_an_api_call(monkeypatch):
@@ -171,3 +172,76 @@ def test_single_child_label_does_not_need_an_api_call(monkeypatch):
         df, ["cluster-level-2-id", "cluster-level-1-id"], {"hierarchical_merge_labelling": {"workers": 1}}
     )
     assert result["cluster-level-1-label"].to_list() == ["one"]
+
+
+def _length_error():
+    from unittest.mock import MagicMock
+
+    import openai
+
+    return openai.LengthFinishReasonError(completion=MagicMock())
+
+
+@pytest.mark.parametrize("stage", ["initial", "merge"])
+@pytest.mark.parametrize("bad", ["broken JSON", "length"])
+def test_malformed_response_is_retried_for_that_cluster_only(monkeypatch, stage, bad):
+    """1 クラスタの形式不正・途中切れ（出力の上限まで繰り返す応答など）で全体を止めず、そのクラスタだけ送り直す。"""
+    calls = {"count": 0}
+
+    def request(**kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            if bad == "length":
+                raise _length_error()
+            return bad, 2, 1, 3
+        return '{"label":"label","description":"description"}', 2, 1, 3
+
+    monkeypatch.setattr(initial if stage == "initial" else merge, "request_to_chat_ai", request)
+    config = {
+        "provider": "openai",
+        "hierarchical_merge_labelling": {"sampling_num": 1, "prompt": "p", "model": "m", "workers": 1},
+    }
+    result = run_batch(stage, config)
+    expected_calls = 4 if stage == "initial" else 2
+    assert calls["count"] == expected_calls + 1
+    assert len(result) > 0
+
+
+@pytest.mark.parametrize("stage", ["initial", "merge"])
+def test_persistent_length_error_fails_after_retries(monkeypatch, stage):
+    from analysis_core.steps._labelling import LABELLING_MALFORMED_RESPONSE_MAX_ATTEMPTS
+
+    calls = {"count": 0}
+
+    def request(**kwargs):
+        calls["count"] += 1
+        raise _length_error()
+
+    monkeypatch.setattr(initial if stage == "initial" else merge, "request_to_chat_ai", request)
+    config = {
+        "provider": "openai",
+        "hierarchical_merge_labelling": {"sampling_num": 1, "prompt": "p", "model": "m", "workers": 1},
+    }
+    with pytest.raises(LabellingBatchError) as error:
+        run_batch(stage, config)
+    clusters_count = 4 if stage == "initial" else 2
+    assert calls["count"] == clusters_count * LABELLING_MALFORMED_RESPONSE_MAX_ATTEMPTS
+    assert set(error.value.failures.values()) == {"invalid_response"}
+
+
+@pytest.mark.parametrize("stage", ["initial", "merge"])
+def test_api_errors_are_not_retried_here(monkeypatch, stage):
+    calls = {"count": 0}
+
+    def request(**kwargs):
+        calls["count"] += 1
+        raise RuntimeError("private API failure")
+
+    monkeypatch.setattr(initial if stage == "initial" else merge, "request_to_chat_ai", request)
+    config = {
+        "provider": "openai",
+        "hierarchical_merge_labelling": {"sampling_num": 1, "prompt": "p", "model": "m", "workers": 1},
+    }
+    with pytest.raises(LabellingBatchError):
+        run_batch(stage, config)
+    assert calls["count"] == (4 if stage == "initial" else 2)
