@@ -11,11 +11,10 @@ from urllib.parse import urlsplit
 import openai
 from openai import AzureOpenAI, OpenAI
 from pydantic import BaseModel, ValidationError
-from tenacity import retry, retry_if_exception, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from analysis_core.env_file import load_env_file
 from analysis_core.services.error_summary import redact_secrets
-from analysis_core.services.rate_limit import call_with_rate_limit
+from analysis_core.services.rate_limit import call_with_rate_limit, chat_http_client
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, openai_flex_timeout_from_env
 
 try:  # Optional dependency
@@ -176,17 +175,7 @@ def _is_openai_flex_unavailable(error: openai.RateLimitError) -> bool:
     return getattr(error, "code", None) == "resource_unavailable"
 
 
-def _is_retryable_rate_limit(error: BaseException) -> bool:
-    """Flex のリソース不足はリトライせず即座に標準処理へ切り替えるため、リトライ対象から外す。"""
-    return isinstance(error, openai.RateLimitError) and not _is_openai_flex_unavailable(error)
-
-
-@retry(
-    retry=retry_if_exception(_is_retryable_rate_limit),
-    wait=wait_exponential(multiplier=3, min=3, max=20),
-    stop=stop_after_attempt(3),
-    reraise=True,
-)
+# 429 の送り直しは request_to_chat_ai（services/rate_limit.py）だけが行う
 def _send_openai_chat_request(client: OpenAI, payload: dict[str, Any], use_pydantic: bool):
     """同じ service_tier のまま rate limit をリトライする。tier の切り替えは呼び出し側で行う。"""
     if use_pydantic:
@@ -231,7 +220,11 @@ def request_to_openai(
     token_usage_output = 0  # 出力トークン使用量を追跡する変数
     token_usage_total = 0  # 合計トークン使用量を追跡する変数
 
-    client = OpenAI(api_key=user_api_key) if user_api_key else OpenAI()
+    client = (
+        OpenAI(api_key=user_api_key, http_client=chat_http_client())
+        if user_api_key
+        else OpenAI(http_client=chat_http_client())
+    )
 
     use_pydantic = isinstance(json_schema, type) and issubclass(json_schema, BaseModel)
     if use_pydantic:
@@ -276,12 +269,7 @@ def request_to_openai(
         raise
 
 
-@retry(
-    retry=retry_if_exception_type(openai.RateLimitError),
-    wait=wait_exponential(multiplier=1, min=2, max=20),
-    stop=stop_after_attempt(3),
-    reraise=True,
-)
+# 429 の送り直しは request_to_chat_ai（services/rate_limit.py）だけが行う
 def request_to_azure_chatcompletion(
     messages: list[dict],
     is_json: bool = False,
@@ -319,6 +307,7 @@ def request_to_azure_chatcompletion(
         api_version=api_version,
         azure_endpoint=azure_endpoint,
         api_key=api_key,
+        http_client=chat_http_client(),
     )
     # Set response format based on parameters
 
@@ -749,6 +738,7 @@ def request_to_local_llm(
         client = OpenAI(
             base_url=base_url,
             api_key=api_key,
+            http_client=chat_http_client(),
         )
 
         response_format = None
@@ -1463,12 +1453,7 @@ def _openrouter_json_fallback(
     raise last_error
 
 
-@retry(
-    retry=retry_if_exception_type(openai.RateLimitError),
-    wait=wait_exponential(multiplier=3, min=3, max=20),
-    stop=stop_after_attempt(3),
-    reraise=True,
-)
+# 429 の送り直しは request_to_chat_ai（services/rate_limit.py）だけが行う
 def request_to_openrouter_chatcompletion(
     messages: list[dict],
     model: str,
@@ -1484,6 +1469,7 @@ def request_to_openrouter_chatcompletion(
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=api_key,
+        http_client=chat_http_client(),
     )
 
     use_pydantic = isinstance(json_schema, type) and issubclass(json_schema, BaseModel)

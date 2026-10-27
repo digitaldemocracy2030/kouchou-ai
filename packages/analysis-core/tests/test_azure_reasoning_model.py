@@ -70,6 +70,7 @@ def azure(monkeypatch):
     transport = httpx.MockTransport(handler)
 
     def make_client(**kwargs):
+        kwargs.pop("http_client", None)  # 本番の共通クライアントの代わりに MockTransport を使う
         return AzureOpenAI(**kwargs, http_client=httpx.Client(transport=transport), max_retries=0)
 
     monkeypatch.setattr(llm, "AzureOpenAI", make_client)
@@ -106,7 +107,7 @@ PATHS = [
 
 def _call(kwargs):
     # tenacity の再試行を待たないよう、デコレートされていない本体を呼ぶ
-    return llm.request_to_azure_chatcompletion.__wrapped__(MESSAGES, **kwargs)
+    return llm.request_to_azure_chatcompletion(MESSAGES, **kwargs)
 
 
 @pytest.mark.parametrize("kwargs", PATHS)

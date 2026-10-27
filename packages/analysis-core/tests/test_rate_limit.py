@@ -19,7 +19,9 @@ extraction = importlib.import_module("analysis_core.steps.extraction")
 
 
 @pytest.fixture(autouse=True)
-def fresh_limiter():
+def fresh_limiter(monkeypatch):
+    # 試験では一時停止を短くする（一時停止そのものを確かめるテストは自分で上書きする）
+    monkeypatch.setattr(rate_limit, "RATE_LIMIT_PAUSE_SECONDS", 0.01)
     rate_limit.reset_rate_limiter()
     yield
     rate_limit.reset_rate_limiter()
@@ -117,6 +119,7 @@ def test_limiter_halves_on_429_and_recovers():
         limiter.release("ok")
     # 成功が limit 件続くたびに 1 ずつ戻す
     assert limiter.limit == 4
+    now["t"] += rate_limit.RATE_LIMIT_PAUSE_SECONDS  # 429 のあとの一時停止が明けてから送る
     for _ in range(4 + 5 + 6 + 7 + 8):
         limiter.acquire()
         limiter.release("ok")
@@ -184,8 +187,74 @@ def test_extraction_with_many_workers_completes_under_rate_limit(monkeypatch):
 
     monkeypatch.setattr(llm, "request_to_azure_chatcompletion", azure)
     monkeypatch.setattr(rate_limit, "RATE_LIMIT_DECREASE_INTERVAL_SECONDS", 0)
+    monkeypatch.setattr(rate_limit, "RATE_LIMIT_MIN_BACKOFF_SECONDS", 0.01)
     comments = [f"c{i}" for i in range(200)]
     results = extraction.extract_batch(comments, "p", "m", 30, provider="azure", config={})
     assert results == [[c] for c in comments]
     assert state["rejected"] > 0  # 429 は実際に起きた
     assert state["peak"] <= capacity
+
+
+def test_429_pauses_all_senders(monkeypatch):
+    """1 本が 429 を受けたら、ほかの送り手も一時停止が明けるまで新しい要求を出さない。"""
+    monkeypatch.setattr(rate_limit, "RATE_LIMIT_PAUSE_SECONDS", 0.3)
+    limiter = AdaptiveConcurrencyLimiter()
+    limiter.acquire()
+    limiter.release("rate_limited")
+    t = time.monotonic()
+    limiter.acquire()
+    assert time.monotonic() - t >= 0.25
+
+
+def test_backoff_ignores_millisecond_retry_after(monkeypatch):
+    """Azure の retry-after-ms は数ミリ秒。それに従うと 429 を重ねるので、最低 1 秒は待つ。"""
+    sleeps = []
+    monkeypatch.setattr(rate_limit.time, "sleep", sleeps.append)
+    monkeypatch.setattr(rate_limit.random, "random", lambda: 0.5)  # ジッターを 1 倍に固定
+    calls = {"count": 0}
+
+    def fn():
+        calls["count"] += 1
+        if calls["count"] <= 3:
+            raise _rate_limit_error({"retry-after-ms": "6", "retry-after": "30"})
+        return "ok"
+
+    assert rate_limit.call_with_rate_limit(fn) == "ok"
+    assert sleeps == [1.0, 2.0, 4.0]
+
+
+def test_sdk_does_not_retry_429_itself(monkeypatch):
+    """送り直しは call_with_rate_limit だけが行う。SDK の自動再試行（数ミリ秒で送り直す）を止める。"""
+    from openai import AzureOpenAI
+
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(429, headers={"retry-after-ms": "5"}, json={"error": {"code": "429", "message": "x"}})
+
+    client = openai.DefaultHttpxClient(
+        transport=httpx.MockTransport(handler), event_hooks={"response": [rate_limit._on_chat_response]}
+    )
+    azure = AzureOpenAI(
+        api_key="k", azure_endpoint="https://example.invalid", api_version="2024-10-21", http_client=client
+    )
+    with pytest.raises(openai.RateLimitError):
+        azure.chat.completions.create(model="d", messages=[{"role": "user", "content": "hi"}])
+    assert len(requests) == 1
+
+
+def test_provider_functions_do_not_retry_429_themselves(monkeypatch):
+    """プロバイダ関数（Azure）は 429 をそのまま上げ、送り直しを call_with_rate_limit に任せる。"""
+    from unittest.mock import MagicMock, patch
+
+    monkeypatch.setenv("AZURE_CHATCOMPLETION_ENDPOINT", "https://example.invalid")
+    monkeypatch.setenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME", "dep")
+    monkeypatch.setenv("AZURE_CHATCOMPLETION_API_KEY", "k")
+    monkeypatch.setenv("AZURE_CHATCOMPLETION_VERSION", "2024-10-21")
+    client = MagicMock()
+    client.chat.completions.create.side_effect = _rate_limit_error()
+    with patch.object(llm, "AzureOpenAI", return_value=client):
+        with pytest.raises(openai.RateLimitError):
+            llm.request_to_azure_chatcompletion([{"role": "user", "content": "hi"}])
+    assert client.chat.completions.create.call_count == 1

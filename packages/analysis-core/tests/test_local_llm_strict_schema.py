@@ -108,6 +108,7 @@ def gateway(monkeypatch):
     transport = httpx.MockTransport(handler)
 
     def make_client(**kwargs):
+        kwargs.pop("http_client", None)  # 本番の共通クライアントの代わりに MockTransport を使う
         return OpenAI(**kwargs, http_client=httpx.Client(transport=transport), max_retries=0)
 
     monkeypatch.setattr(llm, "OpenAI", make_client)

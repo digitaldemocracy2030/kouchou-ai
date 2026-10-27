@@ -304,6 +304,7 @@ def test_non_free_model_falls_back_when_real_sdk_rejects_fenced_json(monkeypatch
     real_openai = llm.OpenAI
 
     def _factory(**kwargs):
+        kwargs.pop("http_client", None)  # 本番の共通クライアントの代わりに MockTransport を使う
         return real_openai(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
 
     monkeypatch.setattr(llm, "OpenAI", _factory)
@@ -341,6 +342,7 @@ def _real_sdk_with_responses(monkeypatch, responses):
     real_openai = llm.OpenAI
 
     def _factory(**kwargs):
+        kwargs.pop("http_client", None)  # 本番の共通クライアントの代わりに MockTransport を使う
         return real_openai(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
 
     monkeypatch.setattr(llm, "OpenAI", _factory)
