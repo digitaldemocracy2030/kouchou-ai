@@ -15,6 +15,7 @@ from tenacity import retry, retry_if_exception, retry_if_exception_type, stop_af
 
 from analysis_core.env_file import load_env_file
 from analysis_core.services.error_summary import redact_secrets
+from analysis_core.services.rate_limit import call_with_rate_limit
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, openai_flex_timeout_from_env
 
 try:  # Optional dependency
@@ -823,7 +824,26 @@ def request_to_chat_ai(
         - provider="local": ローカルLLM（OllamaやLM Studio）を使用
         - provider="openrouter": OpenRouter APIを使用（OpenAIやGeminiのモデルにアクセス可能）
         - provider="gemini": Google Gemini APIを使用
+        - 429（rate limit）は失敗として返さず、待って送り直す。同時に送る数もプロセス全体で自動で下げる
+          （services/rate_limit.py）。
     """
+    return call_with_rate_limit(
+        lambda: _dispatch_chat_request(
+            messages, model, is_json, json_schema, provider, local_llm_address, user_api_key, timeout_seconds
+        )
+    )
+
+
+def _dispatch_chat_request(
+    messages: list[dict],
+    model: str,
+    is_json: bool,
+    json_schema: dict | type[BaseModel] | None,
+    provider: str,
+    local_llm_address: str | None,
+    user_api_key: str | None,
+    timeout_seconds: int,
+) -> tuple[str, int, int, int]:
     if provider == "azure":
         return request_to_azure_chatcompletion(messages, is_json, json_schema, user_api_key, timeout_seconds)
     elif provider == "openai":
