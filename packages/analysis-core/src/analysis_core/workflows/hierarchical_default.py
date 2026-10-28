@@ -54,11 +54,37 @@ def create_hierarchical_workflow(
             },
         ),
         WorkflowStep(
+            id="opinion_stance",
+            plugin="analysis.opinion_stance",
+            depends_on=["extraction"],
+            # enabled=true で明示的に要求されたスコア付けが失敗したら、スコアなしで完了させずパイプラインを失敗させる
+            condition="${config.opinion_stance.enabled}",
+            config={
+                "workers": "${config.opinion_stance.workers}",
+                "prompt": "${config.opinion_stance.prompt}",
+                "model": "${config.opinion_stance.model}",
+                "target": "${config.opinion_stance.target}",
+                "question": "${config.question}",
+                "timeout_seconds": "${config.opinion_stance.timeout_seconds}",
+            },
+        ),
+        WorkflowStep(
             id="embedding",
             plugin="analysis.embedding",
             depends_on=["extraction"],
             config={
                 "model": "${config.embedding.model}",
+            },
+        ),
+        WorkflowStep(
+            id="opinion_novelty",
+            plugin="analysis.opinion_novelty",
+            depends_on=["embedding"],
+            condition="${config.opinion_novelty.enabled}",
+            config={
+                "method": "${config.opinion_novelty.method}",
+                "k": "${config.opinion_novelty.k}",
+                "seed": "${config.opinion_novelty.seed}",
             },
         ),
         WorkflowStep(
@@ -103,7 +129,15 @@ def create_hierarchical_workflow(
         WorkflowStep(
             id="aggregation",
             plugin="analysis.hierarchical_aggregation",
-            depends_on=["extraction", "opinion_classification", "clustering", "merge_labelling", "overview"],
+            depends_on=[
+                "extraction",
+                "opinion_classification",
+                "opinion_stance",
+                "opinion_novelty",
+                "clustering",
+                "merge_labelling",
+                "overview",
+            ],
             config={
                 "hidden_properties": "${config.hierarchical_aggregation.hidden_properties}",
             },

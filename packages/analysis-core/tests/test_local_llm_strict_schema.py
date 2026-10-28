@@ -26,6 +26,7 @@ from analysis_core.steps.hierarchical_merge_labelling import LabellingFromat as 
 from analysis_core.steps.hierarchical_overview import OverviewResponse
 from analysis_core.steps.llm_grouping import GroupAssignmentResponse, GroupDiscoveryResponse
 from analysis_core.steps.opinion_classification import build_response_model
+from analysis_core.steps.opinion_stance import StanceResponse
 
 PIPELINE_SCHEMAS = [
     pytest.param(ExtractionResponse, id="extraction"),
@@ -35,6 +36,7 @@ PIPELINE_SCHEMAS = [
     pytest.param(GroupDiscoveryResponse, id="group_discovery"),
     pytest.param(GroupAssignmentResponse, id="group_assignment"),
     pytest.param(build_response_model(("A", "B")), id="opinion_classification"),
+    pytest.param(StanceResponse, id="opinion_stance"),
 ]
 
 

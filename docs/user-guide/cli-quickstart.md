@@ -390,6 +390,27 @@ kouchou-analyze --config report_october.json
 
 出力は `opinion_classifications.csv`（意見ごとの `yes` / `no`）と `opinion_classification_summary.json`（件数と比率）です。比率はLLMの判定に基づく、定義に対する割合であり、人手で検証したものではありません。
 
+### 意見ごとに賛否スコア・新規性スコアを付ける（任意）
+
+意見 1 件ごとに数値の属性を足す任意ステップが 2 つあります。どちらも既定では無効で、有効にすると `hierarchical_result.json` の `arguments[].attributes` に数値が入り、公開ビューアの属性フィルタで範囲を指定して絞り込めます（「賛成の意見だけ」「珍しい意見の候補だけ」など）。詳細は [意見ごとのスコア](../development/opinion-scores.md) を参照してください。
+
+```json
+{
+  "opinion_stance": {
+    "enabled": true,
+    "workers": 3,
+    "target": "市内に新しい図書館を建設する計画"
+  },
+  "opinion_novelty": {
+    "enabled": true,
+    "method": "knn_distance",
+    "k": 10
+  }
+}
+```
+
+`opinion_stance` は意見 1 件につき LLM 呼び出しが 1 回増えます（対象 `target` を省略するとレポートの `question` に対する賛否）。`opinion_novelty` は LLM を使わず、埋め込みから「他の意見からの遠さ」の順位（0.0〜1.0）を計算します。
+
 ### 特定の属性値を非表示にする
 
 ```json

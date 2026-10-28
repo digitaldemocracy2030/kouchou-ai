@@ -75,7 +75,7 @@ class TestInitialization:
         )
 
         specs = get_specs()
-        assert len(specs) == 9
+        assert len(specs) == 11
         step_names = [s["step"] for s in specs]
         assert "extraction" in step_names
         assert "embedding" in step_names
@@ -935,11 +935,12 @@ class TestDecideWhatToRun:
 
         plan = decide_what_to_run(config, None, specs, tmp_path)
 
-        # All steps run on first execution, except the opt-in opinion classification
-        assert len(plan) == 9
+        # All steps run on first execution, except the opt-in per-opinion steps
+        opt_in = {"opinion_classification", "opinion_stance", "opinion_novelty"}
+        assert len(plan) == 11
         by_step = {step["step"]: step for step in plan}
-        assert by_step["opinion_classification"]["run"] is False
-        assert all(step["run"] for step in plan if step["step"] != "opinion_classification")
+        assert all(by_step[step]["run"] is False for step in opt_in)
+        assert all(step["run"] for step in plan if step["step"] not in opt_in)
 
     def test_decide_skip_html(self, tmp_path):
         """Test that visualization step is skipped with without-html."""
@@ -984,7 +985,7 @@ class TestPipelineOrchestrator:
 
         assert orchestrator.config == config
         assert orchestrator.output_base_dir == tmp_path
-        assert len(orchestrator.steps) == 9
+        assert len(orchestrator.steps) == 11
 
     def test_orchestrator_from_config(self, tmp_path):
         """Test orchestrator creation from config file."""

@@ -69,7 +69,7 @@ class Argument(TypedDict):
     y: float
     p: float
     cluster_ids: list[str]
-    attributes: dict[str, str] | None
+    attributes: dict[str, str | float] | None
     url: str | None
 
 
@@ -126,6 +126,18 @@ def hierarchical_aggregation(config) -> bool:
         if config.get("opinion_classification", {}).get("enabled", False):
             _merge_opinion_classifications(
                 results["arguments"], f"{output_base_dir}/{config['output_dir']}/opinion_classifications.csv"
+            )
+        if config.get("opinion_stance", {}).get("enabled", False):
+            _merge_opinion_scores(
+                results["arguments"],
+                f"{output_base_dir}/{config['output_dir']}/opinion_stances.csv",
+                "stance_score",
+            )
+        if config.get("opinion_novelty", {}).get("enabled", False):
+            _merge_opinion_scores(
+                results["arguments"],
+                f"{output_base_dir}/{config['output_dir']}/opinion_novelty.csv",
+                "novelty_score",
             )
         results["clusters"] = _build_cluster_value(labels, arg_num)
 
@@ -393,6 +405,40 @@ def _merge_opinion_classifications(arguments: list[Argument], path: str) -> int:
         updated += 1
 
     print(f"意見分類ラベルを付与: {updated}/{len(arguments)}件 ({', '.join(label_columns)})")
+    return updated
+
+
+def _merge_opinion_scores(arguments: list[Argument], path: str, column: str) -> int:
+    """Attach one numeric per-opinion score (``stance_score`` / ``novelty_score``) to ``arguments[].attributes``.
+
+    The scores come from the optional ``opinion_stance`` / ``opinion_novelty`` steps. Empty values
+    (e.g. a stance that could not be judged) are left out so the viewer's numeric range filter
+    only sees real numbers. Returns the number of arguments updated.
+    """
+    if not os.path.exists(path):
+        return 0
+
+    scores = pl.read_csv(path, infer_schema_length=0)
+    if column not in scores.columns:
+        return 0
+    lookup: dict[str, float] = {}
+    for row in scores.iter_rows(named=True):
+        value = row[column]
+        if value is None or str(value).strip() == "":
+            continue
+        lookup[str(row["arg-id"])] = float(value)
+
+    updated = 0
+    for argument in arguments:
+        score = lookup.get(argument["arg_id"])
+        if score is None:
+            continue
+        attributes = dict(argument["attributes"] or {})
+        attributes[column] = score
+        argument["attributes"] = attributes
+        updated += 1
+
+    print(f"意見スコアを付与: {updated}/{len(arguments)}件 ({column})")
     return updated
 
 
