@@ -239,7 +239,13 @@
     "verification_source": "analysis-core の埋め込み許可リスト (EMBDDING_MODELS)",
     "available": true,
     "deprecated": false,
-    "price": null
+    "price": {
+      "input": 0.02,
+      "output": 0,
+      "source": "https://developers.openai.com/api/docs/pricing",
+      "checked_at": "2026-10-29",
+      "conditions": "埋め込みは入力トークンのみ課金（output は使わない）。通常単価による概算。"
+    }
   },
   {
     "provider": "openai",
@@ -251,7 +257,13 @@
     "verification_source": "analysis-core の埋め込み許可リスト (EMBDDING_MODELS)",
     "available": true,
     "deprecated": false,
-    "price": null
+    "price": {
+      "input": 0.13,
+      "output": 0,
+      "source": "https://developers.openai.com/api/docs/pricing",
+      "checked_at": "2026-10-29",
+      "conditions": "埋め込みは入力トークンのみ課金（output は使わない）。通常単価による概算。"
+    }
   },
   {
     "provider": "gemini",

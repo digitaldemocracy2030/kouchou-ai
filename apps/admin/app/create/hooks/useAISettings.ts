@@ -274,6 +274,14 @@ export function useAISettings() {
       return "サーバ内埋め込み（ローカルモデル）が有効なため、ここでの埋め込みモデル選択は使用されません。";
     return embeddingModelError || modelDescription(selectedEmbeddingModel);
   };
+  /**
+   * 作成前確認の費用の目安に使う、選択中モデルの単価（100万トークンあたり USD）。不明なら null。
+   * Azure はサーバー設定の単価（カタログの先頭行）を使い、埋め込みの選択が使われない構成では埋め込み側を不明にする。
+   */
+  const selectedPrices = {
+    chat: (provider === "azure" ? chatModels[0] : selectedModel)?.price ?? null,
+    embedding: (embeddingModelSelectionIgnored ? undefined : selectedEmbeddingModel)?.price ?? null,
+  };
   const getCurrentEmbeddingModels = (): ModelOption[] => {
     if (embeddingModel && !embeddingModels.some((option) => option.value === embeddingModel)) {
       return [{ value: embeddingModel, label: embeddingModel, available: false }, ...embeddingModels];
@@ -332,6 +340,7 @@ export function useAISettings() {
     embeddingModel,
     modelError,
     embeddingModelError,
+    selectedPrices,
     reloadModels: catalog.reload,
     catalogWarning: catalog.models.find((option) => option.discovery_warning)?.discovery_warning,
     workers,

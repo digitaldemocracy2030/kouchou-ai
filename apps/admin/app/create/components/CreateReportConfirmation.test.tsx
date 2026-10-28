@@ -19,6 +19,7 @@ const prepared: PreparedReport = {
     cluster: [2, 5],
     provider: "openai",
     model: "gpt-4o-mini",
+    embedding_model: "text-embedding-3-small",
     workers: 1,
     prompt: { extraction: "p", initialLabelling: "p", mergeLabelling: "p", overview: "p" },
     analysis_mode: "hierarchical",
@@ -30,6 +31,7 @@ const prepared: PreparedReport = {
   },
   commentColumn: "回答",
   attributeColumns: ["年代", "地域"],
+  pricing: { chat: { input: 0.15, output: 0.6 }, embedding: { input: 0.02, output: 0 } },
 };
 function mount(data = prepared, onCancel = jest.fn(), onConfirm = jest.fn()) {
   return render(
@@ -49,7 +51,11 @@ it("入力内容と警告を表示し、開いた時点ではAPIを呼ばない"
   expect(screen.getByText("コメント件数：2件（非空：1件）")).toBeVisible();
   expect(screen.getByText("属性列：年代、地域")).toBeVisible();
   expect(screen.getByText(/非空コメント数が第2階層/)).toBeVisible();
-  expect(screen.getByText("費用：目安なし")).toBeVisible();
+  expect(screen.getByText("費用：100円未満の見込み")).toBeVisible();
+  expect(
+    screen.getByText(/内訳 チャット：\$0\.01未満（gpt-4o-mini）／埋め込み：\$0\.01未満（text-embedding-3-small）/),
+  ).toBeVisible();
+  expect(screen.getByText(/実際の料金を保証するものではありません/)).toBeVisible();
   expect(verify).not.toHaveBeenCalled();
   expect(confirm).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "設定に戻る" }));
@@ -132,4 +138,66 @@ it("Azureの接続失敗ではAPIバージョンと設定項目を案内する",
   expect(
     await screen.findByText(/AZURE_CHATCOMPLETION_VERSIONにはモデルのバージョンではなくAPIバージョン/),
   ).toBeInTheDocument();
+});
+
+describe("費用の目安", () => {
+  const many = Array.from({ length: 3000 }, (_, i) => ({ id: String(i), comment: "あ".repeat(500) }));
+
+  it("件数が多ければ帯が上がり、内訳に幅と使用モデルを出す", async () => {
+    mount({ ...prepared, request: { ...prepared.request, comments: many, cluster: [10, 100] } });
+    expect(await screen.findByText("費用：100〜1,000円程度の見込み")).toBeVisible();
+    expect(screen.getByText(/内訳 チャット：\$\d+\.\d{2}〜\$\d+\.\d{2}（gpt-4o-mini）／埋め込み：/)).toBeVisible();
+  });
+
+  it("チャット単価が不明なら金額を出さず、既知の埋め込み分だけを内訳に出す", async () => {
+    mount({
+      ...prepared,
+      request: { ...prepared.request, provider: "openrouter", model: "vendor/unknown-model", comments: many },
+      pricing: { chat: null, embedding: { input: 0.02, output: 0 } },
+    });
+    expect(await screen.findByText("費用：単価不明のため目安を出せません（vendor/unknown-model）")).toBeVisible();
+    expect(screen.getByText(/内訳 チャット：単価不明（vendor\/unknown-model）／埋め込み：\$0\.\d{2}/)).toBeVisible();
+  });
+
+  it("埋め込み単価が不明なら帯をチャット分だけで出し、不明と明示する", async () => {
+    mount({
+      ...prepared,
+      request: {
+        ...prepared.request,
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+        embedding_model: "gemini-embedding-001",
+      },
+      pricing: { chat: { input: 0.3, output: 2.5 }, embedding: null },
+    });
+    expect(await screen.findByText("費用：100円未満の見込み（チャット分のみ。埋め込みは単価不明）")).toBeVisible();
+    expect(screen.getByText(/埋め込み：単価不明（gemini-embedding-001）/)).toBeVisible();
+  });
+
+  it("サーバ内埋め込みは課金なしとし、ローカルLLMでは API 利用料なしと表示する", async () => {
+    const view = mount({ ...prepared, request: { ...prepared.request, is_embedded_at_local: true } });
+    expect(await screen.findByText(/／埋め込み：課金なし/)).toBeVisible();
+    view.unmount();
+    mount({
+      ...prepared,
+      request: { ...prepared.request, provider: "local", model: "llama3", is_embedded_at_local: true },
+      pricing: { chat: null, embedding: null },
+    });
+    expect(await screen.findByText("費用：API利用料なし（ローカル実行）")).toBeVisible();
+    expect(screen.queryByText(/内訳 チャット/)).not.toBeInTheDocument();
+  });
+
+  it("Azure はサーバー設定の単価を使い、埋め込みは単価不明として分ける", async () => {
+    mount({
+      ...prepared,
+      request: { ...prepared.request, provider: "azure", model: "azure-server" },
+      pricing: { chat: { input: 2.5, output: 10 }, embedding: null },
+    });
+    expect(await screen.findByText(/^費用：100円未満の見込み（チャット分のみ/)).toBeVisible();
+    expect(
+      screen.getByText(
+        /内訳 チャット：\$0\.01未満〜\$0\.\d{2}（サーバー設定のモデル）／埋め込み：単価不明（サーバー設定のモデル）/,
+      ),
+    ).toBeVisible();
+  });
 });
