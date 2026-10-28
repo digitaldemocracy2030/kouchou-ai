@@ -49,6 +49,14 @@ const ja = {
     scatterDetail: "クラスタが1階層のみのため利用できません",
     scatterDensity: "この設定条件では抽出できませんでした",
   } as Record<string, string>,
+  /** 各モードを「読者の目的」で案内する（切替ボタンのツールチップ） */
+  chartModePurpose: {
+    scatterAll: "全体をざっくり掴む",
+    scatterDetail: "細かい話題ごとに見る",
+    scatterDensity: "特に似た意見が集まった所を見る",
+    treemap: "グループの大きさを比べる",
+    hierarchyList: "全部読む・掘り下げる（詳細モード）",
+  } as Record<string, string>,
   filter: "フィルタ",
   displaySettings: "表示設定",
   fullscreen: "全画面表示",
@@ -121,8 +129,9 @@ const ja = {
   leafHint: "図の各領域は個別の意見です。選択するとその意見を表示します。",
 
   // 階層リスト
-  hierarchyList: "階層リスト",
-  hierarchyListDescription: "クラスタを展開して詳細を表示できます",
+  hierarchyList: "階層リスト（詳細モード）",
+  hierarchyListDescription: "全部読む・掘り下げるための見方です。グループを展開すると要約と個別の意見を順に読めます",
+  sourceLink: "出典を見る",
   collapse: "折りたたむ",
   expand: "展開する",
   closeChildren: "子要素を閉じる",
@@ -236,6 +245,13 @@ const en: Messages = {
     treemap: "Hierarchy",
     hierarchyList: "List",
   },
+  chartModePurpose: {
+    scatterAll: "Get the big picture",
+    scatterDetail: "Browse topic by topic",
+    scatterDensity: "See where very similar opinions gather",
+    treemap: "Compare group sizes",
+    hierarchyList: "Read everything, drill down (detail mode)",
+  },
   chartModeDisabled: {
     scatterDetail: "Not available because the clusters have only one level",
     scatterDensity: "No clusters matched the current density settings",
@@ -303,8 +319,10 @@ const en: Messages = {
   groupsInLevel: "Opinion groups at this level",
   leafHint: "Each area in the chart is an individual opinion. Select one to view it.",
 
-  hierarchyList: "Hierarchy list",
-  hierarchyListDescription: "Expand clusters to see details",
+  hierarchyList: "Hierarchy list (detail mode)",
+  hierarchyListDescription:
+    "For reading everything and drilling down. Expand a group to read its summary and each opinion",
+  sourceLink: "View source",
   collapse: "Collapse",
   expand: "Expand",
   closeChildren: "Hide child groups",
@@ -413,6 +431,13 @@ const ko: Messages = {
     treemap: "계층",
     hierarchyList: "목록",
   },
+  chartModePurpose: {
+    scatterAll: "전체를 대략 파악하기",
+    scatterDetail: "세부 주제별로 보기",
+    scatterDensity: "특히 비슷한 의견이 모인 곳 보기",
+    treemap: "그룹 크기 비교하기",
+    hierarchyList: "전부 읽기・파고들기 (상세 모드)",
+  },
   chartModeDisabled: {
     scatterDetail: "클러스터가 한 계층뿐이어서 사용할 수 없습니다",
     scatterDensity: "현재 설정 조건에서는 추출되지 않았습니다",
@@ -478,8 +503,10 @@ const ko: Messages = {
   groupsInLevel: "이 계층의 의견 그룹",
   leafHint: "그림의 각 영역은 개별 의견입니다. 선택하면 그 의견을 표시합니다.",
 
-  hierarchyList: "계층 목록",
-  hierarchyListDescription: "클러스터를 펼쳐 자세히 볼 수 있습니다",
+  hierarchyList: "계층 목록 (상세 모드)",
+  hierarchyListDescription:
+    "전부 읽고 파고들기 위한 보기입니다. 그룹을 펼치면 요약과 개별 의견을 차례로 읽을 수 있습니다",
+  sourceLink: "출처 보기",
   collapse: "접기",
   expand: "펼치기",
   closeChildren: "하위 그룹 닫기",

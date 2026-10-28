@@ -39,6 +39,7 @@ export type ResolvedChartMode = {
   label: string;
   icon: ComponentType;
   isDisabled: boolean;
+  /** 無効時の理由、または有効時は読者の目的（「全部読む」など）。両方無いときは undefined */
   tooltip?: string;
 };
 
@@ -83,19 +84,22 @@ export function resolveChartModes(
 }
 
 /**
- * モード名と無効時の説明を表示言語の辞書で上書きする。通常のモード選択と全画面の粒度切替で共有する。
+ * モード名と説明を表示言語の辞書で上書きする。通常のモード選択と全画面の粒度切替で共有する。
  * 組み込みモードは messages を優先し、外部プラグインは manifest の文言（mode.label / mode.tooltip）をそのまま使う。
+ * 有効なモードの tooltip は「読者の目的」（全体をざっくり掴む / 全部読む など）。view は手法名ではなく目的で選ばせる。
  */
 export function localizeChartMode(mode: ResolvedChartMode, messages: Messages): ResolvedChartMode {
   return {
     ...mode,
     label: messages.chartModes[mode.id] ?? mode.label,
-    tooltip: mode.isDisabled ? (messages.chartModeDisabled[mode.id] ?? mode.tooltip) : undefined,
+    tooltip: mode.isDisabled
+      ? (messages.chartModeDisabled[mode.id] ?? mode.tooltip)
+      : (messages.chartModePurpose[mode.id] ?? mode.tooltip),
   };
 }
 
-const SegmentItemWithIcon = (icon: ComponentType, text: string, selected: boolean) => {
-  return (
+const SegmentItemWithIcon = (icon: ComponentType, text: string, selected: boolean, tooltip?: string) => {
+  const item = (
     <Stack
       direction={["column", null, "row"]}
       gap={2}
@@ -115,6 +119,14 @@ const SegmentItemWithIcon = (icon: ComponentType, text: string, selected: boolea
         {text}
       </Box>
     </Stack>
+  );
+  // SegmentGroup.Items は tooltip を受け取らないので、ラベル側で包む
+  return tooltip ? (
+    <Tooltip content={tooltip} openDelay={300} closeDelay={0}>
+      {item}
+    </Tooltip>
+  ) : (
+    item
   );
 };
 
@@ -139,9 +151,8 @@ export function SelectChartButton({
       .map((mode) => localizeChartMode(mode, messages))
       .map((mode) => ({
         value: mode.id,
-        label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id),
+        label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id, mode.tooltip),
         isDisabled: mode.isDisabled,
-        tooltip: mode.tooltip,
       }));
   }, [selected, result, disabledModeOverrides, enabledCharts, chartOrder, messages]);
 
