@@ -51,6 +51,7 @@ beforeEach(() => {
     workers: 1,
     analysisMode: "hierarchical",
     userApiKey: "",
+    selectedPrices: { chat: null, embedding: null },
     getCurrentModels: () => [],
     getCurrentEmbeddingModels: () => [],
     isEmbeddingModelDisabled: () => false,
