@@ -279,8 +279,9 @@ Job already running and locked. Try again in 5 minutes.
 
 429 エラーには、残高不足（`insufficient_quota`。エラー文に `You exceeded your current quota` を含む）と、レート制限（`Rate limit reached for ...`）の 2 種類があります。見分け方と対処の詳細は[APIの課金と429エラー](../self-hosting/api-billing-and-rate-limits.md)を参照してください。
 
-- **残高不足**: 自動では直りません。OpenAI Platform でクレジットを購入してから再実行してください。
-- **レート制限**: 2026-10-27 以降の `main`（analysis-core 0.2.0 より後）では、429 を受けると待って送り直し、同時に送る数も自動で下げるので、多くの場合は何もしなくても完走します。`extraction.workers` は同時に送る数の「上限」として扱われます。それでも 429 が続く場合や、それ以前の版を使っている場合は、`extraction.workers` を小さくしてください（例: `1`）。完了済みのステップは再利用されるので、上の `Job already running` の項と同様に続きから再実行できます。
+- **残高不足**: 自動では直りません。OpenAI Platform の Billing で残高と利用上限（usage limit）の両方を確認し、残高が無ければクレジットを購入、上限に達していれば上限を見直してから再実行してください。
+- **レート制限（チャット要求）**: 2026-10-27 以降の `main`（analysis-core 0.2.0 より後）では、抽出・意見分類・ラベル生成・要約のチャット要求が 429 を受けると待って送り直し、同時に送る数も自動で下げるので、多くの場合は何もしなくても完走します。各工程の `workers` は同時に送る数の「上限」として扱われます。それでも 429 が続く場合や、それ以前の版を使っている場合は、失敗した工程の `workers` を小さくしてください（例: `1`）。設定は工程ごとに分かれていて、抽出は `extraction.workers`、意見分類は `opinion_classification.workers`、ラベル生成は `hierarchical_initial_labelling.workers` / `hierarchical_merge_labelling.workers`、LLM grouping は `llm_grouping.workers` です（`extraction.workers` を下げても他の工程には効きません）。完了済みのステップは再利用されるので、上の `Job already running` の項と同様に続きから再実行できます。
+- **レート制限（埋め込み）**: 埋め込み（`embedding` ステップ）の要求はこの自動調整の対象外で、SDK の短い再試行だけです。429 で失敗した場合は時間をおいて再実行してください（完了済みの抽出は再利用されます）。`is_embedded_at_local: true` でローカル埋め込みに切り替えると、外部 API のレート制限を受けません。
 
 ## 9. 発展的な使い方
 

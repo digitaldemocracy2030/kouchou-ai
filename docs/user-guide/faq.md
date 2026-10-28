@@ -62,9 +62,9 @@
 
 ## ChatGPT Plus に加入していれば使えますか？ 「429」エラーが出ました
 
-**ChatGPT Plus（ChatGPT の月額プラン）と OpenAI API は別の契約**で、Plus に加入していても API は使えません。広聴AIで OpenAI のモデルを使うには、OpenAI Platform で支払い方法を登録し、クレジットを購入しておく必要があります。
+**ChatGPT Plus（ChatGPT の月額プラン）と OpenAI API は別の契約**で、Plus に加入していても API は使えません。広聴AIで OpenAI のモデルを使うには、OpenAI Platform で支払い方法を登録し、残高（クレジット）を用意しておく必要があります（新しく始めるアカウントは前払い方式で、クレジットの購入が必要です）。
 
-`429` エラーには、残高が無い**残高不足**（`insufficient_quota`。クレジットの購入が必要）と、短時間に送りすぎた**レート制限**（基本は自動で待って送り直されます）の 2 種類があります。見分け方・対処・Tier（利用枠）の確認方法は[APIの課金と429エラー](../self-hosting/api-billing-and-rate-limits.md)にまとめています。
+`429` エラーには、残高が無い**残高不足**（`insufficient_quota`。残高と利用上限の確認が必要）と、短時間に送りすぎた**レート制限**（基本は自動で待って送り直されます）の 2 種類があります。見分け方・対処・Tier（利用枠）の確認方法は[APIの課金と429エラー](../self-hosting/api-billing-and-rate-limits.md)にまとめています。
 
 ## 住民・市民の個人情報を入れても大丈夫ですか？
 

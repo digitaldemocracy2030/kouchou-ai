@@ -5,7 +5,7 @@
 ## 前提条件
 
 - **Docker**: Docker Desktop または Docker Engine がインストールされていること
-- **OpenAI API キー**: レポート生成に必要です（ローカルLLM使用時は不要）。ChatGPT Plus とは別に API の課金設定（クレジット購入）が必要です。[APIの課金と429エラー](api-billing-and-rate-limits.md)を参照してください
+- **OpenAI API キー**: レポート生成に必要です（ローカルLLM使用時は不要）。ChatGPT Plus とは別に API の課金設定（支払い方法の登録と、通常はクレジットの購入）が必要です。[APIの課金と429エラー](api-billing-and-rate-limits.md)を参照してください
 
 !!! tip "OS別の詳細なセットアップ"
     詳細なセットアップ手順は各OS向けガイドをご覧ください：
