@@ -48,6 +48,7 @@ export function CreateReportConfirmation({
 }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [check, setCheck] = useState<CheckStatus>("unchecked");
+  const [checkDetail, setCheckDetail] = useState<string | null>(null);
   const request = prepared.request;
   const nonEmptyCount = request.comments.filter((row) => typeof row.comment === "string" && row.comment.trim()).length;
   const inputName =
@@ -55,9 +56,10 @@ export function CreateReportConfirmation({
   const busy = loading || check === "checking";
   const checkFailed = !["unchecked", "checking", "ok"].includes(check);
 
-  /** 表示中の設定で接続を確認し、通信失敗も確認結果として表示する。 */
+  /** 表示中の設定で接続を確認し、通信失敗も確認結果として表示する。プロバイダーのエラー詳細があれば併せて示す。 */
   const verify = async () => {
     setCheck("checking");
+    setCheckDetail(null);
     try {
       const response = await verifyApiKey(
         request.provider,
@@ -66,7 +68,10 @@ export function CreateReportConfirmation({
         request.local_llm_address,
       );
       if (response.result?.success && !response.error) setCheck("ok");
-      else setCheck(response.result?.error_type || "unknown_error");
+      else {
+        setCheck(response.result?.error_type || "unknown_error");
+        setCheckDetail(response.result?.error_detail || null);
+      }
     } catch {
       setCheck("unknown_error");
     }
@@ -124,6 +129,11 @@ export function CreateReportConfirmation({
               <Text fontWeight="bold">API接続チェック</Text>
               <Text as="output" display="block" aria-live="polite" mt="2">
                 {check === "unknown_error" && request.provider === "azure" ? azureErrorMessage : checkMessages[check]}
+                {checkFailed && checkDetail && (
+                  <Text as="span" display="block" mt="1" fontSize="sm" color="font.secondary">
+                    エラー詳細：{checkDetail}
+                  </Text>
+                )}
               </Text>
               <Text mt="2" fontSize="sm">
                 {request.provider === "azure" ? "Azureのサーバー設定済みデプロイ" : "選択したモデル"}
