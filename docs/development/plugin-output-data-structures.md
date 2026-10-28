@@ -215,6 +215,7 @@ import numpy as np
 - `arguments`: 意見一覧
 - `clusters`: クラスタ一覧
 - `comment_num`: 元コメント数
+- `comments`: 元コメント本文（`comment-id` → `{ "comment": 本文 }`）。`config.enable_original_comments = true` のときだけ入り、既定では空。意見に紐づいたコメントだけを含み、`hidden_properties` で非公開にした属性値を持つコメントは除く
 - `overview`: 概要文
 - `propertyMap`: 属性マップ（必要な場合のみ）
 - `translations`: 翻訳データ（`kouchou-translate` で後から追加。言語コードごとに `clusters` / `overview` / `question` / `intro` / `arguments` の訳。形は `packages/analysis-core/README.md` を参照）

@@ -38,6 +38,8 @@ export const hierarchyListPlugin: ChartPlugin = {
         argumentList={result.arguments}
         onHover={onHover}
         filteredArgumentIds={filteredArgumentIds}
+        config={result.config}
+        comments={result.comments}
       />
     );
   },

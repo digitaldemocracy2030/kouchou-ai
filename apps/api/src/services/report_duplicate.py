@@ -226,6 +226,10 @@ def _build_analysis_core_config_from_embedded_config(embedded_config: dict) -> d
     enable_source_link = embedded_config.get("enable_source_link")
     if isinstance(enable_source_link, bool):
         config["enable_source_link"] = enable_source_link
+    # 元コメント公開の可否も同じ入力データを使う複製先に引き継ぐ（ReportConfig には無いキー）
+    enable_original_comments = embedded_config.get("enable_original_comments")
+    if isinstance(enable_original_comments, bool):
+        config["enable_original_comments"] = enable_original_comments
 
     # Keep the source embedding model (ReportConfig has no embedding field, so model_dump() drops it).
     # 引き継がないと複製先が既定モデルで embeddings を再生成し、異なるベクトル空間になる。
@@ -311,6 +315,8 @@ def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -
         config["is_pubcom"] = overrides.is_pubcom
     if overrides.enable_source_link is not None:
         config["enable_source_link"] = overrides.enable_source_link
+    if overrides.enable_original_comments is not None:
+        config["enable_original_comments"] = overrides.enable_original_comments
     if overrides.is_embedded_at_local is not None:
         config["is_embedded_at_local"] = overrides.is_embedded_at_local
     if overrides.local_llm_address is not None:

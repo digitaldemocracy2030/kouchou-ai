@@ -54,7 +54,7 @@
     "filename": "hierarchical_result.json",
     "dependencies": {
       "params": ["sampling_num", "hidden_properties"],
-      "global_params": ["input", "question", "intro", "is_pubcom", "enable_source_link"],
+      "global_params": ["input", "question", "intro", "is_pubcom", "enable_source_link", "enable_original_comments"],
       "steps": ["extraction", "llm_grouping", "hierarchical_overview"]
     },
     "options": {

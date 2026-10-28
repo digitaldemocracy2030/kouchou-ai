@@ -97,6 +97,14 @@ def test_build_config_includes_embedding_model_when_specified():
     assert config["embedding"]["model"] == "text-embedding-3-large"
 
 
+def test_build_config_original_comments_default_off_and_passes_opt_in():
+    """元コメント本文の公開は既定 OFF。管理画面で ON にした時だけ analysis-core の config に渡る。"""
+    from src.services.report_launcher import _build_config
+
+    assert _build_config(make_report_input())["enable_original_comments"] is False
+    assert _build_config(make_report_input(enable_original_comments=True))["enable_original_comments"] is True
+
+
 def test_build_config_omits_embedding_section_when_not_specified():
     from src.services.report_launcher import _build_config
 

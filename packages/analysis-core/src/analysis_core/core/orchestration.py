@@ -96,7 +96,7 @@ def resolve_user_api_key(config: dict[str, Any] | None = None) -> str | None:
 
 
 # Top-level config keys that steps may depend on (see "global_params" in specs).
-GLOBAL_PARAM_KEYS = ("input", "question", "intro", "is_pubcom", "enable_source_link")
+GLOBAL_PARAM_KEYS = ("input", "question", "intro", "is_pubcom", "enable_source_link", "enable_original_comments")
 
 # Steps whose outputs embed the job's own config and must be regenerated instead of reused.
 _NON_REUSABLE_STEPS = {"hierarchical_aggregation", "hierarchical_visualization"}
@@ -429,6 +429,7 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
         "analysis_mode",
         "local_llm_address",
         "enable_source_link",
+        "enable_original_comments",
         "without_html",
         "without-html",
         "reuse_from",

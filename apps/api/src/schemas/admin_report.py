@@ -62,6 +62,9 @@ class ReportInput(SchemaBaseModel):
 
     # NOTE: team-mirai feature
     enable_source_link: bool = False  # ソースリンク機能を有効にするかどうか。有効にする場合はtrue
+    # 元コメント本文を公開レポート (hierarchical_result.json) に含めるかどうか。
+    # 入力データの引用・再頒布が許されている場合だけ true にする
+    enable_original_comments: bool = False
 
 
 class ReportVisibilityUpdate(SchemaBaseModel):
@@ -87,6 +90,7 @@ class ReportDuplicateOverrides(SchemaBaseModel):
     workers: int | None = None
     is_pubcom: bool | None = None
     enable_source_link: bool | None = None
+    enable_original_comments: bool | None = None
     is_embedded_at_local: bool | None = None
     local_llm_address: str | None = None
     prompt: PromptOverride | None = None

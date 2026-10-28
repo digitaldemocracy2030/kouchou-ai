@@ -2,7 +2,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { groupArgumentsByCluster, splitArgumentsByFilter, toIdSet } from "@/lib/argumentIndex";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { wrapJapaneseText } from "@/lib/wrapJapaneseText";
-import type { Argument, Cluster, Config } from "@/type";
+import type { Argument, Cluster, Comments, Config } from "@/type";
 import { Box, Flex, Icon, IconButton, Text } from "@chakra-ui/react";
 import { CircleHelp } from "lucide-react";
 import type { Annotation, Data, Layout, PlotMouseEvent } from "plotly.js";
@@ -56,6 +56,14 @@ const SOFT_COLORS = [
 
 // 意見を持たないクラスタに使う空配列（参照を共有するので変更しないこと）
 const NO_ARGUMENTS: Argument[] = [];
+
+// ホバーに添える元コメント本文の最大文字数。長文の全文は階層リストなどで読めるので、ホバーは先頭だけにする
+const ORIGINAL_COMMENT_HOVER_LIMIT = 200;
+
+export function truncateText(text: string, limit: number): string {
+  const chars = Array.from(text);
+  return chars.length > limit ? `${chars.slice(0, limit).join("")}…` : text;
+}
 
 // フィルタで全点が除外された（plot 上でグレー表示される）クラスタの凡例 swatch 色。
 // plot 側の notMatchingData と同じ色にして視覚的に整合させる。
@@ -111,6 +119,8 @@ type Props = {
   // フィルター適用後の引数IDのリストを受け取り、フィルターに該当しないポイントの表示を変更する
   filteredArgumentIds?: string[];
   config?: Config; // ソースリンク機能の有効/無効を制御するため
+  // 元コメント本文（comment_id → 本文）。config.enable_original_comments が true のときだけホバーに出す
+  comments?: Comments;
   showConvexHull?: boolean; // クラスターの凸包を表示するか
   // クラスタ上の点をクリックした時に、そのクラスタIDを通知する（連動文章・一覧のハイライト用）
   onSelectCluster?: (clusterId: string) => void;
@@ -131,6 +141,7 @@ export function ScatterChart({
   showClusterLabels,
   filteredArgumentIds, // フィルター済みIDリスト（フィルター条件に合致する引数のID）
   config,
+  comments,
   showConvexHull,
   onSelectCluster,
   showParentAttribution,
@@ -159,6 +170,27 @@ export function ScatterChart({
     }
     return text;
   }, []);
+
+  // 元コメント本文をホバーに添える。レポート作成者が公開を明示した（config.enable_original_comments）ときだけ出し、
+  // 長文はホバー枠に収まるよう先頭だけにする
+  const showOriginalComments = Boolean(config?.enable_original_comments && comments);
+  const originalCommentCacheRef = useRef(new WeakMap<Argument, string>());
+  const originalCommentText = useCallback(
+    (arg: Argument) => {
+      if (!showOriginalComments || !comments) return "";
+      const cache = originalCommentCacheRef.current;
+      let text = cache.get(arg);
+      if (text === undefined) {
+        const body = comments[String(arg.comment_id)]?.comment ?? "";
+        // 投稿者の本文に含まれる <b> などを Plotly のホバー書式として解釈させない
+        const escaped = body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        text = escaped ? wrapJapaneseText(truncateText(escaped, ORIGINAL_COMMENT_HOVER_LIMIT), 30) : "";
+        cache.set(arg, text);
+      }
+      return text;
+    },
+    [showOriginalComments, comments],
+  );
 
   // clusterList.filter() は毎レンダリング新しい配列参照を生成するため、
   // hullTraces の useMemo deps に含める際に参照が安定するよう useMemo でメモ化する
@@ -464,10 +496,14 @@ export function ScatterChart({
                   const argumentText = wrapArgumentText(arg);
                   const urlText =
                     config?.enable_source_link && arg.url ? `<br><b>🔗 ${messages.clickToViewSource}</b>` : "";
+                  const originalText = originalCommentText(arg);
+                  const originalCommentHover = originalText
+                    ? `<br><br><i>${messages.originalCommentLabel}:</i><br>${originalText}`
+                    : "";
                   const parentText = parentAttribution
                     ? `<br>${messages.parentCluster(parentAttribution.labelByClusterId.get(cluster.id) ?? messages.unknownParentCluster)}`
                     : "";
-                  return `<b>${cluster.label}</b>${parentText}<br>${argumentText}${urlText}`;
+                  return `<b>${cluster.label}</b>${parentText}<br>${argumentText}${originalCommentHover}${urlText}`;
                 }),
                 type: "scattergl",
                 hoverinfo: "text",
@@ -505,6 +541,7 @@ export function ScatterChart({
       config?.enable_source_link,
       parentAttribution,
       wrapArgumentText,
+      originalCommentText,
       messages,
     ],
   );
@@ -737,6 +774,7 @@ export function ScatterChart({
       {messages.scatterHelpItems.map((item) => (
         <Text key={item}>{item}</Text>
       ))}
+      {showOriginalComments && <Text>{messages.scatterHelpOriginalComment}</Text>}
       {config?.enable_source_link && <Text>{messages.scatterHelpSourceLink}</Text>}
     </Box>
   );
