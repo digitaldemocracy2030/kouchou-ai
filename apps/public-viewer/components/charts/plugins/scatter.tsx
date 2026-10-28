@@ -62,6 +62,7 @@ export const scatterPlugin: ChartPlugin = {
       showConvexHull,
       onHover,
       onSelectCluster,
+      isFullscreen,
     } = context;
 
     // Calculate target level based on mode
@@ -85,6 +86,7 @@ export const scatterPlugin: ChartPlugin = {
         }
         onSelectCluster={onSelectCluster}
         showParentAttribution={selectedChart === "scatterDensity"}
+        isFullscreen={isFullscreen}
       />
     );
   },
