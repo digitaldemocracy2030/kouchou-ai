@@ -290,6 +290,11 @@ def extract_batch(
                 summarize_exception(e, (user_api_key,)),
             )
         except Exception as e:
+            # 諦めた回答も、受け取った応答の分は課金されているので集計に入れる
+            token_input, token_output, token_total = token_usage_of_rejected_response(e)
+            pending["input"] += token_input
+            pending["output"] += token_output
+            pending["total"] += token_total
             # status と診断には分類名（型名）だけを残し、理由は秘密情報を伏せて通常ログに出す
             failures[i] = type(e).__name__
             logging.error(
@@ -368,6 +373,7 @@ def extract_arguments(
             total_output += token_output
             total_tokens += token_total
             if attempt >= EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS:
+                _attach_usage(error, total_input, total_output, total_tokens)
                 raise
             _log_malformed_retry(error, attempt)
             continue
@@ -381,6 +387,7 @@ def extract_arguments(
             # 内容が無い応答や、JSON を書こうとしていない本文（拒否・コンテンツフィルタの空応答）は
             # 送り直しても変わらないので、再試行しない
             if not _looks_like_json_attempt(response) or attempt >= EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS:
+                _attach_usage(error, total_input, total_output, total_tokens)
                 raise
             _log_malformed_retry(error, attempt)
             continue
@@ -401,6 +408,14 @@ def _looks_like_json_attempt(response: str | dict | None) -> bool:
     if not isinstance(response, str):
         return True
     return "{" in response or "[" in response
+
+
+def _attach_usage(error: Exception, total_input: int, total_output: int, total_tokens: int) -> None:
+    """諦めて送出する例外に、この回答で受け取った全回の課金済みトークン数を持たせる。
+
+    extract_batch が失敗した回答の分も集計に入れる（token_usage_of_rejected_response で読む）。
+    """
+    error.usage = (total_input, total_output, total_tokens)
 
 
 def _log_malformed_retry(error: Exception, attempt: int) -> None:

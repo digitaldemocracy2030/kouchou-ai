@@ -297,3 +297,41 @@ def test_schema_mismatch_tokens_are_counted_through_the_real_sdk(monkeypatch, pr
     assert items == ["意見"]
     assert len(requests) == 2
     assert (token_input, token_output, token_total) == (16, 10, 26)
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        pytest.param('{"extractedOpinionList": [意見]}', id="malformed-json"),
+        pytest.param("I'm sorry, but I can't help with that request.", id="text-refusal-not-retried"),
+    ],
+)
+def test_tokens_of_an_abandoned_comment_are_counted_in_the_batch(monkeypatch, outcome):
+    """送り直しても解釈できずに諦めた回答も、受け取った応答の分は課金されているので集計に入れる。"""
+    responder = _Responder(outcome)
+    monkeypatch.setattr(extraction, "request_to_chat_ai", responder)
+    config: dict = {}
+
+    with pytest.raises(extraction.ExtractionBatchError):
+        extraction.extract_batch(["回答"], "p", "m", 1, config=config)
+
+    # _Responder は 1 回ごとに (2, 1, 3) を返す
+    assert (config["token_usage_input"], config["token_usage_output"], config["total_token_usage"]) == (
+        2 * responder.calls,
+        1 * responder.calls,
+        3 * responder.calls,
+    )
+    assert responder.calls == (3 if outcome.startswith("{") else 1)
+
+
+def test_tokens_of_exhausted_sdk_rejections_are_counted_in_the_batch(monkeypatch):
+    """3 回とも SDK に弾かれた（途中切れ）回答も、各回の usage を集計に入れる。"""
+    responder = _Responder(openai.LengthFinishReasonError(completion=_completion(5, 7)))
+    monkeypatch.setattr(extraction, "request_to_chat_ai", responder)
+    config: dict = {}
+
+    with pytest.raises(extraction.ExtractionBatchError):
+        extraction.extract_batch(["回答"], "p", "m", 1, config=config)
+
+    assert responder.calls == 3
+    assert config["total_token_usage"] == 3 * 12
