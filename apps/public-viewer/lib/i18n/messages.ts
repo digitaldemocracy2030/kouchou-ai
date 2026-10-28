@@ -68,12 +68,14 @@ const ja = {
   scatterHelpTitle: "散布図の操作方法",
   scatterHelpItems: [
     "・ドラッグ: 表示位置を移動（パン）",
-    "・マウスホイール / ピンチ: 拡大・縮小",
+    "・マウスホイール / ピンチ: 拡大・縮小（ページをスクロールした直後は、少し待つと有効になります）",
     "・右上ツールバー: 拡大・移動・初期表示へリセット",
     "・点にカーソルを合わせる: 意見の内容を表示",
   ],
   /** ソースリンクが有効なときだけ操作ヒントに足す */
   scatterHelpSourceLink: "・点をクリック: 元のソースを開く",
+  /** ページスクロール中に散布図へ重ねる案内（ホイールが止まると消え、拡大・縮小が有効になる） */
+  scatterWheelLocked: "スクロール中は拡大・縮小しません（止めると有効になります）",
   parentCluster: (label: string) => `所属: ${label}`,
   unknownParentCluster: "不明",
   parentAttributionHeading: "濃い意見グループの第一階層クラスタへの帰属",
@@ -252,11 +254,12 @@ const en: Messages = {
   scatterHelpTitle: "How to use the scatter plot",
   scatterHelpItems: [
     "• Drag: move the view (pan)",
-    "• Mouse wheel / pinch: zoom in and out",
+    "• Mouse wheel / pinch: zoom in and out (after scrolling the page, wait a moment for it to take effect)",
     "• Toolbar at the top right: zoom, pan, reset to the initial view",
     "• Hover over a point: show the opinion",
   ],
   scatterHelpSourceLink: "• Click a point: open the original source",
+  scatterWheelLocked: "Zoom is paused while you scroll the page (resumes when you stop)",
   parentCluster: (label) => `Top-level cluster: ${label}`,
   unknownParentCluster: "Unknown",
   parentAttributionHeading: "Top-level cluster of each dense opinion group",
@@ -427,11 +430,12 @@ const ko: Messages = {
   scatterHelpTitle: "산점도 조작 방법",
   scatterHelpItems: [
     "• 드래그: 표시 위치 이동(팬)",
-    "• 마우스 휠 / 핀치: 확대·축소",
+    "• 마우스 휠 / 핀치: 확대·축소(페이지를 스크롤한 직후에는 잠시 기다리면 활성화됩니다)",
     "• 오른쪽 위 도구 모음: 확대·이동·초기 화면으로 되돌리기",
     "• 점에 커서 올리기: 의견 내용 표시",
   ],
   scatterHelpSourceLink: "• 점 클릭: 원래 출처 열기",
+  scatterWheelLocked: "스크롤 중에는 확대·축소하지 않습니다(멈추면 활성화됩니다)",
   parentCluster: (label) => `소속: ${label}`,
   unknownParentCluster: "알 수 없음",
   parentAttributionHeading: "밀집 의견 그룹이 속한 제1계층 클러스터",

@@ -6,7 +6,8 @@ import type { Argument, Cluster, Config } from "@/type";
 import { Box, Flex, Icon, IconButton, Text } from "@chakra-ui/react";
 import { CircleHelp } from "lucide-react";
 import type { Annotation, Data, Layout, PlotMouseEvent } from "plotly.js";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { WheelEvent as ReactWheelEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartCore } from "./ChartCore";
 
 // クラスタ配色のパレット。参照を安定させて clusterColorMap などの useMemo を効かせるため、
@@ -60,6 +61,13 @@ const NO_ARGUMENTS: Argument[] = [];
 // フィルタで全点が除外された（plot 上でグレー表示される）クラスタの凡例 swatch 色。
 // plot 側の notMatchingData と同じ色にして視覚的に整合させる。
 const FILTERED_SWATCH_COLOR = "#cccccc";
+
+// ページを読み進めるためのホイール操作で図が拡大縮小されないようにする（#493）。
+// ポインタが図に入った直後はホイールをページスクロールに流し、ホイールが止まってから
+// WHEEL_ZOOM_UNLOCK_DELAY_MS 経ったら拡大縮小に切り替える。切り替わるまでは白い半透明の
+// オーバーレイを重ねて「いまはページスクロール中」と示す（デザイン合意: 白系オーバーレイ・約 500ms のフェード・カーソル切替）。
+const WHEEL_ZOOM_UNLOCK_DELAY_MS = 600;
+const WHEEL_GUARD_FADE_MS = 500;
 
 const annotationLabelWidth = 228; // ラベルの最大横幅を指定
 const annotationFontsize = 14; // フォントサイズを指定
@@ -116,6 +124,8 @@ type Props = {
   onSelectCluster?: (clusterId: string) => void;
   // 濃い意見グループが属する第一階層クラスタの帰属を可視化するか（scatterDensity モードで true）
   showParentAttribution?: boolean;
+  // 全画面表示か。全画面ではページがスクロールしないので、ホイールの拡大縮小を常に有効にする
+  isFullscreen?: boolean;
 };
 
 /**
@@ -134,6 +144,7 @@ export function ScatterChart({
   showConvexHull,
   onSelectCluster,
   showParentAttribution,
+  isFullscreen,
 }: Props) {
   const { language, messages } = useLanguage();
   // 全ての引数を表示するため、argumentListをそのまま使用
@@ -270,6 +281,44 @@ export function ScatterChart({
     filteredIdSet,
     messages,
   ]);
+
+  // ホイール拡大縮小のロック。通常表示ではロックから始め、ホイールが止まって一定時間経つと解除する。
+  // ポインタが図から出たら再びロックする。タッチ操作（ピンチ・ドラッグ）は wheel を発生させないので影響しない。
+  const wheelZoomGuardActive = !isFullscreen;
+  const [showWheelGuard, setShowWheelGuard] = useState(false);
+  const wheelZoomLockedRef = useRef(true);
+  const wheelUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearWheelUnlockTimer = useCallback(() => {
+    if (wheelUnlockTimerRef.current) {
+      clearTimeout(wheelUnlockTimerRef.current);
+      wheelUnlockTimerRef.current = null;
+    }
+  }, []);
+  const handleWheelCapture = useCallback(
+    (event: ReactWheelEvent<HTMLDivElement>) => {
+      if (!wheelZoomGuardActive) return;
+      // ctrl 付きの wheel はトラックパッドのピンチ（拡大縮小の意図が明確）なので止めない
+      if (event.ctrlKey) return;
+      if (!wheelZoomLockedRef.current) return;
+      // capture 段階で伝播を止めると、Plotly が dragger 要素に付けた wheel リスナーに届かない。
+      // preventDefault はしないので、ブラウザは通常どおりページをスクロールする。
+      event.stopPropagation();
+      setShowWheelGuard(true);
+      clearWheelUnlockTimer();
+      wheelUnlockTimerRef.current = setTimeout(() => {
+        wheelUnlockTimerRef.current = null;
+        wheelZoomLockedRef.current = false;
+        setShowWheelGuard(false);
+      }, WHEEL_ZOOM_UNLOCK_DELAY_MS);
+    },
+    [wheelZoomGuardActive, clearWheelUnlockTimer],
+  );
+  const relockWheelZoom = useCallback(() => {
+    clearWheelUnlockTimer();
+    wheelZoomLockedRef.current = true;
+    setShowWheelGuard(false);
+  }, [clearWheelUnlockTimer]);
+  useEffect(() => clearWheelUnlockTimer, [clearWheelUnlockTimer]);
 
   // ホバー中にアノテーション（クラスタラベル）を非表示にするための参照
   const chartWrapperRef = useRef<HTMLDivElement>(null);
@@ -743,7 +792,37 @@ export function ScatterChart({
 
   return (
     <Box width="100%" height="100%" display="flex" flexDirection="column">
-      <Box position="relative" flex="1" minH={0} ref={chartWrapperRef}>
+      <Box
+        position="relative"
+        flex="1"
+        minH={0}
+        ref={chartWrapperRef}
+        onWheelCapture={handleWheelCapture}
+        onMouseLeave={relockWheelZoom}
+      >
+        {wheelZoomGuardActive && (
+          <Box
+            aria-hidden="true"
+            data-testid="scatter-wheel-guard"
+            data-visible={showWheelGuard ? "true" : "false"}
+            position="absolute"
+            inset={0}
+            zIndex={1}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            bg="whiteAlpha.700"
+            opacity={showWheelGuard ? 1 : 0}
+            transition={`opacity ${WHEEL_GUARD_FADE_MS}ms ease`}
+            // 表示中だけポインタを受けて、カーソルを「拡大縮小できない」表示に切り替える
+            pointerEvents={showWheelGuard ? "auto" : "none"}
+            cursor="not-allowed"
+          >
+            <Text fontSize="sm" color="gray.700" bg="whiteAlpha.900" px={3} py={1} borderRadius="md" boxShadow="sm">
+              {messages.scatterWheelLocked}
+            </Text>
+          </Box>
+        )}
         <Box position="absolute" top="8px" left="8px" zIndex={2}>
           <Tooltip content={operationHint} showArrow openDelay={0} closeDelay={150} contentProps={{ maxW: "260px" }}>
             <IconButton
