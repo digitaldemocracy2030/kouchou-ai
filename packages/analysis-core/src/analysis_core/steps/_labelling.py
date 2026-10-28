@@ -10,6 +10,7 @@ import openai
 from pydantic import ValidationError
 
 from analysis_core.services.error_summary import summarize_exception
+from analysis_core.services.llm import token_usage_of_rejected_response
 
 _usage_lock = Lock()
 # 形式不正・途中切れの応答を受けたときに、同じクラスタを送り直す回数の上限（初回を含む）。
@@ -62,14 +63,14 @@ def _is_malformed_response(exc):
 
 
 def _record_usage_of_failed_completion(config, exc):
-    """途中切れ（LengthFinishReasonError）の応答も課金されているので、取れる usage を集計に含める。
+    """途中切れ・スキーマ違反で弾かれた応答も課金されているので、取れる usage を集計に含める。
 
-    プロバイダ関数は usage を取り出す前に送出するので、ここで例外の completion から読む。usage が無ければ何もしない。
+    プロバイダ関数は usage を返す前に送出するので、ここで例外から読む（token_usage_of_rejected_response）。
+    usage が無ければ何もしない。
     """
-    usage = getattr(getattr(exc, "completion", None), "usage", None)
-    if usage is None:
-        return
-    record_usage(config, usage.prompt_tokens or 0, usage.completion_tokens or 0, usage.total_tokens or 0)
+    token_input, token_output, token_total = token_usage_of_rejected_response(exc)
+    if token_input or token_output or token_total:
+        record_usage(config, token_input, token_output, token_total)
 
 
 def _process_with_retry(process, cluster_id, stage, config=None):
@@ -83,7 +84,7 @@ def _process_with_retry(process, cluster_id, stage, config=None):
         try:
             return process(cluster_id)
         except Exception as exc:
-            if isinstance(exc, openai.LengthFinishReasonError):
+            if isinstance(exc, (ValidationError, openai.LengthFinishReasonError)):
                 _record_usage_of_failed_completion(config, exc)
             if not _is_malformed_response(exc) or attempt >= LABELLING_MALFORMED_RESPONSE_MAX_ATTEMPTS:
                 raise

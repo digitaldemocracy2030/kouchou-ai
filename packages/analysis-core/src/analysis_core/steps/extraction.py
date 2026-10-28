@@ -12,7 +12,7 @@ from tqdm import tqdm
 from analysis_core.core import update_progress
 from analysis_core.core.utils import read_input_csv
 from analysis_core.services.error_summary import summarize_exception
-from analysis_core.services.llm import LLMSafetyBlockError, request_to_chat_ai
+from analysis_core.services.llm import LLMSafetyBlockError, request_to_chat_ai, token_usage_of_rejected_response
 from analysis_core.services.parse_json_list import parse_extraction_response
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
 from analysis_core.steps._pool import iter_pool_completed
@@ -363,7 +363,7 @@ def extract_arguments(
             )
         except (ValidationError, openai.LengthFinishReasonError) as error:
             # SDK の構造化出力の parse が、途中で切れた・スキーマに合わない応答を弾いた
-            token_input, token_output, token_total = _token_usage_of_failed_completion(error)
+            token_input, token_output, token_total = token_usage_of_rejected_response(error)
             total_input += token_input
             total_output += token_output
             total_tokens += token_total
@@ -401,14 +401,6 @@ def _looks_like_json_attempt(response: str | dict | None) -> bool:
     if not isinstance(response, str):
         return True
     return "{" in response or "[" in response
-
-
-def _token_usage_of_failed_completion(error: Exception) -> tuple[int, int, int]:
-    """finish_reason=length で弾かれた応答の usage（取れない場合は 0）。"""
-    usage = getattr(getattr(error, "completion", None), "usage", None)
-    if usage is None:
-        return 0, 0, 0
-    return usage.prompt_tokens or 0, usage.completion_tokens or 0, usage.total_tokens or 0
 
 
 def _log_malformed_retry(error: Exception, attempt: int) -> None:

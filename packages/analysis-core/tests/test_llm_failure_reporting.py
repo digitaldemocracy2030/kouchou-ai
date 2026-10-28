@@ -165,7 +165,8 @@ def _parsed_completion(message: dict, finish_reason: str = "stop") -> ParsedChat
 def _openai_client(completion):
     client = MagicMock()
     client.chat.completions.create.return_value = completion
-    client.beta.chat.completions.parse.return_value = completion
+    # 構造化出力は with_raw_response.parse で生の応答を受け取り、.parse() で解析済みの応答にする
+    client.beta.chat.completions.with_raw_response.parse.return_value.parse.return_value = completion
     return client
 
 
@@ -565,7 +566,9 @@ def test_structured_output_content_filter_raises_safety_block_error(provider, mo
     import openai
 
     client = MagicMock()
-    client.beta.chat.completions.parse.side_effect = openai.ContentFilterFinishReasonError()
+    client.beta.chat.completions.with_raw_response.parse.return_value.parse.side_effect = (
+        openai.ContentFilterFinishReasonError()
+    )
     if provider == "azure":
         with patch.object(llm, "AzureOpenAI", return_value=client):
             with pytest.raises(llm.LLMSafetyBlockError, match="finish_reason=content_filter") as error:

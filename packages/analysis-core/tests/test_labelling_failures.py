@@ -282,3 +282,52 @@ def test_usage_of_length_cut_attempts_is_counted(monkeypatch, stage):
     successes = 4 if stage == "initial" else 2
     assert config["total_token_usage"] == 16484 + 3 * successes
     assert config["token_usage_output"] == 16384 + 1 * successes
+
+
+def test_usage_of_schema_mismatch_attempts_is_counted_through_the_real_sdk(monkeypatch):
+    """SDK の parse がスキーマ違反を ValidationError で弾いた回も、課金済みの usage を集計に含める（#1128）。
+
+    SDK は ValidationError に usage を付けないので、偽物の例外ではなく実際の SDK に HTTP 応答を返して確かめる。
+    """
+    import threading
+
+    import httpx
+
+    llm = importlib.import_module("analysis_core.services.llm")
+    lock = threading.Lock()
+    calls = {"count": 0}
+
+    def body(content, prompt_tokens, completion_tokens):
+        return {
+            "id": "x",
+            "object": "chat.completion",
+            "created": 0,
+            "model": "gpt-4o-mini",
+            "choices": [{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": content}}],
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+            },
+        }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        with lock:
+            calls["count"] += 1
+            first = calls["count"] == 1
+        if first:
+            # description が無いのでスキーマ違反
+            return httpx.Response(200, json=body('{"label": "label"}', 100, 50))
+        return httpx.Response(200, json=body('{"label": "label", "description": "description"}', 2, 1))
+
+    monkeypatch.setattr(llm, "chat_http_client", lambda: httpx.Client(transport=httpx.MockTransport(handler)))
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_USE_FLEX", "0")
+    config = {"provider": "openai"}
+
+    run_batch("initial", config)
+
+    assert calls["count"] == 5
+    assert config["total_token_usage"] == 150 + 3 * 4
+    assert config["token_usage_input"] == 100 + 2 * 4
+    assert config["token_usage_output"] == 50 + 1 * 4
