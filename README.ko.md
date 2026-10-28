@@ -21,11 +21,11 @@
 - 일반 사용자:
 - 안정판 릴리스를 다운로드 ([Windows](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/windows-setup)/[Mac](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/mac-setup)/[Linux](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/linux-setup) 각 가이드 참조)
   - Docker (각 가이드에 따라 설치)
-  - OpenAI API 키
+  - OpenAI API 키 (ChatGPT Plus와 별도로 API 결제 설정이 필요합니다. [API 결제와 429 오류 (일본어)](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/api-billing-and-rate-limits) 참조)
 - 개발자:
   - docker
   - git
-  - OpenAI API 키
+  - OpenAI API 키 (ChatGPT Plus와 별도로 API 결제 설정이 필요합니다. [API 결제와 429 오류 (일본어)](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/api-billing-and-rate-limits) 참조)
 ## 설정 및 실행
 
 ### 전제

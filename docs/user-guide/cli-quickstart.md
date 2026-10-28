@@ -5,7 +5,7 @@
 ## 前提条件
 
 - Python 3.12 以上
-- OpenAI API キー
+- OpenAI API キー（ChatGPT Plus とは別に API の課金設定が必要です。[APIの課金と429エラー](../self-hosting/api-billing-and-rate-limits.md)を参照）
 
 ## 1. インストール
 
@@ -275,9 +275,12 @@ Job already running and locked. Try again in 5 minutes.
 
 出力ディレクトリや `hierarchical_status.json` は削除しないでください。完了済みステップの記録が消えるため抽出から全件やり直しになり、抽出・埋め込みの API 料金がもう一度かかります。前回の結果も失われます。最初からすべてやり直したい場合は、ロックが切れてから `--force` を付けて実行してください（この場合も API 料金がもう一度かかります）。
 
-### API レート制限
+### API レート制限（429）
 
-`extraction.workers` を小さくしてください（例: `1`）。
+429 エラーには、残高不足（`insufficient_quota`。エラー文に `You exceeded your current quota` を含む）と、レート制限（`Rate limit reached for ...`）の 2 種類があります。見分け方と対処の詳細は[APIの課金と429エラー](../self-hosting/api-billing-and-rate-limits.md)を参照してください。
+
+- **残高不足**: 自動では直りません。OpenAI Platform でクレジットを購入してから再実行してください。
+- **レート制限**: 2026-10-27 以降の `main`（analysis-core 0.2.0 より後）では、429 を受けると待って送り直し、同時に送る数も自動で下げるので、多くの場合は何もしなくても完走します。`extraction.workers` は同時に送る数の「上限」として扱われます。それでも 429 が続く場合や、それ以前の版を使っている場合は、`extraction.workers` を小さくしてください（例: `1`）。完了済みのステップは再利用されるので、上の `Job already running` の項と同様に続きから再実行できます。
 
 ## 9. 発展的な使い方
 

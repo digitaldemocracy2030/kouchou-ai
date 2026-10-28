@@ -21,13 +21,13 @@ The project is based on [Talk to the City](https://github.com/AIObjectives/talk-
 - For general users:
   - Download the stable release (see the guide for [Windows](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/windows-setup) / [Mac](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/mac-setup) / [Linux](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/linux-setup))
   - Docker (install it by following each guide)
-  - An OpenAI API key
+  - An OpenAI API key (API billing is separate from ChatGPT Plus; see [API billing and 429 errors (Japanese)](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/api-billing-and-rate-limits))
 - [Licensing and publishing results (Japanese)](docs/user-guide/license.md): local analysis, generated HTML, and custom plugins
 
 - For developers:
   - docker
   - git
-  - An OpenAI API key
+  - An OpenAI API key (API billing is separate from ChatGPT Plus; see [API billing and 429 errors (Japanese)](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/api-billing-and-rate-limits))
 
 ## Setup and launch
 

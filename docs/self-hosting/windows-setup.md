@@ -43,8 +43,9 @@ APIキーの取得先: [OpenAI](https://platform.openai.com/api-keys) / [Gemini]
 
 1. [OpenAI API](https://platform.openai.com/api-keys)にアクセスし、OpenAI APIキーを取得します（OpenAIモデルを使用する場合）。
 2. [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key)にアクセスし、Gemini APIキーを取得します（Geminiモデルを使用する場合）。
-3. APIキーをコピーして、メモ帳などに一時的に保存しておくと便利です。
-4. **重要**: APIキーは正確にコピーしてください。入力ミスがあると、後の処理でエラーが発生します。
+3. 各サービスの利用には課金が発生する場合があります。OpenAI API は従量課金で、ChatGPT Plus とは別の契約で、事前に OpenAI Platform で支払い方法を登録しクレジットを購入しておく必要があります。課金の仕組みと、残高不足・レート制限（429 エラー）の見分け方は[APIの課金と429エラー](api-billing-and-rate-limits.md)を参照してください。
+4. APIキーをコピーして、メモ帳などに一時的に保存しておくと便利です。
+5. **重要**: APIキーは正確にコピーしてください。入力ミスがあると、後の処理でエラーが発生します。
 
 ### 4. セットアップの実行
 
@@ -98,7 +99,7 @@ OpenAI APIキーやGemini APIキーを再設定したい場合は、再度 `setu
 | Dockerコマンドが見つからない | インストール完了 → Windows再起動 → Docker Desktop起動を確認する |
 | ビルドや分析がメモリ不足で止まる | Docker Desktopのリソース設定と空きメモリを確認する。入力件数を減らして再試行する |
 | APIキーを貼り付けられない | 右クリックで貼り付けを試す。前後の空白・改行が入っていないか確認する |
-| 画面は開くが接続確認が失敗する | provider・モデル・キー・利用可能な残高や権限を確認する。キーを変更した場合は再セットアップする |
+| 画面は開くが接続確認が失敗する | provider・モデル・キー・利用可能な残高や権限を確認する。残高不足・レート制限（429）の見分け方は[APIの課金と429エラー](api-billing-and-rate-limits.md)を参照。キーを変更した場合は再セットアップする |
 | 画面が開かない | Docker Desktop起動 → コンテナの状態 → エラー表示を確認する |
 
 !!! note "Windows 実機での検証を行う開発者・AI エージェント向け"

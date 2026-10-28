@@ -19,13 +19,13 @@
 - 一般ユーザー向け：
   - 安定版リリースをダウンロード（[Windows](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/windows-setup)/[Mac](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/mac-setup)/[Linux](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/linux-setup)の各ガイドを参照）
   - Docker（各ガイドに従ってインストール）
-  - OpenAI API キー
+  - OpenAI API キー（ChatGPT Plus とは別に API の課金設定が必要です。[APIの課金と429エラー](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/api-billing-and-rate-limits) を参照）
 - [ライセンスと結果の公開](docs/user-guide/license.md)：手元での分析、出力HTML、自作プラグインの扱い
 
 - 開発者向け：
   - docker
   - git
-  - OpenAI API キー
+  - OpenAI API キー（ChatGPT Plus とは別に API の課金設定が必要です。[APIの課金と429エラー](https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/api-billing-and-rate-limits) を参照）
 ## セットアップ・起動
 
 ### 前提
