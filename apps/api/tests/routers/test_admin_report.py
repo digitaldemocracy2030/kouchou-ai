@@ -6,6 +6,7 @@ from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
+import openai
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -329,7 +330,189 @@ class TestVerifyApiKey:
             assert data["success"] is False
             assert data["error_type"] == "unknown_error"
             assert "secret stack detail" not in data["message"]
-            assert "secret stack detail" not in data["error_detail"]
+            # 内部例外（プロバイダーの応答ではない）からは詳細を作らない
+            assert data["error_detail"] is None
+            assert "secret stack detail" not in response.text
+
+    @staticmethod
+    def _openai_status_error(status: int, body: object, url: str = "https://example.invalid/private-endpoint"):
+        """実 SDK と同じ組み立てで、プロバイダーの HTTP 応答からの例外を作る（o3-mini の 404 など）"""
+        import httpx
+
+        response = httpx.Response(status, request=httpx.Request("POST", url), json=body)
+        return openai.OpenAI(api_key="sk-dummy-key-for-tests")._make_status_error_from_response(response)
+
+    def test_verify_returns_provider_error_detail_for_unknown_error(self, client):
+        """404 / model_not_found のようなプロバイダーの応答を、汎用メッセージとは別に error_detail で返す"""
+        error = self._openai_status_error(
+            404,
+            {
+                "error": {
+                    "message": "The model `o3-mini` has been deprecated, learn more here: https://platform.openai.com/docs/deprecations",
+                    "type": "invalid_request_error",
+                    "param": None,
+                    "code": "model_not_found",
+                }
+            },
+        )
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get(
+                "/admin/environment/verify",
+                params={"provider": "openai", "model": "o3-mini"},
+                headers={"x-api-key": "test-api-key"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error_type"] == "unknown_error"
+        assert data["message"] == "エラーが発生しました: APIの設定や接続を確認してください。"
+        assert data["error_detail"] == (
+            "HTTP 404 model_not_found: The model `o3-mini` has been deprecated, "
+            "learn more here: https://platform.openai.com/docs/deprecations"
+        )
+        # リクエスト先 URL や SDK の例外メッセージの形は返さない
+        assert "private-endpoint" not in response.text
+        assert "Error code:" not in response.text
+
+    def test_verify_provider_error_detail_for_openai_compatible_providers(self, client):
+        """OpenRouter などの OpenAI 互換 API では code が数値のこともある（ステータスと同じなら繰り返さない）"""
+        error = self._openai_status_error(
+            404, {"error": {"message": "No endpoints found for some/model.", "code": 404}}
+        )
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get(
+                "/admin/environment/verify",
+                params={"provider": "openrouter", "model": "some/model"},
+                headers={"x-api-key": "test-api-key"},
+            )
+        data = response.json()
+        assert data["error_type"] == "unknown_error"
+        assert data["error_detail"] == "HTTP 404: No endpoints found for some/model."
+
+    def test_verify_azure_returns_guidance_and_provider_error_detail(self, client):
+        """Azure でも案内文はそのままに、プロバイダーの応答があれば詳細を添える"""
+        error = self._openai_status_error(
+            404,
+            {
+                "error": {
+                    "code": "DeploymentNotFound",
+                    "message": "The API deployment for this resource does not exist.",
+                }
+            },
+            url="https://private-resource.openai.azure.com/openai/deployments/private-deployment/chat/completions",
+        )
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get("/admin/environment/verify?provider=azure", headers={"x-api-key": "test-api-key"})
+        data = response.json()
+        assert data["error_type"] == "unknown_error"
+        assert "AZURE_CHATCOMPLETION_VERSION" in data["message"]
+        assert (
+            data["error_detail"] == "HTTP 404 DeploymentNotFound: The API deployment for this resource does not exist."
+        )
+        assert "private-resource" not in response.text
+        assert "private-deployment" not in response.text
+
+    def test_verify_gemini_returns_provider_error_detail(self, client):
+        error = genai_errors.ClientError(
+            404,
+            {
+                "error": {
+                    "code": 404,
+                    "message": "models/gemini-9.9-flash is not found for API version v1beta",
+                    "status": "NOT_FOUND",
+                }
+            },
+        )
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get("/admin/environment/verify?provider=gemini", headers={"x-api-key": "test-api-key"})
+        data = response.json()
+        assert data["error_type"] == "unknown_error"
+        assert data["error_detail"] == "HTTP 404 NOT_FOUND: models/gemini-9.9-flash is not found for API version v1beta"
+
+    def test_verify_provider_error_detail_redacts_secrets(self, client):
+        """応答本文にキーが含まれていても、ユーザー入力のキーも含めて伏せ字にする"""
+        user_key = "user-secret-key-abcdef123456"
+        error = self._openai_status_error(
+            400,
+            {"error": {"message": f"Bad key sk-abcdefghijklmnopqrstuvwxyz0123 for {user_key}", "code": "bad_key"}},
+        )
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get(
+                "/admin/environment/verify?provider=openai",
+                headers={"x-api-key": "test-api-key", "x-user-api-key": user_key},
+            )
+        data = response.json()
+        assert data["error_type"] == "unknown_error"
+        assert "[REDACTED]" in data["error_detail"]
+        assert "sk-abcdefghijklmnopqrstuvwxyz0123" not in response.text
+        assert user_key not in response.text
+
+    def test_verify_provider_error_detail_is_truncated(self, client):
+        error = self._openai_status_error(400, {"error": {"message": "long message " * 200, "code": "too_long"}})
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get("/admin/environment/verify?provider=openai", headers={"x-api-key": "test-api-key"})
+        detail = response.json()["error_detail"]
+        assert detail.startswith("HTTP 400 too_long: long message long message")
+        assert detail.endswith("...")
+        assert len(detail) == admin_report.MAX_PROVIDER_ERROR_DETAIL_CHARS + len("...")
+
+    def test_verify_non_json_provider_error_returns_only_status(self, client):
+        """HTML などの本文（ゲートウェイのエラーページなど）はそのまま返さず、ステータスだけにする"""
+        import httpx
+
+        request = httpx.Request("POST", "https://example.invalid/private-endpoint")
+        response_obj = httpx.Response(502, request=request, text="<html>Bad Gateway at internal-host</html>")
+        error = openai.OpenAI(api_key="sk-dummy-key-for-tests")._make_status_error_from_response(response_obj)
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get("/admin/environment/verify?provider=openai", headers={"x-api-key": "test-api-key"})
+        assert response.json()["error_detail"] == "HTTP 502"
+        assert "internal-host" not in response.text
+
+    def test_verify_connection_error_has_no_provider_error_detail(self, client):
+        """応答のない失敗（接続エラー）からは詳細を作らない（接続先を返さないため）"""
+        import httpx
+
+        error = openai.APIConnectionError(
+            message="Connection error.", request=httpx.Request("POST", "http://internal-host:1234/v1/chat/completions")
+        )
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get(
+                "/admin/environment/verify",
+                params={"provider": "local", "model": "llama3", "local_llm_address": "internal-host:1234"},
+                headers={"x-api-key": "test-api-key"},
+            )
+        data = response.json()
+        assert data["error_type"] == "unknown_error"
+        assert data["error_detail"] is None
+        assert "internal-host" not in response.text
+
+    @pytest.mark.parametrize(
+        ("status", "body", "expected_type"),
+        [
+            (
+                401,
+                {"error": {"message": "Incorrect API key provided", "code": "invalid_api_key"}},
+                "authentication_error",
+            ),
+            (
+                429,
+                {"error": {"message": "You exceeded your current quota", "code": "insufficient_quota"}},
+                "insufficient_quota",
+            ),
+            (429, {"error": {"message": "Rate limit reached", "code": "rate_limit_exceeded"}}, "rate_limit_error"),
+        ],
+    )
+    def test_verify_classified_errors_keep_existing_response(self, client, status, body, expected_type):
+        """認証・残高・レート制限は従来どおり分類済みメッセージだけを返す（詳細は付けない）"""
+        error = self._openai_status_error(status, body)
+        with patch("analysis_core.services.llm.request_to_chat_ai", side_effect=error):
+            response = client.get("/admin/environment/verify?provider=openai", headers={"x-api-key": "test-api-key"})
+        data = response.json()
+        assert data["success"] is False
+        assert data["error_type"] == expected_type
+        assert data["error_detail"] is None
+        assert body["error"]["message"] not in response.text
 
 
 class TestDownloadReportJson:
