@@ -134,6 +134,7 @@ nav:
       - モデル一覧・検証状態・料金の更新: development/model-catalog.md
       - OpenAI Flex Processing: development/openai-flex-processing.md
       - 意見の分類ラベル: development/opinion-classification.md
+      - 関連研究（本体未収録の実験的手法）: development/related-research.md
       - Web UI の Node runtime 依存インベントリ（監査スナップショット/#885）: development/web-ui-node-runtime-dependencies.md
   - リポジトリ内README:
       - アプリ:
