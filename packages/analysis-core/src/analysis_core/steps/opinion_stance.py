@@ -10,6 +10,7 @@
 """
 
 import json
+import math
 import os
 import re
 from collections.abc import Callable
@@ -125,7 +126,7 @@ def parse_stance_response(response: str | dict) -> float | None:
         value = float(score)
     except ValueError:
         raise InvalidStanceResponse("stance_score が数値ではありません") from None
-    if value != value or not -1.0 <= value <= 1.0:
+    if math.isnan(value) or not -1.0 <= value <= 1.0:
         raise InvalidStanceResponse("stance_score が -1.0〜1.0 の範囲外です")
     return value if applicable else None
 
