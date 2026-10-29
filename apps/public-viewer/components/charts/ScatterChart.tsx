@@ -182,9 +182,8 @@ export function ScatterChart({
       let text = cache.get(arg);
       if (text === undefined) {
         const body = comments[String(arg.comment_id)]?.comment ?? "";
-        // 投稿者の本文に含まれる <b> などを Plotly のホバー書式として解釈させない
-        const escaped = body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        text = escaped ? wrapJapaneseText(truncateText(escaped, ORIGINAL_COMMENT_HOVER_LIMIT), 30) : "";
+        // wrapJapaneseText が & < > をエスケープするので、投稿者の本文の <b> などは Plotly の書式にならない
+        text = body ? wrapJapaneseText(truncateText(body, ORIGINAL_COMMENT_HOVER_LIMIT), 30) : "";
         cache.set(arg, text);
       }
       return text;

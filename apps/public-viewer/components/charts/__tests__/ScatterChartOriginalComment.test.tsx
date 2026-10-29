@@ -69,6 +69,13 @@ describe("ScatterChart original comment hover", () => {
     expect(text).not.toContain("元コメント");
   });
 
+  it("本文の & < > は 1 回だけエスケープする（二重エスケープで &amp; が見えない）", () => {
+    renderChart({ enable_original_comments: true } as Config, { "7": { comment: "A & B <b>x</b>" } });
+    const text = hoverTexts().join("\n");
+    expect(text).toContain("A &amp; B &lt;b&gt;x&lt;/b&gt;");
+    expect(text).not.toContain("&amp;amp;");
+  });
+
   it("長い元コメントは先頭だけに切り詰める", () => {
     expect(truncateText("あ".repeat(10), 4)).toBe("ああああ…");
     expect(truncateText("short", 10)).toBe("short");
