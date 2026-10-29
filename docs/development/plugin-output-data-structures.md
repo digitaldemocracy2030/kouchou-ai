@@ -64,7 +64,9 @@ analysis-core の標準ワークフローは、次のステップでファイル
 |---|---|---|
 | `analysis.extraction` | `args.csv`, `relations.csv` | CSV |
 | `analysis.opinion_classification`（任意） | `opinion_classifications.csv`, `opinion_classification_summary.json` | CSV / JSON |
+| `analysis.opinion_stance`（任意） | `opinion_stances.csv`, `opinion_stance_summary.json` | CSV / JSON |
 | `analysis.embedding` | `embeddings.pkl` | pickle |
+| `analysis.opinion_novelty`（任意） | `opinion_novelty.csv`, `opinion_novelty_summary.json` | CSV / JSON |
 | `analysis.hierarchical_clustering` | `hierarchical_clusters.csv` | CSV |
 | `analysis.hierarchical_initial_labelling` | `hierarchical_initial_labels.csv` | CSV |
 | `analysis.hierarchical_merge_labelling` | `hierarchical_merge_labels.csv` | CSV |
@@ -114,6 +116,28 @@ analysis-core の標準ワークフローは、次のステップでファイル
 ラベルごとの件数と比率（分母は分類した意見数）、使用した provider / model、注意書き。
 
 `hierarchical_aggregation` はこのCSVが存在すると、`hierarchical_result.json` の `arguments[].attributes` にラベル列を追加します（元コメントの `attribute_*` と同じ場所）。
+
+---
+
+### 1c) `analysis.opinion_stance`（任意）/ `analysis.opinion_novelty`（任意）
+
+`opinion_stance.enabled = true` / `opinion_novelty.enabled = true` のときだけ実行されます。意見ごとに数値のスコアを付けます。定義と注意点は [意見ごとのスコア](opinion-scores.md) を参照してください。
+
+**`opinion_stances.csv`**（`opinion_stance`、`extraction` の後）
+
+| カラム名 | 型 | 説明 |
+|---|---|---|
+| `arg-id` | string | 意見ID |
+| `stance_score` | float | 対象（`target`、省略時は `question`）への賛否 -1.0〜+1.0。判定不能は空欄 |
+
+**`opinion_novelty.csv`**（`opinion_novelty`、`embedding` の後）
+
+| カラム名 | 型 | 説明 |
+|---|---|---|
+| `arg-id` | string | 意見ID |
+| `novelty_score` | float | 他の意見からの遠さの順位 0.0〜1.0（高いほど遠い） |
+
+それぞれ `opinion_stance_summary.json` / `opinion_novelty_summary.json` に件数・分布・計算方法・注意書きを残します。`hierarchical_aggregation` は有効なステップの CSV を `arguments[].attributes` に **数値** で追加します（空欄の意見には追加しません）。
 
 ---
 
@@ -237,7 +261,7 @@ import numpy as np
 }
 ```
 
-`attributes` には、入力CSVの `attribute_*` 列に加えて、`opinion_classification` を有効にした場合はラベル列（`"hate_or_insult": "no"`, `"policy_proposal": "yes"`）が入ります。
+`attributes` には、入力CSVの `attribute_*` 列に加えて、`opinion_classification` を有効にした場合はラベル列（`"hate_or_insult": "no"`, `"policy_proposal": "yes"`）、`opinion_stance` / `opinion_novelty` を有効にした場合は数値のスコア（`"stance_score": -0.5`, `"novelty_score": 0.93`）が入ります。
 
 `clusters` の構造（抜粋）:
 

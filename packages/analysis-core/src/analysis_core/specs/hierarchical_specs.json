@@ -2,8 +2,19 @@
     {
         "step": "extraction",
         "filename": "args.csv",
-        "extra_files": ["relations.csv"],
-        "dependencies": {"params": ["limit", "properties"], "global_params": ["input"], "steps": []},
+        "extra_files": [
+            "relations.csv"
+        ],
+        "dependencies": {
+            "params": [
+                "limit",
+                "properties"
+            ],
+            "global_params": [
+                "input"
+            ],
+            "steps": []
+        },
         "options": {
             "limit": 1000,
             "workers": 1,
@@ -17,7 +28,15 @@
     {
         "step": "opinion_classification",
         "filename": "opinion_classifications.csv",
-        "dependencies": {"params": ["enabled", "labels"], "steps": ["extraction"]},
+        "dependencies": {
+            "params": [
+                "enabled",
+                "labels"
+            ],
+            "steps": [
+                "extraction"
+            ]
+        },
         "options": {
             "enabled": false,
             "workers": 1,
@@ -27,41 +46,125 @@
         "use_llm": true
     },
     {
+        "step": "opinion_stance",
+        "filename": "opinion_stances.csv",
+        "dependencies": {
+            "params": [
+                "enabled",
+                "target"
+            ],
+            "global_params": [
+                "question"
+            ],
+            "steps": [
+                "extraction"
+            ]
+        },
+        "options": {
+            "enabled": false,
+            "workers": 1,
+            "timeout_seconds": null,
+            "target": null
+        },
+        "use_llm": true
+    },
+    {
         "step": "embedding",
         "filename": "embeddings.pkl",
-        "dependencies": {"params": ["model"], "steps": ["extraction"]},
-        "options": {"model": "text-embedding-3-small"}
+        "dependencies": {
+            "params": [
+                "model"
+            ],
+            "steps": [
+                "extraction"
+            ]
+        },
+        "options": {
+            "model": "text-embedding-3-small"
+        }
+    },
+    {
+        "step": "opinion_novelty",
+        "filename": "opinion_novelty.csv",
+        "dependencies": {
+            "params": [
+                "enabled",
+                "method",
+                "k",
+                "seed"
+            ],
+            "steps": [
+                "embedding"
+            ]
+        },
+        "options": {
+            "enabled": false,
+            "method": "knn_distance",
+            "k": 10,
+            "seed": 42
+        }
     },
     {
         "step": "hierarchical_clustering",
         "filename": "hierarchical_clusters.csv",
-        "dependencies": {"params": ["cluster_nums", "reuse_umap_model"], "steps": ["embedding"]},
-        "options": {"cluster_nums": null, "reuse_umap_model": null, "save_umap_model": true}
+        "dependencies": {
+            "params": [
+                "cluster_nums",
+                "reuse_umap_model"
+            ],
+            "steps": [
+                "embedding"
+            ]
+        },
+        "options": {
+            "cluster_nums": null,
+            "reuse_umap_model": null,
+            "save_umap_model": true
+        }
     },
     {
         "step": "hierarchical_initial_labelling",
         "filename": "hierarchical_initial_labels.csv",
         "dependencies": {
-            "params": ["sampling_num"],
-            "steps": ["hierarchical_clustering"]
+            "params": [
+                "sampling_num"
+            ],
+            "steps": [
+                "hierarchical_clustering"
+            ]
         },
-        "options": {"sampling_num": 3, "workers": 1},
+        "options": {
+            "sampling_num": 3,
+            "workers": 1
+        },
         "use_llm": true
     },
     {
         "step": "hierarchical_merge_labelling",
         "filename": "hierarchical_merge_labels.csv",
         "dependencies": {
-            "params": ["sampling_num"],
-            "steps": ["hierarchical_initial_labelling"]
+            "params": [
+                "sampling_num"
+            ],
+            "steps": [
+                "hierarchical_initial_labelling"
+            ]
         },
-        "options": {"sampling_num": 3, "workers": 1},
+        "options": {
+            "sampling_num": 3,
+            "workers": 1
+        },
         "use_llm": true
     },
     {
         "step": "hierarchical_overview",
         "filename": "hierarchical_overview.txt",
-        "dependencies": {"params": [], "steps": ["hierarchical_merge_labelling"]},
+        "dependencies": {
+            "params": [],
+            "steps": [
+                "hierarchical_merge_labelling"
+            ]
+        },
         "options": {},
         "use_llm": true
     },
@@ -69,11 +172,23 @@
         "step": "hierarchical_aggregation",
         "filename": "hierarchical_result.json",
         "dependencies": {
-            "params": ["sampling_num", "hidden_properties"],
-            "global_params": ["input", "question", "intro", "is_pubcom", "enable_source_link", "enable_original_comments"],
+            "params": [
+                "sampling_num",
+                "hidden_properties"
+            ],
+            "global_params": [
+                "input",
+                "question",
+                "intro",
+                "is_pubcom",
+                "enable_source_link",
+                "enable_original_comments"
+            ],
             "steps": [
                 "extraction",
                 "opinion_classification",
+                "opinion_stance",
+                "opinion_novelty",
                 "hierarchical_clustering",
                 "hierarchical_initial_labelling",
                 "hierarchical_merge_labelling",
@@ -88,7 +203,16 @@
     {
         "step": "hierarchical_visualization",
         "filename": "report",
-        "dependencies": {"params": ["replacements"], "steps": ["hierarchical_aggregation"]},
-        "options": {"replacements": []}
+        "dependencies": {
+            "params": [
+                "replacements"
+            ],
+            "steps": [
+                "hierarchical_aggregation"
+            ]
+        },
+        "options": {
+            "replacements": []
+        }
     }
 ]

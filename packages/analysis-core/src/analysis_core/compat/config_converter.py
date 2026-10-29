@@ -26,12 +26,16 @@ def _get_step_source_codes() -> dict[str, str]:
         hierarchical_visualization,
         llm_grouping,
         opinion_classification,
+        opinion_novelty,
+        opinion_stance,
     )
 
     step_functions = {
         "extraction": extraction,
         "opinion_classification": opinion_classification,
+        "opinion_stance": opinion_stance,
         "embedding": embedding,
+        "opinion_novelty": opinion_novelty,
         "hierarchical_clustering": hierarchical_clustering,
         "hierarchical_initial_labelling": hierarchical_initial_labelling,
         "hierarchical_merge_labelling": hierarchical_merge_labelling,
@@ -107,6 +111,26 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     classification.setdefault("timeout_seconds", None)
     if "opinion_classification" in source_codes:
         classification.setdefault("source_code", source_codes["opinion_classification"])
+
+    # Opinion stance defaults (opt-in; costs one LLM call per extracted opinion)
+    stance = result.setdefault("opinion_stance", {})
+    stance.setdefault("enabled", False)
+    stance.setdefault("workers", 1)
+    stance.setdefault("prompt", get_default_prompt("opinion_stance") or "")
+    stance.setdefault("model", result["model"])
+    stance.setdefault("target", None)
+    stance.setdefault("timeout_seconds", None)
+    if "opinion_stance" in source_codes:
+        stance.setdefault("source_code", source_codes["opinion_stance"])
+
+    # Opinion novelty defaults (opt-in; no LLM, computed from embeddings)
+    novelty = result.setdefault("opinion_novelty", {})
+    novelty.setdefault("enabled", False)
+    novelty.setdefault("method", "knn_distance")
+    novelty.setdefault("k", 10)
+    novelty.setdefault("seed", 42)
+    if "opinion_novelty" in source_codes:
+        novelty.setdefault("source_code", source_codes["opinion_novelty"])
 
     # Embedding defaults
     embedding = result.setdefault("embedding", {})

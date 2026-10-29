@@ -156,6 +156,30 @@ def test_opinion_classifications_are_merged_when_enabled(tmp_path):
     assert result["arguments"][0]["attributes"] == {"age": "20s", "hate_or_insult": "yes"}
 
 
+def test_stale_opinion_scores_are_ignored_when_disabled(tmp_path):
+    report, config = _write_report(
+        tmp_path, "comment-id,comment-body,attribute_age\n1,body,20s\n", [("A1_0", "body")], [("A1_0", "1")]
+    )
+    (report / "opinion_stances.csv").write_text("arg-id,stance_score\nA1_0,0.5\n", encoding="utf-8")
+    (report / "opinion_novelty.csv").write_text("arg-id,novelty_score\nA1_0,0.9\n", encoding="utf-8")
+    result = _run(report, config)
+    assert result["arguments"][0]["attributes"] == {"age": "20s"}
+
+
+def test_opinion_scores_are_merged_as_numbers_when_enabled(tmp_path):
+    report, config = _write_report(
+        tmp_path, "comment-id,comment-body,attribute_age\n1,body,20s\n", [("A1_0", "body")], [("A1_0", "1")]
+    )
+    (report / "opinion_stances.csv").write_text("arg-id,stance_score\nA1_0,-0.5\n", encoding="utf-8")
+    (report / "opinion_novelty.csv").write_text("arg-id,novelty_score\nA1_0,0.9\n", encoding="utf-8")
+    config["opinion_stance"] = {"enabled": True}
+    config["opinion_novelty"] = {"enabled": True}
+    result = _run(report, config)
+    assert result["arguments"][0]["attributes"] == {"age": "20s", "stance_score": -0.5, "novelty_score": 0.9}
+    # 結果 JSON の config に秘密やランタイムキーが増えていない
+    assert set(result["config"]["opinion_stance"]) == {"enabled"}
+
+
 def test_failed_classification_fails_the_workflow_when_enabled(tmp_path):
     from analysis_core.compat import normalize_config
     from analysis_core.plugin import PluginRegistry, StepContext, StepOutputs, step_plugin

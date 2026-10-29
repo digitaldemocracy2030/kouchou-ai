@@ -5,6 +5,7 @@ They are designed for Japanese language analysis.
 """
 
 from analysis_core.steps.opinion_labels import DEFAULT_LABELS, build_classification_prompt
+from analysis_core.steps.opinion_stance import STANCE_PROMPT as OPINION_STANCE_PROMPT
 
 EXTRACTION_PROMPT = """あなたは専門的なリサーチアシスタントです。与えられたテキストから、意見を抽出して整理してください。
 
@@ -134,6 +135,7 @@ OPINION_CLASSIFICATION_PROMPT = build_classification_prompt(DEFAULT_LABELS)
 DEFAULT_PROMPTS = {
     "extraction": EXTRACTION_PROMPT,
     "opinion_classification": OPINION_CLASSIFICATION_PROMPT,
+    "opinion_stance": OPINION_STANCE_PROMPT,
     "hierarchical_initial_labelling": INITIAL_LABELLING_PROMPT,
     "hierarchical_merge_labelling": MERGE_LABELLING_PROMPT,
     "hierarchical_overview": OVERVIEW_PROMPT,
