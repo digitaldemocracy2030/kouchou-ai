@@ -402,12 +402,10 @@ def read_merge_labels(path) -> pl.DataFrame:
     管理画面のラベル編集（apps/api の ClusterRepository.update_csv）は csv モジュールで全行を書き直すので、
     空の label / description は引用符なしの空欄になる。polars の既定ではこれが null になり、
     公開 JSON に文字列 'None' が出てしまうため、空欄は空文字列として読む。
+    read_csv の missing_utf8_is_empty_string は polars 2 で無くなったので、読んだ後に null を空文字列にする。
     """
-    return pl.read_csv(
-        path,
-        schema_overrides={"label": pl.Utf8, "description": pl.Utf8},
-        missing_utf8_is_empty_string=True,
-    )
+    labels = pl.read_csv(path, schema_overrides={"label": pl.Utf8, "description": pl.Utf8})
+    return labels.with_columns(pl.col("label", "description").fill_null(""))
 
 
 def _text_or_empty(value) -> str:

@@ -20,6 +20,9 @@ dependencies = [
     "polars>=1.37.1",
     "numpy>=1.26.0",
     "openai>=1.77.0",
+    # services/rate_limit.py が直接 import する。openai 3.x は httpx ではなく httpx2 に依存するので、
+    # openai 経由では入らない（#1168）
+    "httpx>=0.28.0",
     "tqdm>=4.66.0",
     "pydantic>=2.0.0",
     "tenacity>=9.1.2",
