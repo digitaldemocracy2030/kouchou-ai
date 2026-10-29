@@ -12,7 +12,7 @@ from tqdm import tqdm
 from analysis_core.core import update_progress
 from analysis_core.core.utils import read_input_csv
 from analysis_core.services.error_summary import summarize_exception
-from analysis_core.services.llm import LLMSafetyBlockError, request_to_chat_ai
+from analysis_core.services.llm import LLMSafetyBlockError, request_to_chat_ai, token_usage_of_rejected_response
 from analysis_core.services.parse_json_list import parse_extraction_response
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
 from analysis_core.steps._pool import iter_pool_completed
@@ -290,6 +290,11 @@ def extract_batch(
                 summarize_exception(e, (user_api_key,)),
             )
         except Exception as e:
+            # 諦めた回答も、受け取った応答の分は課金されているので集計に入れる
+            token_input, token_output, token_total = token_usage_of_rejected_response(e)
+            pending["input"] += token_input
+            pending["output"] += token_output
+            pending["total"] += token_total
             # status と診断には分類名（型名）だけを残し、理由は秘密情報を伏せて通常ログに出す
             failures[i] = type(e).__name__
             logging.error(
@@ -363,11 +368,12 @@ def extract_arguments(
             )
         except (ValidationError, openai.LengthFinishReasonError) as error:
             # SDK の構造化出力の parse が、途中で切れた・スキーマに合わない応答を弾いた
-            token_input, token_output, token_total = _token_usage_of_failed_completion(error)
+            token_input, token_output, token_total = token_usage_of_rejected_response(error)
             total_input += token_input
             total_output += token_output
             total_tokens += token_total
             if attempt >= EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS:
+                _attach_usage(error, total_input, total_output, total_tokens)
                 raise
             _log_malformed_retry(error, attempt)
             continue
@@ -381,6 +387,7 @@ def extract_arguments(
             # 内容が無い応答や、JSON を書こうとしていない本文（拒否・コンテンツフィルタの空応答）は
             # 送り直しても変わらないので、再試行しない
             if not _looks_like_json_attempt(response) or attempt >= EXTRACTION_MALFORMED_RESPONSE_MAX_ATTEMPTS:
+                _attach_usage(error, total_input, total_output, total_tokens)
                 raise
             _log_malformed_retry(error, attempt)
             continue
@@ -403,12 +410,12 @@ def _looks_like_json_attempt(response: str | dict | None) -> bool:
     return "{" in response or "[" in response
 
 
-def _token_usage_of_failed_completion(error: Exception) -> tuple[int, int, int]:
-    """finish_reason=length で弾かれた応答の usage（取れない場合は 0）。"""
-    usage = getattr(getattr(error, "completion", None), "usage", None)
-    if usage is None:
-        return 0, 0, 0
-    return usage.prompt_tokens or 0, usage.completion_tokens or 0, usage.total_tokens or 0
+def _attach_usage(error: Exception, total_input: int, total_output: int, total_tokens: int) -> None:
+    """諦めて送出する例外に、この回答で受け取った全回の課金済みトークン数を持たせる。
+
+    extract_batch が失敗した回答の分も集計に入れる（token_usage_of_rejected_response で読む）。
+    """
+    error.usage = (total_input, total_output, total_tokens)
 
 
 def _log_malformed_retry(error: Exception, attempt: int) -> None:

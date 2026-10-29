@@ -244,3 +244,94 @@ def test_extraction_completes_when_one_response_is_truncated_once(tmp_path, monk
     assert "一つ目 の意見" in args and "二つ目 の意見" in args and "三つ目 の意見" in args
     assert seen["二つ目"] == 2
     assert config["total_token_usage"] == 12
+
+
+def _chat_completion_body(content: str, prompt_tokens: int, completion_tokens: int) -> dict:
+    return {
+        "id": "x",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "gpt-4o-mini",
+        "choices": [
+            {"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": content}},
+        ],
+        "usage": {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+        },
+    }
+
+
+@pytest.mark.parametrize("provider", ["openai", "azure"])
+def test_schema_mismatch_tokens_are_counted_through_the_real_sdk(monkeypatch, provider):
+    """SDK の parse がスキーマ違反を ValidationError で弾いた回も、課金済みのトークンを数える（#1128）。
+
+    SDK は ValidationError に completion を付けないので、偽物の例外ではなく実際の SDK に HTTP 応答を返して確かめる。
+    """
+    import httpx
+
+    llm = importlib.import_module("analysis_core.services.llm")
+    bodies = [
+        _chat_completion_body('{"wrong": 1}', 11, 7),
+        _chat_completion_body(VALID, 5, 3),
+    ]
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=bodies[len(requests) - 1])
+
+    monkeypatch.setattr(llm, "chat_http_client", lambda: httpx.Client(transport=httpx.MockTransport(handler)))
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_USE_FLEX", "0")
+    monkeypatch.setenv("AZURE_CHATCOMPLETION_ENDPOINT", "https://example.openai.azure.com")
+    monkeypatch.setenv("AZURE_CHATCOMPLETION_DEPLOYMENT_NAME", "gpt-4o-mini")
+    monkeypatch.setenv("AZURE_CHATCOMPLETION_API_KEY", "test-key")
+    monkeypatch.setenv("AZURE_CHATCOMPLETION_VERSION", "2024-10-21")
+
+    items, token_input, token_output, token_total = extraction.extract_arguments(
+        "回答", "p", "gpt-4o-mini", provider=provider
+    )
+
+    assert items == ["意見"]
+    assert len(requests) == 2
+    assert (token_input, token_output, token_total) == (16, 10, 26)
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        pytest.param('{"extractedOpinionList": [意見]}', id="malformed-json"),
+        pytest.param("I'm sorry, but I can't help with that request.", id="text-refusal-not-retried"),
+    ],
+)
+def test_tokens_of_an_abandoned_comment_are_counted_in_the_batch(monkeypatch, outcome):
+    """送り直しても解釈できずに諦めた回答も、受け取った応答の分は課金されているので集計に入れる。"""
+    responder = _Responder(outcome)
+    monkeypatch.setattr(extraction, "request_to_chat_ai", responder)
+    config: dict = {}
+
+    with pytest.raises(extraction.ExtractionBatchError):
+        extraction.extract_batch(["回答"], "p", "m", 1, config=config)
+
+    # _Responder は 1 回ごとに (2, 1, 3) を返す
+    assert (config["token_usage_input"], config["token_usage_output"], config["total_token_usage"]) == (
+        2 * responder.calls,
+        1 * responder.calls,
+        3 * responder.calls,
+    )
+    assert responder.calls == (3 if outcome.startswith("{") else 1)
+
+
+def test_tokens_of_exhausted_sdk_rejections_are_counted_in_the_batch(monkeypatch):
+    """3 回とも SDK に弾かれた（途中切れ）回答も、各回の usage を集計に入れる。"""
+    responder = _Responder(openai.LengthFinishReasonError(completion=_completion(5, 7)))
+    monkeypatch.setattr(extraction, "request_to_chat_ai", responder)
+    config: dict = {}
+
+    with pytest.raises(extraction.ExtractionBatchError):
+        extraction.extract_batch(["回答"], "p", "m", 1, config=config)
+
+    assert responder.calls == 3
+    assert config["total_token_usage"] == 3 * 12

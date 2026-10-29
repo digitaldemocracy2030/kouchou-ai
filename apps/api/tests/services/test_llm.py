@@ -184,7 +184,9 @@ class TestLLMService:
 
         # OpenAIクライアントをモック化
         mock_client = MagicMock()
-        mock_client.beta.chat.completions.parse.return_value = mock_openai_parse_response
+        mock_client.beta.chat.completions.with_raw_response.parse.return_value.parse.return_value = (
+            mock_openai_parse_response
+        )
 
         with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             response, token_input, token_output, token_total = request_to_openai(
@@ -197,7 +199,7 @@ class TestLLMService:
         assert token_total == 15
 
         # Pydantic BaseModelを指定していることを確認
-        args, kwargs = mock_client.beta.chat.completions.parse.call_args
+        args, kwargs = mock_client.beta.chat.completions.with_raw_response.parse.call_args
         assert kwargs["response_format"] == TestModel
 
     @staticmethod
@@ -207,7 +209,7 @@ class TestLLMService:
         )
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_openai_response
-        mock_client.beta.chat.completions.parse.return_value = mock_openai_response
+        mock_client.beta.chat.completions.with_raw_response.parse.return_value.parse.return_value = mock_openai_response
         return mock_client
 
     @pytest.fixture
@@ -294,7 +296,7 @@ class TestLLMService:
         with patch("analysis_core.services.llm.OpenAI", return_value=mock_client):
             request_to_openai(messages, model="gpt-5.6-terra", json_schema=TestModel)
 
-        _, kwargs = mock_client.beta.chat.completions.parse.call_args
+        _, kwargs = mock_client.beta.chat.completions.with_raw_response.parse.call_args
         assert kwargs["service_tier"] == "flex"
         assert kwargs["response_format"] == TestModel
         assert "temperature" not in kwargs
@@ -682,7 +684,7 @@ class TestLLMService:
 
         # AzureOpenAIクライアントをモック化
         mock_client = MagicMock()
-        # beta.chat.completions.parseの戻り値をモック化
+        # beta.chat.completions.with_raw_response.parse の戻り値をモック化
         mock_parse_response = MagicMock()
         mock_choice = MagicMock()
         mock_message = MagicMock()
@@ -691,7 +693,7 @@ class TestLLMService:
         mock_message.parsed = mock_parsed
         mock_choice.message = mock_message
         mock_parse_response.choices = [mock_choice]
-        mock_client.beta.chat.completions.parse.return_value = mock_parse_response
+        mock_client.beta.chat.completions.with_raw_response.parse.return_value.parse.return_value = mock_parse_response
 
         mock_parse_response.usage.prompt_tokens = 10
         mock_parse_response.usage.completion_tokens = 5
@@ -716,8 +718,8 @@ class TestLLMService:
         assert token_output == 5
         assert token_total == 15
         # Pydantic BaseModelを指定していることを確認
-        mock_client.beta.chat.completions.parse.assert_called_once()
-        args, kwargs = mock_client.beta.chat.completions.parse.call_args
+        mock_client.beta.chat.completions.with_raw_response.parse.assert_called_once()
+        args, kwargs = mock_client.beta.chat.completions.with_raw_response.parse.call_args
         assert kwargs["response_format"] == TestModel
 
     def test_request_to_azure_chatcompletion_rate_limit_error(self):
@@ -847,7 +849,7 @@ class TestLLMService:
 
     @staticmethod
     def _make_azure_parse_client():
-        """beta.chat.completions.parse の戻り値をモック化したAzureクライアントを返す"""
+        """beta.chat.completions.with_raw_response.parse の戻り値をモック化したAzureクライアントを返す"""
         mock_client = MagicMock()
         mock_parse_response = MagicMock()
         mock_choice = MagicMock()
@@ -860,7 +862,7 @@ class TestLLMService:
         mock_parse_response.usage.prompt_tokens = 10
         mock_parse_response.usage.completion_tokens = 5
         mock_parse_response.usage.total_tokens = 15
-        mock_client.beta.chat.completions.parse.return_value = mock_parse_response
+        mock_client.beta.chat.completions.with_raw_response.parse.return_value.parse.return_value = mock_parse_response
         return mock_client
 
     @pytest.mark.parametrize("deployment", ["o3", "gpt-5", "o4-mini", "GPT-6-Astra"])
@@ -917,8 +919,8 @@ class TestLLMService:
             with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 request_to_azure_chatcompletion(messages, json_schema=TestModel)
 
-        mock_client.beta.chat.completions.parse.assert_called_once()
-        _, kwargs = mock_client.beta.chat.completions.parse.call_args
+        mock_client.beta.chat.completions.with_raw_response.parse.assert_called_once()
+        _, kwargs = mock_client.beta.chat.completions.with_raw_response.parse.call_args
         assert "temperature" not in kwargs
         # temperature以外のパラメータはそのまま維持する
         assert kwargs["response_format"] == TestModel
@@ -938,7 +940,7 @@ class TestLLMService:
             with patch("analysis_core.services.llm.AzureOpenAI", return_value=mock_client):
                 request_to_azure_chatcompletion(messages, json_schema=TestModel)
 
-        _, kwargs = mock_client.beta.chat.completions.parse.call_args
+        _, kwargs = mock_client.beta.chat.completions.with_raw_response.parse.call_args
         assert kwargs["temperature"] == 0
 
     def test_request_to_chat_openai_use_openai(self, mock_openai_response):

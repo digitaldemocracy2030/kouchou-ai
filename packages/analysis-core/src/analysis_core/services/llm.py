@@ -200,12 +200,42 @@ def _is_openai_flex_unavailable(error: openai.RateLimitError) -> bool:
     return getattr(error, "code", None) == "resource_unavailable"
 
 
+def _parse_structured_completion(client: OpenAI | AzureOpenAI, payload: dict[str, Any]):
+    """構造化出力（beta.chat.completions.parse）を送る。検証で弾かれた応答の usage も失わない。
+
+    SDK はスキーマに合わない応答を、completion を付けずに ValidationError で弾く。応答は課金済みなので、
+    生の応答を受け取ってから parse し、ValidationError に usage（入力・出力・合計）を持たせて送出する。
+    呼び出し側は token_usage_of_rejected_response で読む。
+    """
+    raw_response = client.beta.chat.completions.with_raw_response.parse(**payload)
+    try:
+        return raw_response.parse()
+    except ValidationError as e:
+        e.usage = _extract_raw_token_usage(raw_response)
+        raise
+
+
+def token_usage_of_rejected_response(error: Exception) -> tuple[int, int, int]:
+    """受け取った後に弾かれた応答の、課金済みのトークン数（入力・出力・合計）。取れなければ 0。
+
+    - 構造化出力の検証で弾かれた ValidationError：_parse_structured_completion が付けた usage
+    - 途中切れの LengthFinishReasonError：SDK が付けた completion.usage
+    """
+    usage = getattr(error, "usage", None)
+    if isinstance(usage, tuple) and len(usage) == 3:
+        return usage
+    usage = getattr(getattr(error, "completion", None), "usage", None)
+    if usage is None:
+        return 0, 0, 0
+    return usage.prompt_tokens or 0, usage.completion_tokens or 0, usage.total_tokens or 0
+
+
 # 429 の送り直しは request_to_chat_ai（services/rate_limit.py）だけが行う
 def _send_openai_chat_request(client: OpenAI, payload: dict[str, Any], use_pydantic: bool):
     """同じ service_tier のまま rate limit をリトライする。tier の切り替えは呼び出し側で行う。"""
     if use_pydantic:
         # Use beta.chat.completions.parse for Pydantic BaseModel
-        return client.beta.chat.completions.parse(**payload)
+        return _parse_structured_completion(client, payload)
     return client.chat.completions.create(**payload)
 
 
@@ -354,7 +384,7 @@ def request_to_azure_chatcompletion(
             # 判定は明示指定、なければ実モデル名・デプロイ名のどちらかが推論モデル名か。
             if not _is_azure_reasoning_deployment(deployment):
                 parse_kwargs["temperature"] = 0
-            response = client.beta.chat.completions.parse(**parse_kwargs)
+            response = _parse_structured_completion(client, parse_kwargs)
             if hasattr(response, "usage") and response.usage:
                 token_usage_input = response.usage.prompt_tokens or 0
                 token_usage_output = response.usage.completion_tokens or 0
