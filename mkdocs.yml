@@ -101,6 +101,7 @@ nav:
   - ユーザーガイド:
       - 始め方の選び方: user-guide/choosing-how-to-start.md
       - レポートの読み方: user-guide/report-reading-guide.md
+      - ビューの選び方ギャラリー: user-guide/view-gallery.md
       - 導入を検討する方へ: user-guide/adoption-guide.md
       - 使い方: user-guide/how-to-use.md
       - レポート作成者情報の設定: user-guide/metadata-setup.md
