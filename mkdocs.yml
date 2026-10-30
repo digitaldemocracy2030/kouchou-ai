@@ -111,6 +111,7 @@ nav:
       - CLIクイックスタート: user-guide/cli-quickstart.md
       - Python API からの利用: user-guide/import-quickstart.md
       - FAQ: user-guide/faq.md
+      - "事例: コーディングエージェントで分析する": user-guide/coding-agent-case-study.md
   - 開発者向け:
       - コントリビューション: development/contributing.md
       - CIの静的サイトを確認する: development/static-preview.md
