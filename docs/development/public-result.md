@@ -55,7 +55,7 @@
 | `arguments[]` | object | 意見。`arg_id` / `argument` / `comment_id` / `x` / `y` / `p` / `cluster_ids` / `attributes` / `url` のみ。`attributes` は自由形式（元データの `attribute_*` 列と、意見ごとの分類・スコア） |
 | `clusters[]` | object | クラスタ。`level` / `id` / `label` / `takeaway` / `value` / `parent` / `density_rank_percentile` のみ |
 | `comments` | object | `comment_id` → `{ "comment": 本文 }`。レポート作成者が元コメントの公開を有効にした（`config.enable_original_comments`）ときだけ中身が入り、それ以外は `{}` |
-| `propertyMap` | object | 属性名 → （`arg_id` → 値）。属性フィルタ用 |
+| `propertyMap` | object | 属性名 → （`arg_id` → 値）。`hierarchical_aggregation.hidden_properties` に指定した属性は列ごと含めない |
 | `translations` | object | 言語コード → 訳。各言語の `overview` / `question` / `intro` / `clusters` / `arguments` は省略可能。生成に使ったモデル等の `meta` は含めない |
 | `overview` | string | 全体概要 |
 | `comment_num` | int | 入力コメント数 |
@@ -86,8 +86,8 @@
 - 秘密と内部情報：`user_api_key`、`_` 始まりのランタイムキー（サーバー内部パス）、`local_llm_address`、タイムアウト等の実行環境
 - 実行状態：`status` / `start_time` / `completed_jobs` / `lock_until` / `current_job` / `current_job_started` / `previous`（これらは `hierarchical_status.json` の領分。古いレポートの `config` には混ざっていることがある）
 - 内部の識別子：`name` / `input` / `output_dir`
-- 「何を隠したか」：`hierarchical_aggregation.hidden_properties` の中身（どの属性のどの値を隠す設定にしたか）。
-  隠した属性値を持つコメントは `comments`（元コメント本文）から除かれる。**ただし `propertyMap` は現状そのまま値を持つ**ので、`hidden_properties` に指定した属性の値は意見ごとに公開される。属性の値そのものを公開したくない場合は、入力 CSV からその列を外す必要がある（`propertyMap` 側でも除くかどうかは別の変更として扱う）
+- 「何を隠したか」と隠した属性の値：`hierarchical_aggregation.hidden_properties` の中身（どの属性のどの値を隠す設定にしたか）と、指定した属性の列そのもの。
+  集計はこの設定に当たるコメントの元コメント本文を `comments` から除くが、`hierarchical_result.json` の `propertyMap` には指定した属性の値を意見ごとに書いている。`public_result.json` ではその属性を `propertyMap` から列ごと外す。なお、当たるコメントから抽出した意見（`arguments`）は現状どおり残る。この設定を「本文だけを隠す」ものとするか「その値を持つコメント由来の意見ごと隠す」ものとするかは [#1180](https://github.com/digitaldemocracy2030/kouchou-ai/issues/1180) で扱う
 - 表示に使っていないもの：`hierarchical_visualization.replacements`、翻訳の `meta`
 
 ## 互換性の扱い

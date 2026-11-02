@@ -112,6 +112,32 @@ def _public_translations(translations: Any) -> dict[str, Any]:
     return public
 
 
+def _hidden_property_names(config: Any) -> set[str]:
+    """``hierarchical_aggregation.hidden_properties`` で隠すと指定した属性名。"""
+    if not isinstance(config, dict):
+        return set()
+    aggregation = config.get("hierarchical_aggregation")
+    hidden = aggregation.get("hidden_properties") if isinstance(aggregation, dict) else None
+    return {str(name) for name in hidden} if isinstance(hidden, dict) else set()
+
+
+def _public_property_map(property_map: Any, config: Any) -> dict[str, dict[str, Any]]:
+    """属性表を写す。``hidden_properties`` に指定した属性は列ごと外す。
+
+    集計はこの設定で元コメント本文を隠すが、属性表には指定した属性の値を意見ごとに書いている
+    （「隠す」と指定した値がそのまま公開される）。公開用では列ごと出さない。設定の意味（本文だけか、
+    その値を持つコメント由来の意見ごとか）は別途決める。
+    """
+    if not isinstance(property_map, dict):
+        return {}
+    hidden = _hidden_property_names(config)
+    return {
+        str(prop): dict(values)
+        for prop, values in property_map.items()
+        if isinstance(values, dict) and str(prop) not in hidden
+    }
+
+
 def _public_layouts(layouts: Any) -> dict[str, Any]:
     if not isinstance(layouts, dict):
         return {}
@@ -130,11 +156,7 @@ def build_public_result(result: dict[str, Any]) -> dict[str, Any]:
             _pick(cluster, CLUSTER_KEYS) for cluster in result.get("clusters") or [] if isinstance(cluster, dict)
         ],
         "comments": _public_comments(result.get("comments")),
-        "propertyMap": {
-            str(prop): dict(values)
-            for prop, values in (result.get("propertyMap") or {}).items()
-            if isinstance(values, dict)
-        },
+        "propertyMap": _public_property_map(result.get("propertyMap"), result.get("config")),
         "translations": _public_translations(result.get("translations")),
         "overview": str(result.get("overview") or ""),
         "config": _public_config_view(result.get("config")),

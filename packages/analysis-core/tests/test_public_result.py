@@ -61,7 +61,8 @@ def _full_result() -> dict:
             "c1": {"comment": "元コメント", "email": "x@example.com"},  # email は公開しない
             "c2": "not a dict",
         },
-        "propertyMap": {"age": {"A1_0": "20代"}},
+        # age は hidden_properties に指定した属性なので、公開用の属性表には出さない
+        "propertyMap": {"age": {"A1_0": "20代"}, "region": {"A1_0": "東京"}},
         "translations": {
             "en": {"overview": "Overview", "clusters": {"1_0": {"label": "L"}}, "meta": {"model": "gpt"}},
         },
@@ -142,7 +143,7 @@ def test_build_public_result_keeps_only_whitelisted_keys():
         {"level": 0, "id": "0", "label": "全体", "takeaway": "", "value": 1, "parent": "", "density_rank_percentile": 0}
     ]
     assert public["comments"] == {"c1": {"comment": "元コメント"}}
-    assert public["propertyMap"] == {"age": {"A1_0": "20代"}}
+    assert public["propertyMap"] == {"region": {"A1_0": "東京"}}
     assert public["translations"] == {"en": {"overview": "Overview", "clusters": {"1_0": {"label": "L"}}}}
     assert public["overview"] == "概要"
     assert public["comment_num"] == 3
@@ -275,6 +276,34 @@ def test_aggregation_writes_public_result_next_to_result(tmp_path, enable_origin
     assert public["config"]["intro"] == result["config"]["intro"]
     assert "status" not in public["config"]
     assert "previous" not in public["config"]
+
+
+def test_aggregation_public_result_drops_hidden_property_columns(tmp_path):
+    """hidden_properties に指定した属性は、結果ファイルの属性表には残るが公開用には出ない。"""
+    inputs, outputs = _write_aggregation_fixture(tmp_path)
+    (inputs / "r1.csv").write_text("comment-id,comment-body,source,region\nc1,hello,internal,東京\n", encoding="utf-8")
+    (outputs / "args.csv").write_text(
+        "arg-id,argument,source,region\nAc1_0,hello arg,internal,東京\n", encoding="utf-8"
+    )
+    config = _aggregation_config(
+        inputs,
+        outputs,
+        enable_original_comments=True,
+        extraction={"limit": 10, "categories": {"region": {}}, "prompt": "P"},
+        hierarchical_aggregation={"hidden_properties": {"source": ["internal"]}},
+    )
+
+    assert hierarchical_aggregation(config) is True
+
+    result = json.loads((outputs / "hierarchical_result.json").read_text(encoding="utf-8"))
+    public = json.loads((outputs / PUBLIC_RESULT_FILENAME).read_text(encoding="utf-8"))
+    # 前提: 集計の結果ファイルは隠すと指定した属性の値を属性表に持っている（既存の挙動）
+    assert result["propertyMap"]["source"] == {"Ac1_0": "internal"}
+    # 公開用は列ごと外し、他の属性は残す。元コメント本文は集計の段階で除かれている
+    assert "source" not in public["propertyMap"]
+    assert public["propertyMap"]["region"] == {"Ac1_0": "東京"}
+    assert public["comments"] == {}
+    assert "internal" not in json.dumps(public, ensure_ascii=False)
 
 
 def test_layout_generation_refreshes_public_result(tmp_path):
