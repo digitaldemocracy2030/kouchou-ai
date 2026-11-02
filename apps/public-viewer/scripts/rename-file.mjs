@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 let ignoreFiles = [];
 
 if (process.env.NEXT_PUBLIC_OUTPUT_MODE === "export") {
-  // static build 時にビルド対象から除外するファイル
-  ignoreFiles = ["app/[slug]/opengraph-image.tsx", "app/[slug]/opengraph-image.png"];
+  // static build 時はOGPのルート定義ファイルだけを除外する（ディレクトリはcopyFileで退避できない）
+  ignoreFiles = ["app/[slug]/opengraph-image.tsx", "app/[slug]/opengraph-image.png/route.ts"];
 } else {
   // 通常のビルド時にビルド対象から除外するファイル
   ignoreFiles = ["app/[slug]/opengraph-image.png/route.ts"];
