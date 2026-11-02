@@ -77,7 +77,7 @@ comment-id,comment-body,source
 | `question` | 分析の問い（概要生成に使用） |
 | `input` | CSVファイル名（拡張子なし、`inputs/` からの相対パス） |
 | `model` | 使用するLLMモデル（`gpt-4o-mini`, `gpt-4o` など） |
-| `provider` | LLMプロバイダー（`openai`, `azure`, `gemini`, `local`） |
+| `provider` | LLMプロバイダー（`openai`, `azure`, `gemini`, `openrouter`, `local`） |
 | `is_embedded_at_local` | ローカルでエンベディングを行うか |
 | `embedding.model` | 埋め込みモデル。チャット用の `model` とは独立に指定でき、省略時は `text-embedding-3-small`。`provider` が `openai` の場合は `text-embedding-3-small` / `text-embedding-3-large` が選択可能（`gemini` は自動的に `gemini-embedding-001` に解決、`is_embedded_at_local: true` ではローカル埋め込みを使用） |
 | `extraction.workers` | 並列処理数 |
