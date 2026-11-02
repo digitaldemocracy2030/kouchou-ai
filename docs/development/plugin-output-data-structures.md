@@ -69,7 +69,7 @@ analysis-core の標準ワークフローは、次のステップでファイル
 | `analysis.hierarchical_initial_labelling` | `hierarchical_initial_labels.csv` | CSV |
 | `analysis.hierarchical_merge_labelling` | `hierarchical_merge_labels.csv` | CSV |
 | `analysis.hierarchical_overview` | `hierarchical_overview.txt` | text |
-| `analysis.hierarchical_aggregation` | `hierarchical_result.json` | JSON |
+| `analysis.hierarchical_aggregation` | `hierarchical_result.json`, `public_result.json` | JSON |
 | `analysis.hierarchical_visualization` | HTML/静的レポート | directory |
 
 ---
@@ -208,7 +208,11 @@ import numpy as np
 
 ### 7) `analysis.hierarchical_aggregation`
 
-**出力: `hierarchical_result.json`**
+**出力1: `hierarchical_result.json`**（分析の全部入り。再分析・複製・管理画面が使う）
+
+**出力2: `public_result.json`**（公開用。`hierarchical_result.json` から公開してよい項目だけをホワイトリストで写したもの。公開 API・静的書き出し・ビューアが依存してよい契約はこちら。項目と互換性の扱いは [公開用レポート結果（public_result.json）](public-result.md) を参照）
+
+`hierarchical_result.json` を書き換えるステップ（レイアウト生成、翻訳）は `public_result.json` も同時に作り直します。以下は `hierarchical_result.json` の説明です。
 
 主要フィールド：
 

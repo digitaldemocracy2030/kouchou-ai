@@ -106,6 +106,7 @@ def _write_outputs(
 ) -> Path:
     """訳を書き出す。--result の上書きなら translations.json にも残す。どちらも一時ファイルから差し替える。"""
     from analysis_core.core.utils import write_json_atomic
+    from analysis_core.public_result import write_result_files
     from analysis_core.steps.hierarchical_aggregation import _public_config
 
     output_path: Path = args.output or args.result
@@ -127,7 +128,11 @@ def _write_outputs(
     if isinstance(merged.get("config"), dict):
         merged["config"] = _public_config(merged["config"])
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(output_path, merged)
+    if in_place:
+        # 結果ファイルを書き換えるので、公開用の public_result.json もそろえて作り直す
+        write_result_files(output_path, merged)
+    else:
+        write_json_atomic(output_path, merged)
     return output_path
 
 

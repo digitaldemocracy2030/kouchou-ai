@@ -23,6 +23,7 @@ class ReportSyncService:
         "hierarchical_initial_labels.csv",
         "hierarchical_merge_labels.csv",
         "hierarchical_result.json",
+        "public_result.json",
         "args.csv",
         "hierarchical_clusters.csv",
         "relations.csv",
@@ -42,6 +43,8 @@ class ReportSyncService:
     # ``hierarchical_result.json`` as the canonical stored/distributed artifact
     # and renders it in public-viewer; the self-contained HTML report is for
     # CLI-side local inspection only.
+    # ``public_result.json`` is the whitelisted public view of the result
+    # (docs/development/public-result.md) and is kept next to it.
 
     def __init__(self):
         self.storage_service = get_storage_service()

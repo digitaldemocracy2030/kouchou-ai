@@ -8,7 +8,8 @@ from typing import Any, TypedDict
 import numpy as np
 import polars as pl
 
-from analysis_core.core.utils import atomic_output_path, read_input_csv, write_json_atomic
+from analysis_core.core.utils import atomic_output_path, read_input_csv
+from analysis_core.public_result import write_result_files
 from analysis_core.steps.extraction import filter_empty_comments
 from analysis_core.steps.hierarchical_translation import TRANSLATIONS_FILENAME, fresh_translations
 
@@ -151,8 +152,9 @@ def hierarchical_aggregation(config) -> bool:
         # 訳は原文（ラベル・概要・イントロなど）が確定してから、それに合うものだけを入れる
         results["translations"] = _build_translations(config, results)
 
-        # 公開 API が読み続けるファイルなので、一時ファイルに書いてから差し替え、1 回で書き終える
-        write_json_atomic(path, results)
+        # 公開 API が読み続けるファイルなので、一時ファイルに書いてから差し替え、1 回で書き終える。
+        # 公開用のホワイトリスト版 public_result.json も同じ場所に書く（analysis_core.public_result）
+        write_result_files(path, results)
         if config["is_pubcom"]:
             add_original_comments(labels, arguments, relation_df, clusters, config)
         return True

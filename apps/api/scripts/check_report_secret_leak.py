@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Any
 
 SECRET_KEYS = ("user_api_key",)
-REPORT_DIR_FILES = ("hierarchical_result.json", "hierarchical_status.json")
+REPORT_DIR_FILES = ("hierarchical_result.json", "public_result.json", "hierarchical_status.json")
 # HTML（Next.js の RSC payload）では JSON が JS 文字列に埋め込まれ、引用符が \" にエスケープされる
 HTML_SECRET_RE = re.compile(r'user_api_key\\*"\s*:\s*\\*"([^"\\]*)')
 HTML_PATH_RE = re.compile(r'_(?:output|input)_base_dir\\*"\s*:\s*\\*"([^"\\]*)')
@@ -162,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--report-dir",
         type=Path,
-        help="<report-dir>/<slug>/ の hierarchical_result.json と hierarchical_status.json を全件確認",
+        help="<report-dir>/<slug>/ の hierarchical_result.json / public_result.json / hierarchical_status.json を全件確認",
     )
     parser.add_argument("--show-internal-paths", action="store_true", help="config に残るサーバー内部パスも表示")
     args = parser.parse_args(argv)
