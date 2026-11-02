@@ -54,6 +54,8 @@ from typing import Any
 NON_PUBLIC_CONFIG_KEYS = {"user_api_key", "error_stack_trace"}
 STATUS_SECRET_KEYS = {"user_api_key"}
 RESULT_FILE = "hierarchical_result.json"
+# 公開用のホワイトリスト版（analysis_core.public_result）。config の形は結果ファイルと同じなので同じ scrubber で扱う
+PUBLIC_RESULT_FILE = "public_result.json"
 STATUS_FILE = "hierarchical_status.json"
 REMOTE_REPORT_DIR_PREFIX = "outputs"  # src.services.report_sync.ReportSyncService と同じ
 REVALIDATE_TIMEOUT_SECONDS = 10
@@ -111,7 +113,7 @@ def scrub_status(status: Any) -> tuple[Any, list[str]]:
     return cleaned, removed
 
 
-SCRUBBERS = {RESULT_FILE: scrub_result, STATUS_FILE: scrub_status}
+SCRUBBERS = {RESULT_FILE: scrub_result, PUBLIC_RESULT_FILE: scrub_result, STATUS_FILE: scrub_status}
 
 
 def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
