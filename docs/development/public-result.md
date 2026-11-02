@@ -86,7 +86,8 @@
 - 秘密と内部情報：`user_api_key`、`_` 始まりのランタイムキー（サーバー内部パス）、`local_llm_address`、タイムアウト等の実行環境
 - 実行状態：`status` / `start_time` / `completed_jobs` / `lock_until` / `current_job` / `current_job_started` / `previous`（これらは `hierarchical_status.json` の領分。古いレポートの `config` には混ざっていることがある）
 - 内部の識別子：`name` / `input` / `output_dir`
-- 「何を隠したか」：`hierarchical_aggregation.hidden_properties` の中身。隠した属性値を持つ意見は `propertyMap` と `comments` から既に除かれている
+- 「何を隠したか」：`hierarchical_aggregation.hidden_properties` の中身（どの属性のどの値を隠す設定にしたか）。
+  隠した属性値を持つコメントは `comments`（元コメント本文）から除かれる。**ただし `propertyMap` は現状そのまま値を持つ**ので、`hidden_properties` に指定した属性の値は意見ごとに公開される。属性の値そのものを公開したくない場合は、入力 CSV からその列を外す必要がある（`propertyMap` 側でも除くかどうかは別の変更として扱う）
 - 表示に使っていないもの：`hierarchical_visualization.replacements`、翻訳の `meta`
 
 ## 互換性の扱い
