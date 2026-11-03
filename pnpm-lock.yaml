@@ -8310,7 +8310,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 16.4.2
       '@next/swc-win32-arm64-msvc': 16.4.2
       '@next/swc-win32-x64-msvc': 16.4.2
-      '@playwright/test': 1.57.0
+      '@playwright/test': 1.64.1
       sharp: 0.35.5(@types/node@20.19.30)
     transitivePeerDependencies:
       - '@babel/core'
@@ -8336,7 +8336,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 16.4.2
       '@next/swc-win32-arm64-msvc': 16.4.2
       '@next/swc-win32-x64-msvc': 16.4.2
-      '@playwright/test': 1.56.0
+      '@playwright/test': 1.64.1
       sharp: 0.35.5(@types/node@20.19.30)
     transitivePeerDependencies:
       - '@babel/core'
@@ -8362,7 +8362,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 16.4.2
       '@next/swc-win32-arm64-msvc': 16.4.2
       '@next/swc-win32-x64-msvc': 16.4.2
-      '@playwright/test': 1.57.0
+      '@playwright/test': 1.64.1
       sharp: 0.35.5(@types/node@20.19.30)
     transitivePeerDependencies:
       - '@babel/core'
