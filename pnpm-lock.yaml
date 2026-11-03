@@ -36,14 +36,14 @@ importers:
     dependencies:
       '@next/third-parties':
         specifier: ^16.3.8
-        version: 16.3.8(next@16.4.2(@playwright/test@1.56.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
+        version: 16.3.8(next@16.4.2(@playwright/test@1.64.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
     devDependencies:
       '@biomejs/biome':
         specifier: 1.9.4
         version: 1.9.4
       '@playwright/test':
-        specifier: ^1.56.0
-        version: 1.56.0
+        specifier: 1.64.1
+        version: 1.64.1
       lefthook:
         specifier: ^1.11.8
         version: 1.13.6
@@ -61,7 +61,7 @@ importers:
         version: link:../../packages/report-schema
       '@next/third-parties':
         specifier: ^16.3.8
-        version: 16.3.8(next@16.4.2(@babel/core@7.29.6)(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
+        version: 16.3.8(next@16.4.2(@babel/core@7.29.6)(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
       chardet:
         specifier: ^2.1.0
         version: 2.1.1
@@ -76,7 +76,7 @@ importers:
         version: 12.27.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       next:
         specifier: 16.4.2
-        version: 16.4.2(@babel/core@7.29.6)(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 16.4.2(@babel/core@7.29.6)(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       next-themes:
         specifier: ^0.4.4
         version: 0.4.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -146,13 +146,13 @@ importers:
         version: link:../../packages/report-schema
       '@next/third-parties':
         specifier: ^16.3.8
-        version: 16.3.8(next@16.4.2(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
+        version: 16.3.8(next@16.4.2(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
       lucide-react:
         specifier: ^0.474.0
         version: 0.474.0(react@19.2.3)
       next:
         specifier: 16.4.2
-        version: 16.4.2(@babel/core@7.29.6)(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 16.4.2(@babel/core@7.29.6)(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       next-themes:
         specifier: ^0.4.4
         version: 0.4.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -255,8 +255,8 @@ importers:
   test/e2e:
     devDependencies:
       '@playwright/test':
-        specifier: ^1.56.1
-        version: 1.57.0
+        specifier: 1.64.1
+        version: 1.64.1
       '@types/node':
         specifier: ^20.11.30
         version: 20.19.30
@@ -1328,14 +1328,9 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
-  '@playwright/test@1.56.0':
-    resolution: {integrity: sha512-Tzh95Twig7hUwwNe381/K3PggZBZblKUe2wv25oIpzWLr6Z0m4KgV1ZVIjnR6GM9ANEqjZD7XsZEa6JL/7YEgg==}
-    engines: {node: '>=18'}
-    hasBin: true
-
-  '@playwright/test@1.57.0':
-    resolution: {integrity: sha512-6TyEnHgd6SArQO8UO2OMTxshln3QMWBtPGrOCgs3wVEmQmwyuNtB10IZMfmYDE0riwNR1cu4q+pPcxMVtaG3TA==}
-    engines: {node: '>=18'}
+  '@playwright/test@1.64.1':
+    resolution: {integrity: sha512-IaYGml/nSOiZWROfPtuIL7neuu9qDOZ3TNvNljUIrhDMxiGTgPjzj/g9p9RxpS2tSepPDRY+UwAaEeiKtUvIAg==}
+    engines: {node: '>=20'}
     hasBin: true
 
   '@plotly/d3-sankey-circular@0.33.1':
@@ -3627,24 +3622,34 @@ packages:
     resolution: {integrity: sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==}
     engines: {node: '>=8'}
 
-  playwright-core@1.56.0:
-    resolution: {integrity: sha512-1SXl7pMfemAMSDn5rkPeZljxOCYAmQnYLBTExuh6E8USHXGSX3dx6lYZN/xPpTz1vimXmPA9CDnILvmJaB8aSQ==}
-    engines: {node: '>=18'}
+  playwright-core@1.64.1:
+    resolution: {integrity: sha512-BC4s8y6SEVA6Q1rSxZTto8hI1KUI3xXlHGZgvGqP4IqPdI/a6FX9H29IDNz7vKo9l21b6LfYosScPL6M3xxyDQ==}
+    engines: {node: '>=20'}
     hasBin: true
+    peerDependencies:
+      bufferutil: '*'
+      chromium-bidi: '*'
+      electron: '*'
+      kerberos: '*'
+      utf-8-validate: '*'
+      zod: '*'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      chromium-bidi:
+        optional: true
+      electron:
+        optional: true
+      kerberos:
+        optional: true
+      utf-8-validate:
+        optional: true
+      zod:
+        optional: true
 
-  playwright-core@1.57.0:
-    resolution: {integrity: sha512-agTcKlMw/mjBWOnD6kFZttAAGHgi/Nw0CZ2o6JqWSbMlI219lAFLZZCyqByTsvVAJq5XA5H8cA6PrvBRpBWEuQ==}
-    engines: {node: '>=18'}
-    hasBin: true
-
-  playwright@1.56.0:
-    resolution: {integrity: sha512-X5Q1b8lOdWIE4KAoHpW3SE8HvUB+ZZsUoN64ZhjnN8dOb1UpujxBtENGiZFE+9F/yhzJwYa+ca3u43FeLbboHA==}
-    engines: {node: '>=18'}
-    hasBin: true
-
-  playwright@1.57.0:
-    resolution: {integrity: sha512-ilYQj1s8sr2ppEJ2YVadYBN0Mb3mdo9J0wQ+UuDhzYqURwSoW4n1Xs5vs7ORwgDGmyEh33tRMeS8KhdkMoLXQw==}
-    engines: {node: '>=18'}
+  playwright@1.64.1:
+    resolution: {integrity: sha512-HCrVhHr5QQuwYoswEUGTb7gGp522yflbv/ST8nF4sFWGuLjQCt17Q/EubpGGSNKYn1tsTCPZxqHhHCfVURu7UA==}
+    engines: {node: '>=20'}
     hasBin: true
 
   plotly.js@4.1.1:
@@ -5484,21 +5489,21 @@ snapshots:
   '@next/swc-win32-x64-msvc@16.4.2':
     optional: true
 
-  '@next/third-parties@16.3.8(next@16.4.2(@babel/core@7.29.6)(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)':
+  '@next/third-parties@16.3.8(next@16.4.2(@babel/core@7.29.6)(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)':
     dependencies:
-      next: 16.4.2(@babel/core@7.29.6)(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next: 16.4.2(@babel/core@7.29.6)(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react: 19.2.3
       third-party-capital: 1.0.20
 
-  '@next/third-parties@16.3.8(next@16.4.2(@playwright/test@1.56.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)':
+  '@next/third-parties@16.3.8(next@16.4.2(@playwright/test@1.64.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)':
     dependencies:
-      next: 16.4.2(@playwright/test@1.56.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next: 16.4.2(@playwright/test@1.64.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react: 19.2.3
       third-party-capital: 1.0.20
 
-  '@next/third-parties@16.3.8(next@16.4.2(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)':
+  '@next/third-parties@16.3.8(next@16.4.2(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)':
     dependencies:
-      next: 16.4.2(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next: 16.4.2(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react: 19.2.3
       third-party-capital: 1.0.20
 
@@ -5521,13 +5526,16 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@playwright/test@1.56.0':
+  '@playwright/test@1.64.1':
     dependencies:
-      playwright: 1.56.0
-
-  '@playwright/test@1.57.0':
-    dependencies:
-      playwright: 1.57.0
+      playwright: 1.64.1
+    transitivePeerDependencies:
+      - bufferutil
+      - chromium-bidi
+      - electron
+      - kerberos
+      - utf-8-validate
+      - zod
 
   '@plotly/d3-sankey-circular@0.33.1':
     dependencies:
@@ -8283,7 +8291,7 @@ snapshots:
 
   next-tick@1.1.0: {}
 
-  next@16.4.2(@babel/core@7.29.6)(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  next@16.4.2(@babel/core@7.29.6)(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       '@next/env': 16.4.2
       '@swc/helpers': 0.5.23
@@ -8309,7 +8317,7 @@ snapshots:
       - '@types/node'
       - babel-plugin-macros
 
-  next@16.4.2(@playwright/test@1.56.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  next@16.4.2(@playwright/test@1.64.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       '@next/env': 16.4.2
       '@swc/helpers': 0.5.23
@@ -8335,7 +8343,7 @@ snapshots:
       - '@types/node'
       - babel-plugin-macros
 
-  next@16.4.2(@playwright/test@1.57.0)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  next@16.4.2(@playwright/test@1.64.1)(@types/node@20.19.30)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       '@next/env': 16.4.2
       '@swc/helpers': 0.5.23
@@ -8503,21 +8511,18 @@ snapshots:
     dependencies:
       find-up: 4.1.0
 
-  playwright-core@1.56.0: {}
+  playwright-core@1.64.1: {}
 
-  playwright-core@1.57.0: {}
-
-  playwright@1.56.0:
+  playwright@1.64.1:
     dependencies:
-      playwright-core: 1.56.0
-    optionalDependencies:
-      fsevents: 2.3.2
-
-  playwright@1.57.0:
-    dependencies:
-      playwright-core: 1.57.0
-    optionalDependencies:
-      fsevents: 2.3.2
+      playwright-core: 1.64.1
+    transitivePeerDependencies:
+      - bufferutil
+      - chromium-bidi
+      - electron
+      - kerberos
+      - utf-8-validate
+      - zod
 
   plotly.js@4.1.1:
     dependencies:
