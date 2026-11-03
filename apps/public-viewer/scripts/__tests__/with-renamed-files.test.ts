@@ -73,7 +73,6 @@ describe("with-renamed-files", () => {
     expect(existsSync(path.join(dir, "app/[slug]/opengraph-image.png/_route.ts"))).toBe(false);
   });
 
-
   it("通常ビルドでは static 用の route.ts だけを改名し、成功後に戻す", () => {
     const check = `process.exit(require("node:fs").existsSync("app/[slug]/opengraph-image.png/_route.ts") ? 0 : 4)`;
     const proc = spawnSync(process.execPath, [script, process.execPath, "-e", check], {
