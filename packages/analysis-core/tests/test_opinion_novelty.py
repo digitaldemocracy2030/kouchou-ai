@@ -123,6 +123,16 @@ class TestStep:
             novelty.opinion_novelty(_config(tmp_path, method="magic"))
         assert not (out / "opinion_novelty.csv").exists()
 
+    def test_bad_k_also_removes_previous_output(self, tmp_path, monkeypatch):
+        out = _write_report(tmp_path, _embeddings())
+        (out / "opinion_novelty.csv").write_text("arg-id,novelty_score\nOLD,1\n", encoding="utf-8")
+        (out / "opinion_novelty_summary.json").write_text("{}", encoding="utf-8")
+        monkeypatch.setattr(novelty, "update_progress", lambda *args, **kwargs: None)
+        with pytest.raises(ValueError):
+            novelty.opinion_novelty(_config(tmp_path, k="many"))
+        assert not (out / "opinion_novelty.csv").exists()
+        assert not (out / "opinion_novelty_summary.json").exists()
+
 
 class TestAggregationMerge:
     def test_scores_are_added_as_numbers(self, tmp_path):

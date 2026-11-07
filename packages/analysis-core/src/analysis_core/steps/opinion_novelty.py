@@ -160,16 +160,16 @@ def opinion_novelty(config: dict) -> None:
     """
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
-    step_config = config.get("opinion_novelty", {})
-    method = step_config.get("method") or METHOD_KNN
-    k = int(step_config.get("k") or DEFAULT_K)
-    seed = int(step_config.get("seed") if step_config.get("seed") is not None else DEFAULT_SEED)
-
-    # 失敗したときに前回の結果が集計へ混ざらないよう、先に消しておく
+    # 失敗したときに前回の結果が集計へ混ざらないよう、設定を読む前に消しておく
     for filename in (NOVELTY_FILENAME, SUMMARY_FILENAME):
         stale_path = f"{output_base_dir}/{dataset}/{filename}"
         if os.path.exists(stale_path):
             os.remove(stale_path)
+
+    step_config = config.get("opinion_novelty", {})
+    method = step_config.get("method") or METHOD_KNN
+    k = int(step_config.get("k") or DEFAULT_K)
+    seed = int(step_config.get("seed") if step_config.get("seed") is not None else DEFAULT_SEED)
 
     if method not in METHODS:
         raise ValueError(f"opinion_novelty.method は {list(METHODS)} のいずれかにしてください: {method!r}")

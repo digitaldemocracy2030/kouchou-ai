@@ -248,6 +248,12 @@ def opinion_stance(config: dict) -> None:
     """
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
+    # 失敗したときに前回の結果（古い arg-id のスコア）が集計へ混ざらないよう、設定を読む前に消しておく
+    for filename in (STANCES_FILENAME, SUMMARY_FILENAME):
+        stale_path = f"{output_base_dir}/{dataset}/{filename}"
+        if os.path.exists(stale_path):
+            os.remove(stale_path)
+
     step_config = config["opinion_stance"]
     model = step_config["model"]
     prompt = step_config["prompt"]
@@ -259,12 +265,6 @@ def opinion_stance(config: dict) -> None:
     if "provider" not in config:
         raise RuntimeError("provider is not set")
     provider = config["provider"]
-
-    # 失敗したときに前回の結果（古い arg-id のスコア）が集計へ混ざらないよう、先に消しておく
-    for filename in (STANCES_FILENAME, SUMMARY_FILENAME):
-        stale_path = f"{output_base_dir}/{dataset}/{filename}"
-        if os.path.exists(stale_path):
-            os.remove(stale_path)
 
     arguments = pl.read_csv(f"{output_base_dir}/{dataset}/args.csv", infer_schema_length=0)
     arg_ids = [str(value) for value in arguments["arg-id"].to_list()]

@@ -171,6 +171,17 @@ class TestStep:
         assert not (out / "opinion_stances.csv").exists()
         assert not (out / "opinion_stance_summary.json").exists()
 
+    def test_missing_target_also_removes_previous(self, tmp_path):
+        out = _write_args(tmp_path, ["a"])
+        (out / "opinion_stances.csv").write_text("arg-id,stance_score\nOLD_0,0.5\n", encoding="utf-8")
+        (out / "opinion_stance_summary.json").write_text("{}", encoding="utf-8")
+        config = _config(tmp_path)
+        config["question"] = ""
+        with pytest.raises(RuntimeError, match="target"):
+            stance.opinion_stance(config)
+        assert not (out / "opinion_stances.csv").exists()
+        assert not (out / "opinion_stance_summary.json").exists()
+
     def test_exception_type_is_reported_without_secrets(self, tmp_path, monkeypatch):
         _write_args(tmp_path, ["x"])
 

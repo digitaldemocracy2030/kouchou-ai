@@ -137,7 +137,7 @@ analysis-core の標準ワークフローは、次のステップでファイル
 | `arg-id` | string | 意見ID |
 | `novelty_score` | float | 他の意見からの遠さの順位 0.0〜1.0（高いほど遠い） |
 
-それぞれ `opinion_stance_summary.json` / `opinion_novelty_summary.json` に件数・分布・計算方法・注意書きを残します。`hierarchical_aggregation` は有効なステップの CSV を `arguments[].attributes` に **数値** で追加します（空欄の意見には追加しません）。
+それぞれ `opinion_stance_summary.json` / `opinion_novelty_summary.json` に件数（`total`）と注意書き（`note`）を残します。`opinion_stance_summary.json` には平均（`mean`）と 5 区間の件数（`distribution`）を、`opinion_novelty_summary.json` には計算方法（`method`・`params`）と生の値の範囲（`raw_value`）を残します。`hierarchical_aggregation` は有効なステップの CSV を `arguments[].attributes` に **数値** で追加します（空欄の意見には追加しません）。
 
 ---
 
