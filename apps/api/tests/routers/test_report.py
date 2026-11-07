@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.schemas.report import ReportStatus, ReportVisibility
@@ -385,48 +386,38 @@ class TestPublicResultArtifact:
         assert "/srv/internal/path" not in text
         assert "internal" not in json.dumps(body["propertyMap"])
 
-    def test_public_result_file_is_preferred(self, client, temp_report_dir, test_settings):
-        """public_result.json があればそれを返す"""
+    def test_stale_public_result_newer_mtime_does_not_leak(self, client, temp_report_dir, test_settings):
+        """結果ファイルがあれば、更新日時が新しくても古い写しの public_result.json は使わない
+
+        例：hidden_properties を足す前の写しだけがファイル単位で復元された。写しには隠すと指定した列が
+        残っているが、正本から作り直すので返らない。
+        """
         from analysis_core.public_result import build_public_result
 
-        result_path = self._write(temp_report_dir, "hierarchical_result.json", self._full_result("結果の概要"))
-        public = build_public_result(self._full_result("公開用ファイルの概要"))
-        public_path = self._write(temp_report_dir, "public_result.json", public)
+        stale_source = self._full_result("古い写しの概要")
+        stale_source["config"]["hierarchical_aggregation"] = {"source_code": "agg"}
+        result_path = self._write(temp_report_dir, "hierarchical_result.json", self._full_result("正本の概要"))
+        public_path = self._write(temp_report_dir, "public_result.json", build_public_result(stale_source))
         os.utime(result_path, (1_000_000, 1_000_000))
         os.utime(public_path, (1_000_001, 1_000_001))
 
         response = self._get(client, temp_report_dir, test_settings)
 
         assert response.status_code == 200
-        assert response.json()["overview"] == "公開用ファイルの概要"
+        body = response.json()
+        assert body["overview"] == "正本の概要"
+        assert "source" not in body["propertyMap"]
 
-    def test_public_result_older_than_result_is_rebuilt(self, client, temp_report_dir, test_settings):
-        """公開用ファイルが結果より古ければ（結果だけ書き直された）、結果から作り直す"""
-        from analysis_core.public_result import build_public_result
+    def test_invalid_public_result_is_ignored_when_result_exists(self, client, temp_report_dir, test_settings):
+        """公開用ファイルが壊れていても、契約を満たさなくても、結果ファイルがあればそこから作る"""
+        self._write(temp_report_dir, "hierarchical_result.json", self._full_result("結果の概要"))
+        for broken in ("{ broken", json.dumps({"overview": "config が無い"})):
+            self._write(temp_report_dir, "public_result.json", broken)
 
-        public_path = self._write(
-            temp_report_dir, "public_result.json", build_public_result(self._full_result("古い概要"))
-        )
-        result_path = self._write(temp_report_dir, "hierarchical_result.json", self._full_result("新しい概要"))
-        os.utime(public_path, (1_000_000, 1_000_000))
-        os.utime(result_path, (1_000_001, 1_000_001))
+            response = self._get(client, temp_report_dir, test_settings)
 
-        response = self._get(client, temp_report_dir, test_settings)
-
-        assert response.status_code == 200
-        assert response.json()["overview"] == "新しい概要"
-
-    def test_broken_public_result_is_rebuilt(self, client, temp_report_dir, test_settings):
-        """公開用ファイルが壊れていれば結果から作り直す"""
-        result_path = self._write(temp_report_dir, "hierarchical_result.json", self._full_result("結果の概要"))
-        public_path = self._write(temp_report_dir, "public_result.json", "{ broken")
-        os.utime(result_path, (1_000_000, 1_000_000))
-        os.utime(public_path, (1_000_001, 1_000_001))
-
-        response = self._get(client, temp_report_dir, test_settings)
-
-        assert response.status_code == 200
-        assert response.json()["overview"] == "結果の概要"
+            assert response.status_code == 200
+            assert response.json()["overview"] == "結果の概要"
 
     def test_public_result_alone_is_served(self, client, temp_report_dir, test_settings):
         """結果ファイルが無くても公開用ファイルがあれば返す"""
@@ -439,9 +430,19 @@ class TestPublicResultArtifact:
         assert response.status_code == 200
         assert response.json()["overview"] == "公開用だけ"
 
-    def test_broken_public_result_without_result_returns_500(self, client, temp_report_dir, test_settings):
-        """公開用ファイルが壊れていて結果ファイルも無ければ 500"""
-        self._write(temp_report_dir, "public_result.json", "{ broken")
+    @pytest.mark.parametrize("content", ["{ broken", json.dumps({"overview": "config が無い"}), "[]"])
+    def test_invalid_public_result_without_result_returns_500(self, client, temp_report_dir, test_settings, content):
+        """結果ファイルが無く、公開用ファイルが壊れている・契約を満たさなければ 500（推測で返さない）"""
+        self._write(temp_report_dir, "public_result.json", content)
+
+        response = self._get(client, temp_report_dir, test_settings)
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Invalid report data"
+
+    def test_non_object_result_returns_500(self, client, temp_report_dir, test_settings):
+        """結果ファイルがオブジェクトでなければ 500"""
+        self._write(temp_report_dir, "hierarchical_result.json", "[]")
 
         response = self._get(client, temp_report_dir, test_settings)
 

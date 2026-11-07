@@ -33,9 +33,11 @@
 
 公開 API の `GET /reports/{slug}` は、この契約の形を返します。
 
-1. `public_result.json` があればそれを読む
-2. 無い（古いレポート）、壊れている、または `hierarchical_result.json` より更新日時が古い（公開用を書かない経路で結果だけが書き直された）ときは、`hierarchical_result.json` から `build_public_result()` でその場で作る
+1. `hierarchical_result.json` があれば、そこから `build_public_result()` で毎回作る（`public_result.json` の無い古いレポートもこの経路）
+2. `hierarchical_result.json` が無く `public_result.json` だけを置いた配信では、それを読む。壊れている・契約を満たさないときは作り直す元が無いので 500 を返す
 3. 返す前に、レポートの公開範囲 `visibility` と、可視化設定があれば `visualizationConfig` を足す
+
+結果ファイルがあるときに `public_result.json` を読まないのは、両者が食い違っていないことを確かめる手段が無いためです。2 つは同時に書かれますが、ストレージからファイル単位で復元・同期されると、古い写しの方が新しい更新日時を持つことがあります。正本から作れば、たとえば後から `hidden_properties` に足した属性の列が古い写しから漏れることはありません。読む量は従来（結果ファイルをそのまま返していたとき）と同じです。
 
 どちらの経路でも、ホワイトリストにない項目（再分析用の設定、実行状態、`hidden_properties` に指定した属性の列など）は返しません。公開ビューアと静的書き出し（ビルド時に公開 API から取得する）はこの応答を読みます。管理画面の JSON ダウンロード（`/admin/reports/{slug}/json`）は従来どおり `hierarchical_result.json` を返します。
 
@@ -116,7 +118,7 @@
 この仕組みは段階的に入れています（Issue [#1178](https://github.com/digitaldemocracy2030/kouchou-ai/issues/1178)）。
 
 1. **書く**（済み）：集計・レイアウト生成・翻訳が `public_result.json` を書く。契約を宣言する
-2. **読む**（済み）：公開 API が `public_result.json` を返し、ビューアの型を契約に合わせる。`public_result.json` の無い古いレポートは API が読む時に `build_public_result()` で同じ形へ変換する
+2. **読む**（済み）：公開 API が契約の形（`build_public_result()` の出力）を返し、ビューアの型を契約に合わせる。結果ファイルがあればそこから作り、`public_result.json` だけの配信ではそれを読む
 3. **分ける**：意見全件を 1 回で画面に渡す経路を分割読み込みにし、静的書き出しでも HTML の隣に JSON を置く
 
 `hierarchical_result.json` の各項目の説明は [プラグイン出力データ構造](plugin-output-data-structures.md) を参照してください。

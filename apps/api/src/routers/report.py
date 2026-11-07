@@ -1,6 +1,5 @@
 import json
 import logging
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
@@ -20,48 +19,30 @@ router = APIRouter()
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
 
-def _read_public_result_file(public_path: Path, result_path: Path) -> dict | None:
-    """``public_result.json`` を読む。無い・壊れている・結果より古い場合は None。
-
-    集計は結果と公開用を同時に書くので、公開用の方が古いのは、公開用を書かない経路
-    （この仕組みより前の版など）で結果だけが書き直された場合。そのときは結果から作り直す。
-    """
-    if not public_path.exists():
-        return None
-    try:
-        if result_path.exists() and public_path.stat().st_mtime < result_path.stat().st_mtime:
-            logger.warning(f"{public_path} is older than {result_path.name}; rebuilding from the result")
-            return None
-        with open(public_path, encoding="utf-8") as f:
-            public_result = json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
-        logger.warning(f"Failed to read {public_path}; rebuilding from the result: {e}")
-        return None
-    return public_result if isinstance(public_result, dict) else None
-
-
 def _load_validated_report_result(slug: str) -> dict:
     """公開用レポート結果（docs/development/public-result.md の契約）を返す。
 
-    ``public_result.json`` を優先して読み、無いレポート（この仕組みより前に作られたもの）は
-    ``hierarchical_result.json`` から analysis-core の ``build_public_result`` で同じ形へ変換する。
-    どちらの経路でも、ホワイトリストにない項目（再分析用の設定など）は返さない。
+    ``hierarchical_result.json`` があれば、analysis-core の ``build_public_result`` で毎回そこから作る。
+    隣の ``public_result.json`` は同じ関数で書かれた写しだが、ファイル単位で復元・同期されると
+    結果と食い違うことがあり、更新日時ではそれを確かめられない。正本から作れば、隠すと指定した
+    属性の列などが古い写しから漏れることがない（読む量は従来と同じ）。
+    ``public_result.json`` だけを置いた配信（結果ファイルが無い）ではそれを読み、契約を満たさなければ
+    500 にする（作り直す元が無いので、推測で返さない）。
     """
     from analysis_core.public_result import PUBLIC_RESULT_FILENAME, RESULT_FILENAME, build_public_result
 
     report_dir = settings.REPORT_DIR / slug
     result_path = report_dir / RESULT_FILENAME
-    report_result = _read_public_result_file(report_dir / PUBLIC_RESULT_FILENAME, result_path)
-    if report_result is None:
-        if not result_path.exists():
-            logger.warning(f"Public report result for {slug} is unreadable and {RESULT_FILENAME} is missing")
-            raise HTTPException(status_code=500, detail="Invalid report data")
-        with open(result_path, encoding="utf-8") as f:
-            report_result = build_public_result(json.load(f))
-
     try:
+        if result_path.exists():
+            with open(result_path, encoding="utf-8") as f:
+                full_result = json.load(f)
+            report_result = build_public_result(full_result if isinstance(full_result, dict) else {})
+        else:
+            with open(report_dir / PUBLIC_RESULT_FILENAME, encoding="utf-8") as f:
+                report_result = json.load(f)
         PublicReportResult.model_validate(report_result)
-    except ValidationError as e:
+    except (OSError, json.JSONDecodeError, ValidationError) as e:
         logger.warning(f"Invalid public report result for {slug}: {e}")
         raise HTTPException(status_code=500, detail="Invalid report data") from e
 
