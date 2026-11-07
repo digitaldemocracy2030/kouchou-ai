@@ -52,7 +52,9 @@ class PipelineResult:
 DEFAULT_STEP_MODULES: dict[str, tuple[str, str]] = {
     "extraction": ("analysis_core.steps.extraction", "extraction"),
     "opinion_classification": ("analysis_core.steps.opinion_classification", "opinion_classification"),
+    "opinion_stance": ("analysis_core.steps.opinion_stance", "opinion_stance"),
     "embedding": ("analysis_core.steps.embedding", "embedding"),
+    "opinion_novelty": ("analysis_core.steps.opinion_novelty", "opinion_novelty"),
     "hierarchical_clustering": ("analysis_core.steps.hierarchical_clustering", "hierarchical_clustering"),
     "hierarchical_initial_labelling": (
         "analysis_core.steps.hierarchical_initial_labelling",
@@ -100,7 +102,9 @@ class PipelineOrchestrator:
     DEFAULT_STEPS = [
         "extraction",
         "opinion_classification",
+        "opinion_stance",
         "embedding",
+        "opinion_novelty",
         "hierarchical_clustering",
         "hierarchical_initial_labelling",
         "hierarchical_merge_labelling",
@@ -414,7 +418,9 @@ class PipelineOrchestrator:
         plan_step_to_workflow_step = {
             "extraction": "extraction",
             "opinion_classification": "opinion_classification",
+            "opinion_stance": "opinion_stance",
             "embedding": "embedding",
+            "opinion_novelty": "opinion_novelty",
             "hierarchical_clustering": "clustering",
             "llm_grouping": "llm_grouping",
             "hierarchical_initial_labelling": "initial_labelling",

@@ -377,7 +377,7 @@ class TestCLI:
         captured = capsys.readouterr()
 
         assert exit_code == 0
-        assert seen["skip_steps"] == {"extraction", "opinion_classification"}
+        assert seen["skip_steps"] == {"extraction", "opinion_classification", "opinion_stance", "opinion_novelty"}
         assert "Pipeline completed successfully!" in captured.out
 
         status_data = json.loads((output_subdir / "hierarchical_status.json").read_text(encoding="utf-8"))
@@ -576,6 +576,8 @@ class TestCLI:
         assert seen["skip_steps"] == {
             "extraction",
             "opinion_classification",
+            "opinion_stance",
+            "opinion_novelty",
             "embedding",
             "clustering",
             "initial_labelling",

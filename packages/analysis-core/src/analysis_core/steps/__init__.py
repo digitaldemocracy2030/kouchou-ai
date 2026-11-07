@@ -14,12 +14,16 @@ _STEP_MODULES = {
     "hierarchical_visualization": "analysis_core.steps.hierarchical_visualization",
     "llm_grouping": "analysis_core.steps.llm_grouping",
     "opinion_classification": "analysis_core.steps.opinion_classification",
+    "opinion_stance": "analysis_core.steps.opinion_stance",
+    "opinion_novelty": "analysis_core.steps.opinion_novelty",
 }
 
 __all__ = [
     "extraction",
     "opinion_classification",
+    "opinion_stance",
     "embedding",
+    "opinion_novelty",
     "hierarchical_clustering",
     "hierarchical_initial_labelling",
     "hierarchical_merge_labelling",

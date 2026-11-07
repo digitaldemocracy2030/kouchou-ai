@@ -227,6 +227,50 @@ describe("EnvironmentCheckDialog", () => {
     ).toBeInTheDocument();
   });
 
+  it("不明なエラーにプロバイダーのエラー詳細があれば固定文の下に表示する", async () => {
+    mockVerifyApiKey.mockResolvedValue({
+      result: {
+        success: false,
+        message: "エラーが発生しました: APIの設定や接続を確認してください。",
+        error_type: "unknown_error",
+        error_detail: "HTTP 404 model_not_found: The model `o3-mini` has been deprecated",
+      },
+      error: true,
+    });
+
+    renderEnvironmentCheckDialog();
+
+    userEvent.click(screen.getByRole("button", { name: /API接続チェック/i }));
+    userEvent.click(await screen.findByRole("button", { name: "チェックする" }));
+
+    expect(
+      await screen.findByText(/不明なエラーが発生しました。APIの設定や接続を再確認してください。/),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("エラー詳細：HTTP 404 model_not_found: The model `o3-mini` has been deprecated"),
+    ).toBeInTheDocument();
+  });
+
+  it("エラー詳細がnullの場合は詳細の行を表示しない", async () => {
+    mockVerifyApiKey.mockResolvedValue({
+      result: {
+        success: false,
+        message: "エラーが発生しました: APIの設定や接続を確認してください。",
+        error_type: "unknown_error",
+        error_detail: null,
+      },
+      error: true,
+    });
+
+    renderEnvironmentCheckDialog();
+
+    userEvent.click(screen.getByRole("button", { name: /API接続チェック/i }));
+    userEvent.click(await screen.findByRole("button", { name: "チェックする" }));
+
+    expect(await screen.findByText(/不明なエラーが発生しました/)).toBeInTheDocument();
+    expect(screen.queryByText(/エラー詳細：/)).not.toBeInTheDocument();
+  });
+
   it("ダイアログを閉じるとUUIDがリセットされる", async () => {
     const user = userEvent.setup();
     renderEnvironmentCheckDialog();
