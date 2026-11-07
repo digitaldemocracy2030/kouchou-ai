@@ -16,7 +16,7 @@
 | **結果をどこまで信じてよいか・用語を知りたい** | [よくあるご質問](user-guide/faq.md) / [結果の信頼性と責任の所在](user-guide/reliability-and-responsibility.md) |
 | **自分のデータで分析レポートを作りたい** | 下記「[レポートを作るには](#how-to-make-reports)」 |
 | **導入を検討している**（自治体・非技術者：費用・個人情報・相談先） | [導入を検討する方へ](user-guide/adoption-guide.md) |
-| **CLI・分析コアで分析／研究したい**（分析者・研究者） | [CLI クイックスタート](user-guide/cli-quickstart.md) |
+| **CLI・分析コアで分析／研究したい**（分析者・研究者） | [CLI クイックスタート](user-guide/cli-quickstart.md)・[関連研究（本体未収録の実験的手法）](development/related-research.md) |
 | **Web UI・本体を開発したい**（開発者） | [開発者向けガイド](development/contributing.md) |
 
 ### レポートを作るには {#how-to-make-reports}
