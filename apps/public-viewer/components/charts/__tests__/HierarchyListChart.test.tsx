@@ -1,5 +1,5 @@
 import { Provider } from "@/components/ui/provider";
-import type { Argument, Cluster } from "@/type";
+import type { Argument, Cluster, Config } from "@/type";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { HierarchyListChart } from "../HierarchyListChart";
 
@@ -94,5 +94,37 @@ describe("HierarchyListChart の展開状態", () => {
     fireEvent.click(screen.getByText(/子要素を表示/));
     expect(expandedCount()).toBe(1);
     expect(screen.queryByText("意見 A1")).not.toBeInTheDocument();
+  });
+});
+
+describe("HierarchyListChart の出典リンク（#1159）", () => {
+  const withUrl: Argument[] = args.map((a) => (a.arg_id === "A1" ? { ...a, url: "https://example.com/a1" } : a));
+  const config = { name: "n", question: "q", intro: "i", model: "m" } as unknown as Config;
+
+  function renderWith(enable_source_link: boolean | undefined) {
+    render(
+      <Provider>
+        <HierarchyListChart
+          clusterList={clusters}
+          argumentList={withUrl}
+          config={enable_source_link === undefined ? undefined : { ...config, enable_source_link }}
+        />
+      </Provider>,
+    );
+    expandDown();
+  }
+
+  it("enable_source_link が有効なら URL のある意見にだけ出典リンクを出す", () => {
+    renderWith(true);
+    const links = screen.getAllByRole("link", { name: /出典を見る/ });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "https://example.com/a1");
+    expect(links[0]).toHaveAttribute("target", "_blank");
+    expect(links[0]).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("enable_source_link が無効、または設定が無いなら出典リンクを出さない", () => {
+    renderWith(false);
+    expect(screen.queryByRole("link", { name: /出典を見る/ })).not.toBeInTheDocument();
   });
 });

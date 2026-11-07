@@ -8,8 +8,7 @@ kouchou-ai には3種類のプラグインシステムがあります：
 
 自作プラグインの私的利用・配布・サービス提供の違いは、[ライセンスと結果の公開](../user-guide/license.md)を参照してください。
 
-サンプルとして YouTube 入力プラグインと階層リスト可視化プラグインを同梱しています。
-入力は環境変数、可視化は `visualization_config` で有効化する運用です。
+入力プラグインのサンプルとして YouTube 入力プラグインを同梱しています（環境変数で有効化）。可視化プラグインは散布図・ツリーマップ・階層リスト（詳細モード）の 3 つが組み込みで、`visualization_config` で表示する組み合わせを変えられます。階層リストは plugin システムの実装例としても読めます。
 
 ---
 
@@ -262,7 +261,9 @@ analysis-core は、分析パイプラインの各ステップをプラグイン
 |-------------|------|
 | `analysis.extraction` | コメントから意見を抽出 |
 | `analysis.opinion_classification` | 意見ごとに yes/no ラベル（侮辱・ヘイト表現、政策提案）を付与（任意、既定は無効） |
+| `analysis.opinion_stance` | 意見ごとに対象への賛否スコア（-1.0〜+1.0）を付与（任意、既定は無効） |
 | `analysis.embedding` | 埋め込みベクトル生成 |
+| `analysis.opinion_novelty` | 意見ごとに他の意見からの遠さ（新規性 0.0〜1.0）を埋め込みから付与（任意、既定は無効、LLM 不使用） |
 | `analysis.hierarchical_clustering` | 階層クラスタリング |
 | `analysis.hierarchical_initial_labelling` | 初期ラベリング |
 | `analysis.hierarchical_merge_labelling` | 統合ラベリング |
@@ -934,11 +935,11 @@ interface ChartRenderContext {
 
 ### 3. Hierarchy List Plugin (`hierarchy-list`)
 
-クラスタを展開可能なリストで表示。
+クラスタを展開可能なリストで表示する「全部読む・掘り下げる」ための詳細モード。チームみらい policy-pr-hub の `HierarchicalBulletList` を移植したもので、最下層の意見にはレポート設定 `enable_source_link` が有効なときだけ出典リンクを出す（散布図と同じ条件）。狭い画面の初期表示にも使われる（[狭い画面での閲覧](mobile-reading.md)）。
 
 | モード | 説明 |
 |--------|------|
-| `hierarchyList` | 階層リスト表示 |
+| `hierarchyList` | 階層リスト表示（詳細モード） |
 
 ## レポートごとのチャート設定
 

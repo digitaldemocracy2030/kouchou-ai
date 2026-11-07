@@ -213,13 +213,55 @@ def _read_error_log_excerpt(log_path: Path) -> str | None:
     return content[-MAX_ERROR_LOG_CHARS:]
 
 
-def _api_key_verification_error_response(message: str, error_type: str) -> dict:
+# 管理画面に返すプロバイダーのエラー詳細の上限（長い応答本文をそのまま返さない）
+MAX_PROVIDER_ERROR_DETAIL_CHARS = 300
+
+
+def _api_key_verification_error_response(message: str, error_type: str, error_detail: str | None = None) -> dict:
     return {
         "success": False,
         "message": message,
-        "error_detail": message,
+        "error_detail": error_detail,
         "error_type": error_type,
     }
+
+
+def _provider_error_detail(exc: BaseException, user_api_key: str | None) -> str | None:
+    """外部 API（プロバイダー）の応答から、管理画面に出せる範囲のエラー情報を取り出す。
+
+    使うのは HTTP ステータス・応答本文のエラーコード・メッセージだけ。SDK が組み立てた例外メッセージや
+    リクエスト先 URL・内部例外のメッセージは使わない（接続先やスタックトレースを返さないため）。
+    秘密情報らしい部分は伏せ字にし、長すぎる本文は切り詰める。取り出せるものがなければ None。
+    """
+    from analysis_core.services.error_summary import redact_secrets
+
+    if isinstance(exc, openai.APIStatusError):
+        status = exc.status_code
+        body = exc.body if isinstance(exc.body, dict) else {}
+        code = body.get("code")
+        message = body.get("message")
+    elif genai_errors is not None and isinstance(exc, genai_errors.APIError):
+        status = exc.code
+        code = exc.status
+        message = exc.message
+    else:
+        return None
+
+    parts = []
+    if isinstance(status, int):
+        parts.append(f"HTTP {status}")
+    if isinstance(code, str | int) and str(code).strip() and str(code) != str(status):
+        parts.append(str(code).strip())
+    detail = " ".join(parts)
+    if isinstance(message, str) and message.strip():
+        message = " ".join(message.split())
+        detail = f"{detail}: {message}" if detail else message
+    if not detail:
+        return None
+    detail = redact_secrets(detail, (user_api_key,))
+    if len(detail) > MAX_PROVIDER_ERROR_DETAIL_CHARS:
+        detail = detail[:MAX_PROVIDER_ERROR_DETAIL_CHARS] + "..."
+    return detail
 
 
 def _planned_steps(plan: object) -> list[str] | None:
@@ -579,6 +621,7 @@ async def verify_api_key(
     local_llm_address = local_llm_address.strip() if local_llm_address else None
     if provider == "local" and (not model or not local_llm_address):
         raise HTTPException(status_code=400, detail="Local provider requires model and local_llm_address")
+    user_api_key = request.headers.get("x-user-api-key")
 
     try:
         test_messages = [
@@ -593,7 +636,6 @@ async def verify_api_key(
             "gemini": "gemini-2.5-flash",
         }
         model = model or model_map.get(provider, "gpt-4o-mini")
-        user_api_key = request.headers.get("x-user-api-key")
 
         # request_to_chat_ai は同期 I/O（timeout + リトライ）なので、イベントループを塞がないよう threadpool で実行する
         response = await run_in_threadpool(
@@ -657,16 +699,20 @@ async def verify_api_key(
                 "rate_limit_error",
             )
         slogger.error(f"Unknown error while verifying API key: {e}", exc_info=True)
+        # 原因が分かるよう、プロバイダーの応答（ステータス・コード・メッセージ）だけを詳細として返す
+        error_detail = _provider_error_detail(e, user_api_key)
         if provider == "azure":
             return _api_key_verification_error_response(
                 "Azureの接続を確認できませんでした。AZURE_CHATCOMPLETION_VERSIONにはモデルのバージョンではなく"
                 "APIバージョンを設定してください。ENDPOINT・DEPLOYMENT_NAME・API_KEYも同じAzureリソースの"
                 "設定か確認してください。",
                 "unknown_error",
+                error_detail,
             )
         return _api_key_verification_error_response(
             "エラーが発生しました: APIの設定や接続を確認してください。",
             "unknown_error",
+            error_detail,
         )
 
 

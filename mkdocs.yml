@@ -96,11 +96,13 @@ nav:
       - Windowsセットアップ: self-hosting/windows-setup.md
       - Macセットアップ: self-hosting/mac-setup.md
       - Linuxセットアップ: self-hosting/linux-setup.md
+      - APIの課金と429エラー（残高不足・レート制限）: self-hosting/api-billing-and-rate-limits.md
       - セキュリティ情報:
           - 「APIキー」欄のキーの書き出し（v4.2.0 で修正）: self-hosting/security/user-api-key-leak-2026-10.md
   - ユーザーガイド:
       - 始め方の選び方: user-guide/choosing-how-to-start.md
       - レポートの読み方: user-guide/report-reading-guide.md
+      - ビューの選び方ギャラリー: user-guide/view-gallery.md
       - 導入を検討する方へ: user-guide/adoption-guide.md
       - 使い方: user-guide/how-to-use.md
       - レポート作成者情報の設定: user-guide/metadata-setup.md
@@ -136,6 +138,7 @@ nav:
       - モデル一覧・検証状態・料金の更新: development/model-catalog.md
       - OpenAI Flex Processing: development/openai-flex-processing.md
       - 意見の分類ラベル: development/opinion-classification.md
+      - 意見ごとのスコア（賛否・新規性）: development/opinion-scores.md
       - Web UI の Node runtime 依存インベントリ（監査スナップショット/#885）: development/web-ui-node-runtime-dependencies.md
   - リポジトリ内README:
       - アプリ:

@@ -143,6 +143,11 @@ function Dialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentChe
                 (provider === "azure"
                   ? azureErrorMessage
                   : "不明なエラーが発生しました。APIの設定や接続を再確認してください。")}
+              {state.result?.error_detail && (
+                <Text mt="2" color="font.secondary" overflowWrap="anywhere">
+                  エラー詳細：{state.result.error_detail}
+                </Text>
+              )}
             </Box>
           </DialogBody>
           <DialogCloseTrigger />
