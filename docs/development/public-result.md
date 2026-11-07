@@ -29,6 +29,19 @@
 
 古いレポート（この仕組みより前に作られたもの）には `public_result.json` がありません。パイプラインは「集計の出力が欠けている」と判定して次の実行時に集計をやり直し、ファイルを作ります。読む側で必要なら `build_public_result(hierarchical_result)` で同じ内容をその場で作れます。
 
+## 公開 API が返すもの
+
+公開 API の `GET /reports/{slug}` は、この契約の形を返します。
+
+1. 正本の `hierarchical_result.json` から、`build_public_result()` で毎回作る（`public_result.json` の無い古いレポートも同じ）
+2. 返す前に、レポートの公開範囲 `visibility` と、可視化設定があれば `visualizationConfig` を足す
+
+隣の `public_result.json`（写し）は読みません。写しが正本と食い違っていないことを確かめる手段が無いためです。2 つは同時に書かれますが、ストレージからファイル単位で復元・同期されると、古い写しの方が新しい更新日時を持つことがあります。正本から作れば、たとえば後から `hidden_properties` に足した属性の列が古い写しから漏れることはありません。読む量は従来（正本をそのまま返していたとき）と同じです。正本が無く写しだけがある場合は、従来どおり「レポートが無い」（404）として扱います。
+
+写しは、正本を持たない配信先（第 3 段の分割読み込みや静的書き出し）に渡すためのものです。写しを直接配るようになったら、正本との食い違いを検出する手段（書き出し時の指紋など）をあわせて入れます。
+
+ホワイトリストにない項目（再分析用の設定、実行状態、`hidden_properties` に指定した属性の列など）は返しません。公開ビューアと静的書き出し（ビルド時に公開 API から取得する）はこの応答を読みます。管理画面の JSON ダウンロード（`/admin/reports/{slug}/json`）は従来どおり `hierarchical_result.json` を返します。
+
 ## 形（schema_version 1）
 
 ```json
@@ -105,8 +118,8 @@
 
 この仕組みは段階的に入れています（Issue [#1178](https://github.com/digitaldemocracy2030/kouchou-ai/issues/1178)）。
 
-1. **書く**（この版）：集計・レイアウト生成・翻訳が `public_result.json` を書く。契約を宣言する
-2. **読む**：公開 API とビューアが `public_result.json` を読む。`public_result.json` の無い古いレポートは API が読む時に `build_public_result()` で同じ形へ変換する
-3. **分ける**：意見全件を 1 回で画面に渡す経路を分割読み込みにし、静的書き出しでも HTML の隣に JSON を置く
+1. **書く**（済み）：集計・レイアウト生成・翻訳が `public_result.json` を書く。契約を宣言する
+2. **読む**（済み）：公開 API が契約の形（正本から `build_public_result()` で作ったもの）を返し、ビューアの型を契約に合わせる
+3. **分ける**：意見全件を 1 回で画面に渡す経路を分割読み込みにし、静的書き出しでも HTML の隣に JSON を置く。写しを直接配るので、正本との食い違いを検出する手段もここで入れる
 
 `hierarchical_result.json` の各項目の説明は [プラグイン出力データ構造](plugin-output-data-structures.md) を参照してください。

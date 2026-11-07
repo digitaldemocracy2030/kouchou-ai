@@ -12,7 +12,7 @@ pnpm --filter @kouchou-ai/public-viewer build:shell
 
 ## Pythonで組み立てる（レポート出力時）
 
-入力ディレクトリは次の構成です。各JSONの形は公開APIの`/meta/metadata.json`、`/reports`、`/reports/{slug}`と同じです。
+入力ディレクトリは次の構成です。各JSONの形は公開APIの`/meta/metadata.json`、`/reports`、`/reports/{slug}`と同じです。レポート本文（`reports/<slug>.json`）は[公開用レポート結果](public-result.md)の形です。分析の全部入りである`hierarchical_result.json`をそのまま置くと、再分析用の設定まで配布物に入るので、公開APIの応答か`public_result.json`を使ってください。
 
 ```text
 export-data/
