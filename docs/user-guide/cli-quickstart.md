@@ -98,6 +98,12 @@ export OPENAI_API_KEY="sk-your-api-key-here"
 OPENAI_API_KEY=sk-your-api-key-here
 ```
 
+`provider` を `openrouter` にする場合は、`OPENAI_API_KEY` の代わりに `OPENROUTER_API_KEY` を設定します。OpenRouter には埋め込みの API がないので、`config.json` で `"is_embedded_at_local": true` も指定します（指定しないと開始時にエラーになります）。
+
+```
+OPENROUTER_API_KEY=sk-or-your-api-key-here
+```
+
 ## 5. 分析の実行
 
 ### ディレクトリ構成
