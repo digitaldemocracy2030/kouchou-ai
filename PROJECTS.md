@@ -10,7 +10,7 @@ _広聴AI／digitaldemocracy2030_
 |  ステータス | イシューの状態 | **やること (アクション)** | 主担当 |
 |---|---|---|---|
 | **No status** | 起票直後 | ラベルを付与し、Need Refinement（もしくは仕様・デザインが確定しているものはReady）に移動する | **メンテナー** |
-| **Cold List** | 直近での対応優先度が明らかに高くないイシューが入る | 定期的な棚卸し（四半期を目安）で次を適用する。<br>1. 12 か月以上更新がなく、assignee がおらず、要件が実装可能な粒度まで落ちていない Issue は not planned で close する。close コメントに「起票の動機 / 現行 main での状況 / reopen する条件」を書き、reopen は歓迎する<br>2. 12 か月以上更新がなく assignee がいる Issue は、継続意思を 1 回だけ確認する（期限 2 週間）。無反応なら unassign して 1 を適用する<br>3. 動機が別の手段で解消した・前提が消えた・成果が repo 外で完結した Issue は completed または not planned で close する<br>4. 情報整理（umbrella）Issue は子 Issue が動いていれば残す。動いていなければ日付つきで現状を本文に追記し、次の棚卸しで 1 を適用する<br>5. 期間ベースの自動 close（bot）は入れない | **メンテナー** |
+| **Cold List** | 直近での対応優先度が明らかに高くないイシューが入る | 定期的な棚卸し（四半期を目安）で次を適用する。<br>1. 12 か月以上更新がなく、assignee がおらず、要件が実装可能な粒度まで落ちていない Issue は not planned で close する。close コメントに「起票の動機 / 現行 main での状況 / reopen する条件」を書き、reopen は歓迎する<br>2. 12 か月以上更新がなく assignee がいる Issue は、継続意思を 1 回だけ確認する（期限 2 週間）。無反応なら unassign して 1 を適用する<br>3. 動機が別の手段で解消した・前提が消えた・成果が repo 外で完結した Issue は completed または not planned で close する<br>4. 情報整理（umbrella）Issue は子 Issue が動いていれば残す。動いていなければ日付つきで現状を本文に追記し、次の棚卸しで 1 を適用する<br>5. 期間ベースの自動 close（bot）は入れない<br>対象は Cold List にある Issue だけ。assign すると Issue は自動で In Progress に移るので、In Progress の Issue はこの棚卸しの対象外（2 は、assignee がいるまま Cold List に置かれた Issue に当てる） | **メンテナー** |
 | **Need Refinement** | ラベルを付与してあり、仕様 or デザインが未確定の状態 | •仕様・デザインを策定する。 <br> •実装前にデザインが必要なタスク（design）・アルゴリズムの実験が必要なタスクは、サブイシューを切ってタスクを進める。| **コミッター** |
 | **Ready** | 仕様・デザインが確定しており実装可能な状態 | • コミッターが **Assignee** に入り、実装・デザインに着手する| **コミッター** |
 | **In Progress** | 実装中／デザイン作成中の状態 | •実装・デザインを進める| **コミッター** |
