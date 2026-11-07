@@ -1,6 +1,8 @@
 """Test cases for public report endpoints."""
 
 import json
+import os
+from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -290,3 +292,158 @@ class TestReportsListEndpoint:
         assert body[0]["status"] == "ready"
         assert body[0]["isPubcom"] is False
         assert body[0]["createdAt"] == "2025-05-13T07:56:58.405239+00:00"
+
+
+class TestPublicResultArtifact:
+    """/reports/{slug} は公開用レポート結果（public_result.json の契約）だけを返す。"""
+
+    SLUG = "public-result-report"
+
+    @staticmethod
+    def _full_result(overview: str = "結果の概要") -> dict:
+        return {
+            "arguments": [
+                {
+                    "arg_id": "A1_0",
+                    "argument": "意見",
+                    "comment_id": "c1",
+                    "x": 0.1,
+                    "y": 0.2,
+                    "p": 0,
+                    "cluster_ids": ["0", "1_0"],
+                    "attributes": {"age": "20代"},
+                    "internal_note": "x",
+                }
+            ],
+            "clusters": [
+                {
+                    "level": 1,
+                    "id": "1_0",
+                    "label": "ラベル",
+                    "takeaway": "要約",
+                    "value": 1,
+                    "parent": "0",
+                    "density_rank_percentile": 0.5,
+                }
+            ],
+            "comments": {},
+            "propertyMap": {"age": {"A1_0": "20代"}, "source": {"A1_0": "internal"}},
+            "overview": overview,
+            "comment_num": 1,
+            "config": {
+                "name": "internal-name",
+                "input": "internal-input",
+                "question": "テスト質問",
+                "intro": "イントロ",
+                "model": "gpt-4o-mini",
+                "user_api_key": "sk-should-not-leak",
+                "_input_base_dir": "/srv/internal/path",
+                "status": "completed",
+                "hierarchical_aggregation": {"hidden_properties": {"source": ["internal"]}, "source_code": "agg"},
+                "extraction": {"prompt": "抽出プロンプト", "model": "gpt-4o-mini", "source_code": "ext"},
+            },
+        }
+
+    def _get(self, client, temp_report_dir, test_settings):
+        mock_reports = [
+            type(
+                "Report", (), {"slug": self.SLUG, "status": ReportStatus.READY, "visibility": ReportVisibility.PUBLIC}
+            )()
+        ]
+        with (
+            patch("src.routers.report.settings.REPORT_DIR", temp_report_dir),
+            patch("src.routers.report.load_status_as_reports", return_value=mock_reports),
+        ):
+            return client.get(f"/reports/{self.SLUG}", headers={"x-api-key": test_settings.PUBLIC_API_KEY})
+
+    def _write(self, temp_report_dir, name: str, data) -> Path:
+        report_dir = temp_report_dir / self.SLUG
+        report_dir.mkdir(parents=True, exist_ok=True)
+        path = report_dir / name
+        path.write_text(data if isinstance(data, str) else json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        return path
+
+    def test_old_report_without_public_result_is_converted(self, client, temp_report_dir, test_settings):
+        """public_result.json の無い古いレポートは、結果からその場で公開用の形に変換して返す"""
+        self._write(temp_report_dir, "hierarchical_result.json", self._full_result())
+
+        response = self._get(client, temp_report_dir, test_settings)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["schema_version"] == 1
+        assert body["visibility"] == "public"
+        assert body["config"]["question"] == "テスト質問"
+        assert body["config"]["extraction"]["prompt"] == "抽出プロンプト"
+        for key in ("name", "input", "user_api_key", "_input_base_dir", "status"):
+            assert key not in body["config"]
+        assert body["config"]["hierarchical_aggregation"] == {"source_code": "agg"}
+        assert "internal_note" not in body["arguments"][0]
+        assert "source" not in body["propertyMap"]
+        text = response.text
+        assert "sk-should-not-leak" not in text
+        assert "/srv/internal/path" not in text
+        assert "internal" not in json.dumps(body["propertyMap"])
+
+    def test_public_result_file_is_preferred(self, client, temp_report_dir, test_settings):
+        """public_result.json があればそれを返す"""
+        from analysis_core.public_result import build_public_result
+
+        result_path = self._write(temp_report_dir, "hierarchical_result.json", self._full_result("結果の概要"))
+        public = build_public_result(self._full_result("公開用ファイルの概要"))
+        public_path = self._write(temp_report_dir, "public_result.json", public)
+        os.utime(result_path, (1_000_000, 1_000_000))
+        os.utime(public_path, (1_000_001, 1_000_001))
+
+        response = self._get(client, temp_report_dir, test_settings)
+
+        assert response.status_code == 200
+        assert response.json()["overview"] == "公開用ファイルの概要"
+
+    def test_public_result_older_than_result_is_rebuilt(self, client, temp_report_dir, test_settings):
+        """公開用ファイルが結果より古ければ（結果だけ書き直された）、結果から作り直す"""
+        from analysis_core.public_result import build_public_result
+
+        public_path = self._write(
+            temp_report_dir, "public_result.json", build_public_result(self._full_result("古い概要"))
+        )
+        result_path = self._write(temp_report_dir, "hierarchical_result.json", self._full_result("新しい概要"))
+        os.utime(public_path, (1_000_000, 1_000_000))
+        os.utime(result_path, (1_000_001, 1_000_001))
+
+        response = self._get(client, temp_report_dir, test_settings)
+
+        assert response.status_code == 200
+        assert response.json()["overview"] == "新しい概要"
+
+    def test_broken_public_result_is_rebuilt(self, client, temp_report_dir, test_settings):
+        """公開用ファイルが壊れていれば結果から作り直す"""
+        result_path = self._write(temp_report_dir, "hierarchical_result.json", self._full_result("結果の概要"))
+        public_path = self._write(temp_report_dir, "public_result.json", "{ broken")
+        os.utime(result_path, (1_000_000, 1_000_000))
+        os.utime(public_path, (1_000_001, 1_000_001))
+
+        response = self._get(client, temp_report_dir, test_settings)
+
+        assert response.status_code == 200
+        assert response.json()["overview"] == "結果の概要"
+
+    def test_public_result_alone_is_served(self, client, temp_report_dir, test_settings):
+        """結果ファイルが無くても公開用ファイルがあれば返す"""
+        from analysis_core.public_result import build_public_result
+
+        self._write(temp_report_dir, "public_result.json", build_public_result(self._full_result("公開用だけ")))
+
+        response = self._get(client, temp_report_dir, test_settings)
+
+        assert response.status_code == 200
+        assert response.json()["overview"] == "公開用だけ"
+
+    def test_broken_public_result_without_result_returns_500(self, client, temp_report_dir, test_settings):
+        """公開用ファイルが壊れていて結果ファイルも無ければ 500"""
+        self._write(temp_report_dir, "public_result.json", "{ broken")
+
+        response = self._get(client, temp_report_dir, test_settings)
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Invalid report data"
