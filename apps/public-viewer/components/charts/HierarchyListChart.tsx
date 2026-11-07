@@ -9,7 +9,7 @@
 
 import { groupArgumentsByCluster, toIdSet } from "@/lib/argumentIndex";
 import { useMessages } from "@/lib/i18n/LanguageContext";
-import type { Argument, Cluster } from "@/type";
+import type { Argument, Cluster, Comments, Config } from "@/type";
 import { Box, Icon, Text, VStack } from "@chakra-ui/react";
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
@@ -20,6 +20,9 @@ interface HierarchyListChartProps {
   argumentList: Argument[];
   filteredArgumentIds?: string[];
   onHover?: () => void;
+  config?: Config;
+  // 元コメント本文（comment_id → 本文）。config.enable_original_comments が true のときだけ意見の下に出す
+  comments?: Comments;
 }
 
 interface ClusterNode {
@@ -52,11 +55,14 @@ function ArgumentsDisplay({
   arguments: argumentsList,
   filteredIdSet,
   maxDisplay = 10,
+  comments,
 }: {
   arguments: Argument[];
   // フィルタ済み意見 ID の Set（undefined = フィルタなし）。配列の includes による線形探索を避けるため Set で受け取る
   filteredIdSet?: ReadonlySet<string>;
   maxDisplay?: number;
+  // 公開されている元コメント本文（undefined = 公開していない）
+  comments?: Comments;
 }) {
   const messages = useMessages();
   const [showAll, setShowAll] = useState(false);
@@ -83,6 +89,11 @@ function ArgumentsDisplay({
               <Text fontSize="sm" color="gray.700">
                 {arg.argument}
               </Text>
+              {comments?.[String(arg.comment_id)]?.comment && (
+                <Text fontSize="xs" color="gray.500" mt={1} whiteSpace="pre-wrap">
+                  {messages.originalCommentLabel}: {comments[String(arg.comment_id)].comment}
+                </Text>
+              )}
             </Box>
           );
         })}
@@ -112,8 +123,12 @@ export function HierarchyListChart({
   argumentList,
   filteredArgumentIds,
   onHover,
+  config,
+  comments,
 }: HierarchyListChartProps) {
   const messages = useMessages();
+  // 元コメント本文はレポート作成者が公開を明示したときだけ表示する
+  const publishedComments = config?.enable_original_comments ? comments : undefined;
   const [treeData, setTreeData] = useState<ClusterNode[]>([]);
   // ツリーを作り直すときに、直前の展開状態をクラスタ ID で引き継ぐための参照（下の effect より先に更新する）
   const treeDataRef = useRef(treeData);
@@ -355,7 +370,7 @@ export function HierarchyListChart({
         {/* Render arguments */}
         {hasArguments && !hasChildren && node.isChildrenExpanded && (
           <Box mt={2} pl={`${(depth + 1) * 24}px`}>
-            <ArgumentsDisplay arguments={node.arguments} filteredIdSet={filteredIdSet} />
+            <ArgumentsDisplay arguments={node.arguments} filteredIdSet={filteredIdSet} comments={publishedComments} />
           </Box>
         )}
       </Box>

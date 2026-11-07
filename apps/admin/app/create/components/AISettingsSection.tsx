@@ -11,6 +11,7 @@ export function AISettingsSection({
   workers,
   isPubcomMode,
   enableSourceLink,
+  enableOriginalComments = false,
   analysisMode,
   onAnalysisModeChange,
   analysisModeLocked = false,
@@ -21,6 +22,7 @@ export function AISettingsSection({
   onDecreaseWorkers,
   onPubcomModeChange,
   onEnableSourceLinkChange,
+  onEnableOriginalCommentsChange,
   getModelDescription,
   getProviderDescription,
   getCurrentModels,
@@ -45,6 +47,8 @@ export function AISettingsSection({
   workers: number;
   isPubcomMode: boolean;
   enableSourceLink: boolean;
+  /** 元コメント本文を公開レポートに含めるか（入力データの引用・再頒布が許されている場合だけ ON にする） */
+  enableOriginalComments?: boolean;
   analysisMode: string;
   onAnalysisModeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   /** true のとき分析方式を変更不可にする（再利用時は元レポートの方式を引き継ぐため） */
@@ -56,6 +60,7 @@ export function AISettingsSection({
   onDecreaseWorkers: () => void;
   onPubcomModeChange: (checked: boolean | "indeterminate") => void;
   onEnableSourceLinkChange: (checked: boolean | "indeterminate") => void;
+  onEnableOriginalCommentsChange?: (checked: boolean | "indeterminate") => void;
   getModelDescription: () => string;
   getProviderDescription: () => string;
   getCurrentModels: () => ModelOption[];
@@ -277,6 +282,24 @@ export function AISettingsSection({
         </Checkbox>
         <Field.HelperText>
           ONにした場合は、CSVのurlカラムの情報を使って、レポートの散布図上でデータ点をクリックすると元のソースにアクセスできます。
+        </Field.HelperText>
+      </Field.Root>
+
+      <Field.Root>
+        <Checkbox
+          checked={enableOriginalComments}
+          onCheckedChange={(details) => {
+            const { checked } = details;
+            if (checked === "indeterminate") return;
+            onEnableOriginalCommentsChange?.(checked);
+          }}
+        >
+          元コメントの本文を公開レポートに含める
+        </Checkbox>
+        <Field.HelperText>
+          ONにした場合は、意見の元になったコメントの本文がレポートのデータに含まれ、散布図や階層リストから確認できます。
+          コメント本文はレポートを見られる人全員に公開されるので、入力データの引用・再頒布が許されている場合だけONにしてください。
+          非公開にした属性値を持つコメントは含まれません。
         </Field.HelperText>
       </Field.Root>
 

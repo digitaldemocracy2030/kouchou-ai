@@ -12,7 +12,7 @@ from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_co
     name="Hierarchical Layout Generation",
     description="Generate additional named layouts for hierarchical_result.json",
     inputs=["result", "embeddings"],
-    outputs=["result"],
+    outputs=["result", "public_result"],
     use_llm=False,
 )
 def hierarchical_layout_generation_plugin(
@@ -31,5 +31,6 @@ def hierarchical_layout_generation_plugin(
     return StepOutputs(
         artifacts={
             "result": ctx.output_dir / "hierarchical_result.json",
+            "public_result": ctx.output_dir / "public_result.json",
         }
     )

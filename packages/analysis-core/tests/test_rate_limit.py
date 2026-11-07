@@ -227,14 +227,16 @@ def test_sdk_does_not_retry_429_itself(monkeypatch):
     """送り直しは call_with_rate_limit だけが行う。SDK の自動再試行（数ミリ秒で送り直す）を止める。"""
     from openai import AzureOpenAI
 
+    # openai 3.x の DefaultHttpxClient は httpx ではなく httpx2 の Client なので、同じライブラリの偽物を使う
+    http = importlib.import_module(openai.DefaultHttpxClient.__mro__[1].__module__.split(".")[0])
     requests = []
 
     def handler(request):
         requests.append(request)
-        return httpx.Response(429, headers={"retry-after-ms": "5"}, json={"error": {"code": "429", "message": "x"}})
+        return http.Response(429, headers={"retry-after-ms": "5"}, json={"error": {"code": "429", "message": "x"}})
 
     client = openai.DefaultHttpxClient(
-        transport=httpx.MockTransport(handler), event_hooks={"response": [rate_limit._on_chat_response]}
+        transport=http.MockTransport(handler), event_hooks={"response": [rate_limit._on_chat_response]}
     )
     azure = AzureOpenAI(
         api_key="k", azure_endpoint="https://example.invalid", api_version="2024-10-21", http_client=client

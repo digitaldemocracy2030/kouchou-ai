@@ -111,6 +111,7 @@ nav:
       - CLIクイックスタート: user-guide/cli-quickstart.md
       - Python API からの利用: user-guide/import-quickstart.md
       - FAQ: user-guide/faq.md
+      - "事例: コーディングエージェントで分析する": user-guide/coding-agent-case-study.md
   - 開発者向け:
       - コントリビューション: development/contributing.md
       - CIの静的サイトを確認する: development/static-preview.md
@@ -126,6 +127,7 @@ nav:
       - npmではなくpnpmを使う理由: development/why-pnpm.md
       - プラグインガイド: development/plugin-guide.md
       - プラグイン出力データ構造: development/plugin-output-data-structures.md
+      - 公開用レポート結果（public_result.json）: development/public-result.md
       - プラグインシステムの設計思想: development/why-plugin-system.md
       - PyPI公開: development/pypi-release.md
       - コードレビューガイドライン: development/code-review-guidelines.md

@@ -85,6 +85,8 @@ export function useAISettings() {
   const [enableSourceLink, setEnableSourceLink] = useState<boolean>(() =>
     getFromStorage<boolean>(STORAGE_KEYS.ENABLE_SOURCE_LINK, false),
   );
+  // 元コメント本文の公開は入力データごとの判断なので、ブラウザには保存せず毎回 OFF から始める
+  const [enableOriginalComments, setEnableOriginalComments] = useState<boolean>(false);
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>(() =>
     getFromStorage<AnalysisMode>(STORAGE_KEYS.ANALYSIS_MODE, DEFAULT_ANALYSIS_MODE),
   );
@@ -213,6 +215,14 @@ export function useAISettings() {
   };
 
   /**
+   * 元コメント公開設定変更時のハンドラー
+   */
+  const handleEnableOriginalCommentsChange = (checked: boolean | "indeterminate") => {
+    if (checked === "indeterminate") return;
+    setEnableOriginalComments(checked);
+  };
+
+  /**
    * ユーザーAPIキー変更時のハンドラー
    */
   const handleUserApiKeyChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -311,6 +321,7 @@ export function useAISettings() {
     setIsPubcomMode(true);
     setIsEmbeddedAtLocal(false);
     setEnableSourceLink(false);
+    setEnableOriginalComments(false);
     setAnalysisMode(DEFAULT_ANALYSIS_MODE);
     setLocalLLMAddress(DEFAULT_LOCAL_LLM_ADDRESS);
     setUserApiKey("");
@@ -338,6 +349,7 @@ export function useAISettings() {
     isPubcomMode,
     isEmbeddedAtLocal,
     enableSourceLink,
+    enableOriginalComments,
     analysisMode,
     localLLMAddress,
     userApiKey,
@@ -350,6 +362,7 @@ export function useAISettings() {
     decreaseWorkers,
     handlePubcomModeChange,
     handleEnableSourceLinkChange,
+    handleEnableOriginalCommentsChange,
     handleUserApiKeyChange,
     setLocalLLMAddress,
     getModelDescription,

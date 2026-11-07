@@ -13,6 +13,8 @@ import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from analysis_core.public_result import write_result_files
+
 if TYPE_CHECKING:
     import numpy as np
 
@@ -55,7 +57,8 @@ def hierarchical_layout_generation(config: dict[str, Any]) -> None:
 
     result["layouts"] = layouts
     result["default_layout_id"] = _resolve_default_layout_id(result, layout_config, enabled)
-    result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    # 結果を書き換えたので、公開用の public_result.json もそろえて作り直す
+    write_result_files(result_path, result)
 
 
 def _should_enable_semantic_layout(result: dict[str, Any]) -> bool:

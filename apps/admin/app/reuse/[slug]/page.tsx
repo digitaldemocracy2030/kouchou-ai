@@ -29,6 +29,7 @@ type ReportConfig = {
   is_pubcom?: boolean | null;
   is_embedded_at_local?: boolean | null;
   enable_source_link?: boolean | null;
+  enable_original_comments?: boolean | null;
   local_llm_address?: string | null;
   extraction?: {
     prompt?: string | null;
@@ -56,6 +57,7 @@ type DuplicateOverrides = {
   workers?: number;
   is_pubcom?: boolean;
   enable_source_link?: boolean;
+  enable_original_comments?: boolean;
   is_embedded_at_local?: boolean;
   local_llm_address?: string;
   cluster?: number[];
@@ -129,6 +131,9 @@ export default function Page({ params }: PageProps) {
     }
     if (typeof nextConfig.enable_source_link === "boolean") {
       aiSettings.handleEnableSourceLinkChange(nextConfig.enable_source_link);
+    }
+    if (typeof nextConfig.enable_original_comments === "boolean") {
+      aiSettings.handleEnableOriginalCommentsChange(nextConfig.enable_original_comments);
     }
     if (typeof nextConfig.is_embedded_at_local === "boolean") {
       aiSettings.setIsEmbeddedAtLocal(nextConfig.is_embedded_at_local);
@@ -259,6 +264,9 @@ export default function Page({ params }: PageProps) {
       }
       if (aiSettings.enableSourceLink !== (config.enable_source_link ?? false)) {
         overrides.enable_source_link = aiSettings.enableSourceLink;
+      }
+      if (aiSettings.enableOriginalComments !== (config.enable_original_comments ?? false)) {
+        overrides.enable_original_comments = aiSettings.enableOriginalComments;
       }
       if (aiSettings.isEmbeddedAtLocal !== (config.is_embedded_at_local ?? false)) {
         overrides.is_embedded_at_local = aiSettings.isEmbeddedAtLocal;
@@ -401,6 +409,7 @@ export default function Page({ params }: PageProps) {
               workers={aiSettings.workers}
               isPubcomMode={aiSettings.isPubcomMode}
               enableSourceLink={aiSettings.enableSourceLink}
+              enableOriginalComments={aiSettings.enableOriginalComments}
               analysisMode={aiSettings.analysisMode}
               isEmbeddedAtLocal={aiSettings.isEmbeddedAtLocal}
               localLLMAddress={aiSettings.localLLMAddress}
@@ -420,6 +429,7 @@ export default function Page({ params }: PageProps) {
               onDecreaseWorkers={aiSettings.decreaseWorkers}
               onPubcomModeChange={aiSettings.handlePubcomModeChange}
               onEnableSourceLinkChange={aiSettings.handleEnableSourceLinkChange}
+              onEnableOriginalCommentsChange={aiSettings.handleEnableOriginalCommentsChange}
               onUserApiKeyChange={aiSettings.handleUserApiKeyChange}
               onEmbeddedAtLocalChange={(checked) => {
                 if (checked === "indeterminate") return;

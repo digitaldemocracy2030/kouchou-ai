@@ -49,6 +49,8 @@ class ReportConfig(SchemaBaseModel):
     provider: str | None = None
     analysis_mode: str | None = None  # "hierarchical"（既定） or "llm_grouping"
     is_pubcom: bool | None = None
+    # 元コメント本文を公開レポートに含めるか。再利用画面が /config 経由で読むので ReportConfig にも持たせる
+    enable_original_comments: bool = False
     is_embedded_at_local: bool | None = None
     local_llm_address: str | None = None
     extraction: ExtractionConfig

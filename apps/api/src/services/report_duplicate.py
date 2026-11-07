@@ -311,6 +311,8 @@ def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -
         config["is_pubcom"] = overrides.is_pubcom
     if overrides.enable_source_link is not None:
         config["enable_source_link"] = overrides.enable_source_link
+    if overrides.enable_original_comments is not None:
+        config["enable_original_comments"] = overrides.enable_original_comments
     if overrides.is_embedded_at_local is not None:
         config["is_embedded_at_local"] = overrides.is_embedded_at_local
     if overrides.local_llm_address is not None:

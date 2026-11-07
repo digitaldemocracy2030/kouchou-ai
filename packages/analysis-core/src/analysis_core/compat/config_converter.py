@@ -83,6 +83,7 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     result.setdefault("is_pubcom", False)
     result.setdefault("intro", "")
     result.setdefault("enable_source_link", False)
+    result.setdefault("enable_original_comments", False)
     result.setdefault("without_html", True)
 
     # Extraction defaults

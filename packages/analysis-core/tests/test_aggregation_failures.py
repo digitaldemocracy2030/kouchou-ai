@@ -120,8 +120,12 @@ def test_result_json_is_never_visible_partially_written(tmp_path, monkeypatch):
     monkeypatch.setattr(json, "dump", spying_dump)
     assert aggregation.hierarchical_aggregation(config) is True
 
-    assert observed == [{"old": True}]
     result = json.loads(result_path.read_text(encoding="utf-8"))
+    # 書き込みは hierarchical_result.json と public_result.json の 2 回。結果ファイルを書いている間は前回の完全な結果が、
+    # その後（公開用を書いている間）は今回の完全な結果だけが見える
+    assert observed[0] == {"old": True}
+    assert all(state in ({"old": True}, result) for state in observed)
+    assert (report / "public_result.json").exists()
     assert result["config"]["intro"].startswith("intro\n分析対象となったデータの件数は1件")
     assert "OpenAI API (m)" in result["config"]["intro"]
     # 呼び出し元の config は書き換えない

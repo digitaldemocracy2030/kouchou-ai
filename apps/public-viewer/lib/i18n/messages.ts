@@ -76,6 +76,10 @@ const ja = {
   scatterHelpSourceLink: "・点をクリック: 元のソースを開く",
   /** ページスクロール中に散布図へ重ねる案内（ホイールが止まると消え、拡大・縮小が有効になる） */
   scatterWheelLocked: "スクロール中は拡大・縮小しません（止めると有効になります）",
+  /** 元コメント本文が公開されているときだけ操作ヒントに足す */
+  scatterHelpOriginalComment: "・点にカーソルを合わせる: 元コメントの本文も表示",
+  /** 散布図のホバーと階層リストで、意見の下に出す元コメント本文の見出し */
+  originalCommentLabel: "元コメント",
   parentCluster: (label: string) => `所属: ${label}`,
   unknownParentCluster: "不明",
   parentAttributionHeading: "濃い意見グループの第一階層クラスタへの帰属",
@@ -260,6 +264,8 @@ const en: Messages = {
   ],
   scatterHelpSourceLink: "• Click a point: open the original source",
   scatterWheelLocked: "Zoom is paused while you scroll the page (resumes when you stop)",
+  scatterHelpOriginalComment: "• Hover over a point: also shows the original comment",
+  originalCommentLabel: "Original comment",
   parentCluster: (label) => `Top-level cluster: ${label}`,
   unknownParentCluster: "Unknown",
   parentAttributionHeading: "Top-level cluster of each dense opinion group",
@@ -436,6 +442,8 @@ const ko: Messages = {
   ],
   scatterHelpSourceLink: "• 점 클릭: 원래 출처 열기",
   scatterWheelLocked: "스크롤 중에는 확대·축소하지 않습니다(멈추면 활성화됩니다)",
+  scatterHelpOriginalComment: "• 점에 커서를 올리기: 원본 댓글도 표시",
+  originalCommentLabel: "원본 댓글",
   parentCluster: (label) => `소속: ${label}`,
   unknownParentCluster: "알 수 없음",
   parentAttributionHeading: "밀집 의견 그룹이 속한 제1계층 클러스터",
