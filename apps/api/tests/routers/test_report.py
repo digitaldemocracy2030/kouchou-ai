@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.schemas.report import ReportStatus, ReportVisibility
@@ -419,26 +418,20 @@ class TestPublicResultArtifact:
             assert response.status_code == 200
             assert response.json()["overview"] == "結果の概要"
 
-    def test_public_result_alone_is_served(self, client, temp_report_dir, test_settings):
-        """結果ファイルが無くても公開用ファイルがあれば返す"""
+    def test_public_result_alone_is_not_served(self, client, temp_report_dir, test_settings):
+        """正本が無く写し（public_result.json）だけがある場合は返さない
+
+        写しが正本と食い違っていないか（古い写しで隠すべき列が残っていないか）を確かめる手段が無いので、
+        従来どおり「レポートが無い」として扱う。
+        """
         from analysis_core.public_result import build_public_result
 
-        self._write(temp_report_dir, "public_result.json", build_public_result(self._full_result("公開用だけ")))
+        self._write(temp_report_dir, "public_result.json", build_public_result(self._full_result("写しだけ")))
 
         response = self._get(client, temp_report_dir, test_settings)
 
-        assert response.status_code == 200
-        assert response.json()["overview"] == "公開用だけ"
-
-    @pytest.mark.parametrize("content", ["{ broken", json.dumps({"overview": "config が無い"}), "[]"])
-    def test_invalid_public_result_without_result_returns_500(self, client, temp_report_dir, test_settings, content):
-        """結果ファイルが無く、公開用ファイルが壊れている・契約を満たさなければ 500（推測で返さない）"""
-        self._write(temp_report_dir, "public_result.json", content)
-
-        response = self._get(client, temp_report_dir, test_settings)
-
-        assert response.status_code == 500
-        assert response.json()["detail"] == "Invalid report data"
+        assert response.status_code == 404
+        assert "写しだけ" not in response.text
 
     def test_non_object_result_returns_500(self, client, temp_report_dir, test_settings):
         """結果ファイルがオブジェクトでなければ 500"""
