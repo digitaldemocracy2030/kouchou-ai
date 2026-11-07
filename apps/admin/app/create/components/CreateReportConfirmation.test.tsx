@@ -68,6 +68,29 @@ it.each([
   await userEvent.click(await screen.findByRole("button", { name: "API接続を確認する" }));
   expect(await screen.findByText(new RegExp(`^${text}`))).toBeVisible();
   expect(verify).toHaveBeenCalledWith("openai", "test-key", prepared.request.model, undefined);
+  expect(screen.queryByText(/エラー詳細：/)).not.toBeInTheDocument();
+});
+
+it("プロバイダーのエラー詳細があれば結果の下に表示し、再確認で成功したら消す", async () => {
+  verify.mockResolvedValueOnce({
+    result: {
+      success: false,
+      message: "エラーが発生しました: APIの設定や接続を確認してください。",
+      error_type: "unknown_error",
+      error_detail: "HTTP 404 model_not_found: The model `o3-mini` has been deprecated",
+    },
+    error: true,
+  });
+  mount();
+  await userEvent.click(await screen.findByRole("button", { name: "API接続を確認する" }));
+  expect(await screen.findByText(/^不明なエラー/)).toBeVisible();
+  expect(
+    screen.getByText("エラー詳細：HTTP 404 model_not_found: The model `o3-mini` has been deprecated"),
+  ).toBeVisible();
+  verify.mockResolvedValueOnce({ result: { success: true, message: "ok" }, error: false });
+  await userEvent.click(screen.getByRole("button", { name: "API接続を確認する" }));
+  expect(await screen.findByText(/^OK/)).toBeVisible();
+  expect(screen.queryByText(/エラー詳細：/)).not.toBeInTheDocument();
 });
 
 it("接続確認の成功と明示した作成操作を扱う", async () => {
