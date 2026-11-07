@@ -54,6 +54,16 @@ it("ユーザー API キーは x-user-api-key ヘッダーで送り、リダイ�
   expect(options.body).not.toContain("user-key");
 });
 
+it("元コメント公開は既定 OFF で送り、ON にした時だけ true を送る", async () => {
+  mockFetch.mockResolvedValue({ ok: true, status: 202 } as unknown as Response);
+
+  await createReport(baseParams);
+  expect(JSON.parse(mockFetch.mock.calls[0][1].body).enable_original_comments).toBe(false);
+
+  await createReport({ ...baseParams, enable_original_comments: true });
+  expect(JSON.parse(mockFetch.mock.calls[1][1].body).enable_original_comments).toBe(true);
+});
+
 it("既存IDで 409 が返ったら重複を伝えるメッセージを返す", async () => {
   mockFetch.mockResolvedValue(errorResponse(409, "Conflict", { detail: "Report already exists" }));
 

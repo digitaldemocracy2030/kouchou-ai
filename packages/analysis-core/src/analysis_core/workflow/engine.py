@@ -264,6 +264,7 @@ class WorkflowEngine:
             "merge_labels": "hierarchical_merge_labels.csv",
             "overview": "hierarchical_overview.txt",
             "result": "hierarchical_result.json",
+            "public_result": "public_result.json",
             "html": "report.html",
         }
         for artifact_id, filename in output_artifacts.items():

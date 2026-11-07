@@ -44,7 +44,15 @@ def _completed_status(config, specs, completed="2026-01-01T00:00:00"):
                 "completed": completed,
                 "params": dict(config[spec["step"]]),
                 "global_params": {
-                    k: config.get(k) for k in ("input", "question", "intro", "is_pubcom", "enable_source_link")
+                    k: config.get(k)
+                    for k in (
+                        "input",
+                        "question",
+                        "intro",
+                        "is_pubcom",
+                        "enable_source_link",
+                        "enable_original_comments",
+                    )
                 },
             }
             for spec in specs
@@ -80,6 +88,7 @@ class TestParamChangesAreDetected:
             ({"intro": "new intro"}, "hierarchical_aggregation"),
             ({"is_pubcom": True}, "hierarchical_aggregation"),
             ({"enable_source_link": True}, "hierarchical_aggregation"),
+            ({"enable_original_comments": True}, "hierarchical_aggregation"),
         ],
     )
     def test_hierarchical_param_change_reruns_step(self, tmp_path, override, expected_step):

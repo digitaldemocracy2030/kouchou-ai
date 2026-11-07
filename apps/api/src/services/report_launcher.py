@@ -55,6 +55,7 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
             "sampling_num": report_input.workers,
         },
         "enable_source_link": report_input.enable_source_link,
+        "enable_original_comments": report_input.enable_original_comments,
     }
 
     if report_input.analysis_mode == "llm_grouping":

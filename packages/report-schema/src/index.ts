@@ -179,7 +179,7 @@ export type ClusterUpdate = {
 };
 
 /**
- * コメント情報
+ * 元コメント本文（comment_id → 本文）。config.enable_original_comments が true のレポートだけ値を持ち、既定では空
  */
 export type Comments = Record<string, { comment: string }>;
 
@@ -262,6 +262,8 @@ export type Config = {
   is_embedded_at_local?: boolean;
   /** ソースリンク機能を有効にするかどうか */
   enable_source_link?: boolean;
+  /** 元コメント本文を公開レポートに含めるかどうか（true のとき comments に本文が入る） */
+  enable_original_comments?: boolean;
   /** 抽出設定 */
   extraction: ExtractionConfig;
   /** クラスタリング設定 */

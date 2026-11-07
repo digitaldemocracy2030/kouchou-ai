@@ -74,6 +74,10 @@ const ja = {
   ],
   /** ソースリンクが有効なときだけ操作ヒントに足す */
   scatterHelpSourceLink: "・点をクリック: 元のソースを開く",
+  /** 元コメント本文が公開されているときだけ操作ヒントに足す */
+  scatterHelpOriginalComment: "・点にカーソルを合わせる: 元コメントの本文も表示",
+  /** 散布図のホバーと階層リストで、意見の下に出す元コメント本文の見出し */
+  originalCommentLabel: "元コメント",
   parentCluster: (label: string) => `所属: ${label}`,
   unknownParentCluster: "不明",
   parentAttributionHeading: "濃い意見グループの第一階層クラスタへの帰属",
@@ -257,6 +261,8 @@ const en: Messages = {
     "• Hover over a point: show the opinion",
   ],
   scatterHelpSourceLink: "• Click a point: open the original source",
+  scatterHelpOriginalComment: "• Hover over a point: also shows the original comment",
+  originalCommentLabel: "Original comment",
   parentCluster: (label) => `Top-level cluster: ${label}`,
   unknownParentCluster: "Unknown",
   parentAttributionHeading: "Top-level cluster of each dense opinion group",
@@ -432,6 +438,8 @@ const ko: Messages = {
     "• 점에 커서 올리기: 의견 내용 표시",
   ],
   scatterHelpSourceLink: "• 점 클릭: 원래 출처 열기",
+  scatterHelpOriginalComment: "• 점에 커서를 올리기: 원본 댓글도 표시",
+  originalCommentLabel: "원본 댓글",
   parentCluster: (label) => `소속: ${label}`,
   unknownParentCluster: "알 수 없음",
   parentAttributionHeading: "밀집 의견 그룹이 속한 제1계층 클러스터",

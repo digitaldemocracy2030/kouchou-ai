@@ -8,7 +8,8 @@ from typing import Any, TypedDict
 import numpy as np
 import polars as pl
 
-from analysis_core.core.utils import atomic_output_path, read_input_csv, write_json_atomic
+from analysis_core.core.utils import atomic_output_path, read_input_csv
+from analysis_core.public_result import write_result_files
 from analysis_core.steps.extraction import filter_empty_comments
 from analysis_core.steps.hierarchical_translation import TRANSLATIONS_FILENAME, fresh_translations
 
@@ -129,9 +130,10 @@ def hierarchical_aggregation(config) -> bool:
             )
         results["clusters"] = _build_cluster_value(labels, arg_num)
 
-        # results["comments"] = _build_comments_value(
-        #     comments, arguments, hidden_properties_map
-        # )
+        # 元コメント本文は、レポート作成者が「公開してよい」と明示した場合だけ公開 JSON に入れる。
+        # 入力 CSV には引用・再頒布が許されないコメントが混ざりうるため、既定では件数だけを出す。
+        if config.get("enable_original_comments", False):
+            results["comments"] = _build_comments_value(comments, relation_df, hidden_properties_map)
         results["comment_num"] = len(comments)
         # 属性情報のカラムは、元データに対して指定したカラムとclassificationするカテゴリを合わせたもの
         results["propertyMap"] = _build_property_map(arguments, comments, hidden_properties_map, config)
@@ -150,8 +152,9 @@ def hierarchical_aggregation(config) -> bool:
         # 訳は原文（ラベル・概要・イントロなど）が確定してから、それに合うものだけを入れる
         results["translations"] = _build_translations(config, results)
 
-        # 公開 API が読み続けるファイルなので、一時ファイルに書いてから差し替え、1 回で書き終える
-        write_json_atomic(path, results)
+        # 公開 API が読み続けるファイルなので、一時ファイルに書いてから差し替え、1 回で書き終える。
+        # 公開用のホワイトリスト版 public_result.json も同じ場所に書く（analysis_core.public_result）
+        write_result_files(path, results)
         if config["is_pubcom"]:
             add_original_comments(labels, arguments, relation_df, clusters, config)
         return True
@@ -401,12 +404,10 @@ def read_merge_labels(path) -> pl.DataFrame:
     管理画面のラベル編集（apps/api の ClusterRepository.update_csv）は csv モジュールで全行を書き直すので、
     空の label / description は引用符なしの空欄になる。polars の既定ではこれが null になり、
     公開 JSON に文字列 'None' が出てしまうため、空欄は空文字列として読む。
+    read_csv の missing_utf8_is_empty_string は polars 2 で無くなったので、読んだ後に null を空文字列にする。
     """
-    return pl.read_csv(
-        path,
-        schema_overrides={"label": pl.Utf8, "description": pl.Utf8},
-        missing_utf8_is_empty_string=True,
-    )
+    labels = pl.read_csv(path, schema_overrides={"label": pl.Utf8, "description": pl.Utf8})
+    return labels.with_columns(pl.col("label", "description").fill_null(""))
 
 
 def _text_or_empty(value) -> str:
@@ -462,19 +463,33 @@ def _build_cluster_value(melted_labels: pl.DataFrame, total_num: int) -> list[Cl
 
 def _build_comments_value(
     comments: pl.DataFrame,
-    arguments: pl.DataFrame,
+    relation_df: pl.DataFrame,
     hidden_properties_map: dict[str, list[str]],
-):
+) -> dict[str, dict[str, str]]:
+    """公開 JSON の comments（comment-id → 元コメント本文）を組み立てる。
+
+    - 意見（argument）に紐づいたコメントだけを入れる。抽出で意見が出なかったコメントは公開しない
+    - comment-id は入力 CSV の文字列のまま使う（"001" のような先頭ゼロや数値精度外の ID を崩さない）
+    - hidden_properties で非公開にした属性値を持つコメントは、本文も出さない
+    """
     comment_dict: dict[str, dict[str, str]] = {}
-    useful_comment_ids = set(arguments["comment-id"].to_list())
-    for row in comments.iter_rows(named=True):
-        id = row["comment-id"]
-        if id in useful_comment_ids:
-            res = {"comment": row["comment-body"]}
-            should_skip = any(row[prop] in hidden_values for prop, hidden_values in hidden_properties_map.items())
-            if should_skip:
-                continue
-            comment_dict[str(id)] = res
+    if "comment-id" not in relation_df.columns:
+        return comment_dict
+    useful_comment_ids = set(relation_df.with_columns(pl.col("comment-id").cast(pl.Utf8))["comment-id"].to_list())
+    comments_copy = comments.with_columns(pl.col("comment-id").cast(pl.Utf8))
+    for row in comments_copy.iter_rows(named=True):
+        comment_id = row["comment-id"]
+        if comment_id not in useful_comment_ids:
+            continue
+        should_skip = any(
+            prop in row and row[prop] in hidden_values for prop, hidden_values in hidden_properties_map.items()
+        )
+        if should_skip:
+            continue
+        body = row.get("comment-body")
+        if body is None:
+            continue
+        comment_dict[str(comment_id)] = {"comment": str(body)}
 
     return comment_dict
 

@@ -169,6 +169,40 @@ def test_build_analysis_core_config_preserves_embedding_model():
     assert config["embedding"] == {"model": "text-embedding-3-large"}
 
 
+def test_embedded_config_keeps_original_comments_flag():
+    """複製元が元コメント公開を ON にしていたら、同じ入力データを使う複製先にも引き継ぐ。"""
+    from src.services import report_duplicate
+
+    embedded_config = {
+        "input": "source",
+        "question": "Source title",
+        "intro": "Source description",
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "enable_original_comments": True,
+        "extraction": {"prompt": "extract"},
+        "hierarchical_overview": {"prompt": "overview"},
+        "hierarchical_aggregation": {},
+    }
+
+    config = report_duplicate._build_analysis_core_config_from_embedded_config(embedded_config)
+
+    assert config["enable_original_comments"] is True
+
+
+def test_apply_overrides_original_comments_flag():
+    from src.schemas.admin_report import ReportDuplicateOverrides
+    from src.services import report_duplicate
+
+    config = {"analysis_mode": "hierarchical", "enable_original_comments": True}
+
+    assert (
+        report_duplicate._apply_overrides(dict(config), ReportDuplicateOverrides())["enable_original_comments"] is True
+    )
+    result = report_duplicate._apply_overrides(dict(config), ReportDuplicateOverrides(enable_original_comments=False))
+    assert result["enable_original_comments"] is False
+
+
 def test_apply_overrides_workers_reaches_labelling_steps():
     """複製で並列実行数を変えると、抽出だけでなく初期・統合ラベリングにも効く。
 
