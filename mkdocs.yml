@@ -96,6 +96,7 @@ nav:
       - Windowsセットアップ: self-hosting/windows-setup.md
       - Macセットアップ: self-hosting/mac-setup.md
       - Linuxセットアップ: self-hosting/linux-setup.md
+      - APIの課金と429エラー（残高不足・レート制限）: self-hosting/api-billing-and-rate-limits.md
       - セキュリティ情報:
           - 「APIキー」欄のキーの書き出し（v4.2.0 で修正）: self-hosting/security/user-api-key-leak-2026-10.md
   - ユーザーガイド:
