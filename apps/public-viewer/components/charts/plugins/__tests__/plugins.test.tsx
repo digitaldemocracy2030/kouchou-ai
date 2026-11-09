@@ -248,7 +248,7 @@ describe("hierarchyListPlugin", () => {
     });
 
     it("has Japanese name", () => {
-      expect(hierarchyListPlugin.manifest.name).toBe("階層リスト");
+      expect(hierarchyListPlugin.manifest.name).toBe("階層リスト（詳細モード）");
     });
   });
 

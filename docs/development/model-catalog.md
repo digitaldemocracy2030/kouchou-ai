@@ -15,6 +15,8 @@
    trueへの変更にはverification_source（検証結果のURL）が必要。既存モデルも検証記録を移入していないためfalseから始める。
 3. priceは不明ならnull。既知ならUSD/100万テキストtokenのinput / output、source、checked_at、conditionsを記載する。
    現行の旧単価は移行値でchecked_at=null。最新確認済みとは扱わない。
+   埋め込みモデル（kind=embedding）は入力トークンだけが課金されるので、inputに単価を書きoutputは0にする。
+   管理画面はこの単価を作成前確認の費用の目安（埋め込み分）にも使う。
 4. 提供終了は行を消さずavailable=false、deprecated=trueにする。保存済み設定を表示し、再選択を案内する。
 5. APIのcatalog / pricingテストとadminのhook / componentテストを実行する。
 

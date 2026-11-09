@@ -503,12 +503,16 @@ def validate_input_file(config: dict[str, Any], input_base_dir: Path, plan: list
     return input_path
 
 
+# 既定では実行しない任意ステップ（``<step>.enabled`` を true にしたときだけ実行計画に入る）
+OPT_IN_STEPS = ("opinion_classification", "opinion_stance", "opinion_novelty")
+
+
 def _disabled_reason(stepname: str, config: dict[str, Any]) -> str | None:
     """Return why the config turns a step off (its output is not part of the report), if it does."""
     if stepname == "hierarchical_visualization" and config.get("without-html", False):
         return "skipping html output"
-    if stepname == "opinion_classification" and not config.get(stepname, {}).get("enabled", False):
-        return "opinion_classification is disabled (set opinion_classification.enabled to true)"
+    if stepname in OPT_IN_STEPS and not config.get(stepname, {}).get("enabled", False):
+        return f"{stepname} is disabled (set {stepname}.enabled to true)"
     return None
 
 

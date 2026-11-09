@@ -460,7 +460,9 @@ class TestOrchestratorPathsIntegration:
             assert skipped_steps == [
                 "extraction",
                 "opinion_classification",
+                "opinion_stance",
                 "embedding",
+                "opinion_novelty",
                 "hierarchical_clustering",
                 "hierarchical_initial_labelling",
                 "hierarchical_merge_labelling",

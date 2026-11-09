@@ -29,8 +29,13 @@ export function modelLabel(option: ModelOption): string {
 
 export function modelDescription(option?: ModelOption): string {
   if (!option) return "";
+  // 埋め込みモデルは入力トークンだけが課金されるので、出力単価は出さない
+  const rate =
+    option.kind === "embedding"
+      ? `$${option.price?.input}`
+      : `入力 $${option.price?.input} / 出力 $${option.price?.output}`;
   const price = option.price
-    ? `参考単価（100万トークン）：入力 $${option.price.input} / 出力 $${option.price.output}。${option.price.conditions || ""}${option.price.valid_until ? ` 適用期限：${option.price.valid_until}。` : ""}${option.price.checked_at ? ` 確認日：${option.price.checked_at}` : " 単価の最終確認日は不明です。"}`
+    ? `参考単価（100万トークン）：${rate}。${option.price.conditions || ""}${option.price.valid_until ? ` 適用期限：${option.price.valid_until}。` : ""}${option.price.checked_at ? ` 確認日：${option.price.checked_at}` : " 単価の最終確認日は不明です。"}`
     : "料金不明";
   return `${option.description || ""}${option.actual_model ? ` 利用モデル：${option.actual_model}。` : ""} ${price}`.trim();
 }

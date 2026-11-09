@@ -27,20 +27,50 @@ describe("with-renamed-files", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("static ビルドが失敗しても改名したファイルを元に戻し、終了コードを引き継ぐ", () => {
-    const check = `process.exit(require("node:fs").existsSync("app/[slug]/_opengraph-image.tsx") ? 3 : 0)`;
+  it("static ビルドが失敗してもOGPの両ルートを復元する", () => {
+    const check = `
+      const { existsSync } = require("node:fs");
+      const excluded = existsSync("app/[slug]/_opengraph-image.tsx")
+        && existsSync("app/[slug]/opengraph-image.png/_route.ts")
+        && !existsSync("app/[slug]/opengraph-image.tsx")
+        && !existsSync("app/[slug]/opengraph-image.png/route.ts");
+      process.exit(excluded ? 3 : 4);
+    `;
     const proc = spawnSync(process.execPath, [script, process.execPath, "-e", check], {
       cwd: dir,
       env: { ...process.env, NEXT_PUBLIC_OUTPUT_MODE: "export" },
       encoding: "utf8",
     });
 
-    // コマンドの実行中は改名されていて（exit 3）、終了後は元の名前に戻っている
     expect(proc.status).toBe(3);
+    expect(proc.stderr).not.toContain("Skipping rename");
     expect(existsSync(path.join(dir, "app/[slug]/opengraph-image.tsx"))).toBe(true);
     expect(existsSync(path.join(dir, "app/[slug]/opengraph-image.png/route.ts"))).toBe(true);
     expect(existsSync(path.join(dir, "app/[slug]/_opengraph-image.tsx"))).toBe(false);
-    expect(existsSync(path.join(dir, "app/[slug]/_opengraph-image.png"))).toBe(false);
+    expect(existsSync(path.join(dir, "app/[slug]/opengraph-image.png/_route.ts"))).toBe(false);
+  });
+
+  it("static ビルドが成功してもOGPの両ルートを復元する", () => {
+    const check = `
+      const { existsSync } = require("node:fs");
+      const excluded = existsSync("app/[slug]/_opengraph-image.tsx")
+        && existsSync("app/[slug]/opengraph-image.png/_route.ts")
+        && !existsSync("app/[slug]/opengraph-image.tsx")
+        && !existsSync("app/[slug]/opengraph-image.png/route.ts");
+      process.exit(excluded ? 0 : 4);
+    `;
+    const proc = spawnSync(process.execPath, [script, process.execPath, "-e", check], {
+      cwd: dir,
+      env: { ...process.env, NEXT_PUBLIC_OUTPUT_MODE: "export" },
+      encoding: "utf8",
+    });
+
+    expect(proc.status).toBe(0);
+    expect(proc.stderr).not.toContain("Skipping rename");
+    expect(existsSync(path.join(dir, "app/[slug]/opengraph-image.tsx"))).toBe(true);
+    expect(existsSync(path.join(dir, "app/[slug]/opengraph-image.png/route.ts"))).toBe(true);
+    expect(existsSync(path.join(dir, "app/[slug]/_opengraph-image.tsx"))).toBe(false);
+    expect(existsSync(path.join(dir, "app/[slug]/opengraph-image.png/_route.ts"))).toBe(false);
   });
 
   it("通常ビルドでは static 用の route.ts だけを改名し、成功後に戻す", () => {

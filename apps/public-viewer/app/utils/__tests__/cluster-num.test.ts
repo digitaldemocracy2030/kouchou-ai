@@ -66,12 +66,9 @@ describe("getClusterNum", () => {
       translations: {},
       overview: "",
       config: {
-        name: "",
         question: "",
-        input: "",
         model: "",
         intro: "",
-        output_dir: "",
         is_embedded_at_local: false,
         extraction: {
           workers: 0,
@@ -109,15 +106,12 @@ describe("getClusterNum", () => {
           model: "",
         },
         hierarchical_aggregation: {
-          hidden_properties: {},
           source_code: "",
         },
         hierarchical_visualization: {
-          replacements: {},
           source_code: "",
         },
         plan: [],
-        status: "",
       },
       comment_num: 0,
     };
@@ -140,12 +134,9 @@ describe("getClusterNum", () => {
       translations: {},
       overview: "",
       config: {
-        name: "",
         question: "",
-        input: "",
         model: "",
         intro: "",
-        output_dir: "",
         is_embedded_at_local: false,
         extraction: {
           workers: 0,
@@ -183,15 +174,12 @@ describe("getClusterNum", () => {
           model: "",
         },
         hierarchical_aggregation: {
-          hidden_properties: {},
           source_code: "",
         },
         hierarchical_visualization: {
-          replacements: {},
           source_code: "",
         },
         plan: [],
-        status: "",
       },
       comment_num: 0,
     };

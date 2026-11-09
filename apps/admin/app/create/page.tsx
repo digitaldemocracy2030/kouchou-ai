@@ -263,6 +263,7 @@ export default function Page() {
       attributeColumns: [
         ...(isPluginInput ? pluginData.pluginSelectedAttributeColumns : inputData.selectedAttributeColumns),
       ],
+      pricing: aiSettings.selectedPrices,
     });
     setLoading(false);
   };

@@ -20,14 +20,22 @@ api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
 
 def _load_validated_report_result(slug: str) -> dict:
-    report_path = settings.REPORT_DIR / slug / "hierarchical_result.json"
+    """公開用レポート結果（docs/development/public-result.md の契約）を返す。
 
-    with open(report_path, encoding="utf-8") as f:
-        report_result = json.load(f)
+    正本の ``hierarchical_result.json`` から、analysis-core の ``build_public_result`` で毎回作る。
+    隣の ``public_result.json`` は同じ関数で書かれた写しだが、ファイル単位で復元・同期されると
+    正本と食い違うことがあり、更新日時ではそれを確かめられない。写しは読まず、正本から作ることで、
+    隠すと指定した属性の列などが古い写しから漏れないようにする（読む量は従来と同じ）。
+    """
+    from analysis_core.public_result import RESULT_FILENAME, build_public_result
 
+    result_path = settings.REPORT_DIR / slug / RESULT_FILENAME
     try:
+        with open(result_path, encoding="utf-8") as f:
+            full_result = json.load(f)
+        report_result = build_public_result(full_result if isinstance(full_result, dict) else {})
         PublicReportResult.model_validate(report_result)
-    except ValidationError as e:
+    except (OSError, json.JSONDecodeError, ValidationError) as e:
         logger.warning(f"Invalid public report result for {slug}: {e}")
         raise HTTPException(status_code=500, detail="Invalid report data") from e
 
@@ -53,9 +61,12 @@ async def reports() -> list[PublicReport]:
 
 @router.get("/reports/{slug}")
 async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> dict:
-    """公開可能なレポートに可視化設定を添え、古い密度項目だけを読み込み時に補正する。"""
+    """公開可能なレポートの公開用レポート結果に、公開範囲と可視化設定を添えて返す。
+
+    可視化設定は古い密度項目だけを読み込み時に補正する。
+    """
     validate_slug(slug)
-    report_path = settings.REPORT_DIR / slug / "hierarchical_result.json"
+    report_dir = settings.REPORT_DIR / slug
     all_reports = load_status_as_reports()
     target_report_status = next((report for report in all_reports if report.slug == slug), None)
 
@@ -65,7 +76,7 @@ async def report(slug: str, api_key: str = Depends(verify_public_api_key)) -> di
         raise HTTPException(status_code=404, detail="Report is not ready")
     if target_report_status.visibility == ReportVisibility.PRIVATE:
         raise HTTPException(status_code=404, detail="Report is private")
-    if not report_path.exists():
+    if not (report_dir / "hierarchical_result.json").exists():
         raise HTTPException(status_code=404, detail="Report not found")
 
     report_result = _load_validated_report_result(slug)
