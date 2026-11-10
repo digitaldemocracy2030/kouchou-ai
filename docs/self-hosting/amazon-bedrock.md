@@ -40,12 +40,15 @@ Bedrock は OpenAI と同じ形の API（OpenAI 互換の Chat Completions）を
 
 ### API キーを作る
 
-Bedrock のコンソールで API キーを作ります。手順と、キーの種類（有効期限の短いキーと長いキー）の違いは [Amazon Bedrock API keys](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) を参照してください。広聴AIはキーを環境変数で読むので、期限の短いキーを使う場合は、期限が来るたびに差し替えて API を再起動する必要があります。
+Bedrock のコンソールで API キーを作ります。手順は [Amazon Bedrock API keys](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) を参照してください。キーには 2 種類あります。
 
-キーに紐づく権限には、使う接続先に応じて次が要ります（[Responses API のページの Prerequisites](https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html)）。
+- **期限の短いキー（short-term）**：最長 12 時間で切れます。**作ったリージョンでしか使えない** ので、コンソールで東京リージョン（ap-northeast-1）に切り替えてから作ってください。AWS は本番にはこちらを勧めています。広聴AIはキーを環境変数で読むので、期限が来るたびに差し替えて API を再起動する必要があります
+- **期限の長いキー（long-term）**：設定した期限まで使えます。AWS は「試すとき用」としています
 
-- `bedrock-mantle` を使う場合：`bedrock-mantle:CreateInference`
-- `bedrock-runtime` を使う場合：`bedrock:InvokeModel`
+キーに紐づく権限には、使う接続先に応じて次が要ります（[Responses API のページの Prerequisites](https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html)、[API キーの権限](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html#api-keys-control)、[bedrock-mantle の IAM アクション](https://docs.aws.amazon.com/service-authorization/latest/reference/list_bedrock-mantle.html)）。
+
+- `bedrock-mantle` を使う場合：`bedrock-mantle:CreateInference`（推論）、`bedrock-mantle:CallWithBearerToken`（API キーでの呼び出し）、`bedrock-mantle:ListModels`（管理画面のモデル一覧の取得）
+- `bedrock-runtime` を使う場合：`bedrock:InvokeModel`（推論）、`bedrock:CallWithBearerToken`（API キーでの呼び出し）
 
 ## 2. 接続先を選ぶ
 
