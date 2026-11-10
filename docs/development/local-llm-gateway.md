@@ -31,3 +31,7 @@ LOCAL_LLM_ALLOWED_BASE_URLS=https://gateway.example.com
 許可リストに書いた項目がどれも読めない（例: `host:abc` のようにポートが数字でない）場合は、空とは扱わず、どの接続先にも鍵を付けません。読めない項目はログに警告を出して無視します。
 
 変更後は API を再起動します。Docker Compose では `docker compose up -d --force-recreate api` で API コンテナを作り直します。
+
+## Amazon Bedrock で使う
+
+Amazon Bedrock の OpenAI 互換 API も、この仕組みで接続できます。構成例は [Amazon Bedrock（東京リージョン）で動かす](../self-hosting/amazon-bedrock.md) にあります。
