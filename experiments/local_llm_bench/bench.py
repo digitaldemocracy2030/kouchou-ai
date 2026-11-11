@@ -53,7 +53,7 @@ def cpu_name() -> str:
         except OSError:
             pass  # 読めない環境では次の lscpu で探す
         try:  # ARM などで /proc/cpuinfo に名前が無いとき
-            out = subprocess.run(["lscpu"], capture_output=True, text=True).stdout
+            out = subprocess.run(["lscpu"], capture_output=True, text=True, check=False).stdout
             for line in out.splitlines():
                 if line.startswith("Model name:"):
                     return line.split(":", 1)[1].strip()
@@ -62,7 +62,7 @@ def cpu_name() -> str:
     elif sys.platform == "darwin":
         try:
             return subprocess.run(
-                ["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True
+                ["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True, check=False
             ).stdout.strip()
         except OSError:
             pass
@@ -90,6 +90,15 @@ def machine_info() -> dict:
         "memory_gb": total_memory_gb(),
         "python": platform.python_version(),
     }
+
+
+def unused_name(workdir: Path, base: str) -> str:
+    """前の回の出力を使い回さないよう、まだ使われていない名前を返す（同じ件数を 2 回測るときなど）"""
+    name, k = base, 1
+    while (workdir / "configs" / f"{name}.json").exists() or (workdir / "outputs" / name).exists():
+        k += 1
+        name = f"{base}-{k}"
+    return name
 
 
 def run_and_watch(cmd: list[str], env: dict, log_path: Path) -> tuple[int, float, float | None]:
@@ -151,6 +160,8 @@ def main() -> int:
 
     comments = read_comments(args.input, args.text_column)
     for n in args.n:
+        if n <= 0:
+            sys.exit(f"--n は 1 以上にしてください（{n} が指定されました）")
         if n > len(comments):
             sys.exit(
                 f"{args.input} の意見は {len(comments)} 件で、--n {n} に足りません。もっと多い CSV を --input で渡してください"
@@ -182,7 +193,7 @@ def main() -> int:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
     for n in args.n:
-        name = f"bench-{n}-{stamp}"
+        name = unused_name(args.workdir, f"bench-{n}-{stamp}")
         with (args.workdir / "inputs" / f"{name}.csv").open("w", encoding="utf-8", newline="") as f:
             w = csv.writer(f)
             w.writerow(["comment-id", "comment-body"])
