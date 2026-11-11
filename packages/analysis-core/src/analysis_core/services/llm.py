@@ -765,6 +765,18 @@ def _to_strict_json_schema(schema: Any) -> Any:
     return strict
 
 
+def local_llm_reasoning_effort() -> str | None:
+    """LocalLLM に送る reasoning_effort（環境変数 LOCAL_LLM_REASONING_EFFORT）。未設定・空なら送らない。
+
+    gemma-4 などの思考型モデルは、OpenAI 互換の窓口でも既定で思考してから答えるので、CPU では
+    1 件あたり 3 倍ほど時間がかかる（#471）。`none` を設定すると思考を止めて送る。Ollama と
+    llama.cpp の llama-server は要求ごとの reasoning_effort を受け付ける。受け付けない接続先も
+    あるので（値の種類は接続先とモデルで違う）、既定では何も送らない。
+    """
+    value = (os.environ.get("LOCAL_LLM_REASONING_EFFORT") or "").strip()
+    return value or None
+
+
 def request_to_local_llm(
     messages: list[dict],
     model: str,
@@ -829,6 +841,9 @@ def request_to_local_llm(
 
         if response_format:
             payload["response_format"] = response_format
+        reasoning_effort = local_llm_reasoning_effort()
+        if reasoning_effort:
+            payload["reasoning_effort"] = reasoning_effort
 
         response = client.chat.completions.create(**payload)
 
