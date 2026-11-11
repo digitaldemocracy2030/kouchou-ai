@@ -258,12 +258,17 @@ class WorkflowEngine:
             "relations": "relations.csv",
             "classifications": "opinion_classifications.csv",
             "classification_summary": "opinion_classification_summary.json",
+            "stances": "opinion_stances.csv",
+            "stance_summary": "opinion_stance_summary.json",
+            "novelty": "opinion_novelty.csv",
+            "novelty_summary": "opinion_novelty_summary.json",
             "embeddings": "embeddings.pkl",
             "clusters": "hierarchical_clusters.csv",
             "initial_labels": "hierarchical_initial_labels.csv",
             "merge_labels": "hierarchical_merge_labels.csv",
             "overview": "hierarchical_overview.txt",
             "result": "hierarchical_result.json",
+            "public_result": "public_result.json",
             "html": "report.html",
         }
         for artifact_id, filename in output_artifacts.items():

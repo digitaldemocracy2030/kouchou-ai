@@ -8,7 +8,6 @@ the analysis; the labels only add information.
 """
 
 import json
-import logging
 import os
 from collections.abc import Callable
 from typing import Any
@@ -17,11 +16,9 @@ import polars as pl
 from pydantic import BaseModel, create_model
 
 from analysis_core.core import update_progress
-from analysis_core.services.error_summary import summarize_exception
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
-from analysis_core.steps._labelling import record_usage
-from analysis_core.steps._pool import iter_pool_completed
+from analysis_core.steps._per_opinion import PerOpinionBatchError, run_per_opinion
 from analysis_core.steps.opinion_labels import (
     DEFAULT_LABEL_IDS,
     InvalidClassificationResponse,
@@ -38,14 +35,10 @@ SUMMARY_NOTE = (
 )
 
 
-class ClassificationBatchError(RuntimeError):
+class ClassificationBatchError(PerOpinionBatchError):
     """Some opinions could not be classified; partial results are not written."""
 
-    def __init__(self, failures: dict[str, str]):
-        self.failures = failures
-        super().__init__(
-            f"意見分類に失敗した意見が{len(failures)}件あります。分析を中断しました。 (arg-id / error: {failures})"
-        )
+    task_name = "意見分類"
 
 
 def build_response_model(label_ids: tuple[str, ...] | list[str]) -> type[BaseModel]:
@@ -109,37 +102,18 @@ def classify_batch(
             text, prompt, label_ids, model, provider, local_llm_address, timeout_seconds, user_api_key
         )
 
-    results: list[dict[str, bool]] = [{} for _ in texts]
-    failures: dict[str, str] = {}
-    flush_every = max(1, int(workers))
-    completed = 0
-    # 1 リクエストの上限は SDK に渡す timeout_seconds が担う。プール側で同じ値の
-    # 待機上限を重ねると、遅れて成功した応答まで TimeoutError として捨ててしまう。
-    for index, future in iter_pool_completed(run, texts, workers, stop=lambda: bool(failures)):
-        arg_id = arg_ids[index]
-        try:
-            labels, token_input, token_output, token_total = future.result()
-        except InvalidClassificationResponse as exc:
-            failures[arg_id] = "invalid_response"
-            logging.error("意見分類に失敗しました。意見 %s: %s", arg_id, summarize_exception(exc, (user_api_key,)))
-        except Exception as exc:
-            # status には分類名（型名）だけを残し、理由は秘密情報を伏せて通常ログに出す
-            failures[arg_id] = type(exc).__name__
-            logging.error("意見分類に失敗しました。意見 %s: %s", arg_id, summarize_exception(exc, (user_api_key,)))
-        else:
-            record_usage(config, token_input, token_output, token_total)
-            results[index] = labels
-        completed += 1
-        if completed >= flush_every:
-            if on_progress is not None:
-                on_progress(completed)
-            completed = 0
-    if completed and on_progress is not None:
-        on_progress(completed)
-
-    if failures:
-        raise ClassificationBatchError(failures)
-    return results
+    return run_per_opinion(
+        arg_ids,
+        texts,
+        run,
+        workers,
+        config=config,
+        user_api_key=user_api_key,
+        invalid_response_type=InvalidClassificationResponse,
+        error_type=ClassificationBatchError,
+        task_name="意見分類",
+        on_progress=on_progress,
+    )
 
 
 def write_classifications(path: str, arg_ids: list[str], rows: list[dict[str, bool]], label_ids) -> pl.DataFrame:

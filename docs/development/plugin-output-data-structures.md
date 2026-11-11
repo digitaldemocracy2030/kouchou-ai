@@ -64,12 +64,14 @@ analysis-core の標準ワークフローは、次のステップでファイル
 |---|---|---|
 | `analysis.extraction` | `args.csv`, `relations.csv` | CSV |
 | `analysis.opinion_classification`（任意） | `opinion_classifications.csv`, `opinion_classification_summary.json` | CSV / JSON |
+| `analysis.opinion_stance`（任意） | `opinion_stances.csv`, `opinion_stance_summary.json` | CSV / JSON |
 | `analysis.embedding` | `embeddings.pkl` | pickle |
+| `analysis.opinion_novelty`（任意） | `opinion_novelty.csv`, `opinion_novelty_summary.json` | CSV / JSON |
 | `analysis.hierarchical_clustering` | `hierarchical_clusters.csv` | CSV |
 | `analysis.hierarchical_initial_labelling` | `hierarchical_initial_labels.csv` | CSV |
 | `analysis.hierarchical_merge_labelling` | `hierarchical_merge_labels.csv` | CSV |
 | `analysis.hierarchical_overview` | `hierarchical_overview.txt` | text |
-| `analysis.hierarchical_aggregation` | `hierarchical_result.json` | JSON |
+| `analysis.hierarchical_aggregation` | `hierarchical_result.json`, `public_result.json` | JSON |
 | `analysis.hierarchical_visualization` | HTML/静的レポート | directory |
 
 ---
@@ -114,6 +116,28 @@ analysis-core の標準ワークフローは、次のステップでファイル
 ラベルごとの件数と比率（分母は分類した意見数）、使用した provider / model、注意書き。
 
 `hierarchical_aggregation` はこのCSVが存在すると、`hierarchical_result.json` の `arguments[].attributes` にラベル列を追加します（元コメントの `attribute_*` と同じ場所）。
+
+---
+
+### 1c) `analysis.opinion_stance`（任意）/ `analysis.opinion_novelty`（任意）
+
+`opinion_stance.enabled = true` / `opinion_novelty.enabled = true` のときだけ実行されます。意見ごとに数値のスコアを付けます。定義と注意点は [意見ごとのスコア](opinion-scores.md) を参照してください。
+
+**`opinion_stances.csv`**（`opinion_stance`、`extraction` の後）
+
+| カラム名 | 型 | 説明 |
+|---|---|---|
+| `arg-id` | string | 意見ID |
+| `stance_score` | float | 対象（`target`、省略時は `question`）への賛否 -1.0〜+1.0。判定不能は空欄 |
+
+**`opinion_novelty.csv`**（`opinion_novelty`、`embedding` の後）
+
+| カラム名 | 型 | 説明 |
+|---|---|---|
+| `arg-id` | string | 意見ID |
+| `novelty_score` | float | 他の意見からの遠さの順位 0.0〜1.0（高いほど遠い） |
+
+それぞれ `opinion_stance_summary.json` / `opinion_novelty_summary.json` に件数（`total`）と注意書き（`note`）を残します。`opinion_stance_summary.json` には平均（`mean`）と 5 区間の件数（`distribution`）を、`opinion_novelty_summary.json` には計算方法（`method`・`params`）と生の値の範囲（`raw_value`）を残します。`hierarchical_aggregation` は有効なステップの CSV を `arguments[].attributes` に **数値** で追加します（空欄の意見には追加しません）。
 
 ---
 
@@ -208,7 +232,11 @@ import numpy as np
 
 ### 7) `analysis.hierarchical_aggregation`
 
-**出力: `hierarchical_result.json`**
+**出力1: `hierarchical_result.json`**（分析の全部入り。再分析・複製・管理画面が使う）
+
+**出力2: `public_result.json`**（公開用。`hierarchical_result.json` から公開してよい項目だけをホワイトリストで写したもの。公開 API・静的書き出し・ビューアが依存してよい契約はこちら。項目と互換性の扱いは [公開用レポート結果（public_result.json）](public-result.md) を参照）
+
+`hierarchical_result.json` を書き換えるステップ（レイアウト生成、翻訳）は `public_result.json` も同時に作り直します。以下は `hierarchical_result.json` の説明です。
 
 主要フィールド：
 
@@ -237,7 +265,7 @@ import numpy as np
 }
 ```
 
-`attributes` には、入力CSVの `attribute_*` 列に加えて、`opinion_classification` を有効にした場合はラベル列（`"hate_or_insult": "no"`, `"policy_proposal": "yes"`）が入ります。
+`attributes` には、入力CSVの `attribute_*` 列に加えて、`opinion_classification` を有効にした場合はラベル列（`"hate_or_insult": "no"`, `"policy_proposal": "yes"`）、`opinion_stance` / `opinion_novelty` を有効にした場合は数値のスコア（`"stance_score": -0.5`, `"novelty_score": 0.93`）が入ります。
 
 `clusters` の構造（抜粋）:
 

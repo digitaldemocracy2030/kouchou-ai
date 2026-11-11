@@ -21,7 +21,7 @@ from analysis_core.plugins.builtin._legacy_config import build_legacy_runtime_co
     name="Hierarchical Aggregation",
     description="Aggregate all results into a final JSON output file",
     inputs=["arguments", "clusters", "merge_labels", "overview"],
-    outputs=["result"],
+    outputs=["result", "public_result"],
     use_llm=False,
 )
 def hierarchical_aggregation_plugin(
@@ -68,6 +68,7 @@ def hierarchical_aggregation_plugin(
     return StepOutputs(
         artifacts={
             "result": ctx.output_dir / "hierarchical_result.json",
+            "public_result": ctx.output_dir / "public_result.json",
         },
         metadata={
             "success": success,

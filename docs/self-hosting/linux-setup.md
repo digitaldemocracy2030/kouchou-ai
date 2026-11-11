@@ -43,7 +43,7 @@ unzip ダウンロードしたzipファイル -d 展開先のパス
 
 1. [OpenAI API](https://platform.openai.com/api-keys)にアクセスし、OpenAI APIキーを取得します（OpenAIモデルを使用する場合）。
 2. [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key)にアクセスし、Gemini APIキーを取得します（Geminiモデルを使用する場合）。
-3. 各サービスの利用には課金が発生する場合があります。事前にクレジットをチャージしておくことをお勧めします。
+3. 各サービスの利用には課金が発生する場合があります。OpenAI API は従量課金で、ChatGPT Plus とは別の契約で、事前に OpenAI Platform で支払い方法を登録し、残高（クレジット）を用意しておく必要があります（新しく始めるアカウントは前払い方式で、クレジットの購入が必要です）。課金の仕組みと、残高不足・レート制限（429 エラー）の見分け方は[APIの課金と429エラー](api-billing-and-rate-limits.md)を参照してください。
 
 ### 4. セットアップの実行
 

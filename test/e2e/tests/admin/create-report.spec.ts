@@ -65,7 +65,12 @@ test.describe("管理画面 - レポート作成フロー", () => {
       await expect(dialog.getByRole("button", { name: "設定に戻る" })).toBeInViewport();
       await expect(dialog.getByText("コメント件数：3件（非空：3件）")).toBeVisible();
       await expect(dialog.getByText("未確認", { exact: true })).toBeVisible();
-      await expect(dialog.getByText("費用：目安なし")).toBeVisible();
+      // 費用の目安（#79）: ダミーサーバーはカタログの単価を返すので、3 件なら 100 円未満の帯と内訳が出る
+      await expect(dialog.getByText("費用：100円未満の見込み")).toBeVisible();
+      await expect(
+        dialog.getByText("内訳 チャット：$0.01未満（gpt-4o-mini）／埋め込み：$0.01未満（text-embedding-3-small）"),
+      ).toBeVisible();
+      await expect(dialog.getByText(/実際の料金を保証するものではありません/)).toBeVisible();
       await test
         .info()
         .attach("作成前確認", { body: await page.screenshot({ animations: "disabled" }), contentType: "image/png" });

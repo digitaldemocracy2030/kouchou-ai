@@ -9,7 +9,8 @@ type VerificationResult = {
   message: string;
   available_models?: string[];
   error_type?: ErrorType;
-  error_detail?: string;
+  /** プロバイダーの応答から取り出したエラー詳細（HTTP ステータス・コード・メッセージ）。取り出せない時は null */
+  error_detail?: string | null;
 };
 
 export const verifyApiKey = async (provider: string, userApiKey?: string, model?: string, localLLMAddress?: string) => {

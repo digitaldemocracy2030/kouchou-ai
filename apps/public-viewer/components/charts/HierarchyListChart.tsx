@@ -1,7 +1,9 @@
 /**
  * HierarchyListChart
  *
- * Displays clusters as an expandable hierarchical list using ul/li elements.
+ * Displays clusters as an expandable hierarchical list using ul/li elements:
+ * the detail mode for reading everything. At the deepest level each opinion links
+ * to its source when the report enables source links (same rule as the scatter plot).
  * Based on policy-pr-hub's HierarchicalBulletList component.
  */
 
@@ -10,8 +12,8 @@
 import { groupArgumentsByCluster, toIdSet } from "@/lib/argumentIndex";
 import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Argument, Cluster, Comments, Config } from "@/type";
-import { Box, Icon, Text, VStack } from "@chakra-ui/react";
-import { ChevronRight } from "lucide-react";
+import { Box, Icon, Link, Text, VStack } from "@chakra-ui/react";
+import { ChevronRight, ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -20,6 +22,7 @@ interface HierarchyListChartProps {
   argumentList: Argument[];
   filteredArgumentIds?: string[];
   onHover?: () => void;
+  /** レポート設定。enable_source_link のときだけ最下層の意見に出典リンクを出す */
   config?: Config;
   // 元コメント本文（comment_id → 本文）。config.enable_original_comments が true のときだけ意見の下に出す
   comments?: Comments;
@@ -56,6 +59,7 @@ function ArgumentsDisplay({
   filteredIdSet,
   maxDisplay = 10,
   comments,
+  showSourceLinks = false,
 }: {
   arguments: Argument[];
   // フィルタ済み意見 ID の Set（undefined = フィルタなし）。配列の includes による線形探索を避けるため Set で受け取る
@@ -63,6 +67,8 @@ function ArgumentsDisplay({
   maxDisplay?: number;
   // 公開されている元コメント本文（undefined = 公開していない）
   comments?: Comments;
+  // 出典リンクを出すか（レポート設定 enable_source_link）。URL の無い意見には出さない
+  showSourceLinks?: boolean;
 }) {
   const messages = useMessages();
   const [showAll, setShowAll] = useState(false);
@@ -93,6 +99,22 @@ function ArgumentsDisplay({
                 <Text fontSize="xs" color="gray.500" mt={1} whiteSpace="pre-wrap">
                   {messages.originalCommentLabel}: {comments[String(arg.comment_id)].comment}
                 </Text>
+              )}
+              {showSourceLinks && arg.url && (
+                <Link
+                  href={arg.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  fontSize="xs"
+                  color="blue.500"
+                  _hover={{ color: "blue.600" }}
+                  display="inline-flex"
+                  alignItems="center"
+                  gap={1}
+                >
+                  <Icon as={ExternalLink} w={3} h={3} />
+                  {messages.sourceLink}
+                </Link>
               )}
             </Box>
           );
@@ -129,6 +151,8 @@ export function HierarchyListChart({
   const messages = useMessages();
   // 元コメント本文はレポート作成者が公開を明示したときだけ表示する
   const publishedComments = config?.enable_original_comments ? comments : undefined;
+  // 出典リンクは散布図と同じ条件（レポート設定で有効なときだけ）
+  const showSourceLinks = Boolean(config?.enable_source_link);
   const [treeData, setTreeData] = useState<ClusterNode[]>([]);
   // ツリーを作り直すときに、直前の展開状態をクラスタ ID で引き継ぐための参照（下の effect より先に更新する）
   const treeDataRef = useRef(treeData);
@@ -370,7 +394,12 @@ export function HierarchyListChart({
         {/* Render arguments */}
         {hasArguments && !hasChildren && node.isChildrenExpanded && (
           <Box mt={2} pl={`${(depth + 1) * 24}px`}>
-            <ArgumentsDisplay arguments={node.arguments} filteredIdSet={filteredIdSet} comments={publishedComments} />
+            <ArgumentsDisplay
+              arguments={node.arguments}
+              filteredIdSet={filteredIdSet}
+              comments={publishedComments}
+              showSourceLinks={showSourceLinks}
+            />
           </Box>
         )}
       </Box>

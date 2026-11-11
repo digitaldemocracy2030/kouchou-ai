@@ -414,9 +414,11 @@ def test_cli_strips_user_api_key_from_old_result_and_writes_atomically(tmp_path,
 
     assert "user_api_key" not in seen
     assert USER_KEY_MARKER not in json.dumps(seen, default=str)
-    for path in (source, tmp_path / "translations.json"):
+    public = tmp_path / "public_result.json"
+    for path in (source, tmp_path / "translations.json", public):
         text = path.read_text(encoding="utf-8")
         assert USER_KEY_MARKER not in text
         assert "/srv/internal" not in text
-    assert sorted(written_paths) == sorted([str(source), str(tmp_path / "translations.json")])
+    # 結果ファイルを上書きしたので、公開用 artifact もそろえて書き直される（どれも一時ファイル経由）
+    assert sorted(written_paths) == sorted([str(source), str(tmp_path / "translations.json"), str(public)])
     assert not list(tmp_path.glob(".*.tmp"))

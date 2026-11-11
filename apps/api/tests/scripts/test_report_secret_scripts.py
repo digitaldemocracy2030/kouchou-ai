@@ -364,3 +364,45 @@ def test_scrub_sync_storage_without_api_src_exits_with_message(report_dir, tmp_p
     assert "Traceback" not in proc.stderr
     # import できないと分かった時点で止め、ファイルは書き換えない
     assert SECRET in (report_dir / "leaked" / "hierarchical_result.json").read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def report_dir_with_public_result(report_dir):
+    """公開用 artifact（public_result.json）にも、修正前の版が書いた config の秘密が残っている想定。"""
+    leaked_public = {**_leaked_result(), "schema_version": 1}
+    (report_dir / "leaked" / "public_result.json").write_text(
+        json.dumps(leaked_public, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (report_dir / "clean" / "public_result.json").write_text(
+        json.dumps({"schema_version": 1, "config": {"question": "q"}}), encoding="utf-8"
+    )
+    return report_dir
+
+
+def test_check_report_dir_also_scans_public_result(report_dir_with_public_result, capsys):
+    (report_dir_with_public_result / "leaked" / "hierarchical_result.json").write_text(
+        json.dumps({"config": {"question": "q"}}), encoding="utf-8"
+    )
+    assert check.main(["--report-dir", str(report_dir_with_public_result)]) == 1
+    out = capsys.readouterr().out
+    assert f"[LEAK]  {report_dir_with_public_result / 'leaked' / 'public_result.json'}" in out
+    assert SECRET not in out
+
+
+def test_scrub_apply_also_cleans_public_result(report_dir_with_public_result, tmp_path, capsys):
+    backup = tmp_path / "backup"
+    assert scrub.main(["--report-dir", str(report_dir_with_public_result), "--apply", "--backup-dir", str(backup)]) == 0
+    assert "要修正 2 件" in capsys.readouterr().out
+
+    public_path = report_dir_with_public_result / "leaked" / "public_result.json"
+    after = json.loads(public_path.read_text(encoding="utf-8"))
+    assert SECRET not in public_path.read_text(encoding="utf-8")
+    assert after["schema_version"] == 1
+    assert after["config"] == {
+        "question": "問い",
+        "model": "gpt-4o-mini",
+        "previous": {"question": "旧"},
+        "hierarchical_aggregation": {"hidden_properties": {}},
+    }
+    assert len(list(backup.glob("*/leaked/public_result.json"))) == 1
+    assert check.main(["--report-dir", str(report_dir_with_public_result)]) == 0

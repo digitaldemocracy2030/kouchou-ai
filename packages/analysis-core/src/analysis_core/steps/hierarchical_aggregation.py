@@ -8,7 +8,8 @@ from typing import Any, TypedDict
 import numpy as np
 import polars as pl
 
-from analysis_core.core.utils import atomic_output_path, read_input_csv, write_json_atomic
+from analysis_core.core.utils import atomic_output_path, read_input_csv
+from analysis_core.public_result import write_result_files
 from analysis_core.steps.extraction import filter_empty_comments
 from analysis_core.steps.hierarchical_translation import TRANSLATIONS_FILENAME, fresh_translations
 
@@ -69,7 +70,7 @@ class Argument(TypedDict):
     y: float
     p: float
     cluster_ids: list[str]
-    attributes: dict[str, str] | None
+    attributes: dict[str, str | float] | None
     url: str | None
 
 
@@ -127,6 +128,18 @@ def hierarchical_aggregation(config) -> bool:
             _merge_opinion_classifications(
                 results["arguments"], f"{output_base_dir}/{config['output_dir']}/opinion_classifications.csv"
             )
+        if config.get("opinion_stance", {}).get("enabled", False):
+            _merge_opinion_scores(
+                results["arguments"],
+                f"{output_base_dir}/{config['output_dir']}/opinion_stances.csv",
+                "stance_score",
+            )
+        if config.get("opinion_novelty", {}).get("enabled", False):
+            _merge_opinion_scores(
+                results["arguments"],
+                f"{output_base_dir}/{config['output_dir']}/opinion_novelty.csv",
+                "novelty_score",
+            )
         results["clusters"] = _build_cluster_value(labels, arg_num)
 
         # 元コメント本文は、レポート作成者が「公開してよい」と明示した場合だけ公開 JSON に入れる。
@@ -151,8 +164,9 @@ def hierarchical_aggregation(config) -> bool:
         # 訳は原文（ラベル・概要・イントロなど）が確定してから、それに合うものだけを入れる
         results["translations"] = _build_translations(config, results)
 
-        # 公開 API が読み続けるファイルなので、一時ファイルに書いてから差し替え、1 回で書き終える
-        write_json_atomic(path, results)
+        # 公開 API が読み続けるファイルなので、一時ファイルに書いてから差し替え、1 回で書き終える。
+        # 公開用のホワイトリスト版 public_result.json も同じ場所に書く（analysis_core.public_result）
+        write_result_files(path, results)
         if config["is_pubcom"]:
             add_original_comments(labels, arguments, relation_df, clusters, config)
         return True
@@ -393,6 +407,40 @@ def _merge_opinion_classifications(arguments: list[Argument], path: str) -> int:
         updated += 1
 
     print(f"意見分類ラベルを付与: {updated}/{len(arguments)}件 ({', '.join(label_columns)})")
+    return updated
+
+
+def _merge_opinion_scores(arguments: list[Argument], path: str, column: str) -> int:
+    """Attach one numeric per-opinion score (``stance_score`` / ``novelty_score``) to ``arguments[].attributes``.
+
+    The scores come from the optional ``opinion_stance`` / ``opinion_novelty`` steps. Empty values
+    (e.g. a stance that could not be judged) are left out so the viewer's numeric range filter
+    only sees real numbers. Returns the number of arguments updated.
+    """
+    if not os.path.exists(path):
+        return 0
+
+    scores = pl.read_csv(path, infer_schema_length=0)
+    if column not in scores.columns:
+        return 0
+    lookup: dict[str, float] = {}
+    for row in scores.iter_rows(named=True):
+        value = row[column]
+        if value is None or str(value).strip() == "":
+            continue
+        lookup[str(row["arg-id"])] = float(value)
+
+    updated = 0
+    for argument in arguments:
+        score = lookup.get(argument["arg_id"])
+        if score is None:
+            continue
+        attributes = dict(argument["attributes"] or {})
+        attributes[column] = score
+        argument["attributes"] = attributes
+        updated += 1
+
+    print(f"意見スコアを付与: {updated}/{len(arguments)}件 ({column})")
     return updated
 
 

@@ -4,6 +4,8 @@ import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogRoot, Dial
 import { Box, Button, HStack, Text, VStack } from "@chakra-ui/react";
 import { useRef, useState } from "react";
 import type { createReport } from "../api/createReport";
+import type { ModelOption } from "../hooks/useModelCatalog";
+import { type CostBand, type CostEstimate, JPY_PER_USD, estimateCost, formatUsdRange } from "../utils/costEstimate";
 import { azureErrorMessage } from "./EnvironmentCheckDialog/azureErrorMessage";
 import { verifyApiKey } from "./EnvironmentCheckDialog/verifyApiKey";
 
@@ -11,6 +13,8 @@ export type PreparedReport = {
   request: Parameters<typeof createReport>[0];
   commentColumn: string;
   attributeColumns: string[];
+  /** 選択中のチャット / 埋め込みモデルの単価（カタログ由来、100万トークンあたり USD）。不明なら null。 */
+  pricing: { chat: ModelOption["price"]; embedding: ModelOption["price"] };
 };
 
 type CheckStatus =
@@ -31,6 +35,65 @@ const checkMessages: Record<CheckStatus, string> = {
   unknown_error: "不明なエラー：接続先やAPI設定を確認してください。",
 };
 
+const bandMessages: Record<CostBand, string> = {
+  unknown: "単価不明のため目安を出せません",
+  none: "API利用料なし（ローカル実行）",
+  under_100_yen: "100円未満の見込み",
+  "100_to_1000_yen": "100〜1,000円程度の見込み",
+  over_1000_yen: "1,000円以上の見込み",
+};
+
+/** 費用の内訳 1 行分。単価不明は金額を出さず、課金されない構成はその旨を書く。 */
+function describeSlot(slot: CostEstimate["chat"], azure: boolean): string {
+  const model = azure ? "サーバー設定のモデル" : slot.model;
+  if (slot.kind === "not_billed") return "課金なし";
+  if (slot.kind === "unknown") return `単価不明（${model}）`;
+  return `${formatUsdRange(slot.usd)}（${model}）`;
+}
+
+/** 作成前確認の費用欄。既知部分の目安と単価不明の部分を分けて表示し、0 円扱いにしない。 */
+function CostEstimateSection({ prepared }: { prepared: PreparedReport }) {
+  const request = prepared.request;
+  const estimate = estimateCost({
+    comments: request.comments,
+    cluster: request.cluster,
+    prompt: request.prompt,
+    analysisMode: request.analysis_mode,
+    chat: { model: request.model, price: prepared.pricing.chat, billed: request.provider !== "local" },
+    embedding: {
+      // 未指定なら analysis-core の既定（OpenAI では text-embedding-3-small）が使われる
+      model: request.embedding_model || "既定の埋め込みモデル",
+      price: prepared.pricing.embedding,
+      billed: !request.is_embedded_at_local && request.provider !== "local",
+    },
+  });
+  const azure = request.provider === "azure";
+  const summary =
+    estimate.chat.kind === "unknown"
+      ? `${bandMessages.unknown}（${azure ? "サーバー設定のモデル" : request.model}）`
+      : estimate.hasUnknown && estimate.band !== "unknown"
+        ? `${bandMessages[estimate.band]}（チャット分のみ。埋め込みは単価不明）`
+        : bandMessages[estimate.band];
+  return (
+    <Box>
+      <HStack gap="6" flexWrap="wrap">
+        <Text>費用：{summary}</Text>
+        <Text>時間：目安なし</Text>
+      </HStack>
+      {estimate.band !== "none" && (
+        <Text fontSize="sm" mt="1">
+          内訳 チャット：{describeSlot(estimate.chat, azure)}／埋め込み：
+          {describeSlot(estimate.embedding, azure && estimate.embedding.kind !== "not_billed")}
+        </Text>
+      )}
+      <Text fontSize="sm" mt="1">
+        入力の文字数と選択したモデルの参考単価から出した目安で、実際の料金を保証するものではありません（1ドル=
+        {JPY_PER_USD}円で換算）。実際の請求額はOpenAI等の利用明細で確認してください。
+      </Text>
+    </Box>
+  );
+}
+
 /**
  * 作成直前の入力内容と接続確認結果を表示し、設定への復帰または作成開始を受け付ける。
  * Azureの不明な接続エラーでは、確認すべきサーバー設定を案内する。
@@ -48,6 +111,7 @@ export function CreateReportConfirmation({
 }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [check, setCheck] = useState<CheckStatus>("unchecked");
+  const [checkDetail, setCheckDetail] = useState<string | null>(null);
   const request = prepared.request;
   const nonEmptyCount = request.comments.filter((row) => typeof row.comment === "string" && row.comment.trim()).length;
   const inputName =
@@ -55,9 +119,10 @@ export function CreateReportConfirmation({
   const busy = loading || check === "checking";
   const checkFailed = !["unchecked", "checking", "ok"].includes(check);
 
-  /** 表示中の設定で接続を確認し、通信失敗も確認結果として表示する。 */
+  /** 表示中の設定で接続を確認し、通信失敗も確認結果として表示する。プロバイダーのエラー詳細があれば併せて示す。 */
   const verify = async () => {
     setCheck("checking");
+    setCheckDetail(null);
     try {
       const response = await verifyApiKey(
         request.provider,
@@ -66,7 +131,10 @@ export function CreateReportConfirmation({
         request.local_llm_address,
       );
       if (response.result?.success && !response.error) setCheck("ok");
-      else setCheck(response.result?.error_type || "unknown_error");
+      else {
+        setCheck(response.result?.error_type || "unknown_error");
+        setCheckDetail(response.result?.error_detail || null);
+      }
     } catch {
       setCheck("unknown_error");
     }
@@ -124,6 +192,11 @@ export function CreateReportConfirmation({
               <Text fontWeight="bold">API接続チェック</Text>
               <Text as="output" display="block" aria-live="polite" mt="2">
                 {check === "unknown_error" && request.provider === "azure" ? azureErrorMessage : checkMessages[check]}
+                {checkFailed && checkDetail && (
+                  <Text as="span" display="block" mt="1" fontSize="sm" color="font.secondary">
+                    エラー詳細：{checkDetail}
+                  </Text>
+                )}
               </Text>
               <Text mt="2" fontSize="sm">
                 {request.provider === "azure" ? "Azureのサーバー設定済みデプロイ" : "選択したモデル"}
@@ -138,10 +211,7 @@ export function CreateReportConfirmation({
                 API接続を確認する
               </Button>
             </Box>
-            <HStack gap="6" flexWrap="wrap">
-              <Text>費用：目安なし</Text>
-              <Text>時間：目安なし</Text>
-            </HStack>
+            <CostEstimateSection prepared={prepared} />
             <Text fontSize="sm">有料のAIプロバイダーでは作成する度にAPI利用料がかかります。</Text>
           </VStack>
         </DialogBody>
