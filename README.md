@@ -79,6 +79,7 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
    - ホストですでに別の Ollama などが 11434 番を使っていると、`failed to bind host port ... address already in use` で起動しません。その場合は `.env` の `OLLAMA_HOST_PORT` を空いている番号（例: `11435`）に変えてください。アプリはコンテナ間通信（`ollama:11434`）で接続するので、`NEXT_PUBLIC_LOCAL_LLM_ADDRESS` は変更不要です
 4. デフォルトでは `gemma4:e4b` モデルが自動的にダウンロードされます
    - gemma4 は思考型のモデルです。`.env` に `LOCAL_LLM_REASONING_EFFORT=none` を設定すると思考を止め、1 件あたりの時間が 3 分の 1 ほどになります
+   - どのモデルを選ぶとよいかは [ローカルLLMのモデル選び（品質の測定結果）](docs/self-hosting/local-llm-models.md) を参照してください。2026-11 の測定では gemma-4-E4B がクラウドの既定モデルに劣らず、ELYZA-JP-8B はプロンプトの入出力例を出力に写すことがありました
 5. ダウンロードが完了したモデルはレポート生成時に選択して使用できます
 
 **前提条件**:
