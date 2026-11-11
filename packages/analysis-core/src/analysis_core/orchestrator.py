@@ -439,7 +439,12 @@ class PipelineOrchestrator:
         def workflow_step_to_legacy_name(step_name: str) -> str:
             return workflow_step_to_plan_step.get(step_name, step_name)
 
+        # 段ごとの所要時間。開始の合図から完了の合図までを測る（status の completed_jobs と PipelineResult に入れる）
+        step_started_at: dict[str, datetime] = {}
+        step_durations: dict[str, float] = {}
+
         def mark_step_started(step_name: str) -> None:
+            step_started_at[step_name] = datetime.now()
             update_status(
                 self.config,
                 {
@@ -451,6 +456,9 @@ class PipelineOrchestrator:
 
         def mark_step_completed(step_name: str, result: WorkflowStepResult) -> None:
             legacy_step_name = workflow_step_to_legacy_name(step_name)
+            started = step_started_at.get(step_name)
+            duration = (datetime.now() - started).total_seconds() if started else 0.0
+            step_durations[step_name] = duration
             completed_jobs = self.config.get("completed_jobs", []).copy()
             total_token_usage = self.config.get("total_token_usage", 0)
             token_usage_input = self.config.get("token_usage_input", 0)
@@ -463,7 +471,7 @@ class PipelineOrchestrator:
                     {
                         "step": legacy_step_name,
                         "completed": datetime.now().isoformat(),
-                        "duration": 0.0,
+                        "duration": duration,
                         "params": self.config.get(legacy_step_name, {}),
                         "global_params": snapshot_global_params(self.config),
                         "token_usage": step_token_usage,
@@ -539,7 +547,7 @@ class PipelineOrchestrator:
                 StepResult(
                     step_name=workflow_step_to_legacy_name(step_id),
                     success=result.success,
-                    duration_seconds=0.0,  # Not tracked in workflow mode
+                    duration_seconds=step_durations.get(step_id, 0.0),
                     token_usage=result.outputs.token_usage if result.outputs else 0,
                     error=result.error,
                 )
