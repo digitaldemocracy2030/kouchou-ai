@@ -246,3 +246,41 @@ class TestPipelineIntegration:
 
         assert result.success is True
         assert [step.step_name for step in result.steps] == ["hierarchical_visualization"]
+
+    def test_run_workflow_records_step_durations(self, tmp_path, monkeypatch):
+        """workflow 経由（CLI の既定）でも、段ごとの所要時間を status と PipelineResult に記録する（#1195）"""
+        import time
+
+        from analysis_core.plugin import StepOutputs
+        from analysis_core.workflow.definition import StepResult as WorkflowStepResult
+        from analysis_core.workflow.definition import WorkflowResult
+
+        orchestrator = PipelineOrchestrator.from_dict(
+            config={"name": "demo", "input": "demo", "question": "Test?", "provider": "local", "model": "dummy"},
+            output_dir="demo",
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+        )
+
+        class FakeEngine:
+            def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+                result = WorkflowResult(workflow_id="test")
+                step_result = WorkflowStepResult(
+                    step_id="visualization",
+                    success=True,
+                    outputs=StepOutputs(artifacts={"html": ctx.output_dir / "report.html"}),
+                )
+                on_step_start("visualization")
+                time.sleep(0.05)
+                on_step_complete("visualization", step_result)
+                result.step_results["visualization"] = step_result
+                return result
+
+        monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", FakeEngine)
+
+        result = orchestrator.run_workflow()
+
+        assert result.steps[0].duration_seconds >= 0.05
+        status = json.loads((tmp_path / "outputs" / "demo" / "hierarchical_status.json").read_text())
+        job = next(j for j in status["completed_jobs"] if j["step"] == "hierarchical_visualization")
+        assert job["duration"] >= 0.05

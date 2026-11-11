@@ -29,6 +29,7 @@ on:
       - 'experiments/direct_win/README.md'
       - 'experiments/embvec_reduce_public_comment/README.md'
       - 'experiments/evaluation_report/README.md'
+      - 'experiments/local_llm_bench/README.md'
   pull_request:
     branches:
       - main
@@ -57,6 +58,7 @@ on:
       - 'experiments/direct_win/README.md'
       - 'experiments/embvec_reduce_public_comment/README.md'
       - 'experiments/evaluation_report/README.md'
+      - 'experiments/local_llm_bench/README.md'
   workflow_dispatch:
 
 permissions:

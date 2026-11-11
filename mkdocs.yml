@@ -162,6 +162,7 @@ nav:
           - Windows 非Docker セットアップ (direct_win): repo-readmes/experiments/direct-win.md
           - embvec_reduce_public_comment: repo-readmes/experiments/embvec-reduce-public-comment.md
           - evaluation_report: repo-readmes/experiments/evaluation-report.md
+          - ローカルLLMでレポート全体を作る時間とメモリ (local_llm_bench): repo-readmes/experiments/local-llm-bench.md
   - デプロイ:
       - Azure デプロイ: deployment/azure.md
       - Azure Blob Storage: deployment/azure-blob-storage.md
