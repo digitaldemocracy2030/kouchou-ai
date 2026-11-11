@@ -98,7 +98,7 @@ export OPENAI_API_KEY="sk-your-api-key-here"
 OPENAI_API_KEY=sk-your-api-key-here
 ```
 
-`provider` を `openrouter` にする場合は、`OPENAI_API_KEY` の代わりに `OPENROUTER_API_KEY` を設定します。OpenRouter には埋め込みの API がないので、`config.json` で `"is_embedded_at_local": true` も指定します（指定しないと開始時にエラーになります）。
+`provider` を `openrouter` にする場合は、`OPENAI_API_KEY` の代わりに `OPENROUTER_API_KEY` を設定します。OpenRouter には埋め込みの API がないので、`config.json` で `"is_embedded_at_local": true` も指定します（指定しないと開始時にエラーになります）。`model` は OpenRouter のモデル ID（`author/slug` の形。例: `"model": "openai/gpt-4o-mini"`）で書きます。上の例の `gpt-4o-mini` のままでは、名前を変換せずに送るので OpenRouter に受け付けられません。
 
 ```
 OPENROUTER_API_KEY=sk-or-your-api-key-here
