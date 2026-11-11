@@ -851,9 +851,9 @@ export function ScatterChart({
             bg="whiteAlpha.700"
             opacity={showWheelGuard ? 1 : 0}
             transition={`opacity ${WHEEL_GUARD_FADE_MS}ms ease`}
-            // 表示中だけポインタを受けて、カーソルを「拡大縮小できない」表示に切り替える
-            pointerEvents={showWheelGuard ? "auto" : "none"}
-            cursor="not-allowed"
+            // 表示中もポインタは通す。重なりが受けると Ctrl+ホイール（ピンチ）が Plotly に届かない。
+            // ホイールのロックは外側の onWheelCapture が受け持つ
+            pointerEvents="none"
           >
             <Text fontSize="sm" color="gray.700" bg="whiteAlpha.900" px={3} py={1} borderRadius="md" boxShadow="sm">
               {messages.scatterWheelLocked}
