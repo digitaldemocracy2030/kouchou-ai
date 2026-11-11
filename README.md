@@ -77,7 +77,8 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
    ```
 3. Ollama サービスが起動し、ホストからは `.env` の `OLLAMA_HOST_PORT` で指定したポート（既定は 11434）で利用可能になります。アプリからの接続先は引き続き `ollama:11434` です
    - ホストですでに別の Ollama などが 11434 番を使っていると、`failed to bind host port ... address already in use` で起動しません。その場合は `.env` の `OLLAMA_HOST_PORT` を空いている番号（例: `11435`）に変えてください。アプリはコンテナ間通信（`ollama:11434`）で接続するので、`NEXT_PUBLIC_LOCAL_LLM_ADDRESS` は変更不要です
-4. デフォルトでは `hf.co/elyza/Llama-3-ELYZA-JP-8B-GGUF` モデルが自動的にダウンロードされます
+4. デフォルトでは `gemma4:e4b` モデルが自動的にダウンロードされます
+   - gemma4 は思考型のモデルです。`.env` に `LOCAL_LLM_REASONING_EFFORT=none` を設定すると思考を止め、1 件あたりの時間が 3 分の 1 ほどになります
    - どのモデルを選ぶとよいかは [ローカルLLMのモデル選び（品質の測定結果）](docs/self-hosting/local-llm-models.md) を参照してください。2026-11 の測定では gemma-4-E4B がクラウドの既定モデルに劣らず、ELYZA-JP-8B はプロンプトの入出力例を出力に写すことがありました
 5. ダウンロードが完了したモデルはレポート生成時に選択して使用できます
 
@@ -90,7 +91,7 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
   - NVIDIA Container Toolkit に相当するものがインストールされていること
     - Linux では nvidia-docker2 / NVIDIA Container Toolkit
     - Windows では Docker Desktop の GPU サポート設定
-  - デフォルトのモデルデータのダウンロードとインストールに約 5GB 以上の空きディスク容量が必要
+  - デフォルトのモデルデータのダウンロードとインストールに約 7GB 以上の空きディスク容量が必要
 
 - **macOS**：
   - Apple Silicon (M1/M2/M3)やほとんどの Intel Mac では、NVIDIA GPU の利用は基本的に対応していません

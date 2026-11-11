@@ -9,7 +9,7 @@
 
 - **普通の PC で動かすなら、gemma-4-E4B（4 ビット量子化、思考を止める）が第一候補です。** 意見の抽出・ラベル付けとも、クラウドの既定のモデル（gpt-4o-mini、gpt-4o）に劣りませんでした。
 - **gemma-4-12B（QAT の 4 ビット）は、E4B より良いとは言い切れません。** 長い文からの抽出の勝ち点は 12B 0.72・E4B 0.68 と 12B が上でしたが、95% 区間が重なっています。ラベル付けの勝ち点は E4B 0.67・12B 0.61 で逆でした。CPU では 1 件あたり 3 倍ほど時間がかかります。
-- **ELYZA-JP-8B はおすすめしません。** プロンプトの入出力例の文を、関係の無い意見の出力にそのまま入れることがありました。レポートに存在しない意見が混ざる種類の誤りです。`docker compose --profile ollama` で既定でダウンロードされるのはこのモデルなので、使う場合は別のモデルを入れて選んでください（下の「Ollama で gemma4:e4b を使う」）。
+- **ELYZA-JP-8B はおすすめしません。** プロンプトの入出力例の文を、関係の無い意見の出力にそのまま入れることがありました。レポートに存在しない意見が混ざる種類の誤りです。以前は `docker compose --profile ollama` で既定でダウンロードされるモデルでしたが、今の既定は gemma4:e4b です（[#1193](https://github.com/digitaldemocracy2030/kouchou-ai/pull/1193)）。以前の構成で入れた ELYZA-JP-8B を使っている場合は、gemma4:e4b を入れて選び直してください（下の「Ollama で gemma4:e4b を使う」）。
 - gemma-4-E2B は、長い文からの抽出で gpt-4o とほぼ互角でした。主な論点を落とすことが多めです。
 
 ## 測り方
@@ -64,7 +64,7 @@
 
 ## Ollama で gemma4:e4b を使う
 
-`docker compose --profile ollama` で Ollama を起動している場合は、次のコマンドでモデルを入れます（約 6.6GB）。入れたモデルは、レポート作成画面でプロバイダ LocalLLM を選ぶと、モデルの一覧に出ます。
+`docker compose --profile ollama` で Ollama を起動すると、gemma4:e4b が既定でダウンロードされます。以前の構成で起動していて入っていない場合は、次のコマンドでモデルを入れます（約 6.6GB）。入れたモデルは、レポート作成画面でプロバイダ LocalLLM を選ぶと、モデルの一覧に出ます。
 
 ```bash
 docker compose exec ollama ollama pull gemma4:e4b
@@ -73,7 +73,7 @@ docker compose exec ollama ollama pull gemma4:e4b
 ## 使うときの注意
 
 - **gemma-4 は思考を止めて使ってください。** 止めないと出力の大部分が思考になり、時間が 3 倍ほどかかります（[#471 のコメント](https://github.com/digitaldemocracy2030/kouchou-ai/issues/471#issuecomment-6122643400)）。
-    - **Ollama**：思考を止めるには、広聴AIから要求ごとに `reasoning_effort: "none"` を送る必要があります。その設定（`LOCAL_LLM_REASONING_EFFORT`）は [#1193](https://github.com/digitaldemocracy2030/kouchou-ai/pull/1193) で追加する予定で、今の版では送れません。それまでは思考したまま動くので、結果は出ますが遅くなります。
+    - **Ollama**：思考を止めるには、広聴AIから要求ごとに `reasoning_effort: "none"` を送る必要があります。`.env` に `LOCAL_LLM_REASONING_EFFORT=none` を設定すると送ります（[#1193](https://github.com/digitaldemocracy2030/kouchou-ai/pull/1193) で追加）。設定しないと思考したまま動くので、結果は出ますが遅くなります。
     - **llama.cpp の `llama-server`**：起動時に `--chat-template-kwargs '{"enable_thinking":false}'` を付けると、すべての要求について思考を止められます。この指定は llama-server のもので、Ollama には使えません。
 - **温度 0 では、同じ文を繰り返して止まらなくなることがあります。** gemma-4 は、出力の中の自由記述の欄で同じ文を繰り返し、出力の上限まで書き続けることがありました（12B で 60 件中 13 件）。広聴AIの意見抽出の出力には自由記述の欄が無いので起きにくいはずですが、ラベル付けの説明文は自由記述です。
     - 配信する側で出力の上限を付けておくと（`llama-server` なら `-n 2048`）、止まらなくなった応答も上限で終わります。ただし上限で切れたラベルの応答は JSON が閉じていないので、広聴AIは読めずにそのクラスタだけを送り直します。3 回とも切れると、ラベル付けは失敗して止まります。

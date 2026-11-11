@@ -25,6 +25,7 @@ FILE_MAPPINGS = {
     "experiments/direct_win/README.md": "repo-readmes/experiments/direct-win.md",
     "experiments/embvec_reduce_public_comment/README.md": "repo-readmes/experiments/embvec-reduce-public-comment.md",
     "experiments/evaluation_report/README.md": "repo-readmes/experiments/evaluation-report.md",
+    "experiments/local_llm_bench/README.md": "repo-readmes/experiments/local-llm-bench.md",
 }
 
 # Link transformations for specific files

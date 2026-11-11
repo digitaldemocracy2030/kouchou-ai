@@ -15,7 +15,7 @@ Remember that Kouchou-AI is a broadlistening system for the Digital Democracy 20
 - Locate the admin app (Next.js) in `apps/admin/` and expect it on port 4000.
 - Locate the static site builder in `apps/static-site-builder/` and expect it on port 3200.
 - Expect the optional Ollama service on port 11434 for local LLM usage.
-- Expect Ollama to use the ELYZA-JP model by default.
+- Expect Ollama to use the `gemma4:e4b` model by default (set `LOCAL_LLM_REASONING_EFFORT=none` to turn its thinking off).
 
 ## Key directories
 - Use `packages/analysis-core/src/analysis_core/` for analysis steps, orchestration, services, and workflows.

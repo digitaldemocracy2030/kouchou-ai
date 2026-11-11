@@ -77,7 +77,7 @@ comment-id,comment-body,source
 | `question` | 分析の問い（概要生成に使用） |
 | `input` | CSVファイル名（拡張子なし、`inputs/` からの相対パス） |
 | `model` | 使用するLLMモデル（`gpt-4o-mini`, `gpt-4o` など） |
-| `provider` | LLMプロバイダー（`openai`, `azure`, `gemini`, `local`） |
+| `provider` | LLMプロバイダー（`openai`, `azure`, `gemini`, `openrouter`, `local`） |
 | `is_embedded_at_local` | ローカルでエンベディングを行うか |
 | `embedding.model` | 埋め込みモデル。チャット用の `model` とは独立に指定でき、省略時は `text-embedding-3-small`。`provider` が `openai` の場合は `text-embedding-3-small` / `text-embedding-3-large` が選択可能（`gemini` は自動的に `gemini-embedding-001` に解決、`is_embedded_at_local: true` ではローカル埋め込みを使用） |
 | `extraction.workers` | 並列処理数 |
@@ -96,6 +96,12 @@ export OPENAI_API_KEY="sk-your-api-key-here"
 
 ```
 OPENAI_API_KEY=sk-your-api-key-here
+```
+
+`provider` を `openrouter` にする場合は、`OPENAI_API_KEY` の代わりに `OPENROUTER_API_KEY` を設定します。OpenRouter には埋め込みの API がないので、`config.json` で `"is_embedded_at_local": true` も指定します（指定しないと開始時にエラーになります）。`model` は OpenRouter のモデル ID（`author/slug` の形。例: `"model": "openai/gpt-4o-mini"`）で書きます。上の例の `gpt-4o-mini` のままでは、名前を変換せずに送るので OpenRouter に受け付けられません。
+
+```
+OPENROUTER_API_KEY=sk-or-your-api-key-here
 ```
 
 ## 5. 分析の実行
