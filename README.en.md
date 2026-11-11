@@ -80,7 +80,8 @@ To use a local LLM on a machine with a GPU, follow these steps:
    ```
 3. The Ollama service starts and is available from the host on the port set by `OLLAMA_HOST_PORT` in `.env` (default: 11434). The app still connects to `ollama:11434`
    - If another Ollama or other process on the host already uses port 11434, startup fails with `failed to bind host port ... address already in use`. In that case, change `OLLAMA_HOST_PORT` in `.env` to a free port (e.g. `11435`). The app connects via container-to-container networking (`ollama:11434`), so you do not need to change `NEXT_PUBLIC_LOCAL_LLM_ADDRESS`
-4. By default, the `hf.co/elyza/Llama-3-ELYZA-JP-8B-GGUF` model is downloaded automatically
+4. By default, the `gemma4:e4b` model is downloaded automatically
+   - gemma4 is a thinking model. Set `LOCAL_LLM_REASONING_EFFORT=none` in `.env` to turn thinking off; each request takes about a third of the time
 5. Once downloaded, the model can be selected when generating a report
 
 **Prerequisites**:
@@ -92,7 +93,7 @@ To use a local LLM on a machine with a GPU, follow these steps:
   - The equivalent of the NVIDIA Container Toolkit
     - On Linux: nvidia-docker2 / NVIDIA Container Toolkit
     - On Windows: GPU support settings in Docker Desktop
-  - About 5GB or more of free disk space to download and install the default model
+  - About 7GB or more of free disk space to download and install the default model
 
 - **macOS**:
   - Apple Silicon (M1/M2/M3) and most Intel Macs basically do not support NVIDIA GPUs

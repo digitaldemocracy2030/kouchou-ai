@@ -77,7 +77,8 @@ GPU가 탑재된 머신에서 로컬 LLM을 사용하려면 다음 절차를 따
    ```
 3. Ollama 서비스가 실행되면, 호스트에서는 `.env`의 `OLLAMA_HOST_PORT`로 지정한 포트(기본값 11434)로 사용할 수 있습니다. 앱에서 접속하는 주소는 계속 `ollama:11434`입니다
    - 호스트에서 이미 다른 Ollama 등이 11434번 포트를 사용하고 있으면 `failed to bind host port ... address already in use`로 실행되지 않습니다. 이 경우 `.env`의 `OLLAMA_HOST_PORT`를 비어 있는 번호(예: `11435`)로 바꿔 주세요. 앱은 컨테이너 간 통신(`ollama:11434`)으로 접속하므로 `NEXT_PUBLIC_LOCAL_LLM_ADDRESS`는 바꿀 필요가 없습니다
-4. 기본적으로 `hf.co/elyza/Llama-3-ELYZA-JP-8B-GGUF` 모델이 자동으로 다운로드됩니다
+4. 기본적으로 `gemma4:e4b` 모델이 자동으로 다운로드됩니다
+   - gemma4는 사고(thinking)형 모델입니다. `.env`에 `LOCAL_LLM_REASONING_EFFORT=none`을 설정하면 사고를 끄고, 요청 1건당 시간이 약 3분의 1로 줄어듭니다
 5. 다운로드가 끝난 모델은 리포트를 생성할 때 선택하여 사용할 수 있습니다
 
 **사전 요구 사항**:
@@ -89,7 +90,7 @@ GPU가 탑재된 머신에서 로컬 LLM을 사용하려면 다음 절차를 따
   - NVIDIA Container Toolkit에 해당하는 것이 설치되어 있을 것
     - Linux에서는 nvidia-docker2 / NVIDIA Container Toolkit
     - Windows에서는 Docker Desktop의 GPU 지원 설정
-  - 기본 모델 데이터의 다운로드와 설치에 약 5GB 이상의 여유 디스크 공간이 필요
+  - 기본 모델 데이터의 다운로드와 설치에 약 7GB 이상의 여유 디스크 공간이 필요
 
 - **macOS**:
   - Apple Silicon (M1/M2/M3)과 대부분의 Intel Mac에서는 NVIDIA GPU를 기본적으로 사용할 수 없습니다

@@ -114,7 +114,7 @@ services:
       - |
         ollama serve &
         sleep 10
-        ollama pull hf.co/elyza/Llama-3-ELYZA-JP-8B-GGUF
+        ollama pull gemma4:e4b
         tail -f /dev/null
 
 networks:

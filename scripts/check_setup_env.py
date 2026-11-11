@@ -18,6 +18,7 @@ OPTIONAL_KEYS = {
     "OPENROUTER_API_KEY",  # 任意のプロバイダ
     "LOCAL_LLM_API_KEY",  # 認証付きゲートウェイを使う場合だけ
     "LOCAL_LLM_ALLOWED_BASE_URLS",
+    "LOCAL_LLM_REASONING_EFFORT",  # 空なら reasoning_effort を送らない
     "WITH_GPU",  # compose の既定値 false
     "NUMBA_CPU_NAME",  # compose の既定値 generic
     "BASIC_AUTH_USERNAME",  # 未設定なら Basic 認証なし
