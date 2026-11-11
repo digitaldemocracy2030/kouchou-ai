@@ -51,14 +51,14 @@ def cpu_name() -> str:
                 if line.lower().startswith(("model name", "hardware")):
                     return line.split(":", 1)[1].strip()
         except OSError:
-            pass
+            pass  # 読めない環境では次の lscpu で探す
         try:  # ARM などで /proc/cpuinfo に名前が無いとき
             out = subprocess.run(["lscpu"], capture_output=True, text=True).stdout
             for line in out.splitlines():
                 if line.startswith("Model name:"):
                     return line.split(":", 1)[1].strip()
         except OSError:
-            pass
+            pass  # lscpu が無い環境では platform.processor() の値を使う
     elif sys.platform == "darwin":
         try:
             return subprocess.run(
@@ -77,7 +77,7 @@ def total_memory_gb() -> float | None:
             if line.startswith("MemTotal:"):
                 return round(int(line.split()[1]) * 1024 / 1e9, 1)
     except OSError:
-        pass
+        pass  # 読めない環境ではメモリ量を記録しない（None）
     return None
 
 
@@ -107,7 +107,7 @@ def run_and_watch(cmd: list[str], env: dict, log_path: Path) -> tuple[int, float
                     rss = p.memory_info().rss + sum(c.memory_info().rss for c in p.children(recursive=True))
                     peak[0] = max(peak[0], rss / 1e6)
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass
+                    pass  # 子プロセスが終わった直後などは次の回で測り直す
                 stop.wait(0.5)
 
         watcher = threading.Thread(target=sample, daemon=True) if psutil else None
@@ -171,8 +171,10 @@ def main() -> int:
                 "kouchou-ai-analysis-core が入っていません（pip install 'kouchou-ai-analysis-core[embeddings,clustering]'）"
             )
         if not hasattr(llm, "local_llm_reasoning_effort"):
-            print(
-                "注意: この analysis-core は LOCAL_LLM_REASONING_EFFORT に対応していません（#1193 より前）。思考は止まりません"
+            # 効いていない設定を結果の CSV に「適用した」として残さないよう、ここで止める
+            sys.exit(
+                "この analysis-core は LOCAL_LLM_REASONING_EFFORT に対応していません（#1193 より前）。"
+                "--reasoning-effort を外すか、analysis-core を更新してください"
             )
 
     for sub in ("inputs", "configs", "outputs", "logs"):

@@ -40,7 +40,7 @@ python experiments/local_llm_bench/bench.py --model gemma4:e4b --reasoning-effor
 ```
 
 - `--n` は件数です。複数回指定すると順に測ります。既定の入力は管理画面のサンプル（`apps/admin/public/sample_comments.csv`、400 件）です。それより多く測るときは、`--input <CSV> --text-column <本文の列名>` で別の CSV を渡します
-- `--reasoning-effort none` は、gemma4 などの思考型モデルの思考を止めます（`LOCAL_LLM_REASONING_EFFORT` に渡します。分析コアが [#1193](https://github.com/digitaldemocracy2030/kouchou-ai/pull/1193) より前の版だと効きません。そのときはスクリプトが注意を出します）
+- `--reasoning-effort none` は、gemma4 などの思考型モデルの思考を止めます（`LOCAL_LLM_REASONING_EFFORT` に渡します。分析コアが [#1193](https://github.com/digitaldemocracy2030/kouchou-ai/pull/1193) より前の版だと効きません。そのときはスクリプトが止まります）
 - `--address` は接続先です（既定は Ollama の `127.0.0.1:11434`）。llama.cpp の `llama-server` なら `127.0.0.1:8080` などにします
 - `--workers` は抽出の並列数です（既定 1）。Ollama の同時処理数（`OLLAMA_NUM_PARALLEL`）を増やしたときに合わせます
 - `--note` に、GPU を切った方法など結果を読むときに要るメモを残せます

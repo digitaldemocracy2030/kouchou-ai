@@ -249,7 +249,6 @@ class TestPipelineIntegration:
 
     def test_run_workflow_records_step_durations(self, tmp_path, monkeypatch):
         """workflow 経由（CLI の既定）でも、段ごとの所要時間を status と PipelineResult に記録する（#1195）"""
-        import json
         import time
 
         from analysis_core.plugin import StepOutputs
