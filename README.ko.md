@@ -81,7 +81,7 @@ GPU가 탑재된 머신에서 로컬 LLM을 사용하려면 다음 절차를 따
    - gemma4는 사고(thinking)형 모델입니다. `.env`에 `LOCAL_LLM_REASONING_EFFORT=none`을 설정하면 사고를 끄고, 요청 1건당 시간이 약 3분의 1로 줄어듭니다
 5. 다운로드가 끝난 모델은 리포트를 생성할 때 선택하여 사용할 수 있습니다
 
-**사전 요구 사항**:
+**사전 요구 사항** (NVIDIA GPU로 실행하는 경우. GPU가 없는 PC는 아래 '주의'를 참고):
 
 - **Linux** / **Windows**:
 
@@ -97,7 +97,8 @@ GPU가 탑재된 머신에서 로컬 LLM을 사용하려면 다음 절차를 따
 
 **주의**:
 
-- 로컬 LLM을 사용하려면 충분한 GPU 메모리가 필요합니다 (8GB 이상 권장)
+- GPU로 실행하는 경우 충분한 GPU 메모리가 필요합니다 (8GB 이상 권장)
+- GPU가 없는 PC에서도 `docker compose -f compose.yaml -f compose.cpu.yaml --profile ollama up -d`로 CPU만으로 실행할 수 있습니다. 의견 400건에 약 1시간 45분이 걸리며, 메모리는 16GB 이상을 권장합니다. 자세한 내용은 [로컬 LLM을 실행할 PC의 기준](docs/self-hosting/local-llm-pc-requirements.md)(일본어)을 참고하세요
 - 처음 실행할 때는 모델 다운로드에 시간이 걸릴 수 있습니다
 
 ### Google Analytics 설정

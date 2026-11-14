@@ -54,6 +54,8 @@
 
 ## 速さの目安
 
+レポート全体を作る時間と、要るメモリは [ローカルLLMで動かす PC の目安](local-llm-pc-requirements.md) にまとめています。ここではモデルごとの抽出 1 件の速さを比べます。
+
 品質とは別に、速さは Issue #471 で測られています。AMD Ryzen 7 5700X の 4 コア（8 スレッド）・メモリ 16GB・GPU なしで、Ollama を使い、抽出 1 件にかかった時間は次のとおりでした（[#471 のコメント](https://github.com/digitaldemocracy2030/kouchou-ai/issues/471#issuecomment-6122359171) より）。
 
 | モデル | 抽出 1 件 |
