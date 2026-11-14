@@ -92,13 +92,21 @@ def machine_info() -> dict:
     }
 
 
-def unused_name(workdir: Path, base: str) -> str:
-    """前の回の出力を使い回さないよう、まだ使われていない名前を返す（同じ件数を 2 回測るときなど）"""
+def reserve_name(workdir: Path, base: str) -> str:
+    """前の回の出力を使い回さないよう、まだ使われていない名前を確保して返す（同じ件数を 2 回測るときなど）
+
+    設定のファイルを排他的に作って名前を確保するので、同じ秒に別の計測を始めても名前が重ならない。
+    """
     name, k = base, 1
-    while (workdir / "configs" / f"{name}.json").exists() or (workdir / "outputs" / name).exists():
+    while True:
+        if not (workdir / "outputs" / name).exists():
+            try:
+                (workdir / "configs" / f"{name}.json").open("x").close()
+                return name
+            except FileExistsError:
+                pass  # ほかの回が先に確保した。次の番号を試す
         k += 1
         name = f"{base}-{k}"
-    return name
 
 
 def run_and_watch(cmd: list[str], env: dict, log_path: Path) -> tuple[int, float, float | None]:
@@ -193,7 +201,7 @@ def main() -> int:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
     for n in args.n:
-        name = unused_name(args.workdir, f"bench-{n}-{stamp}")
+        name = reserve_name(args.workdir, f"bench-{n}-{stamp}")
         with (args.workdir / "inputs" / f"{name}.csv").open("w", encoding="utf-8", newline="") as f:
             w = csv.writer(f)
             w.writerow(["comment-id", "comment-body"])
