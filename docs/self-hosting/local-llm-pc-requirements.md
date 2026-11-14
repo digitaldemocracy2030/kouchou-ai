@@ -28,7 +28,7 @@
 docker compose -f compose.yaml -f compose.cpu.yaml --profile ollama up -d
 ```
 
-止めるときや作り直すときも、同じ `-f` の指定を付けてください。そのうえで `.env` に `LOCAL_LLM_REASONING_EFFORT=none` を書き、レポート作成画面でプロバイダ LocalLLM・モデル gemma4:e4b を選びます。
+`compose.cpu.yaml` は Docker Compose 2.24 以降で使えます（`docker compose version` で確かめられます）。止めるときや作り直すときも、同じ `-f` の指定を付けてください。そのうえで `.env` に `LOCAL_LLM_REASONING_EFFORT=none` を書き、レポート作成画面でプロバイダ LocalLLM・モデル gemma4:e4b を選びます。
 
 ## 測った PC
 
