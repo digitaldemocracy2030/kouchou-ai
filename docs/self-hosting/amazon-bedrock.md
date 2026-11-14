@@ -120,7 +120,7 @@ CLI の使い方そのものは [CLIクイックスタート](../user-guide/cli-
 - **構造化出力**：広聴AIは、抽出やラベル付けの結果を JSON の形（JSON スキーマ）を指定して受け取ります（`response_format` の `json_schema`、`strict: true`）。Bedrock の[構造化出力](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html)が受け付けるスキーマの範囲（すべての object に `additionalProperties: false`、数値や文字数の制約なし、省略できる項目は 12 個まで）には、広聴AIが送るスキーマ（抽出・ラベル・要約・LLM 直接グルーピング・意見の分類・賛否）が収まることを、コード上では確かめました。モデルが Chat Completions 経由でこれを守るかは未確認です。
 - **送っているほかの値**：広聴AIは LocalLLM へのリクエストに `temperature: 0`、`n: 1`、`seed: 0` を付けます。Bedrock がこれらを受け付けるかは未確認です。
 - **初回の待ち時間**：Bedrock は新しいスキーマを初めて受け取ったとき、準備に最大 90 秒ほどかかることがあります。広聴AIの既定のタイムアウト（300 秒）には収まりますが、短くしている場合は [LLMタイムアウト設定](../development/llm-timeout.md) で延ばしてください。
-- **思考（reasoning）の分の費用**：gpt-oss は既定で思考してから答えるので、思考の分も出力トークンとして課金されます。広聴AIから思考の強さを指定する手段は、今はありません。
+- **思考（reasoning）の強さ**：gpt-oss は既定で思考してから答えるので、思考の分も出力トークンとして課金されます。思考の強さは `low`・`medium`・`high` から選べます（[モデルカード](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-oss-120b.html)）。広聴AIは、`.env` に `LOCAL_LLM_REASONING_EFFORT` を設定したときだけ、その値を `reasoning_effort` として送ります（未設定・空なら送りません）。`low` にすれば思考の分を減らせる見込みですが、Bedrock の Chat Completions がこの値を受け付けるかは未確認です。Ollama 向けの `none`（思考を止める）は gpt-oss の選択肢にないので、設定しないでください。`400` が返るようになったら、空に戻してください。
 - **レート制限**：Bedrock にはアカウントとモデルごとの上限があります。`429` が返ると広聴AIは待って送り直しますが、続く場合は並列実行数を下げてください（[APIの課金と429エラー](api-billing-and-rate-limits.md)）。
 
 ## 困ったとき
