@@ -1,0 +1,10 @@
+# GPU の無い PC でローカル LLM（Ollama）を動かすときに重ねる設定。
+# compose.yaml の ollama サービスは NVIDIA GPU を予約するので、GPU の無い PC ではそのままでは起動しない。
+# この設定はその予約を外し、CPU だけで動かす。
+#
+#   docker compose -f compose.yaml -f compose.cpu.yaml --profile ollama up -d
+#
+# 必要な PC の目安と時間は docs/self-hosting/local-llm-pc-requirements.md を参照。
+services:
+  ollama:
+    deploy: !reset {}
