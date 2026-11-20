@@ -124,8 +124,6 @@ jobs:
             --build-arg NEXT_PUBLIC_ADMIN_API_KEY="${ADMIN_API_KEY}" \
             --build-arg NEXT_PUBLIC_API_BASEPATH="https://${API_DOMAIN}" \
             --build-arg CLIENT_STATIC_BUILD_BASEPATH="https://${STATIC_SITE_BUILDER_DOMAIN}" \
-            --build-arg BASIC_AUTH_USERNAME="${BASIC_AUTH_USERNAME}" \
-            --build-arg BASIC_AUTH_PASSWORD="${BASIC_AUTH_PASSWORD}" \
             --build-arg API_BASEPATH="https://${API_DOMAIN}" \
             -t ${AZURE_ACR_NAME}.azurecr.io/admin:latest \
             . & build_pids+=("$!")
