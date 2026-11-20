@@ -115,6 +115,68 @@ class TestInitialization:
         assert "hierarchical_clustering" in config
         assert config["hierarchical_clustering"]["cluster_nums"] is None
 
+    @pytest.mark.parametrize("analysis_mode", ["hierarchical", "llm_grouping"])
+    def test_initialization_llm_steps_inherit_global_model(self, tmp_path, analysis_mode):
+        """全体の model を、LLM を使う全ステップが引き継ぐ（llm_grouping だけ gpt-4o-mini に固定されていた）。"""
+        from analysis_core.core import get_specs, initialization
+
+        config_path = tmp_path / "job.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "local",
+                    "model": "gemma-4-31B-it",
+                    "analysis_mode": analysis_mode,
+                }
+            )
+        )
+        input_dir = tmp_path / "inputs"
+        input_dir.mkdir()
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=input_dir,
+        )
+
+        llm_steps = [spec["step"] for spec in get_specs() if spec.get("use_llm")]
+        assert llm_steps
+        for step in llm_steps:
+            assert config[step]["model"] == "gemma-4-31B-it", step
+
+    def test_initialization_llm_grouping_step_model_overrides_global(self, tmp_path):
+        """ステップに model を書いた場合は、そちらが優先される。"""
+        from analysis_core.core import initialization
+
+        config_path = tmp_path / "job.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "test",
+                    "question": "Test?",
+                    "provider": "local",
+                    "model": "gemma-4-31B-it",
+                    "analysis_mode": "llm_grouping",
+                    "llm_grouping": {"model": "gemma-4-12B"},
+                }
+            )
+        )
+        input_dir = tmp_path / "inputs"
+        input_dir.mkdir()
+
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=input_dir,
+        )
+
+        assert config["llm_grouping"]["model"] == "gemma-4-12B"
+        assert config["extraction"]["model"] == "gemma-4-31B-it"
+
     def test_initialization_force_flag(self, tmp_path):
         """Test that force flag is set in config."""
         from analysis_core.core import initialization
