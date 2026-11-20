@@ -6,6 +6,7 @@ import type { Argument, Cluster } from "@/type";
 import type { Layout, TreemapData } from "plotly.js";
 import { useCallback, useMemo, useRef } from "react";
 import { ChartCore } from "./ChartCore";
+import { buildClusterColorMap } from "./clusterColors";
 
 type Props = {
   clusterList: Cluster[];
@@ -107,10 +108,16 @@ export function buildTreemapFigure(
       : takeaway;
   });
 
+  // 第一階層の意見グループには、散布図（全体図）と同じ色を明示する（#337）。
+  // Plotly は第三階層以降を親の色で塗るので、子の意見グループと意見も同じ系統の色になる。
+  // 指定しないと Plotly が大きさ順に colorway を割り当てるため、全体図と色がずれる。
+  const topLevelColorMap = buildClusterColorMap(clusterList.filter((cluster) => cluster.level === 1));
+
   // フィルター状態によって色を変更
   const colors = list.map((node) => {
     // @ts-ignore filtered プロパティを追加したので無視
-    return node.filtered ? "#cccccc" : ""; // フィルターに該当しないものはグレー、それ以外はデフォルト色
+    if (node.filtered) return "#cccccc"; // フィルターに該当しないものはグレー
+    return topLevelColorMap[node.id] ?? ""; // それ以外は第一階層の色を明示し、残りは親の色を引き継ぐ
   });
 
   // すべてのアイテムでホバー表示を有効にする
@@ -147,18 +154,6 @@ export function buildTreemapFigure(
 
   const layout: Partial<Layout> = {
     margin: { l: 10, r: 10, b: 10, t: 30 },
-    colorway: [
-      "#b3daa1",
-      "#f5c5d7",
-      "#d5e5f0",
-      "#fbecc0",
-      "#80b8ca",
-      "#dabeed",
-      "#fad1af",
-      "#fbb09d",
-      "#a6e3ae",
-      "#f1e4d6",
-    ],
   };
 
   return { data, layout };

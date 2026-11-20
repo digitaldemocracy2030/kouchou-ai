@@ -4,6 +4,7 @@ import { render } from "@testing-library/react";
 import type { PlotMouseEvent } from "plotly.js";
 import { ScatterChart } from "../ScatterChart";
 import { TreemapChart, buildTreemapFigure } from "../TreemapChart";
+import { CLUSTER_COLORS } from "../clusterColors";
 
 // jsdom には structuredClone が無く、Chakra v3 の recipe 処理が必要とするため補う
 globalThis.structuredClone ??= <T,>(value: T): T => (value === undefined ? value : JSON.parse(JSON.stringify(value)));
@@ -177,7 +178,17 @@ describe("buildTreemapFigure", () => {
     const { data } = buildTreemapFigure(clusters, args, "2_0", ["a1"]);
     expect(data.ids).toEqual(["0", "1_0", "1_1", "2_0", "2_1", "a1", "a3", "a4"]);
     expect(data.values).toEqual([1, 1, 0, 1, 0, 1, 0, 0]);
-    expect((data.marker as { colors: string[] }).colors).toEqual(["", "", "", "", "", "", "#cccccc", "#cccccc"]);
+    // 第一階層（1_0・1_1）には全体図と同じ色を明示し、合致しない意見 a3・a4 は灰色（#337）
+    expect((data.marker as { colors: string[] }).colors).toEqual([
+      "",
+      CLUSTER_COLORS[0],
+      CLUSTER_COLORS[1],
+      "",
+      "",
+      "",
+      "#cccccc",
+      "#cccccc",
+    ]);
     const customdata = data.customdata as string[];
     expect(customdata[1]).toContain("元の件数: 2<br>フィルター後: 1");
     expect(customdata[6]).toBe("");
