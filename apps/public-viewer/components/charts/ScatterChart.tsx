@@ -9,51 +9,7 @@ import type { Annotation, Data, Layout, PlotMouseEvent } from "plotly.js";
 import type { WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartCore } from "./ChartCore";
-
-// クラスタ配色のパレット。参照を安定させて clusterColorMap などの useMemo を効かせるため、
-// コンポーネント外（モジュールスコープ）の定数として保持する。
-const SOFT_COLORS = [
-  "#7ac943",
-  "#3fa9f5",
-  "#ff7997",
-  "#e0dd02",
-  "#d6410f",
-  "#b39647",
-  "#7cccc3",
-  "#a147e6",
-  "#ff6b6b",
-  "#4ecdc4",
-  "#ffbe0b",
-  "#fb5607",
-  "#8338ec",
-  "#3a86ff",
-  "#ff006e",
-  "#8ac926",
-  "#1982c4",
-  "#6a4c93",
-  "#f72585",
-  "#7209b7",
-  "#00b4d8",
-  "#e76f51",
-  "#606c38",
-  "#9d4edd",
-  "#457b9d",
-  "#bc6c25",
-  "#2a9d8f",
-  "#e07a5f",
-  "#5e548e",
-  "#81b29a",
-  "#f4a261",
-  "#9b5de5",
-  "#f15bb5",
-  "#00bbf9",
-  "#98c1d9",
-  "#84a59d",
-  "#f28482",
-  "#00afb9",
-  "#cdb4db",
-  "#fcbf49",
-];
+import { buildClusterColorMap, clusterColor } from "./clusterColors";
 
 // 意見を持たないクラスタに使う空配列（参照を共有するので変更しないこと）
 const NO_ARGUMENTS: Argument[] = [];
@@ -208,17 +164,7 @@ export function ScatterChart({
     () => clusterList.filter((cluster) => cluster.level === targetLevel),
     [clusterList, targetLevel],
   );
-  const clusterColorMap = useMemo(
-    () =>
-      targetClusters.reduce(
-        (acc, cluster, index) => {
-          acc[cluster.id] = SOFT_COLORS[index % SOFT_COLORS.length];
-          return acc;
-        },
-        {} as Record<string, string>,
-      ),
-    [targetClusters],
-  );
+  const clusterColorMap = useMemo(() => buildClusterColorMap(targetClusters), [targetClusters]);
 
   const clusterColorMapA = useMemo(
     () =>
@@ -226,7 +172,7 @@ export function ScatterChart({
         (acc, cluster, index) => {
           const alpha = 0.8; // アルファ値を指定
           acc[cluster.id] =
-            SOFT_COLORS[index % SOFT_COLORS.length] +
+            clusterColor(index) +
             Math.floor(alpha * 255)
               .toString(16)
               .padStart(2, "0");
@@ -671,7 +617,7 @@ export function ScatterChart({
       if (clusterArguments.length < 3) return [];
       const hull = convexHull(clusterArguments.map((arg) => [arg.x, arg.y]));
       if (hull.length < 3) return [];
-      const color = SOFT_COLORS[index % SOFT_COLORS.length];
+      const color = clusterColor(index);
       return [
         {
           x: [...hull.map((p) => p[0]), hull[0][0]],
