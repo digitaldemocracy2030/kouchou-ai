@@ -82,7 +82,7 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
    - どのモデルを選ぶとよいかは [ローカルLLMのモデル選び（品質の測定結果）](docs/self-hosting/local-llm-models.md) を参照してください。2026-11 の測定では gemma-4-E4B がクラウドの既定モデルに劣らず、ELYZA-JP-8B はプロンプトの入出力例を出力に写すことがありました
 5. ダウンロードが完了したモデルはレポート生成時に選択して使用できます
 
-**前提条件**:
+**前提条件**（NVIDIA の GPU で動かす場合。GPU が無い PC は下の「注意」を参照）:
 
 - **Linux**・**Windows**：
 
@@ -98,7 +98,8 @@ GPU を搭載したマシンでローカル LLM を使用したい場合は、�
 
 **注意**:
 
-- ローカル LLM の使用には十分な GPU メモリが必要です（8GB 以上推奨）
+- GPU で動かす場合は、十分な GPU メモリが必要です（8GB 以上推奨）
+- GPU が無い PC でも、`docker compose -f compose.yaml -f compose.cpu.yaml --profile ollama up -d` で CPU だけで動かせます。意見 400 件で約 1 時間 45 分かかり、メモリは 16GB 以上が目安です。詳しくは [ローカルLLMで動かす PC の目安](docs/self-hosting/local-llm-pc-requirements.md) を参照してください
 - 初回起動時にはモデルのダウンロードに時間がかかる場合があります
 
 ### Google Analytics の設定

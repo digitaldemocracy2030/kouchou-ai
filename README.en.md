@@ -84,7 +84,7 @@ To use a local LLM on a machine with a GPU, follow these steps:
    - gemma4 is a thinking model. Set `LOCAL_LLM_REASONING_EFFORT=none` in `.env` to turn thinking off; each request takes about a third of the time
 5. Once downloaded, the model can be selected when generating a report
 
-**Prerequisites**:
+**Prerequisites** (when running on an NVIDIA GPU; for PCs without a GPU, see the notes below):
 
 - **Linux** / **Windows**:
 
@@ -100,7 +100,8 @@ To use a local LLM on a machine with a GPU, follow these steps:
 
 **Notes**:
 
-- Using a local LLM requires enough GPU memory (8GB or more recommended)
+- When running on a GPU, enough GPU memory is required (8GB or more recommended)
+- PCs without a GPU can run it on the CPU only with `docker compose -f compose.yaml -f compose.cpu.yaml --profile ollama up -d`. 400 opinions take about 1 hour 45 minutes, and 16GB or more of memory is recommended. See [PC requirements for local LLMs](docs/self-hosting/local-llm-pc-requirements.md) (Japanese) for details
 - The first launch may take a while to download the model
 
 ### Google Analytics
