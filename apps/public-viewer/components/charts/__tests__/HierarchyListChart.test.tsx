@@ -97,6 +97,36 @@ describe("HierarchyListChart の展開状態", () => {
   });
 });
 
+describe("HierarchyListChart の一括展開（#1206）", () => {
+  it("「すべて開く」で全階層と最下層の個別データまで開き、「すべて閉じる」で全部閉じる", () => {
+    renderList({ clusterList: clusters });
+    expect(expandedCount()).toBe(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "すべて開く" }));
+    // 全体・大分類 2 つ・最下層 2 つの 5 グループが開き、両方の枝の個別データが見える
+    expect(expandedCount()).toBe(5);
+    for (const text of ["意見 A1", "意見 A2", "意見 A3", "意見 A4"]) {
+      expect(screen.getByText(text)).toBeInTheDocument();
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "すべて閉じる" }));
+    expect(expandedCount()).toBe(0);
+    expect(screen.queryByText("意見 A1")).not.toBeInTheDocument();
+
+    // 閉じた後に 1 つ開いても、子孫は閉じたまま
+    fireEvent.click(screen.getAllByRole("button", { name: "展開する" })[0]);
+    expect(expandedCount()).toBe(1);
+  });
+
+  it("一括で開いた状態はフィルタの適用で clusterList が作り直されても保つ", () => {
+    const rerender = renderList({ clusterList: clusters });
+    fireEvent.click(screen.getByRole("button", { name: "すべて開く" }));
+    rerender({ clusterList: clusters.map((c) => ({ ...c })), filteredArgumentIds: ["A4"] });
+    expect(expandedCount()).toBe(5);
+    expect(screen.getByText("意見 A4")).toBeInTheDocument();
+  });
+});
+
 describe("HierarchyListChart の出典リンク（#1159）", () => {
   const withUrl: Argument[] = args.map((a) => (a.arg_id === "A1" ? { ...a, url: "https://example.com/a1" } : a));
   const config = { name: "n", question: "q", intro: "i", model: "m" } as unknown as Config;
