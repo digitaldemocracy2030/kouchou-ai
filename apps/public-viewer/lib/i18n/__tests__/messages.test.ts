@@ -10,6 +10,7 @@ describe("messages", () => {
       expect(Object.keys(messages[lang].steps).sort()).toEqual(Object.keys(messages.ja.steps).sort());
       expect(messages[lang].readingGuideItems).toHaveLength(messages.ja.readingGuideItems.length);
       expect(messages[lang].scatterHelpItems).toHaveLength(messages.ja.scatterHelpItems.length);
+      expect(messages[lang].scatterReadingItems).toHaveLength(messages.ja.scatterReadingItems.length);
     }
   });
 
