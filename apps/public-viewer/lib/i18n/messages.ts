@@ -39,6 +39,7 @@ const ja = {
   ],
 
   // チャート選択・ツールバー
+  noAvailableChart: "このレポートで利用できる表示はありません。",
   chartModes: {
     scatterAll: "全体",
     scatterDetail: "詳細クラスタ",
@@ -255,6 +256,7 @@ const en: Messages = {
     "The topics you find are starting points for dialogue and further research, not conclusions. Read minority opinions too, and verify with interviews and other materials.",
   ],
 
+  noAvailableChart: "No visualization is available for this report.",
   chartModes: {
     scatterAll: "Overview",
     scatterDetail: "Detailed clusters",
@@ -453,6 +455,7 @@ const ko: Messages = {
     "발견한 쟁점은 결론이 아니라 대화와 추가 조사의 출발점입니다. 소수 의견도 읽고 관계자 인터뷰나 다른 자료로 확인해 주세요.",
   ],
 
+  noAvailableChart: "이 보고서에 사용할 수 있는 시각화가 없습니다.",
   chartModes: {
     scatterAll: "전체",
     scatterDetail: "세부 클러스터",

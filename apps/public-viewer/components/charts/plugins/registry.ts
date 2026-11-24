@@ -11,10 +11,11 @@ import { formatValidationResult, logValidationWarnings, validatePlugin } from ".
 export class ChartPluginRegistry {
   private plugins: Map<string, ChartPlugin> = new Map();
   private modeToPlugin: Map<string, ChartPlugin> = new Map();
-  private strictMode = false;
+
+  constructor(private strictMode = false) {}
 
   /**
-   * Enable strict mode - throws on validation errors
+   * Enable strict mode - throws on validation errors and ID collisions
    */
   setStrictMode(strict: boolean): void {
     this.strictMode = strict;
@@ -41,28 +42,35 @@ export class ChartPluginRegistry {
 
     // Check for plugin ID collision
     if (this.plugins.has(plugin.manifest.id)) {
-      console.warn(
-        `Chart plugin collision: "${plugin.manifest.id}" is already registered. ` +
-          `Overwriting with new plugin (v${plugin.manifest.version}).`,
+      this.reportCollision(
+        `Chart plugin collision: "${plugin.manifest.id}" is already registered.`,
+        `Overwriting with new plugin (v${plugin.manifest.version}).`,
       );
     }
 
-    this.plugins.set(plugin.manifest.id, plugin);
-
-    // Map each mode to this plugin for quick lookup
+    // Check every collision before mutating either lookup.
     for (const mode of plugin.manifest.modes) {
       // Check for mode ID collision
-      if (this.modeToPlugin.has(mode.id)) {
-        const existingPlugin = this.modeToPlugin.get(mode.id);
-        console.warn(
-          `Chart mode collision: "${mode.id}" is already registered by plugin "${existingPlugin?.manifest.id}". ` +
-            `Overwriting with plugin "${plugin.manifest.id}".`,
+      const existingPlugin = this.modeToPlugin.get(mode.id);
+      if (existingPlugin) {
+        this.reportCollision(
+          `Chart mode collision: "${mode.id}" is already registered by plugin "${existingPlugin.manifest.id}".`,
+          `Overwriting with plugin "${plugin.manifest.id}".`,
         );
       }
+    }
+
+    this.plugins.set(plugin.manifest.id, plugin);
+    for (const mode of plugin.manifest.modes) {
       this.modeToPlugin.set(mode.id, plugin);
     }
 
     console.debug(`Registered chart plugin: ${plugin.manifest.id} (v${plugin.manifest.version})`);
+  }
+
+  private reportCollision(message: string, overwriteMessage: string): void {
+    if (this.strictMode) throw new Error(message);
+    console.warn(`${message} ${overwriteMessage}`);
   }
 
   /**
@@ -114,7 +122,7 @@ export class ChartPluginRegistry {
 }
 
 // Global singleton instance
-export const chartRegistry = new ChartPluginRegistry();
+export const chartRegistry = new ChartPluginRegistry(true);
 
 /**
  * Load all built-in chart plugins
@@ -129,9 +137,10 @@ export function loadBuiltinChartPlugins(): void {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { hierarchyListPlugin } = require("./hierarchy-list");
 
-  chartRegistry.register(scatterPlugin);
-  chartRegistry.register(treemapPlugin);
-  chartRegistry.register(hierarchyListPlugin);
+  const plugins: ChartPlugin[] = [scatterPlugin, treemapPlugin, hierarchyListPlugin];
+  for (const plugin of plugins) {
+    if (chartRegistry.get(plugin.manifest.id) !== plugin) chartRegistry.register(plugin);
+  }
 
   console.debug(`Loaded ${chartRegistry.getAll().length} chart plugins`);
 }
