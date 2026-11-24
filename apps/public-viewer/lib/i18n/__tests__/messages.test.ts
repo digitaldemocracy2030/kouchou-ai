@@ -14,9 +14,9 @@ describe("messages", () => {
   });
 
   it("件数の表記は言語ごとに変わる", () => {
-    expect(getMessages("ja").opinionCount(1234)).toBe("1,234件");
+    expect(getMessages("ja").opinionCount(1234)).toBe("意見 1,234件");
     expect(getMessages("en").opinionCount(1234)).toBe("1,234 opinions");
-    expect(getMessages("ko").opinionCount(1234)).toBe("1,234건");
+    expect(getMessages("ko").opinionCount(1234)).toBe("의견 1,234건");
   });
 
   it("散布図の所属表示は言語ごとの書式で組み立てる", () => {

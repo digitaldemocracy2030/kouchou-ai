@@ -63,26 +63,26 @@ describe("HierarchyListChart のクラスタ件数", () => {
     renderList(["A1", "A4"]);
     expandRoot();
 
-    expect(screen.getByText("(フィルター後 2件 / 全4件)")).toBeInTheDocument();
-    expect(screen.getByText("(フィルター後 1件 / 全3件)")).toBeInTheDocument();
-    expect(screen.getByText("(フィルター後 1件 / 全1件)")).toBeInTheDocument();
-    expect(screen.queryByText("(4件)")).not.toBeInTheDocument();
+    expect(screen.getByText("(フィルター後の意見 2件 / 全4件)")).toBeInTheDocument();
+    expect(screen.getByText("(フィルター後の意見 1件 / 全3件)")).toBeInTheDocument();
+    expect(screen.getByText("(フィルター後の意見 1件 / 全1件)")).toBeInTheDocument();
+    expect(screen.queryByText("(意見 4件)")).not.toBeInTheDocument();
   });
 
   it("一致する意見が無いクラスタは 0 件と表示する", () => {
     renderList(["A4"]);
     expandRoot();
 
-    expect(screen.getByText("(フィルター後 0件 / 全3件)")).toBeInTheDocument();
+    expect(screen.getByText("(フィルター後の意見 0件 / 全3件)")).toBeInTheDocument();
   });
 
   it("フィルタなしでは従来どおり全件の件数を表示する", () => {
     renderList();
     expandRoot();
 
-    expect(screen.getByText("(4件)")).toBeInTheDocument();
-    expect(screen.getByText("(3件)")).toBeInTheDocument();
-    expect(screen.getByText("(1件)")).toBeInTheDocument();
+    expect(screen.getByText("(意見 4件)")).toBeInTheDocument();
+    expect(screen.getByText("(意見 3件)")).toBeInTheDocument();
+    expect(screen.getByText("(意見 1件)")).toBeInTheDocument();
     expect(screen.queryByText(/フィルター後/)).not.toBeInTheDocument();
   });
 });
@@ -104,7 +104,7 @@ describe("HierarchyListChart のクラスタ件数（表示言語）", () => {
     fireEvent.click(screen.getAllByLabelText("Expand")[0]);
     fireEvent.click(screen.getByText(/Show child groups/));
 
-    expect(screen.getByText("(2 after filter / 4 total)")).toBeInTheDocument();
+    expect(screen.getByText("(2 opinions after filter / 4 total)")).toBeInTheDocument();
     expect(screen.queryByText(/フィルター後/)).not.toBeInTheDocument();
   });
 });
