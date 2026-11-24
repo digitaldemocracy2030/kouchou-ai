@@ -1,0 +1,123 @@
+name: Analysis Core Lean
+
+# packages/analysis-core/verification: 依存解決・再実行の判定・クラスタの木の組み立てを Lean 4 に写して証明し、
+# 本物の Python と Lean のモデルを同じ乱数入力で突き合わせる（差分テスト）。必須のチェックではない。
+#
+# モデルはコードの手写しなので、コードが変わっても証明の結果は変わらない。
+# 写したファイルが写した版から変わった時は「Compare the modeled sources」が warning を出し、
+# 差分テストがモデルとのずれを捕まえる。
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/analysis-core/src/**"
+      - "packages/analysis-core/verification/**"
+      - "packages/analysis-core/requirements-dev.lock"
+      - ".github/workflows/analysis-core-lean.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/analysis-core/src/**"
+      - "packages/analysis-core/verification/**"
+      - "packages/analysis-core/requirements-dev.lock"
+      - ".github/workflows/analysis-core-lean.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: analysis-core-lean-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lean:
+    name: Lean proofs and differential test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./packages/analysis-core/verification/lean
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 写したファイルが写した版でなければ warning（失敗にはしない）
+      - name: Compare the modeled sources
+        working-directory: .
+        run: |
+          list=packages/analysis-core/verification/modeled-sources.txt
+          stale=0
+          for p in $(grep -v '^#' "$list" | awk '{print $1}' | sort -u); do
+            if [ -f "$p" ]; then b=$(git hash-object "$p"); else b=-; fi
+            if ! grep -q "^$p $b " "$list"; then
+              echo "::warning file=$p::$p is not a version the Lean model was copied from. If the change touches what the model copies, update packages/analysis-core/verification (see its README)."
+              stale=1
+            fi
+          done
+          if [ "$stale" = 0 ]; then echo "every modeled source is a copied version"; fi
+
+      - name: Cache elan and the Lean toolchain
+        id: elan-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.elan
+          key: elan-${{ runner.os }}-${{ hashFiles('packages/analysis-core/verification/lean/lean-toolchain') }}
+
+      - name: Install elan
+        if: steps.elan-cache.outputs.cache-hit != 'true'
+        run: curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+
+      # lean-toolchain の版を elan が初回に入れる
+      - name: Set up the toolchain
+        run: |
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/lean" --version
+
+      - name: Cache the build
+        uses: actions/cache@v4
+        with:
+          path: packages/analysis-core/verification/lean/.lake
+          key: lake-${{ runner.os }}-${{ hashFiles('packages/analysis-core/verification/lean/lean-toolchain', 'packages/analysis-core/verification/lean/lakefile.toml') }}-${{ hashFiles('packages/analysis-core/verification/lean/**/*.lean') }}
+          restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('packages/analysis-core/verification/lean/lean-toolchain', 'packages/analysis-core/verification/lean/lakefile.toml') }}-
+
+      # 証明が壊れたら失敗。sorry が残っていても失敗
+      - name: Build the proofs and the oracle
+        run: |
+          lake build 2>&1 | tee build.log
+          if grep -q "declaration uses .sorry." build.log; then
+            echo "::error::a declaration uses sorry"
+            exit 1
+          fi
+
+      - name: Axioms of the theorems
+        run: |
+          lake env lean Axioms.lean 2>&1 | tee axioms.log
+          if grep -q "sorryAx" axioms.log; then
+            echo "::error::a theorem depends on sorryAx"
+            exit 1
+          fi
+
+      # 証明していない向き（循環が無ければ並びを返す）を、工程 4 個以下の全グラフで確かめる
+      - name: Exhaustive check (steps <= 4)
+        run: .lake/build/bin/oracle check 4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: "packages/analysis-core/requirements-dev.lock"
+
+      - name: Install dependencies
+        working-directory: ./packages/analysis-core
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.lock hypothesis==6.170.17
+
+      # 同じ乱数入力を本物の Python と Lean のモデル（oracle）に流して突き合わせる
+      - name: Differential test
+        working-directory: ./packages/analysis-core
+        run: python -m pytest verification/difftest.py -q
