@@ -276,6 +276,29 @@ def test_resolve_predefined_groups_parses_validates_and_defaults_to_none():
         )
 
 
+@pytest.mark.parametrize("group_id", ["0", " 0 ", 0])
+def test_predefined_group_id_cannot_be_the_root_id(group_id):
+    """id "0" は root（全体）と衝突し、自分自身を親に持つクラスタになるので拒否する。"""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+    with pytest.raises(ValueError, match="reserved for the root"):
+        llm_grouping_step._resolve_predefined_groups({"predefined_groups": [{"id": group_id, "label": "交通"}]})
+
+
+def test_blank_predefined_group_id_falls_back_to_the_default_id():
+    """空白だけの id は strip で空文字の id にせず、未指定と同じく g{n} にする。"""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+    groups = llm_grouping_step._resolve_predefined_groups(
+        {
+            "predefined_groups": [
+                {"id": "  ", "label": "交通"},
+                {"id": "", "label": "公園"},
+                {"id": None, "label": "防災"},
+            ]
+        }
+    )
+    assert [g.group_id for g in groups] == ["g1", "g2", "g3"]
+
+
 def test_ensure_other_group_appends_and_reuses():
     """「その他」受け皿は必ず用意し、既存の同等枠があれば流用して二重に足さない。"""
     llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")

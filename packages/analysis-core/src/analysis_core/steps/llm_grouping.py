@@ -25,6 +25,8 @@ from analysis_core.steps.hierarchical_clustering import (
 # グループ発見・割当の LLM 呼び出しも、ほかの工程と同じく LLM_REQUEST_TIMEOUT_SECONDS に従う
 LLM_GROUPING_TIMEOUT_SECONDS = DEFAULT_REQUEST_TIMEOUT_SECONDS
 
+# hierarchical_aggregation が足す root（全体）クラスタの id。parent: "0" で参照されるので、グループの id には使えない
+_ROOT_CLUSTER_ID = "0"
 # 指定カテゴリ分類（supervised）で必ず用意する「その他」受け皿。
 # どのカテゴリにも当てはまらない意見を無理に押し込めないための catch-all。
 _OTHER_GROUP_ID = "other"
@@ -155,7 +157,7 @@ def _resolve_predefined_groups(llm_config: dict) -> list[GroupDefinition] | None
     """`predefined_groups` を正規化する。未指定（falsy）なら None（＝自動グルーピング）。
 
     各要素は ``{"id"?, "label", "description"?}`` の dict、または label 文字列。
-    label 必須・id 重複不可。「その他」受け皿はここでは足さない（_ensure_other_group の責務）。
+    label 必須・id 重複不可。id "0" は結果の root（全体）と衝突するので使えない。空白だけの id は未指定扱い。「その他」受け皿はここでは足さない（_ensure_other_group の責務）。
     """
     raw_groups = llm_config.get("predefined_groups")
     if not raw_groups:
@@ -178,7 +180,12 @@ def _resolve_predefined_groups(llm_config: dict) -> list[GroupDefinition] | None
         if not label:
             raise ValueError("predefined_groups: each category requires a non-empty label")
 
-        group_id = str(raw_id).strip() if raw_id not in (None, "") else f"g{index}"
+        # 空白だけの id は未指定と同じ扱い（strip して空文字の id にしない）
+        group_id = (str(raw_id).strip() if raw_id is not None else "") or f"g{index}"
+        if group_id == _ROOT_CLUSTER_ID:
+            raise ValueError(
+                f"predefined_groups: group id '{_ROOT_CLUSTER_ID}' is reserved for the root cluster (all opinions)"
+            )
         if group_id in seen_ids:
             raise ValueError(f"predefined_groups: duplicate group id '{group_id}'")
         seen_ids.add(group_id)
