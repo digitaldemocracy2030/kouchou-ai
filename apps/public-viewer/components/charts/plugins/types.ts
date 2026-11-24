@@ -104,6 +104,8 @@ export interface ChartRenderContext {
   isFullscreen: boolean;
   /** Filtered argument IDs (if filter is active) */
   filteredArgumentIds?: string[];
+  /** テキスト検索の文字列（空 = 検索なし）。階層リストは検索中に一致したグループを開く（#1205） */
+  textSearch?: string;
   /** Whether to show cluster labels (for scatter) */
   showClusterLabels?: boolean;
   /** Whether to show convex hull boundaries (for scatter) */

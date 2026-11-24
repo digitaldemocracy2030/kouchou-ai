@@ -31,7 +31,7 @@ export const hierarchyListPlugin: ChartPlugin = {
   },
 
   render: (context: ChartRenderContext) => {
-    const { result, filteredArgumentIds, onHover } = context;
+    const { result, filteredArgumentIds, textSearch, onHover } = context;
 
     return (
       <HierarchyListChart
@@ -39,6 +39,7 @@ export const hierarchyListPlugin: ChartPlugin = {
         argumentList={result.arguments}
         onHover={onHover}
         filteredArgumentIds={filteredArgumentIds}
+        textSearch={textSearch}
         config={result.config}
         comments={result.comments}
       />

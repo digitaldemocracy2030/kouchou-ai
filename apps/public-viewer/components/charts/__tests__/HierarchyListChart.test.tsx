@@ -158,3 +158,59 @@ describe("HierarchyListChart の出典リンク（#1159）", () => {
     expect(screen.queryByRole("link", { name: /出典を見る/ })).not.toBeInTheDocument();
   });
 });
+
+describe("HierarchyListChart のテキスト検索（#1205）", () => {
+  function renderSearch(props: { filteredArgumentIds?: string[]; textSearch?: string; argumentList?: Argument[] }) {
+    const element = (p: typeof props) => (
+      <Provider>
+        <HierarchyListChart
+          clusterList={clusters}
+          argumentList={p.argumentList ?? args}
+          filteredArgumentIds={p.filteredArgumentIds}
+          textSearch={p.textSearch}
+        />
+      </Provider>
+    );
+    const view = render(element(props));
+    return (next: typeof props) => view.rerender(element(next));
+  }
+
+  it("検索中は一致した意見を含むグループだけを、最下層の意見まで開く", () => {
+    renderSearch({ filteredArgumentIds: ["A4"], textSearch: "A4" });
+    // 全体・1_2・2_2 の 3 グループが開き、一致しない 1_1 の枝は閉じたまま
+    expect(expandedCount()).toBe(3);
+    expect(screen.getByText("意見 A4")).toBeInTheDocument();
+    expect(screen.queryByText("意見 A1")).not.toBeInTheDocument();
+  });
+
+  it("後から検索しても開き、検索語を変えると新しく一致した枝も開く", () => {
+    const rerender = renderSearch({});
+    expect(expandedCount()).toBe(0);
+    rerender({ filteredArgumentIds: ["A1"], textSearch: "A1" });
+    expect(screen.getByText("意見 A1")).toBeInTheDocument();
+    rerender({ filteredArgumentIds: ["A4"], textSearch: "A4" });
+    expect(screen.getByText("意見 A4")).toBeInTheDocument();
+  });
+
+  it("属性フィルタだけ（検索語なし）のときは自動では開かない", () => {
+    renderSearch({ filteredArgumentIds: ["A4"] });
+    expect(expandedCount()).toBe(0);
+  });
+
+  it("一致した意見は、最初の 10 件に入らない位置にあっても先頭に並べて表示する", () => {
+    const many: Argument[] = Array.from({ length: 12 }, (_, i) => ({
+      arg_id: `M${i}`,
+      argument: `意見 M${i}`,
+      comment_id: 100 + i,
+      x: 0,
+      y: 0,
+      p: 0,
+      cluster_ids: ["0", "1_1", "2_1"],
+    })) as Argument[];
+    renderSearch({ argumentList: many, filteredArgumentIds: ["M11"], textSearch: "M11" });
+    expect(screen.getByText("意見 M11")).toBeInTheDocument();
+    // 10 件まで表示し、残り 2 件は「さらに表示」の奥
+    expect(screen.getByText(/さらに表示/)).toBeInTheDocument();
+    expect(screen.queryByText("意見 M10")).not.toBeInTheDocument();
+  });
+});

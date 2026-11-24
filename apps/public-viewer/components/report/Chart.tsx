@@ -33,6 +33,8 @@ type ReportProps = {
   onTreeZoom: (level: string) => void;
   /** 散布図でクラスタが選択された時に通知する（連動文章・一覧のハイライト用） */
   onSelectCluster?: (clusterId: string) => void;
+  /** テキスト検索の文字列（空 = 検索なし） */
+  textSearch?: string;
 };
 
 /**
@@ -55,6 +57,7 @@ export function Chart({
   treemapLevel,
   onTreeZoom,
   onSelectCluster,
+  textSearch,
 }: ReportProps) {
   // Create render context for plugins
   const renderContext: ChartRenderContext = {
@@ -63,6 +66,7 @@ export function Chart({
     selectedChart,
     isFullscreen,
     filteredArgumentIds: result.filteredArgumentIds,
+    textSearch,
     showClusterLabels,
     showConvexHull,
     treemapLevel,

@@ -10,7 +10,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { groupArgumentsByCluster, toIdSet } from "@/lib/argumentIndex";
+import { groupArgumentsByCluster, splitArgumentsByFilter, toIdSet } from "@/lib/argumentIndex";
 import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Argument, Cluster, Comments, Config } from "@/type";
 import { Box, HStack, Icon, Link, Text, VStack } from "@chakra-ui/react";
@@ -22,6 +22,8 @@ interface HierarchyListChartProps {
   clusterList: Cluster[];
   argumentList: Argument[];
   filteredArgumentIds?: string[];
+  /** テキスト検索の文字列（空・undefined = 検索なし）。検索中は一致した意見を含むグループを開く（#1205） */
+  textSearch?: string;
   onHover?: () => void;
   /** レポート設定。enable_source_link のときだけ最下層の意見に出典リンクを出す */
   config?: Config;
@@ -65,6 +67,24 @@ function setAllExpansion(nodes: ClusterNode[], open: boolean): ClusterNode[] {
   }));
 }
 
+// 一致した意見を含むグループを、最下層の個別データまで開く。一致しないグループの開閉はそのまま
+function expandMatches(
+  nodes: ClusterNode[],
+  argumentsByCluster: ReadonlyMap<string, Argument[]>,
+  filteredIdSet: ReadonlySet<string>,
+): ClusterNode[] {
+  return nodes.map((node) => {
+    const hasMatch = (argumentsByCluster.get(node.id) ?? []).some((arg) => filteredIdSet.has(arg.arg_id));
+    if (!hasMatch) return node;
+    return {
+      ...node,
+      isExpanded: true,
+      isChildrenExpanded: true,
+      children: expandMatches(node.children, argumentsByCluster, filteredIdSet),
+    };
+  });
+}
+
 function ArgumentsDisplay({
   arguments: argumentsList,
   filteredIdSet,
@@ -83,7 +103,13 @@ function ArgumentsDisplay({
 }) {
   const messages = useMessages();
   const [showAll, setShowAll] = useState(false);
-  const displayArguments = showAll ? argumentsList : argumentsList.slice(0, maxDisplay);
+  // フィルタ中は一致した意見を先に並べる。最初の maxDisplay 件に入らず「さらに表示」の奥に隠れるのを防ぐ
+  const orderedArguments = useMemo(() => {
+    if (!filteredIdSet) return argumentsList;
+    const { matching, notMatching } = splitArgumentsByFilter(argumentsList, filteredIdSet);
+    return [...matching, ...notMatching];
+  }, [argumentsList, filteredIdSet]);
+  const displayArguments = showAll ? orderedArguments : orderedArguments.slice(0, maxDisplay);
 
   if (argumentsList.length === 0) {
     return (
@@ -155,6 +181,7 @@ export function HierarchyListChart({
   clusterList,
   argumentList,
   filteredArgumentIds,
+  textSearch,
   onHover,
   config,
   comments,
@@ -224,6 +251,15 @@ export function HierarchyListChart({
 
     setTreeData(sortChildren(rootNodes));
   }, [clusterList, argumentsByCluster]);
+
+  // テキスト検索中は、一致した意見を含むグループを開いて、意見まで辿れるようにする（#1205）。
+  // 上の effect がツリーを作り直した後に適用されるよう、関数形式で直前の状態に重ねる。
+  // 属性フィルタだけのときは開かない（一致が多く、全体が開いてしまうため）
+  const isSearching = Boolean(textSearch?.trim());
+  useEffect(() => {
+    if (!isSearching || !filteredIdSet) return;
+    setTreeData((prev) => expandMatches(prev, argumentsByCluster, filteredIdSet));
+  }, [isSearching, filteredIdSet, argumentsByCluster]);
 
   const closeAllDescendants = (nodes: ClusterNode[]): ClusterNode[] => {
     return nodes.map((node) => ({
