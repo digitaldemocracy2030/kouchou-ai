@@ -64,8 +64,10 @@ def attach_axes(report: dict, divcon: dict) -> dict:
         ):
             raise ValueError(f"採点・該当なし・未採点の件数が合いません: {axis_id}")
 
-        # カタログの JSON は該当なしの ID を保存しない。応答漏れが 0 の軸だけ補える。
-        if n_missing == 0:
+        # カタログには該当なしのIDがないため、混在すると個別意見を正しく分類できない。
+        if n_na > 0 and n_missing > 0:
+            raise ValueError(f"該当なしと未採点の意見を区別できません: {axis_id}")
+        if n_na > 0:
             scores.update(dict.fromkeys(sorted(members[cluster_id] - scores.keys())))
         axis = {
             key: item[key]

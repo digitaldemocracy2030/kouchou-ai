@@ -9,6 +9,7 @@ import {
   validateVisualizationConfig,
 } from "@/components/charts/plugins";
 import { OPPOSITION_CHART, getOppositionAxes } from "@/components/charts/plugins/opposition-data";
+import type { OppositionSelection } from "@/components/charts/plugins/types";
 import { AttributeFilterDialog } from "@/components/report/AttributeFilterDialog";
 import { Chart } from "@/components/report/Chart";
 import { ClusterOverview } from "@/components/report/ClusterOverview";
@@ -91,6 +92,7 @@ export function ClientContainer({ result }: Props) {
   // 散布図でクリックされたクラスタ（連動文章・一覧のハイライト対象）
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
   const [oppositionOrigin, setOppositionOrigin] = useState<{ chart: string; clusterId: string }>();
+  const [oppositionSelection, setOppositionSelection] = useState<OppositionSelection>({});
   const [reopenClusterId, setReopenClusterId] = useState<string>();
 
   // 表示モードを変えたら、散布図で選んだクラスタの選択も解除する。
@@ -99,12 +101,14 @@ export function ClientContainer({ result }: Props) {
     setSelectedChart(chart);
     setSelectedClusterId(null);
     setOppositionOrigin(undefined);
+    setOppositionSelection({});
     setReopenClusterId(undefined);
   }, []);
 
   const openOpposition = useCallback(
     (clusterId: string) => {
       setOppositionOrigin({ chart: selectedChart, clusterId });
+      setOppositionSelection({ clusterId });
       setSelectedChart(OPPOSITION_CHART);
     },
     [selectedChart],
@@ -313,6 +317,8 @@ export function ClientContainer({ result }: Props) {
         onSelectCluster={setSelectedClusterId}
         oppositionClusterIds={oppositionClusterIds}
         oppositionClusterId={oppositionOrigin?.clusterId}
+        oppositionSelection={oppositionSelection}
+        onOppositionSelectionChange={setOppositionSelection}
         onOpenOpposition={canOpenOpposition ? openOpposition : undefined}
         onBackFromOpposition={oppositionOrigin ? backFromOpposition : undefined}
         reopenClusterId={reopenClusterId}

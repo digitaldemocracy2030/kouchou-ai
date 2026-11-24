@@ -237,6 +237,33 @@ describe("対立軸ビュー", () => {
     expect(screen.queryByRole("button", { name: "この話題の対立を見る" })).not.toBeInTheDocument();
   });
 
+  it("選んだ話題と対立軸を全画面表示の往復で保持する", async () => {
+    const result = fixture as unknown as Result;
+    const [firstTopic, secondTopic] = result.clusters.filter((cluster) => cluster.level === 1);
+    const axis = { left_pole: "左", right_pole: "右", scores: {} };
+    await renderViewer({
+      opposition_axes: [
+        { ...axis, id: "first-axis", name: "第一の論点", cluster_id: firstTopic.id },
+        { ...axis, id: "second-axis", name: "第二の論点", cluster_id: secondTopic.id },
+        { ...axis, id: "third-axis", name: "第三の論点", cluster_id: secondTopic.id },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "対立" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "話題" }), { target: { value: secondTopic.id } });
+    fireEvent.change(screen.getByRole("combobox", { name: "対立軸" }), { target: { value: "third-axis" } });
+    fireEvent.click(screen.getByRole("button", { name: "全画面表示" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("combobox", { name: "話題" })).toHaveValue(secondTopic.id);
+    expect(within(dialog).getByRole("combobox", { name: "対立軸" })).toHaveValue("third-axis");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "全画面終了" }));
+    expect(screen.getByRole("combobox", { name: "話題" })).toHaveValue(secondTopic.id);
+    expect(screen.getByRole("combobox", { name: "対立軸" })).toHaveValue("third-axis");
+    await flush();
+  });
+
   it("クラスタの導線から、該当する軸・意見・採点の内訳を表示する", async () => {
     const result = fixture as unknown as Result;
     const topic = result.clusters.find((cluster) => cluster.level === 1);

@@ -90,6 +90,7 @@
    ```
 
 2. 軸名・両極・合意可能性の見出しが公開できる内容か確認します。Web レポートでは元の正本を保管したうえで、出力を同じレポートの `hierarchical_result.json` として配置します。公開 API は正本から応答を生成します。公開用 JSON を直接読むビューアでは、出力を公開用の入力に指定します。
+   異なる未記録状態を混同しないため、カタログに「該当なし」の意見IDがなく、同じ軸に「未採点」も含まれる場合は添付を中止します。
 3. レポートに可視化設定（`visualization_config.json`）を保存済みの場合は、既存の `enabled_charts`（または `enabledCharts`）に `opposition` を追加します。レポートを開き、「対立」か「この話題の対立を見る」から、想定したクラスタと軸が表示されることを確認します。
 
 動作確認には、可視化カタログの[チームみらい 2025 の公開用レポート](https://github.com/nishio/broadlistening-visualizations/blob/6da2edc5f74ba4a8c8fb6f873b9b9d9e2800b7f8/docs/data/team-mirai-2025/public_result.json)と[同じレポートの計算済み 4 クラスタ・12 軸](https://github.com/nishio/broadlistening-visualizations/blob/6da2edc5f74ba4a8c8fb6f873b9b9d9e2800b7f8/docs/divcon/team-mirai-2025.json)を使えます。再クラスタリングなどで所属が変わった場合は、新しいレポートから軸を計算し直して添付します。

@@ -22,13 +22,23 @@ export const oppositionPlugin: ChartPlugin = {
     ],
   },
   canHandle: (mode) => mode === OPPOSITION_CHART,
-  render: ({ result, modeResult, filteredArgumentIds, oppositionClusterId, onBackFromOpposition }) => (
+  render: ({
+    result,
+    modeResult,
+    filteredArgumentIds,
+    oppositionClusterId,
+    oppositionSelection,
+    onOppositionSelectionChange,
+    onBackFromOpposition,
+  }) => (
     <OppositionChart
       key={oppositionClusterId}
       result={result}
       axes={getOppositionAxes(modeResult ?? result)}
       filteredArgumentIds={filteredArgumentIds}
       initialClusterId={oppositionClusterId}
+      selection={oppositionSelection}
+      onSelectionChange={onOppositionSelectionChange}
       onBack={onBackFromOpposition}
     />
   ),

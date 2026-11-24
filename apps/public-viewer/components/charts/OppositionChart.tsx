@@ -6,6 +6,7 @@ import type { Argument, OppositionAxis, Result } from "@/type";
 import { Box, Button, Heading, Link, NativeSelect, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import type { OppositionSelection } from "./plugins/types";
 
 const PAGE_SIZE = 20;
 
@@ -94,17 +95,27 @@ type Props = {
   axes: OppositionAxis[];
   filteredArgumentIds?: string[];
   initialClusterId?: string;
+  selection?: OppositionSelection;
+  onSelectionChange?: (selection: OppositionSelection) => void;
   onBack?: () => void;
 };
 
-export function OppositionChart({ result, axes, filteredArgumentIds, initialClusterId, onBack }: Props) {
+export function OppositionChart({
+  result,
+  axes,
+  filteredArgumentIds,
+  initialClusterId,
+  selection,
+  onSelectionChange,
+  onBack,
+}: Props) {
   const messages = useMessages();
   const sectionRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const clusterControl = useId();
   const axisControl = useId();
-  const [clusterId, setClusterId] = useState(initialClusterId);
-  const [axisId, setAxisId] = useState<string>();
+  const clusterId = selection?.clusterId ?? initialClusterId;
+  const axisId = selection?.axisId;
   const clusterIds = new Set(axes.map((axis) => axis.cluster_id));
   const topics = result.clusters.filter((cluster) => clusterIds.has(cluster.id));
   const topic = topics.find((cluster) => cluster.id === clusterId) ?? topics[0];
@@ -172,10 +183,7 @@ export function OppositionChart({ result, axes, filteredArgumentIds, initialClus
               <NativeSelect.Field
                 id={clusterControl}
                 value={topic.id}
-                onChange={(event) => {
-                  setClusterId(event.target.value);
-                  setAxisId(undefined);
-                }}
+                onChange={(event) => onSelectionChange?.({ clusterId: event.target.value })}
               >
                 {topics.map((cluster) => (
                   <option key={cluster.id} value={cluster.id}>
@@ -192,7 +200,11 @@ export function OppositionChart({ result, axes, filteredArgumentIds, initialClus
             <label htmlFor={axisControl}>{messages.oppositionAxis}</label>
           </Text>
           <NativeSelect.Root>
-            <NativeSelect.Field id={axisControl} value={axis.id} onChange={(event) => setAxisId(event.target.value)}>
+            <NativeSelect.Field
+              id={axisControl}
+              value={axis.id}
+              onChange={(event) => onSelectionChange?.({ clusterId: topic.id, axisId: event.target.value })}
+            >
               {topicAxes.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
                   {candidate.name}

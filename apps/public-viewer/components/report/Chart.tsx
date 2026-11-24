@@ -11,7 +11,13 @@ ensurePluginsLoaded();
 
 type ReportProps = Pick<
   ChartRenderContext,
-  "oppositionClusterIds" | "oppositionClusterId" | "onOpenOpposition" | "onBackFromOpposition" | "reopenClusterId"
+  | "oppositionClusterIds"
+  | "oppositionClusterId"
+  | "oppositionSelection"
+  | "onOppositionSelectionChange"
+  | "onOpenOpposition"
+  | "onBackFromOpposition"
+  | "reopenClusterId"
 > & {
   /** 描画に使う結果（属性フィルタ・密度フィルタ適用後） */
   result: Result;
@@ -62,6 +68,8 @@ export function Chart({
   onSelectCluster,
   oppositionClusterIds,
   oppositionClusterId,
+  oppositionSelection,
+  onOppositionSelectionChange,
   onOpenOpposition,
   onBackFromOpposition,
   reopenClusterId,
@@ -82,6 +90,8 @@ export function Chart({
     onSelectCluster,
     oppositionClusterIds,
     oppositionClusterId,
+    oppositionSelection,
+    onOppositionSelectionChange,
     onOpenOpposition,
     onBackFromOpposition,
     reopenClusterId,
