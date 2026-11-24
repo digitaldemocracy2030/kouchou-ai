@@ -448,6 +448,8 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
             if key not in valid_options:
                 raise Exception(f"Unknown option '{key}' for step '{step_spec['step']}' in config")
 
+    _validate_opinion_labels(config)
+
     # 型を誤ると実行の途中（抽出・埋め込みの後）で止まるオプションは、ここで先に検査する
     for step, options in _BOOLEAN_STEP_OPTIONS.items():
         step_config = config.get(step)
@@ -459,6 +461,24 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
                 raise Exception(
                     f"Option '{option}' for step '{step}' must be true or false (JSON boolean), got {value!r}"
                 )
+
+
+def _validate_opinion_labels(config: dict[str, Any]) -> None:
+    """意見分類のラベル指定を、抽出より前に検査する（誤りは抽出の後の意見分類まで気づけないため）。"""
+    step_config = config.get("opinion_classification")
+    if not isinstance(step_config, dict) or not step_config.get("enabled"):
+        return
+    from analysis_core.steps.opinion_labels import (
+        InvalidLabelSpec,
+        resolve_classification_prompt,
+        resolve_label_spec,
+    )
+
+    try:
+        label_ids, definitions = resolve_label_spec(step_config.get("labels"))
+        resolve_classification_prompt(step_config.get("prompt"), label_ids, definitions)
+    except InvalidLabelSpec as error:
+        raise Exception(str(error)) from error
 
 
 def plan_requires_input(plan: list[dict[str, Any]] | None) -> bool:
