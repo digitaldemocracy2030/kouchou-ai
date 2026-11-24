@@ -12,6 +12,7 @@ import { verifyApiKey } from "./EnvironmentCheckDialog/verifyApiKey";
 
 export type PreparedReport = {
   request: Parameters<typeof createReport>[0];
+  inputLabel?: string;
   commentColumn: string;
   attributeColumns: string[];
   /** 選択中のチャット / 埋め込みモデルの単価（カタログ由来、100万トークンあたり USD）。不明なら null。 */
@@ -116,7 +117,8 @@ export function CreateReportConfirmation({
   const request = prepared.request;
   const nonEmptyCount = request.comments.filter((row) => typeof row.comment === "string" && row.comment.trim()).length;
   const inputName =
-    request.inputType === "file" ? "CSV" : request.inputType === "spreadsheet" ? "Spreadsheet" : request.inputType;
+    prepared.inputLabel ??
+    (request.inputType === "file" ? "CSV" : request.inputType === "spreadsheet" ? "Spreadsheet" : request.inputType);
   const busy = loading || check === "checking";
   const checkFailed = !["unchecked", "checking", "ok"].includes(check);
 

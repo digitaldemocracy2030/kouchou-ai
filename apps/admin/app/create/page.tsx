@@ -18,6 +18,7 @@ import { ClusterSettingsSection } from "./components/ClusterSettingsSection";
 import { CreateReportConfirmation, type PreparedReport } from "./components/CreateReportConfirmation";
 import { CsvFileTab } from "./components/CsvFileTab";
 import { PluginTab } from "./components/PluginTab";
+import { PolisFileTab } from "./components/PolisFileTab";
 import { SpreadsheetTab } from "./components/SpreadsheetTab";
 import { WarningSection } from "./components/WarningSection";
 import { useAISettings } from "./hooks/useAISettings";
@@ -27,6 +28,7 @@ import { useInputData } from "./hooks/useInputData";
 import { usePluginData } from "./hooks/usePluginData";
 import { usePromptSettings } from "./hooks/usePromptSettings";
 import { type CsvData, parseCsv } from "./parseCsv";
+import type { PolisImport } from "./polisImport";
 import type { InputType } from "./types";
 import { toAttributeKey } from "./utils/attributeKey";
 import { validateFormValues } from "./utils/validation";
@@ -39,6 +41,8 @@ export default function Page() {
   const { open, onToggle } = useDisclosure();
   const [loading, setLoading] = useState<boolean>(false);
   const [prepared, setPrepared] = useState<PreparedReport | null>(null);
+  const [polisData, setPolisData] = useState<PolisImport | null>(null);
+  const [polisAttributes, setPolisAttributes] = useState<string[]>([]);
   const submitting = useRef(false);
 
   // カスタムフックの使用
@@ -56,6 +60,20 @@ export default function Page() {
    */
   const handleTabValueChange = (details: { value: string }) => {
     inputData.setInputType(details.value as InputType);
+    if (details.value === "polis" && polisData?.comments.length) {
+      clusterSettings.setRecommended(polisData.comments.length);
+    }
+  };
+
+  const handlePolisDataChange = (data: PolisImport | null) => {
+    setPolisData(data);
+    setPolisAttributes([]);
+    if (inputData.getInputType() !== "polis") return;
+    if (data?.comments.length) {
+      clusterSettings.setRecommended(data.comments.length);
+    } else {
+      clusterSettings.resetClusterSettings();
+    }
   };
 
   /**
@@ -66,6 +84,17 @@ export default function Page() {
 
     // プラグインの場合、インポート状態を取得
     const isPluginInput = inputData.inputType.startsWith("plugin:");
+    const isPolisInput = inputData.inputType === "polis";
+    const commentColumn = isPolisInput
+      ? "comment-body"
+      : isPluginInput
+        ? pluginData.pluginSelectedCommentColumn
+        : inputData.selectedCommentColumn;
+    const attributeColumns = isPolisInput
+      ? polisAttributes
+      : isPluginInput
+        ? pluginData.pluginSelectedAttributeColumns
+        : inputData.selectedAttributeColumns;
     let pluginImported = false;
     if (isPluginInput) {
       const pluginId = inputData.inputType.replace("plugin:", "");
@@ -95,10 +124,11 @@ export default function Page() {
       extractionPrompt: promptSettings.extraction,
       inputType: inputData.inputType,
       csv: inputData.csv,
+      polisImported: Boolean(polisData?.comments.length),
       spreadsheetImported: inputData.spreadsheetImported,
-      selectedCommentColumn: inputData.selectedCommentColumn,
+      selectedCommentColumn: commentColumn,
       csvColumns: inputData.csvColumns,
-      selectedAttributeColumns: inputData.selectedAttributeColumns,
+      selectedAttributeColumns: attributeColumns,
       provider: aiSettings.provider,
       modelOptions: aiSettings.getCurrentModels(),
       modelError: aiSettings.modelError,
@@ -119,7 +149,16 @@ export default function Page() {
 
     let comments: CsvData[] = [];
     try {
-      if (inputData.inputType === "file" && inputData.csv) {
+      if (isPolisInput && polisData) {
+        comments = polisData.comments.map((row) => {
+          const comment: CsvData = { id: row.id, comment: row.comment };
+          for (const column of attributeColumns) {
+            const value = row[column];
+            if (value != null) comment[toAttributeKey(column)] = value;
+          }
+          return comment;
+        });
+      } else if (inputData.inputType === "file" && inputData.csv) {
         const parsed = await parseCsv(inputData.csv);
         comments = parsed.map((row, index) => {
           const rowData = row as unknown as Record<string, unknown>;
@@ -236,7 +275,7 @@ export default function Page() {
       prompt: promptData,
       analysis_mode: aiSettings.analysisMode,
       is_pubcom: aiSettings.isPubcomMode,
-      inputType: inputData.inputType,
+      inputType: isPolisInput ? "file" : inputData.inputType,
       is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
       enable_source_link: aiSettings.enableSourceLink,
       enable_original_comments: aiSettings.enableOriginalComments,
@@ -259,10 +298,9 @@ export default function Page() {
 
     setPrepared({
       request,
-      commentColumn: isPluginInput ? pluginData.pluginSelectedCommentColumn : inputData.selectedCommentColumn,
-      attributeColumns: [
-        ...(isPluginInput ? pluginData.pluginSelectedAttributeColumns : inputData.selectedAttributeColumns),
-      ],
+      inputLabel: isPolisInput ? "Polis" : undefined,
+      commentColumn,
+      attributeColumns: [...attributeColumns],
       pricing: aiSettings.selectedPrices,
     });
     setLoading(false);
@@ -345,9 +383,10 @@ export default function Page() {
               variant="enclosed"
               width="100%"
             >
-              <Tabs.List>
+              <Tabs.List flexWrap="wrap">
                 <Tabs.Trigger value="file">CSVファイル</Tabs.Trigger>
                 <Tabs.Trigger value="spreadsheet">Googleスプレッドシート</Tabs.Trigger>
+                <Tabs.Trigger value="polis">Polis</Tabs.Trigger>
                 {/* プラグインタブを動的に追加 */}
                 {pluginData.plugins.map((plugin) => (
                   <Tabs.Trigger key={plugin.id} value={`plugin:${plugin.id}`}>
@@ -392,6 +431,14 @@ export default function Page() {
                   clusterSettings={clusterSettings}
                   onImport={() => inputData.importSpreadsheet(basicInfo.input)}
                   onClearData={inputData.clearSpreadsheetData}
+                />
+
+                <PolisFileTab
+                  data={polisData}
+                  onDataChange={handlePolisDataChange}
+                  selectedAttributes={polisAttributes}
+                  onAttributesChange={setPolisAttributes}
+                  clusterSettings={clusterSettings}
                 />
 
                 {/* プラグインタブの内容 */}
@@ -489,13 +536,19 @@ export default function Page() {
           {/* 警告メッセージ */}
           <WarningSection />
 
-          <VStack mt="11" gap="6">
+          <VStack mt="11" gap="6" w="full">
             {/* 送信ボタン */}
-            <HStack gap="4">
-              <Button variant="outline" size={"2xl"} w={"140px"} asChild>
+            <HStack gap="4" flexDir={{ base: "column", sm: "row" }} w={{ base: "full", sm: "auto" }}>
+              <Button variant="outline" size="2xl" w={{ base: "full", sm: "140px" }} asChild>
                 <Link href="/">キャンセル</Link>
               </Button>
-              <Button className={"gradientBg shadow"} size={"2xl"} w={"300px"} onClick={onSubmit} loading={loading}>
+              <Button
+                className="gradientBg shadow"
+                size="2xl"
+                w={{ base: "full", sm: "300px" }}
+                onClick={onSubmit}
+                loading={loading}
+              >
                 作成前の確認へ
               </Button>
             </HStack>

@@ -20,7 +20,7 @@ export interface PromptSettings {
 }
 
 // 組み込み入力タイプ
-export type BuiltinInputType = "file" | "spreadsheet";
+export type BuiltinInputType = "file" | "spreadsheet" | "polis";
 
 // プラグインによる入力タイプ（plugin:{pluginId} 形式）
 export type PluginInputType = `plugin:${string}`;
