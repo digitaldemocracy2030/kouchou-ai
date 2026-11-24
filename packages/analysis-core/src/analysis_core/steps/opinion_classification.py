@@ -20,11 +20,14 @@ from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS, resolve_timeout
 from analysis_core.steps._per_opinion import PerOpinionBatchError, run_per_opinion
 from analysis_core.steps.opinion_labels import (
-    DEFAULT_LABEL_IDS,
     InvalidClassificationResponse,
+    OpinionLabel,
     compute_label_ratios,
     format_label_value,
+    label_definitions_for_summary,
     parse_classification_response,
+    resolve_classification_prompt,
+    resolve_label_spec,
 )
 
 CLASSIFICATIONS_FILENAME = "opinion_classifications.csv"
@@ -126,9 +129,20 @@ def write_classifications(path: str, arg_ids: list[str], rows: list[dict[str, bo
     return frame
 
 
-def build_summary(rows: list[dict[str, bool]], label_ids, *, provider: str, model: str) -> dict[str, Any]:
+def build_summary(
+    rows: list[dict[str, bool]],
+    label_ids,
+    *,
+    provider: str,
+    model: str,
+    definitions: tuple[OpinionLabel | None, ...] = (),
+) -> dict[str, Any]:
     summary = compute_label_ratios(rows, label_ids)
     summary.update({"provider": provider, "model": model, "label_ids": list(label_ids), "note": SUMMARY_NOTE})
+    # 比率は定義に対してだけ意味を持つので、分かっている定義を並べて残す（利用者が書いたプロンプトの中の定義は除く）
+    known = label_definitions_for_summary(definitions)
+    if known:
+        summary["label_definitions"] = known
     return summary
 
 
@@ -138,15 +152,17 @@ def opinion_classification(config: dict) -> None:
     Config should contain:
         - output_dir / _output_base_dir: where ``args.csv`` lives
         - provider, local_llm_address, user_api_key (optional)
-        - opinion_classification: model, prompt, workers, timeout_seconds, labels (optional list of IDs)
+        - opinion_classification: model, prompt, workers, timeout_seconds, labels (optional list of label IDs
+          and/or label definitions; see ``resolve_label_spec``)
     """
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
     step_config = config["opinion_classification"]
     model = step_config["model"]
-    prompt = step_config["prompt"]
     workers = int(step_config.get("workers") or 1)
-    label_ids = tuple(step_config.get("labels") or DEFAULT_LABEL_IDS)
+    # LLM を呼ぶ前に、ラベルの指定とプロンプトを確定させる（誤りはここで止める）
+    label_ids, definitions = resolve_label_spec(step_config.get("labels"))
+    prompt = resolve_classification_prompt(step_config.get("prompt"), label_ids, definitions)
     timeout_seconds = resolve_timeout(step_config.get("timeout_seconds"))
     user_api_key = config.get("user_api_key") or os.getenv("USER_API_KEY")
 
@@ -182,6 +198,6 @@ def opinion_classification(config: dict) -> None:
     )
 
     write_classifications(f"{output_base_dir}/{dataset}/{CLASSIFICATIONS_FILENAME}", arg_ids, rows, label_ids)
-    summary = build_summary(rows, label_ids, provider=provider, model=model)
+    summary = build_summary(rows, label_ids, provider=provider, model=model, definitions=definitions)
     with open(f"{output_base_dir}/{dataset}/{SUMMARY_FILENAME}", "w", encoding="utf-8") as file:
         json.dump(summary, file, ensure_ascii=False, indent=2)

@@ -113,7 +113,30 @@ def _build_parent_child_mapping(df: pl.DataFrame, cluster_id_columns: list[str])
                         "parent": current_id,
                     }
                 )
+    _check_single_parent(results)
     return pl.DataFrame(results)
+
+
+def _check_single_parent(results: list[dict]) -> None:
+    """各クラスタの親が 1 つだけであること（階層クラスタが入れ子であること）を確かめる。
+
+    下の層のクラスタが上の層の複数のクラスタにまたがると、(level, id) での join で同じクラスタが
+    親違いで重複して出て、子の件数が親の件数を超える壊れた木になる。hierarchical_clustering は
+    構成上入れ子になるので、ここに来るのは入力の不整合。壊れた結果を書く代わりに止める。
+    """
+    parents: dict[tuple[int, str], list[str]] = {}
+    for row in results:
+        parents.setdefault((row["level"], row["id"]), []).append(row["parent"])
+    not_nested = {key: value for key, value in parents.items() if len(value) > 1}
+    if not_nested:
+        examples = "; ".join(
+            f"level {level} cluster '{cluster_id}' is under {sorted(map(str, value))}"
+            for (level, cluster_id), value in list(not_nested.items())[:3]
+        )
+        raise ValueError(
+            f"Hierarchical clusters are not nested: {len(not_nested)} cluster(s) belong to more than one "
+            f"upper-level cluster ({examples})"
+        )
 
 
 def _filter_id_columns(columns: list[str]) -> list[str]:

@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from "@/app/utils/api";
 import { getClusterNum } from "@/app/utils/cluster-num";
+import { getMessages } from "@/lib/i18n/messages";
 import type { Result } from "@/type";
 import { ImageResponse } from "next/og";
 
@@ -194,6 +195,10 @@ function Stats({
 }) {
   const level1ClusterNum = clusterNum[1] ?? 0;
   const level2ClusterNum = clusterNum[2];
+  const groupCounts = [
+    { level: 1, count: level1ClusterNum },
+    { level: 2, count: level2ClusterNum },
+  ];
   return (
     <div
       style={{
@@ -274,9 +279,17 @@ function Stats({
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
             <path d="m9 14 2 2 4-4" />
           </svg>
-          <div style={{ display: "flex" }}>
-            {level1ClusterNum.toLocaleString()}
-            {level2ClusterNum !== undefined ? `→${level2ClusterNum.toLocaleString()}` : ""}
+          <div style={{ display: "flex", gap: "1rem" }}>
+            {groupCounts.map(({ level, count }) =>
+              count === undefined ? null : (
+                <div key={level} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  {level2ClusterNum !== undefined && (
+                    <div style={{ fontSize: 18 }}>{getMessages("ja").clusterLevelLabel(level)}</div>
+                  )}
+                  <div>{count.toLocaleString()}</div>
+                </div>
+              ),
+            )}
           </div>
         </div>
         <div style={{ fontSize: 18, marginLeft: "40px" }}>集約した意見グループ数</div>
