@@ -9,10 +9,11 @@
 
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { groupArgumentsByCluster, toIdSet } from "@/lib/argumentIndex";
 import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Argument, Cluster, Comments, Config } from "@/type";
-import { Box, Icon, Link, Text, VStack } from "@chakra-ui/react";
+import { Box, HStack, Icon, Link, Text, VStack } from "@chakra-ui/react";
 import { ChevronRight, ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -52,6 +53,16 @@ function collectExpansion(
     collectExpansion(node.children, expansion);
   }
   return expansion;
+}
+
+// すべてのグループについて、要約・子グループ・最下層の個別データをまとめて開く（open=false なら閉じる）
+function setAllExpansion(nodes: ClusterNode[], open: boolean): ClusterNode[] {
+  return nodes.map((node) => ({
+    ...node,
+    isExpanded: open,
+    isChildrenExpanded: open,
+    children: setAllExpansion(node.children, open),
+  }));
 }
 
 function ArgumentsDisplay({
@@ -255,6 +266,9 @@ export function HierarchyListChart({
     setTreeData(updateNode(treeData));
   };
 
+  const expandAll = () => setTreeData(setAllExpansion(treeData, true));
+  const collapseAll = () => setTreeData(setAllExpansion(treeData, false));
+
   // フィルタ中の各クラスタの件数（undefined = フィルタなし）。ClientContainer の clusterCounts・TreemapChart と同じく、
   // 一致した意見の cluster_ids すべてに 1 を足す。ツリーを作り直さないよう、表示時に Map を引くだけにする
   const filteredCounts = useMemo(() => {
@@ -416,6 +430,14 @@ export function HierarchyListChart({
           <Text fontSize="sm" color="gray.600">
             {messages.hierarchyListDescription}
           </Text>
+          <HStack gap={2} mt={3}>
+            <Button variant="secondary" size="xs" onClick={expandAll}>
+              {messages.expandAll}
+            </Button>
+            <Button variant="secondary" size="xs" onClick={collapseAll}>
+              {messages.collapseAll}
+            </Button>
+          </HStack>
         </Box>
 
         <Box>{treeData.map((node) => renderClusterNode(node))}</Box>
