@@ -428,3 +428,33 @@ def test_llm_grouping_projection_handles_two_or_three_arguments(tmp_path, n):
     assert np.isfinite(result).all()
     # 点が 1 か所に重ならない
     assert len({tuple(np.round(point, 6)) for point in result}) == n
+
+
+def test_numeric_looking_group_ids_survive_the_csv_round_trip(tmp_path):
+    """ "00" や "01" を型推論で数値にすると "0"（root）や "1" に化けるので、集計は id を文字列のまま読む。"""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+    aggregation = importlib.import_module("analysis_core.steps.hierarchical_aggregation")
+    groups = llm_grouping_step._resolve_predefined_groups(
+        {"predefined_groups": [{"id": "00", "label": "A"}, {"id": "01", "label": "B"}, {"id": "1", "label": "C"}]}
+    )
+    assignments = {"A0": "00", "A1": "01", "A2": "1"}
+
+    labels_path = tmp_path / "hierarchical_merge_labels.csv"
+    llm_grouping_step._write_merge_labels(str(labels_path), groups, assignments)
+    clusters_path = tmp_path / "hierarchical_clusters.csv"
+    pl.DataFrame(
+        {
+            "arg-id": list(assignments),
+            "argument": ["a", "b", "c"],
+            "x": [0.0, 1.0, 2.0],
+            "y": [0.0, 1.0, 2.0],
+            "cluster-level-1-id": list(assignments.values()),
+        }
+    ).write_csv(clusters_path)
+
+    clusters = aggregation.read_clusters(clusters_path)
+    assert clusters["cluster-level-1-id"].to_list() == ["00", "01", "1"]
+    built = aggregation._build_cluster_value(aggregation.read_merge_labels(labels_path), 3)
+    ids = [c["id"] for c in built]
+    assert sorted(ids) == ["0", "00", "01", "1"]
+    assert [c["parent"] for c in built if c["id"] != "0"] == ["0", "0", "0"]

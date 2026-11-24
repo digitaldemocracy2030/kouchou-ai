@@ -117,7 +117,7 @@ def hierarchical_aggregation(config) -> bool:
             f"{output_base_dir}/{config['output_dir']}/relations.csv", schema_overrides={"comment-id": pl.Utf8}
         ).unique(maintain_order=True)
         comments = read_input_csv(f"{input_base_dir}/{config['input']}.csv")
-        clusters = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/hierarchical_clusters.csv")
+        clusters = read_clusters(f"{output_base_dir}/{config['output_dir']}/hierarchical_clusters.csv")
         labels = read_merge_labels(f"{output_base_dir}/{config['output_dir']}/hierarchical_merge_labels.csv")
 
         hidden_properties_map: dict[str, list[str]] = config["hierarchical_aggregation"]["hidden_properties"]
@@ -444,6 +444,17 @@ def _merge_opinion_scores(arguments: list[Argument], path: str, column: str) -> 
     return updated
 
 
+def read_clusters(path) -> pl.DataFrame:
+    """hierarchical_clusters.csv を読む。クラスタ id の列は文字列のまま読む。
+
+    llm_grouping の指定カテゴリは利用者が付けた id をそのまま使う。型推論で数値にすると
+    "00" や "-0" が 0 → "0"（root の id）に化け、"01" と "1" も同じ id になる。
+    """
+    columns = pl.read_csv(path, n_rows=0).columns
+    id_columns = {col: pl.Utf8 for col in columns if col.startswith("cluster-level-") and col.endswith("-id")}
+    return pl.read_csv(path, schema_overrides=id_columns)
+
+
 def read_merge_labels(path) -> pl.DataFrame:
     """hierarchical_merge_labels.csv を読む。
 
@@ -452,7 +463,10 @@ def read_merge_labels(path) -> pl.DataFrame:
     公開 JSON に文字列 'None' が出てしまうため、空欄は空文字列として読む。
     read_csv の missing_utf8_is_empty_string は polars 2 で無くなったので、読んだ後に null を空文字列にする。
     """
-    labels = pl.read_csv(path, schema_overrides={"label": pl.Utf8, "description": pl.Utf8})
+    # id / parent も文字列のまま読む（read_clusters と同じ理由）
+    labels = pl.read_csv(
+        path, schema_overrides={"id": pl.Utf8, "parent": pl.Utf8, "label": pl.Utf8, "description": pl.Utf8}
+    )
     return labels.with_columns(pl.col("label", "description").fill_null(""))
 
 
