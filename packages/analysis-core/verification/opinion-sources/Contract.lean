@@ -1,6 +1,7 @@
 import Lean.Data.Json
 
 open Lean
+open Std.Internal.Parsec Std.Internal.Parsec.String
 
 namespace OpinionSources
 
@@ -48,19 +49,79 @@ theorem publishedBodyWasLinked (comments : List SourceBody) (linked : List Strin
     simpa [publishedBodies] using h
   exact linkedBody.2
 
-def decodeLegacyId (value : Json) : Except String (List String) :=
-  match value with
-  | .null => .ok []
-  | .str text => .ok (if text == "" then [] else [text])
-  | other => do
-    let number ← other.getNum?
-    if number.exponent == 0 then
-      return [toString number.mantissa]
-    let scale : Int := 10 ^ number.exponent
-    let id := number.mantissa / scale
-    if number.mantissa % scale == 0 && id.natAbs ≤ 9007199254740991 then
-      return [toString id]
-    throw "legacy decimal comment ID must be a safe integer"
+private def decodeLegacyNumber (literal : String) (number : JsonNumber) : Option String := do
+  if !(literal.any fun c : Char => c == '.' || c == 'e' || c == 'E') then
+    return toString number.mantissa
+  -- Decimal and exponent tokens are read as binary64 by both implementations.
+  let value := number.toFloat
+  if value.abs ≤ 9007199254740991.0 then
+    let id := value.toInt64
+    if id.toFloat == value then
+      return toString id.toInt
+  none
+
+private def legacyNumber : Parser Json := fun start =>
+  match Json.Parser.num start with
+  | .error atPos err => .error atPos err
+  | .success stop number =>
+    let literal := String.Pos.Raw.extract start.1 start.2.offset stop.2.offset
+    -- Keep invalid numbers so an authoritative comment_ids can still take precedence.
+    let value := (decodeLegacyNumber literal number).map Json.str
+    .success stop (value.getD (.num number))
+
+private def commaSeparated (item : Parser α) : Parser (Array α) :=
+  (do
+    let first ← item
+    let rest ← many (skipChar ',' *> ws *> item)
+    return #[first] ++ rest) <|> pure #[]
+
+private def readObject (valueFor : String → Parser Json) : Parser Json := do
+  skipChar '{'; ws
+  let entries ← commaSeparated (do
+    skipChar '"'
+    let key ← Json.Parser.str
+    ws; skipChar ':'; ws
+    return (key, ← valueFor key))
+  skipChar '}'; ws
+  let mut fields : Std.TreeMap.Raw String Json := ∅
+  for (key, value) in entries do
+    if fields.contains key then
+      fail s!"duplicate object key {key.quote}"
+    fields := fields.insert key value
+  return .obj fields
+
+private def readArgument : Parser Json := do
+  if (← peek!) != '{' then
+    return ← Json.Parser.anyCore
+  readObject fun key => do
+    let c ← peek!
+    if key == "comment_id" && (c == '-' || ('0' ≤ c && c ≤ '9')) then
+      legacyNumber <* ws
+    else
+      Json.Parser.anyCore
+
+private def inputParser : Parser Json := do
+  ws
+  let result ← if (← peek!) == '{' then
+    readObject fun key => do
+      if key == "arguments" && (← peek!) == '[' then
+        skipChar '['; ws
+        let arguments ← commaSeparated readArgument
+        skipChar ']'; ws
+        return .arr arguments
+      Json.Parser.anyCore
+  else
+    Json.Parser.anyCore
+  eof
+  return result
+
+def parseInput (input : String) : Except String Json := inputParser.run input
+
+def decodeLegacyId (value : Json) : Except String (List String) := do
+  if value == .null then
+    return []
+  let id ← value.getStr?
+  return if id.isEmpty then [] else [id]
 
 def readSources (argument : Json) : Except String (List String) := do
   match argument.getObjVal? "comment_ids" with
@@ -107,6 +168,6 @@ end OpinionSources
 
 def main : IO Unit := do
   let input ← (← IO.getStdin).readToEnd
-  match Json.parse input with
+  match OpinionSources.parseInput input with
   | .ok data => IO.println (OpinionSources.run data).compress
   | .error message => throw (IO.userError message)
