@@ -42,12 +42,12 @@
 
 ホワイトリストにない項目（再分析用の設定、実行状態、`hidden_properties` に指定した属性の列など）は返しません。公開ビューアと静的書き出し（ビルド時に公開 API から取得する）はこの応答を読みます。管理画面の JSON ダウンロード（`/admin/reports/{slug}/json`）は従来どおり `hierarchical_result.json` を返します。
 
-## 形（schema_version 1）
+## 形（schema_version 2）
 
 ```json
 {
-  "schema_version": 1,
-  "arguments": [ { "arg_id": "A1_0", "argument": "…", "comment_id": "c1", "x": 0.1, "y": 0.2, "p": 0,
+  "schema_version": 2,
+  "arguments": [ { "arg_id": "A1_0", "argument": "…", "comment_id": "c1", "comment_ids": ["c1", "c2"], "x": 0.1, "y": 0.2, "p": 0,
                    "cluster_ids": ["0", "1_0", "2_3"], "attributes": { "age": "20代" }, "url": "https://…" } ],
   "clusters":  [ { "level": 1, "id": "1_0", "label": "…", "takeaway": "…", "value": 120, "parent": "0",
                    "density_rank_percentile": 0.2 } ],
@@ -111,6 +111,8 @@
 - `comment_num` は入力件数です。ユニークな出典ID数、意見数、意見と出典の組の数、公開された原文数はそれぞれ異なります。
 
 ## 互換性の扱い
+
+v1 の公開JSONおよび版番号のない旧レポートでは、`comment_id` が数値の場合があります。v2 は `comment_id` を常に文字列で出力し、省略可能な `comment_ids` を追加します。読み手は v1 の単一IDも扱えます。旧データから新たに公開JSONを生成する場合は v2 を出力します。
 
 - **省略可能なキーを足す**のは互換な変更で、`schema_version` は上げません。読む側は知らないキーを無視してください
 - **キーを消す・意味や型を変える**ときは `schema_version` を上げ、読む側（公開 API、ビューア、静的書き出し）を同時に更新します

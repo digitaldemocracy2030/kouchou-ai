@@ -53,7 +53,14 @@ def decodeLegacyId (value : Json) : Except String (List String) :=
   | .null => .ok []
   | .str text => .ok (if text == "" then [] else [text])
   | other => do
-    return [toString (← other.getInt?)]
+    let number ← other.getNum?
+    if number.exponent == 0 then
+      return [toString number.mantissa]
+    let scale : Int := 10 ^ number.exponent
+    let id := number.mantissa / scale
+    if number.mantissa % scale == 0 && id.natAbs ≤ 9007199254740991 then
+      return [toString id]
+    throw "legacy decimal comment ID must be a safe integer"
 
 def readSources (argument : Json) : Except String (List String) := do
   match argument.getObjVal? "comment_ids" with
@@ -82,6 +89,7 @@ def project (input : Case) : Except String Json := do
   let linked := distinctSources (arguments.flatMap Prod.snd)
   let bodies := publishedBodies input.publish linked input.comments
   return Json.mkObj [
+    ("schemaVersion", toJson (2 : Nat)),
     ("arguments", toJson (arguments.map (fun (id, sources) => wireArgument id sources))),
     ("comments", Json.mkObj (bodies.map (fun body => (body.id, Json.mkObj [("comment", toJson body.body)])))),
     ("inputCount", toJson input.inputCount),

@@ -26,7 +26,7 @@ RESULT_FILENAME = "hierarchical_result.json"
 
 # 互換性を壊す変更（キーの削除・意味の変更・型の変更）をしたときだけ上げる。
 # 省略可能なキーを足すだけなら上げない（読み手は未知のキーを無視する）。
-PUBLIC_RESULT_SCHEMA_VERSION = 1
+PUBLIC_RESULT_SCHEMA_VERSION = 2
 
 ARGUMENT_KEYS = ("arg_id", "argument", "x", "y", "p", "cluster_ids", "attributes", "url")
 CLUSTER_KEYS = ("level", "id", "label", "takeaway", "value", "parent", "density_rank_percentile")
