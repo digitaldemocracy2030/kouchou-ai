@@ -16,6 +16,7 @@ import { Box, DialogActionTrigger, DialogFooter, Image, Text } from "@chakra-ui/
 import { SquareArrowOutUpRight } from "lucide-react";
 import { startTransition, useActionState, useState } from "react";
 import type { Provider } from "../../hooks/useAISettings";
+import { ApiBillingGuideLink } from "./ApiBillingGuideLink";
 import { ErrorIcon } from "./ErrorIcon";
 import { GradientCheckIcon } from "./GradientCheckIcon";
 import { azureErrorMessage } from "./azureErrorMessage";
@@ -143,6 +144,7 @@ function Dialog({ provider, userApiKey, model, localLLMAddress }: EnvironmentChe
                 (provider === "azure"
                   ? azureErrorMessage
                   : "不明なエラーが発生しました。APIの設定や接続を再確認してください。")}
+              <ApiBillingGuideLink errorType={state.result?.error_type} />
               {state.result?.error_detail && (
                 <Text mt="2" color="font.secondary" overflowWrap="anywhere">
                   エラー詳細：{state.result.error_detail}
