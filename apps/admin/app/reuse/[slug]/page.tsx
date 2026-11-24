@@ -7,6 +7,12 @@ import { EnvironmentCheckDialog } from "@/app/create/components/EnvironmentCheck
 import { useAISettings } from "@/app/create/hooks/useAISettings";
 import { useClusterSettings } from "@/app/create/hooks/useClusterSettings";
 import { usePromptSettings } from "@/app/create/hooks/usePromptSettings";
+import {
+  DEFAULT_LLM_GROUPING,
+  type LLMGroupingOptions,
+  isValidLLMGrouping,
+  toLLMGroupingOptions,
+} from "@/app/create/types/llmGrouping";
 import { validateReportId } from "@/app/create/utils/validation";
 import { Header } from "@/components/Header";
 import { toaster } from "@/components/ui/toaster";
@@ -26,6 +32,7 @@ type ReportConfig = {
   model?: string | null;
   provider?: string | null;
   analysis_mode?: string | null;
+  llm_grouping?: LLMGroupingOptions | null;
   is_pubcom?: boolean | null;
   is_embedded_at_local?: boolean | null;
   enable_source_link?: boolean | null;
@@ -61,6 +68,7 @@ type DuplicateOverrides = {
   is_embedded_at_local?: boolean;
   local_llm_address?: string;
   cluster?: number[];
+  llm_grouping?: LLMGroupingOptions;
   prompt?: {
     extraction?: string;
     initial_labelling?: string;
@@ -70,6 +78,12 @@ type DuplicateOverrides = {
 };
 
 const DEFAULT_WORKERS = 30;
+
+const groupingSettingsFromConfig = (options: ReportConfig["llm_grouping"]) => ({
+  discovery_sample_size: Math.max(1, options?.discovery_sample_size ?? DEFAULT_LLM_GROUPING.discovery_sample_size),
+  assignment_batch_size: Math.max(1, options?.assignment_batch_size ?? DEFAULT_LLM_GROUPING.assignment_batch_size),
+  use_all_arguments: options?.use_all_arguments ?? DEFAULT_LLM_GROUPING.use_all_arguments,
+});
 
 const formatDate = () => {
   const now = new Date();
@@ -104,6 +118,8 @@ export default function Page({ params }: PageProps) {
   const clusterSettings = useClusterSettings();
   const promptSettings = usePromptSettings();
   const aiSettings = useAISettings();
+  const [llmGrouping, setLLMGrouping] = useState(DEFAULT_LLM_GROUPING);
+  const isGroupingValid = aiSettings.analysisMode !== "llm_grouping" || isValidLLMGrouping(llmGrouping);
 
   const modelDescription = useMemo(() => aiSettings.getModelDescription(), [aiSettings]);
   const applyConfigRef = useRef<(nextConfig: ReportConfig) => void>(() => {});
@@ -118,11 +134,9 @@ export default function Page({ params }: PageProps) {
     if (nextConfig.model) {
       aiSettings.handleModelChange(toSelectEvent(nextConfig.model));
     }
-    if (nextConfig.analysis_mode) {
-      // 複製元の分析方式を引き継いで表示する（duplicate の override は analysis_mode に対応しないため、
-      // 画面上でも変更不可にしている）
-      aiSettings.handleAnalysisModeChange(toSelectEvent(nextConfig.analysis_mode));
-    }
+    // 複製元の分析方式を引き継ぐ。旧レポートで未指定なら階層クラスタリング。
+    aiSettings.handleAnalysisModeChange(toSelectEvent(nextConfig.analysis_mode ?? "hierarchical"));
+    setLLMGrouping(groupingSettingsFromConfig(nextConfig.llm_grouping));
     if (typeof nextConfig.extraction?.workers === "number") {
       aiSettings.handleWorkersChange(nextConfig.extraction.workers);
     }
@@ -222,6 +236,7 @@ export default function Page({ params }: PageProps) {
     Array.isArray(original) && original[0] === lv1 && original[1] === lv2;
 
   const onSubmit = async () => {
+    if (!isGroupingValid) return;
     if (!config) {
       toaster.create({
         type: "error",
@@ -244,6 +259,17 @@ export default function Page({ params }: PageProps) {
 
     try {
       const overrides: DuplicateOverrides = {};
+      if (config.analysis_mode === "llm_grouping") {
+        const previous = groupingSettingsFromConfig(config.llm_grouping);
+        if (
+          llmGrouping.use_all_arguments !== previous.use_all_arguments ||
+          (!llmGrouping.use_all_arguments &&
+            (llmGrouping.discovery_sample_size !== previous.discovery_sample_size ||
+              llmGrouping.assignment_batch_size !== previous.assignment_batch_size))
+        ) {
+          overrides.llm_grouping = toLLMGroupingOptions(llmGrouping);
+        }
+      }
       if (!isSame(question, config.question)) {
         overrides.question = question;
       }
@@ -411,6 +437,8 @@ export default function Page({ params }: PageProps) {
               enableSourceLink={aiSettings.enableSourceLink}
               enableOriginalComments={aiSettings.enableOriginalComments}
               analysisMode={aiSettings.analysisMode}
+              llmGrouping={llmGrouping}
+              onLLMGroupingChange={setLLMGrouping}
               isEmbeddedAtLocal={aiSettings.isEmbeddedAtLocal}
               localLLMAddress={aiSettings.localLLMAddress}
               userApiKey={aiSettings.userApiKey}
@@ -468,7 +496,7 @@ export default function Page({ params }: PageProps) {
               w={"300px"}
               onClick={onSubmit}
               loading={loading}
-              disabled={loading || isLoadingConfig || !config}
+              disabled={loading || isLoadingConfig || !config || !isGroupingValid}
             >
               再利用を開始
             </Button>

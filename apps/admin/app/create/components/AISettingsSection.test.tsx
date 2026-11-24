@@ -2,13 +2,16 @@ import { system } from "@/components/theme/system";
 import { ChakraProvider } from "@chakra-ui/react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { useAISettings } from "../hooks/useAISettings";
+import { DEFAULT_LLM_GROUPING } from "../types/llmGrouping";
 import { AISettingsSection } from "./AISettingsSection";
 
 jest.mock("@/components/ui/toaster", () => ({ toaster: { create: jest.fn() } }));
 
 function Settings({ analysisModeLocked }: { analysisModeLocked?: boolean } = {}) {
   const ai = useAISettings();
+  const [grouping, setGrouping] = useState(DEFAULT_LLM_GROUPING);
   const noop = () => {};
   return (
     <ChakraProvider value={system}>
@@ -19,6 +22,8 @@ function Settings({ analysisModeLocked }: { analysisModeLocked?: boolean } = {})
         isPubcomMode={false}
         enableSourceLink={false}
         analysisMode={ai.analysisMode}
+        llmGrouping={grouping}
+        onLLMGroupingChange={setGrouping}
         onAnalysisModeChange={ai.handleAnalysisModeChange}
         analysisModeLocked={analysisModeLocked}
         onProviderChange={ai.handleProviderChange}
@@ -152,4 +157,26 @@ it("分析方式を固定すると選択できず、引き継ぐ旨を表示す�
 it("通常は分析方式を選択できる", async () => {
   render(<Settings />);
   expect(screen.getByRole("combobox", { name: "分析方式" })).toBeEnabled();
+});
+
+it("LLM直接グルーピングの件数を調整でき、全件一括の切り替え後も入力値を保持する", async () => {
+  const user = userEvent.setup();
+  render(<Settings />);
+  const discovery = { name: "分類枠を作るサンプル数" };
+  const assignment = { name: "割り当て1回あたりの件数" };
+  expect(screen.queryByRole("spinbutton", discovery)).not.toBeInTheDocument();
+  await user.selectOptions(screen.getByRole("combobox", { name: "分析方式" }), "llm_grouping");
+
+  const sample = screen.getByRole("spinbutton", discovery);
+  expect(sample).toHaveValue(80);
+  expect(screen.getByRole("spinbutton", assignment)).toHaveValue(25);
+  await user.clear(sample);
+  await user.type(sample, "200");
+
+  const all = screen.getByRole("checkbox", { name: "全件を一度に読む（Long Context）" });
+  await user.click(all);
+  expect(all).toBeChecked();
+  expect(screen.queryByRole("spinbutton", discovery)).not.toBeInTheDocument();
+  await user.click(all);
+  expect(screen.getByRole("spinbutton", discovery)).toHaveValue(200);
 });

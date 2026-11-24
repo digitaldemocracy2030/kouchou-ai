@@ -33,6 +33,7 @@ def create_llm_grouping_workflow(include_visualization: bool = True) -> Workflow
                 "group_count": "${config.llm_grouping.group_count}",
                 "discovery_sample_size": "${config.llm_grouping.discovery_sample_size}",
                 "assignment_batch_size": "${config.llm_grouping.assignment_batch_size}",
+                "use_all_arguments": "${config.llm_grouping.use_all_arguments}",
                 "discovery_prompt": "${config.llm_grouping.discovery_prompt}",
                 "assignment_prompt": "${config.llm_grouping.assignment_prompt}",
                 "workers": "${config.llm_grouping.workers}",

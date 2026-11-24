@@ -133,3 +133,44 @@ def test_embedded_llm_grouping_config_keeps_workers():
 
     assert pruned["llm_grouping"]["workers"] == 4
     _validate_with_analysis_core(pruned)
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"discovery_sample_size": 200, "assignment_batch_size": 40, "use_all_arguments": False},
+        {"use_all_arguments": True},
+    ],
+)
+def test_grouping_options_reach_analysis_core_and_survive_config_serialization(options):
+    from src.schemas.report_config import ReportConfig
+    from src.services.report_launcher import _build_config
+
+    config = _build_config(_report_input(analysis_mode="llm_grouping", llm_grouping=options))
+
+    assert config["llm_grouping"] == {"workers": 8, **options}
+    _validate_with_analysis_core(config)
+    saved_grouping = ReportConfig.model_validate(config).llm_grouping
+    assert saved_grouping.model_dump(exclude_none=True) == config["llm_grouping"]
+
+
+def test_duplicate_can_turn_off_whole_dataset_grouping_and_change_sizes():
+    from src.services.report_duplicate import _apply_overrides
+
+    config = {
+        "input": "copy",
+        "question": "q",
+        "analysis_mode": "llm_grouping",
+        "llm_grouping": {
+            "use_all_arguments": True,
+            "discovery_sample_size": 80,
+            "assignment_batch_size": 25,
+            "workers": 2,
+        },
+    }
+    options = {"use_all_arguments": False, "discovery_sample_size": 200, "assignment_batch_size": 40}
+
+    result = _apply_overrides(config, ReportDuplicateOverrides(llm_grouping=options))
+
+    assert result["llm_grouping"] == {**options, "workers": 2}
+    _validate_with_analysis_core(result)

@@ -79,6 +79,14 @@ def llm_grouping(config: dict) -> None:
     arguments = args_df["argument"].to_list()
 
     llm_config = config["llm_grouping"]
+    use_all_arguments = llm_config.get("use_all_arguments") is True
+    # 旧レポートの設定を書き戻す経路では未指定の件数が null になることがある。
+    discovery_sample_size = llm_config.get("discovery_sample_size")
+    if discovery_sample_size is None:
+        discovery_sample_size = 80
+    assignment_batch_size = llm_config.get("assignment_batch_size")
+    if assignment_batch_size is None:
+        assignment_batch_size = 25
     predefined_groups = _resolve_predefined_groups(llm_config)
     if predefined_groups is not None:
         # 指定カテゴリ分類（supervised）: 枠は人間が与え、割当だけ LLM に任せる。
@@ -90,7 +98,7 @@ def llm_grouping(config: dict) -> None:
             arguments=arguments,
             question=config.get("question", ""),
             group_count=group_count,
-            sample_size=llm_config.get("discovery_sample_size", 80),
+            sample_size=len(arguments) if use_all_arguments else discovery_sample_size,
             prompt=llm_config["discovery_prompt"],
             model=llm_config["model"],
             provider=config["provider"],
@@ -102,7 +110,7 @@ def llm_grouping(config: dict) -> None:
         arg_ids=arg_ids,
         arguments=arguments,
         groups=groups,
-        batch_size=llm_config.get("assignment_batch_size", 25),
+        batch_size=len(arguments) if use_all_arguments else assignment_batch_size,
         prompt=llm_config["assignment_prompt"],
         model=llm_config["model"],
         provider=config["provider"],
@@ -110,6 +118,7 @@ def llm_grouping(config: dict) -> None:
         config=config,
         other_group_id=other_group_id,
         workers=_resolve_workers(llm_config),
+        require_complete=use_all_arguments,
     )
     points = _project_embeddings_to_xy(output_base_dir, dataset, arg_ids)
 
@@ -277,6 +286,7 @@ def _assign_groups(
     config: dict,
     other_group_id: str | None = None,
     workers: int = 1,
+    require_complete: bool = False,
 ) -> dict[str, str]:
     """意見を batch_size 件ずつのバッチに分け、各バッチの割当を LLM に問い合わせる。
 
@@ -327,11 +337,20 @@ def _assign_groups(
             timeout_seconds=LLM_GROUPING_TIMEOUT_SECONDS,
         )
         response_json = json.loads(response_text) if isinstance(response_text, str) else response_text
+        raw_assignments = response_json.get("assignments", [])
         batch_assignments = {
             assignment.get("arg_id"): assignment.get("group_id")
-            for assignment in response_json.get("assignments", [])
+            for assignment in raw_assignments
             if assignment.get("arg_id")
         }
+        if require_complete and (
+            len(raw_assignments) != len(batch_ids)
+            or batch_assignments.keys() != set(batch_ids)
+            or not allowed_group_ids.issuperset(batch_assignments.values())
+        ):
+            raise ValueError(
+                "全件一括の割り当て結果が不完全です。モデルの出力上限を確認するか、件数を指定して再実行してください。"
+            )
         return batch_assignments, token_input, token_output, token_total
 
     safe_batch_size = max(1, batch_size)

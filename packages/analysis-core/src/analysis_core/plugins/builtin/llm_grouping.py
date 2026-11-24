@@ -34,6 +34,7 @@ def llm_grouping_plugin(
         "group_count": step_config.get("group_count"),
         "discovery_sample_size": step_config.get("discovery_sample_size", 80),
         "assignment_batch_size": step_config.get("assignment_batch_size", 25),
+        "use_all_arguments": step_config.get("use_all_arguments", False),
         "discovery_prompt": step_config.get("discovery_prompt", ""),
         "assignment_prompt": step_config.get("assignment_prompt", ""),
         "predefined_groups": full_llm_config.get("predefined_groups"),
