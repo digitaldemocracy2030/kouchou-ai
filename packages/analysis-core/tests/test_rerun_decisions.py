@@ -36,6 +36,8 @@ def _initialized_config(tmp_path, specs_path=HIERARCHICAL_SPECS, **overrides):
 
 def _completed_status(config, specs, completed="2026-01-01T00:00:00"):
     """Status of a previous run that completed every step with the given config."""
+    from analysis_core.core.orchestration import snapshot_global_params
+
     return {
         "status": "completed",
         "completed_jobs": [
@@ -43,17 +45,7 @@ def _completed_status(config, specs, completed="2026-01-01T00:00:00"):
                 "step": spec["step"],
                 "completed": completed,
                 "params": dict(config[spec["step"]]),
-                "global_params": {
-                    k: config.get(k)
-                    for k in (
-                        "input",
-                        "question",
-                        "intro",
-                        "is_pubcom",
-                        "enable_source_link",
-                        "enable_original_comments",
-                    )
-                },
+                "global_params": snapshot_global_params(config),
             }
             for spec in specs
         ],
@@ -189,6 +181,88 @@ class TestParamChangesAreDetected:
         job = status["completed_jobs"][0]
         assert job["global_params"]["input"] == "demo"
         assert job["global_params"]["question"] == "Test?"
+        assert job["global_params"]["opinion_classification.enabled"] is False
+
+
+OPT_IN_STEPS = ["opinion_classification", "opinion_stance", "opinion_novelty"]
+
+
+class TestOptInStepToggles:
+    """Turning an opt-in step off (or back on) must re-run hierarchical_aggregation, which merges its output."""
+
+    @pytest.mark.parametrize("step", OPT_IN_STEPS)
+    def test_disabling_reruns_aggregation(self, tmp_path, step):
+        specs = load_specs(HIERARCHICAL_SPECS)
+        enabled = _initialized_config(tmp_path, **{step: {"enabled": True}})
+        previous = _completed_status(enabled, specs)
+        _touch_artifacts(tmp_path, enabled, specs)
+
+        disabled = _initialized_config(tmp_path, **{step: {"enabled": False}})
+        plan = _plan_with_previous(tmp_path, disabled, previous, specs)
+        assert plan[step]["run"] is False
+        assert plan["hierarchical_aggregation"]["run"] is True
+        assert f"{step}.enabled" in plan["hierarchical_aggregation"]["reason"]
+        assert plan["hierarchical_clustering"]["run"] is False
+
+    @pytest.mark.parametrize("step", OPT_IN_STEPS)
+    def test_re_enabling_reruns_aggregation(self, tmp_path, step):
+        """The opt-in step keeps its old output and old record (enabled), so it may be skipped itself."""
+        specs = load_specs(HIERARCHICAL_SPECS)
+        enabled = _initialized_config(tmp_path, **{step: {"enabled": True}})
+        disabled = _initialized_config(tmp_path, **{step: {"enabled": False}})
+        previous = _completed_status(disabled, specs)
+        for job in previous["completed_jobs"]:
+            if job["step"] == step:
+                job["params"] = dict(enabled[step])
+        _touch_artifacts(tmp_path, enabled, specs)
+
+        plan = _plan_with_previous(tmp_path, enabled, previous, specs)
+        assert plan[step]["run"] is False
+        assert plan["hierarchical_aggregation"]["run"] is True
+
+    @pytest.mark.parametrize("step", OPT_IN_STEPS)
+    def test_unchanged_opt_in_step_keeps_skipping(self, tmp_path, step):
+        specs = load_specs(HIERARCHICAL_SPECS)
+        enabled = _initialized_config(tmp_path, **{step: {"enabled": True}})
+        previous = _completed_status(enabled, specs)
+        _touch_artifacts(tmp_path, enabled, specs)
+
+        plan = _plan_with_previous(tmp_path, enabled, previous, specs)
+        assert all(not p["run"] for p in plan.values())
+
+    def test_record_without_the_flags_regenerates_aggregation_once(self, tmp_path):
+        """Records written before the flags were tracked: the value used back then is unknown."""
+        specs = load_specs(HIERARCHICAL_SPECS)
+        config = _initialized_config(tmp_path)
+        previous = _completed_status(config, specs)
+        for job in previous["completed_jobs"]:
+            for step in OPT_IN_STEPS:
+                del job["global_params"][f"{step}.enabled"]
+        _touch_artifacts(tmp_path, config, specs)
+
+        plan = _plan_with_previous(tmp_path, config, previous, specs)
+        assert plan["hierarchical_aggregation"]["run"] is True
+        downstream = {"hierarchical_aggregation", "hierarchical_visualization"}
+        assert all(not p["run"] for step, p in plan.items() if step not in downstream)
+
+    @pytest.mark.parametrize("legacy_step_used", [True, False])
+    def test_aggregation_without_global_params_checks_opt_in_history(self, tmp_path, legacy_step_used):
+        specs = load_specs(HIERARCHICAL_SPECS)
+        config = _initialized_config(tmp_path)
+        previous = _completed_status(config, specs)
+        aggregation = next(job for job in previous["completed_jobs"] if job["step"] == "hierarchical_aggregation")
+        aggregation.pop("global_params")
+        previous["completed_jobs"] = [job for job in previous["completed_jobs"] if job["step"] not in OPT_IN_STEPS]
+        if legacy_step_used:
+            # This record predates global snapshots, and may already have been stale during aggregation.
+            previous["previously_completed_jobs"].append(
+                {"step": "opinion_classification", "params": {"enabled": True}, "completed": aggregation["completed"]}
+            )
+        _touch_artifacts(tmp_path, config, specs)
+
+        plan = _plan_with_previous(tmp_path, config, previous, specs)
+
+        assert plan["hierarchical_aggregation"]["run"] is legacy_step_used
 
 
 class TestStaleDownstreamAfterFailure:

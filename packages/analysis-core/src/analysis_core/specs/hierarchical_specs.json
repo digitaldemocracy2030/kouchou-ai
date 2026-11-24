@@ -183,7 +183,10 @@
                 "intro",
                 "is_pubcom",
                 "enable_source_link",
-                "enable_original_comments"
+                "enable_original_comments",
+                "opinion_classification.enabled",
+                "opinion_stance.enabled",
+                "opinion_novelty.enabled"
             ],
             "steps": [
                 "extraction",
