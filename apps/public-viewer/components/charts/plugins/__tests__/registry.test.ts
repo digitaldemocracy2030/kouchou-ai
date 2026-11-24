@@ -332,10 +332,10 @@ describe("loadBuiltinChartPlugins", () => {
 
     loadBuiltinChartPlugins();
 
-    // Should have scatter, treemap, and hierarchy-list plugins
     expect(chartRegistry.get("scatter")).toBeDefined();
     expect(chartRegistry.get("treemap")).toBeDefined();
     expect(chartRegistry.get("hierarchy-list")).toBeDefined();
+    expect(chartRegistry.get("opposition")).toBeDefined();
 
     consoleSpy.mockRestore();
   });
@@ -350,6 +350,7 @@ describe("loadBuiltinChartPlugins", () => {
     expect(chartRegistry.hasMode("scatterDensity")).toBe(true);
     expect(chartRegistry.hasMode("treemap")).toBe(true);
     expect(chartRegistry.hasMode("hierarchyList")).toBe(true);
+    expect(chartRegistry.hasMode("opposition")).toBe(true);
 
     consoleSpy.mockRestore();
   });

@@ -8,6 +8,7 @@ import {
   validateResultData,
   validateVisualizationConfig,
 } from "@/components/charts/plugins";
+import { OPPOSITION_CHART, getOppositionAxes } from "@/components/charts/plugins/opposition-data";
 import { AttributeFilterDialog } from "@/components/report/AttributeFilterDialog";
 import { Chart } from "@/components/report/Chart";
 import { ClusterOverview } from "@/components/report/ClusterOverview";
@@ -29,6 +30,7 @@ import {
 ensurePluginsLoaded();
 
 const DEFAULT_READING_CHARTS = [...DEFAULT_ENABLED_CHARTS, "hierarchyList"];
+const READING_CHARTS_WITH_OPPOSITION = [...DEFAULT_READING_CHARTS, OPPOSITION_CHART];
 
 type Props = {
   result: Result;
@@ -49,9 +51,22 @@ export function ClientContainer({ result }: Props) {
 
   // --- Extract visualization config with defaults ---
   const visualizationConfig = result.visualizationConfig;
-  const enabledCharts = visualizationConfig?.enabledCharts ?? DEFAULT_READING_CHARTS;
+  const oppositionClusterIds = useMemo(
+    () => new Set(getOppositionAxes(result).map((axis) => axis.cluster_id)),
+    [result],
+  );
+  const configuredCharts = visualizationConfig?.enabledCharts;
+  const enabledCharts = useMemo(() => {
+    if (oppositionClusterIds.size > 0) return configuredCharts ?? READING_CHARTS_WITH_OPPOSITION;
+    return configuredCharts?.filter((chart) => chart !== OPPOSITION_CHART) ?? DEFAULT_READING_CHARTS;
+  }, [oppositionClusterIds, configuredCharts]);
+  const canOpenOpposition = enabledCharts.includes(OPPOSITION_CHART);
   const chartOrder = visualizationConfig?.chartOrder;
-  const defaultChart = visualizationConfig?.defaultChart ?? enabledCharts[0] ?? "scatterAll";
+  const configuredDefault = visualizationConfig?.defaultChart;
+  const defaultChart =
+    (configuredDefault === OPPOSITION_CHART && !canOpenOpposition ? undefined : configuredDefault) ??
+    enabledCharts[0] ??
+    "scatterAll";
   const defaultParams = visualizationConfig?.params;
 
   // --- UI State ---
@@ -75,13 +90,33 @@ export function ClientContainer({ result }: Props) {
   const [treemapLevel, setTreemapLevel] = useState("0");
   // 散布図でクリックされたクラスタ（連動文章・一覧のハイライト対象）
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
+  const [oppositionOrigin, setOppositionOrigin] = useState<{ chart: string; clusterId: string }>();
+  const [reopenClusterId, setReopenClusterId] = useState<string>();
 
   // 表示モードを変えたら、散布図で選んだクラスタの選択も解除する。
   // 選択を残すと、元のモードに戻ったときにカードが選択済みで再マウントされ、再ハイライトと自動スクロールが起きる
   const changeChart = useCallback((chart: string) => {
     setSelectedChart(chart);
     setSelectedClusterId(null);
+    setOppositionOrigin(undefined);
+    setReopenClusterId(undefined);
   }, []);
+
+  const openOpposition = useCallback(
+    (clusterId: string) => {
+      setOppositionOrigin({ chart: selectedChart, clusterId });
+      setSelectedChart(OPPOSITION_CHART);
+    },
+    [selectedChart],
+  );
+
+  const backFromOpposition = useCallback(() => {
+    if (!oppositionOrigin) return;
+    setSelectedChart(oppositionOrigin.chart);
+    setSelectedClusterId(oppositionOrigin.clusterId);
+    setReopenClusterId(oppositionOrigin.clusterId);
+    setOppositionOrigin(undefined);
+  }, [oppositionOrigin]);
 
   // --- 属性メタデータ（純粋な派生データなのでuseMemoで計算） ---
   const attributeMetas = useMemo(() => computeAttributeMetas(result.arguments), [result.arguments]);
@@ -197,7 +232,7 @@ export function ClientContainer({ result }: Props) {
 
   // --- クラスタ表示 ---
   const clustersToDisplay = useMemo(() => {
-    if (selectedChart === "hierarchyList") return [];
+    if (selectedChart === "hierarchyList" || selectedChart === OPPOSITION_CHART) return [];
     let c: Cluster[] = [];
     if (selectedChart === "scatterDensity" || selectedChart === "scatterDetail") {
       // 最深階層はフィルタ前の result で決める（抽出が 0 件でも一つ上の階層に繰り上げない）
@@ -276,6 +311,11 @@ export function ClientContainer({ result }: Props) {
         treemapLevel={treemapLevel}
         onTreeZoom={setTreemapLevel}
         onSelectCluster={setSelectedClusterId}
+        oppositionClusterIds={oppositionClusterIds}
+        oppositionClusterId={oppositionOrigin?.clusterId}
+        onOpenOpposition={canOpenOpposition ? openOpposition : undefined}
+        onBackFromOpposition={oppositionOrigin ? backFromOpposition : undefined}
+        reopenClusterId={reopenClusterId}
         textSearch={textSearch}
       />
       {selectedChart === "treemap" ? (
@@ -284,6 +324,7 @@ export function ClientContainer({ result }: Props) {
           arguments={result.arguments}
           level={treemapLevel}
           filteredIds={filteredArgIds}
+          onOpenOpposition={canOpenOpposition && oppositionClusterIds.has(treemapLevel) ? openOpposition : undefined}
           onNavigate={(id) => {
             setTreemapLevel(id);
             document.getElementById("report-chart")?.scrollIntoView();
@@ -298,6 +339,7 @@ export function ClientContainer({ result }: Props) {
             isFiltering={isFiltering}
             isSelected={c.id === selectedClusterId}
             onNavigate={canNavigateToTreemap ? navigateToTreemap : undefined}
+            onOpenOpposition={canOpenOpposition && oppositionClusterIds.has(c.id) ? openOpposition : undefined}
           />
         ))
       )}

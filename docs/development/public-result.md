@@ -75,6 +75,17 @@
 | `config` | object | 表示に使う設定だけ（下の表） |
 | `layouts` | object | 省略可能。レイアウト名 → `{ kind, points, meta }`。レイアウト生成ステップを実行したときだけ |
 | `default_layout_id` | string | 省略可能。`layouts` の既定 |
+| `opposition_axes[]` | object | 省略可能。レポート作成者が添付した、話題ごとの対立軸と意見の採点 |
+
+### 対立軸ビューの入力
+
+各軸は `id`, `cluster_id`, `name`, `left_pole`, `right_pole`, `scores` を持ちます。`scores` は同じクラスタの `arg_id` をキーに、立場を 1～6 の整数、該当なしを `null` で表します。キーがない意見は未採点です。任意の `agreements` / `conflicts` は論点の短い見出しの配列です。公開用の生成処理は軸とクラスタ・意見の対応を確かめ、これらの項目を写します。
+
+可視化カタログの計算済み結果は、計算に使ったレポートと組み合わせて次のように試せます。入力と別のファイルへ書き出すため、内容を確認してから公開用 JSON またはサーバーの分析結果として使えます。可視化設定を保存してあるレポートでは `enabledCharts` に `opposition` を追加します。
+
+```bash
+python3 scripts/attach_opposition_axes.py public_result.json divcon-result.json --out report-with-axes.json
+```
 
 ### `config` に入るもの
 

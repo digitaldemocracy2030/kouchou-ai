@@ -9,7 +9,10 @@ import { Box, Dialog, Portal } from "@chakra-ui/react";
 // Ensure plugins are loaded
 ensurePluginsLoaded();
 
-type ReportProps = {
+type ReportProps = Pick<
+  ChartRenderContext,
+  "oppositionClusterIds" | "oppositionClusterId" | "onOpenOpposition" | "onBackFromOpposition" | "reopenClusterId"
+> & {
   /** 描画に使う結果（属性フィルタ・密度フィルタ適用後） */
   result: Result;
   /**
@@ -57,6 +60,11 @@ export function Chart({
   treemapLevel,
   onTreeZoom,
   onSelectCluster,
+  oppositionClusterIds,
+  oppositionClusterId,
+  onOpenOpposition,
+  onBackFromOpposition,
+  reopenClusterId,
   textSearch,
 }: ReportProps) {
   // Create render context for plugins
@@ -72,11 +80,17 @@ export function Chart({
     treemapLevel,
     onTreeZoom,
     onSelectCluster,
+    oppositionClusterIds,
+    oppositionClusterId,
+    onOpenOpposition,
+    onBackFromOpposition,
+    reopenClusterId,
     onHover: undefined,
   };
 
   // Get the plugin that handles the selected chart mode
   const plugin = chartRegistry.getByMode(selectedChart);
+  const flowLayout = plugin?.manifest.modes.find((mode) => mode.id === selectedChart)?.layout === "flow";
 
   if (isFullscreen) {
     return (
@@ -108,7 +122,7 @@ export function Chart({
                   {/* 全画面のまま表示言語を切り替えられるようにする（通常表示の切替と状態を共有） */}
                   <LanguageToggle size="sm" />
                 </FullscreenToolbar>
-                <Box w="100%" flex="1" minH={0} overflow={selectedChart === "hierarchyList" ? "auto" : "hidden"}>
+                <Box w="100%" flex="1" minH={0} overflow={flowLayout ? "auto" : "hidden"}>
                   {plugin?.render(renderContext)}
                 </Box>
               </Box>
@@ -121,7 +135,7 @@ export function Chart({
 
   return (
     <Box mx={"auto"} w={"100%"} maxW={"1200px"} mb={10} border={"1px solid #ccc"}>
-      <Box h={selectedChart === "hierarchyList" ? "auto" : "500px"} mb={0}>
+      <Box h={flowLayout ? "auto" : "500px"} mb={0}>
         {plugin?.render({ ...renderContext, onHover: undefined })}
       </Box>
     </Box>

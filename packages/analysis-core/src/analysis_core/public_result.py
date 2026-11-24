@@ -31,6 +31,7 @@ ARGUMENT_KEYS = ("arg_id", "argument", "comment_id", "x", "y", "p", "cluster_ids
 CLUSTER_KEYS = ("level", "id", "label", "takeaway", "value", "parent", "density_rank_percentile")
 PLAN_ITEM_KEYS = ("step", "run", "reason")
 LAYOUT_KEYS = ("kind", "points", "meta")
+OPPOSITION_AXIS_TEXT_KEYS = ("id", "cluster_id", "name", "left_pole", "right_pole")
 
 # config のうち、公開ビューアが表示に使う項目だけ。
 # 入れないもの: name / input / output_dir（内部の識別子）、status / previous / completed_jobs /
@@ -144,6 +145,44 @@ def _public_layouts(layouts: Any) -> dict[str, Any]:
     return {layout_id: _pick(layout, LAYOUT_KEYS) for layout_id, layout in layouts.items() if isinstance(layout, dict)}
 
 
+def _public_opposition_axes(
+    axes: Any, clusters: list[dict[str, Any]], arguments: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """公開用に添付した軸から、存在するクラスタ・意見に対応する表示項目だけを写す。"""
+    if not isinstance(axes, list) or not axes:
+        return []
+    cluster_ids = {
+        c["id"] for c in clusters if isinstance(c.get("id"), str) and isinstance(c.get("level"), int) and c["level"] > 0
+    }
+    memberships = {
+        arg["arg_id"]: {key for key in arg["cluster_ids"] if isinstance(key, str)}
+        for arg in arguments
+        if isinstance(arg.get("arg_id"), str) and isinstance(arg.get("cluster_ids"), list)
+    }
+    public = []
+    used_ids = set()
+    for axis in axes:
+        text = _pick(axis, OPPOSITION_AXIS_TEXT_KEYS)
+        if any(not isinstance(text.get(key), str) or not text[key].strip() for key in OPPOSITION_AXIS_TEXT_KEYS):
+            continue
+        cluster_id = text["cluster_id"]
+        if text["id"] in used_ids or cluster_id not in cluster_ids or not isinstance(axis.get("scores"), dict):
+            continue
+        used_ids.add(text["id"])
+        scores = {
+            arg_id: score
+            for arg_id, score in axis["scores"].items()
+            if cluster_id in memberships.get(arg_id, ())
+            and (score is None or (isinstance(score, int) and not isinstance(score, bool) and 1 <= score <= 6))
+        }
+        public_axis = {**text, "scores": scores}
+        for key in ("agreements", "conflicts"):
+            if isinstance(points := axis.get(key), list):
+                public_axis[key] = [point for point in points if isinstance(point, str) and point.strip()]
+        public.append(public_axis)
+    return public
+
+
 def build_public_result(result: dict[str, Any]) -> dict[str, Any]:
     """``hierarchical_result.json`` の内容から、公開用 artifact の dict を作る。
 
@@ -163,6 +202,9 @@ def build_public_result(result: dict[str, Any]) -> dict[str, Any]:
     }
     if isinstance(result.get("comment_num"), int):
         public["comment_num"] = result["comment_num"]
+    opposition_axes = _public_opposition_axes(result.get("opposition_axes"), public["clusters"], public["arguments"])
+    if opposition_axes:
+        public["opposition_axes"] = opposition_axes
     layouts = _public_layouts(result.get("layouts"))
     if layouts:
         public["layouts"] = layouts

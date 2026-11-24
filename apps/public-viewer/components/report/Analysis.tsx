@@ -165,7 +165,7 @@ export function Analysis({ result }: ReportProps) {
         </Tooltip>
       </HStack>
       <Text mb={5}>{result.config.intro}</Text>
-      <Box>
+      <Box hidden={!result.config.plan?.length}>
         <Flex align={"center"} mb={5}>
           <Heading fontSize={"md"}>{messages.analysisSteps}</Heading>
           <Button variant={"outline"} size={"sm"} ml={2} onClick={onToggle}>
@@ -174,7 +174,7 @@ export function Analysis({ result }: ReportProps) {
         </Flex>
         <Presence present={open}>
           <TimelineRoot size={"lg"}>
-            {result.config.plan.map((p) => {
+            {result.config.plan?.map((p) => {
               const text = messages.steps[p.step];
               const detail = getStepDetail(p.step, result.config, messages.azureServerModel);
               const title = text ? `${text.title}${detail?.model ? ` (${detail.model})` : ""}` : p.step;

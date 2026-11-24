@@ -128,10 +128,12 @@ export function loadBuiltinChartPlugins(): void {
   const { treemapPlugin } = require("./treemap");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { hierarchyListPlugin } = require("./hierarchy-list");
+  const { oppositionPlugin } = require("./opposition");
 
   chartRegistry.register(scatterPlugin);
   chartRegistry.register(treemapPlugin);
   chartRegistry.register(hierarchyListPlugin);
+  chartRegistry.register(oppositionPlugin);
 
   console.debug(`Loaded ${chartRegistry.getAll().length} chart plugins`);
 }
