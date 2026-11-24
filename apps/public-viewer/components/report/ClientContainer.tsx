@@ -276,6 +276,7 @@ export function ClientContainer({ result }: Props) {
         treemapLevel={treemapLevel}
         onTreeZoom={setTreemapLevel}
         onSelectCluster={setSelectedClusterId}
+        textSearch={textSearch}
       />
       {selectedChart === "treemap" ? (
         <TreemapDetails
