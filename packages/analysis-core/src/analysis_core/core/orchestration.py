@@ -585,26 +585,18 @@ def decide_what_to_run(
         prev_globals = match.get("global_params")
         if prev_globals is not None:
             for key in step["dependencies"].get("global_params", []):
-                before = prev_globals[key] if key in prev_globals else untracked_global_param(key)
+                if "." in key and key not in prev_globals:
+                    # Records written before other steps' options were tracked: the value used back
+                    # then is unknown (the step's own record may be older), so regenerate once.
+                    print(f"(!) {step['step']} global parameter '{key}' was not recorded by the previous run")
+                    diff.append(key)
+                    continue
+                before = prev_globals.get(key)
                 after = global_param_value(config, key)
                 if before != after:
                     print(f"(!) {step['step']} global parameter '{key}' changed from '{before}' to '{after}'")
                     diff.append(key)
         return diff
-
-    def untracked_global_param(key: str) -> Any:
-        """Best guess for a "<step>.<option>" key that an older record did not track.
-
-        Use the option the step itself last ran with (its own record), else the option's default.
-        """
-        if "." not in key:
-            return None
-        dep, option = key.split(".", 1)
-        dep_job = previous_by_step.get(dep)
-        if dep_job is not None and option in dep_job.get("params", {}):
-            return dep_job["params"][option]
-        dep_spec = next((spec for spec in specs if spec["step"] == dep), None)
-        return dep_spec.get("options", {}).get(option) if dep_spec else None
 
     def newer_deps(step: dict[str, Any]) -> list[str]:
         """Dependencies whose latest output is newer than this step's output."""
