@@ -106,6 +106,10 @@ export function Analysis({ result }: ReportProps) {
   const clusterNum = getClusterNum(result);
   const level1ClusterNum = clusterNum[1] ?? 0;
   const level2ClusterNum = clusterNum[2];
+  const groupCounts = [
+    { level: 1, count: level1ClusterNum },
+    { level: 2, count: level2ClusterNum },
+  ];
   const { open, onToggle } = useDisclosure();
 
   return (
@@ -144,18 +148,17 @@ export function Analysis({ result }: ReportProps) {
             <Icon mb={2}>
               <ClipboardCheckIcon size={"30px"} />
             </Icon>
-            <HStack gap={1} alignItems={"center"}>
-              <Text className={"headingColor"} fontSize={"3xl"} fontWeight={"bold"} lineHeight={1} mb={1}>
-                {level1ClusterNum.toLocaleString()}
-              </Text>
-              {level2ClusterNum !== undefined ? (
-                <>
-                  <Text fontSize={"md"}>→</Text>
-                  <Text className={"headingColor"} fontSize={"3xl"} fontWeight={"bold"} lineHeight={1} mb={1}>
-                    {level2ClusterNum.toLocaleString()}
-                  </Text>
-                </>
-              ) : null}
+            <HStack gap={3} justify="center" flexWrap="wrap">
+              {groupCounts.map(({ level, count }) =>
+                count === undefined ? null : (
+                  <VStack key={level} gap={1} mb={1}>
+                    {level2ClusterNum !== undefined && <Text fontSize="xs">{messages.clusterLevelLabel(level)}</Text>}
+                    <Text className="headingColor" fontSize="3xl" fontWeight="bold" lineHeight={1}>
+                      {count.toLocaleString()}
+                    </Text>
+                  </VStack>
+                ),
+              )}
             </HStack>
             <Text fontSize={"xs"}>{messages.clusterCount}</Text>
           </VStack>

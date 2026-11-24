@@ -82,7 +82,8 @@ def validate_dependencies(workflow: WorkflowDefinition) -> list[str]:
         resolve_execution_order(workflow)
     except CyclicDependencyError as e:
         errors.append(str(e))
-    except DependencyError:
+    except (DuplicateStepError, MissingDependencyError):
+        # The specific IDs and dependencies were already reported above.
         pass
 
     return errors

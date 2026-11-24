@@ -35,7 +35,7 @@
 - **濃いクラスタ抽出**: 重要な意見グループの自動識別
 - **階層的クラスタリング**: 大量のコメントを構造的に整理
 - **パブリックコメント用分析機能**（予定）
-- **多数派攻撃に対する防御機能**（予定）
+- **多数派攻撃（同じ内容の大量投稿）への対処**（検討中、[#345](https://github.com/digitaldemocracy2030/kouchou-ai/issues/345)。現状の注意点は[同じ内容の大量投稿への注意](user-guide/reliability-and-responsibility.md#mass-posting)）
 
 ## クイックスタート {#quickstart}
 

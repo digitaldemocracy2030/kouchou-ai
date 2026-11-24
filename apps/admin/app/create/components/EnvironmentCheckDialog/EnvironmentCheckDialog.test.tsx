@@ -155,6 +155,7 @@ describe("EnvironmentCheckDialog", () => {
         /APIキーが無効または期限切れです。.envファイルを確認し修正してください。APIキーを改めて取得し直した場合も再設定が必要です。/,
       ),
     ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /APIの課金と429エラーの対処方法/ })).not.toBeInTheDocument();
   });
 
   it("クォータ不足エラーの場合にエラーメッセージが表示される", async () => {
@@ -177,6 +178,10 @@ describe("EnvironmentCheckDialog", () => {
 
     expect(await screen.findByText(/エラーが見つかりました。/)).toBeInTheDocument();
     expect(await screen.findByText(/デポジット残高が不足しています。チャージしてください。/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /APIの課金と429エラーの対処方法/ })).toHaveAttribute(
+      "href",
+      "https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/api-billing-and-rate-limits",
+    );
   });
 
   it("レート制限エラーの場合にエラーメッセージが表示される", async () => {
@@ -201,6 +206,7 @@ describe("EnvironmentCheckDialog", () => {
     expect(
       await screen.findByText(/APIのレート制限に達しました。時間をおいて再度お試しください。/),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /APIの課金と429エラーの対処方法/ })).toBeInTheDocument();
   });
 
   it("不明なエラーの場合にエラーメッセージが表示される", async () => {

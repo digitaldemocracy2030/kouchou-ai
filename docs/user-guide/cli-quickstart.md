@@ -214,7 +214,18 @@ open outputs/config/report.html  # macOS
 # xdg-open outputs/config/report.html  # Linux
 ```
 
-`config.json` に `"report_url_pattern"` を指定すると、各点クリックで元コメントの URL を開けます（例: `"report_url_pattern": "https://example.com/comments/{comment_id}"`）。
+`config.json` の `hierarchical_visualization` に出典 URL のテンプレートと HTML のタブタイトルを任意で設定できます。
+
+```json
+{
+  "hierarchical_visualization": {
+    "report_url_pattern": "https://example.com/comments/{comment_id}",
+    "report_html_title": "住民アンケートの分析結果"
+  }
+}
+```
+
+`report_url_pattern` を指定すると、個別の URL がない意見には `{comment_id}` を差し込んだ出典リンクが付き、散布図の点から開けます。`report_html_title` を省略するとレポート名を使います。設定を変更して CLI を再実行すると HTML が更新されます。
 
 `report.html` は CLI の補助出力であり、Web 配信やストレージ同期の canonical artifact ではありません。プロダクトの viewer は `hierarchical_result.json` を入力として描画します。
 
@@ -399,6 +410,20 @@ kouchou-analyze --config report_october.json
 ```
 
 出力は `opinion_classifications.csv`（意見ごとの `yes` / `no`）と `opinion_classification_summary.json`（件数と比率）です。比率はLLMの判定に基づく、定義に対する割合であり、人手で検証したものではありません。
+
+ラベルは自分で定義することもできます（例: 「安全上確認すべき指摘」「業務の課題」「解決策・アイデア」）。`labels` に `id`・`name`・`includes`（任意で `excludes`）を持つオブジェクトを書くと、その定義からプロンプトを組み立てます。通常の分析はそのまま残り、ビューアの属性フィルタで各ラベルの yes / no を指定して絞り込めます。書き方は [意見の分類ラベル — ラベルを自分で定義する](../development/opinion-classification.md#user-defined-labels) を参照してください。
+
+```json
+{
+  "opinion_classification": {
+    "enabled": true,
+    "labels": [
+      { "id": "problem", "name": "業務の課題", "includes": "困っていること・うまくいっていないことを述べているもの" },
+      { "id": "solution", "name": "解決策・アイデア", "includes": "課題への対応策や、こうするとよいという提案を述べているもの" }
+    ]
+  }
+}
+```
 
 ### 意見ごとに賛否スコア・新規性スコアを付ける（任意）
 

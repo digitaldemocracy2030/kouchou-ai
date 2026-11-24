@@ -43,7 +43,12 @@ def hierarchical_visualization_plugin(
         hierarchical_visualization as viz_impl,
     )
 
-    step_config = config.get("hierarchical_visualization", config)
+    # The built-in workflows provide these optional values in the full config.
+    # Explicit plugin configuration still takes precedence for custom workflows.
+    step_config = {
+        **(inputs.config.get("hierarchical_visualization") or {}),
+        **config.get("hierarchical_visualization", config),
+    }
     legacy_config = build_legacy_runtime_config(ctx, inputs)
     legacy_config["report_html_title"] = step_config.get("report_html_title")
     legacy_config["report_url_pattern"] = step_config.get("report_url_pattern")

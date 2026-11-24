@@ -595,3 +595,127 @@ class TestSpecsOrder:
         )
         with pytest.raises(ValueError, match="listed more than once"):
             load_specs(path)
+
+
+class TestRerunDecisionContracts:
+    """再実行の判定で、管理画面・CLI が頼っている振る舞いを固定する。"""
+
+    def _specs(self):
+        return load_specs(HIERARCHICAL_SPECS)
+
+    def _ran_specs(self, config, specs):
+        # 既定の config では意見分類などの任意工程は無効なので、前回の記録にも出てこない
+        from analysis_core.core.orchestration import _disabled_reason
+
+        return [spec for spec in specs if not _disabled_reason(spec["step"], config)]
+
+    def test_only_aggregation_reruns_it_when_nothing_changed(self, tmp_path):
+        """管理画面はラベル編集の後、--only hierarchical_aggregation で集約だけをやり直す。"""
+        specs = self._specs()
+        config = _initialized_config(tmp_path)
+        _touch_artifacts(tmp_path, config, specs)
+        previous = _completed_status(config, specs)
+        plan = _plan_with_previous(tmp_path, {**config, "only": "hierarchical_aggregation"}, previous, specs)
+        assert [step for step, p in plan.items() if p["run"]] == ["hierarchical_aggregation"]
+        assert plan["hierarchical_aggregation"]["reason"] == "forced this step with -o"
+
+    def test_force_reruns_every_enabled_step(self, tmp_path):
+        specs = self._specs()
+        config = _initialized_config(tmp_path)
+        _touch_artifacts(tmp_path, config, specs)
+        previous = _completed_status(config, specs)
+        plan = _plan_with_previous(tmp_path, {**config, "force": True}, previous, specs)
+        enabled = [spec["step"] for spec in self._ran_specs(config, specs)]
+        assert [step for step, p in plan.items() if p["run"]] == enabled
+
+    def test_model_change_reruns_llm_step(self, tmp_path):
+        specs = self._specs()
+        config = _initialized_config(tmp_path)
+        _touch_artifacts(tmp_path, config, specs)
+        previous = _completed_status(config, specs)
+        changed = {**config, "extraction": {**config["extraction"], "model": "another-model"}}
+        plan = _plan_with_previous(tmp_path, changed, previous, specs)
+        assert plan["extraction"]["run"]
+        assert "model" in plan["extraction"]["reason"]
+
+    def test_rerun_with_default_config_skips_everything(self, tmp_path):
+        """任意工程を一度も実行していないレポートでも、変更なしの再実行は落ちずに全部飛ばす。"""
+        specs = self._specs()
+        config = _initialized_config(tmp_path)
+        ran = self._ran_specs(config, specs)
+        _touch_artifacts(tmp_path, config, ran)
+        previous = _completed_status(config, ran)
+        plan = _plan_with_previous(tmp_path, config, previous, specs)
+        assert [step for step, p in plan.items() if p["run"]] == []
+
+
+class TestReuseFromCarriesRecords:
+    """--reuse-from で流用した記録が、前回の入力・完了時刻を引き継ぐ。"""
+
+    def _source(self, tmp_path, completed_overrides=None):
+        specs = load_specs(HIERARCHICAL_SPECS)
+        source_config = _initialized_config(tmp_path)  # outputs/job に流用元を作る
+        _touch_artifacts(tmp_path, source_config, specs)
+        status = _completed_status(source_config, specs)
+        for job in status["completed_jobs"]:
+            job["completed"] = (completed_overrides or {}).get(job["step"], job["completed"])
+        out = tmp_path / "outputs" / source_config["output_dir"]
+        (out / "hierarchical_status.json").write_text(json.dumps(status), encoding="utf-8")
+        return source_config
+
+    def _plan_reusing(self, tmp_path, source_config, **job_fields):
+        config_path = tmp_path / "reuser.json"
+        base = {"input": source_config["input"], "question": source_config["question"], "provider": "local"}
+        config_path.write_text(json.dumps({**base, **job_fields}), encoding="utf-8")
+        config = initialization(
+            config_path=config_path,
+            skip_interaction=True,
+            persist_status=False,
+            output_base_dir=tmp_path / "outputs",
+            input_base_dir=tmp_path / "inputs",
+            reuse_from=source_config["output_dir"],
+        )
+        return {p["step"]: p for p in config["plan"]}
+
+    def test_different_input_reruns_extraction(self, tmp_path):
+        source_config = self._source(tmp_path)
+        plan = self._plan_reusing(tmp_path, source_config, input="other_comments")
+        assert plan["extraction"]["run"]
+        assert "input" in plan["extraction"]["reason"]
+
+    def test_upstream_newer_than_downstream_in_source_reruns_downstream(self, tmp_path):
+        """流用元が途中で止まり、埋め込みだけ新しい場合は、クラスタリングから作り直す。"""
+        source_config = self._source(tmp_path, {"embedding": "2026-01-02T00:00:00"})
+        plan = self._plan_reusing(tmp_path, source_config)
+        assert not plan["embedding"]["run"]
+        assert plan["hierarchical_clustering"]["run"]
+
+
+class TestCarriedOverTokenUsageWithoutSplit:
+    """工程ごとの input / output の内訳が無い古い status（v4.2.0 より前）からの引き継ぎ。"""
+
+    def test_splits_kept_steps_by_previous_ratio(self):
+        from analysis_core.core.orchestration import carried_over_token_usage
+
+        previous = {
+            "total_token_usage": 400,
+            "token_usage_input": 300,
+            "token_usage_output": 100,
+            "completed_jobs": [
+                {"step": "extraction", "token_usage": 100},
+                {"step": "hierarchical_initial_labelling", "token_usage": 100},
+                {"step": "hierarchical_merge_labelling", "token_usage": 100},
+                {"step": "hierarchical_overview", "token_usage": 100},
+            ],
+        }
+        plan = [
+            {"step": "extraction", "run": False},
+            {"step": "hierarchical_initial_labelling", "run": False},
+            {"step": "hierarchical_merge_labelling", "run": False},
+            {"step": "hierarchical_overview", "run": True},
+        ]
+        assert carried_over_token_usage(previous, plan) == {
+            "total_token_usage": 300,
+            "token_usage_input": 225,
+            "token_usage_output": 75,
+        }

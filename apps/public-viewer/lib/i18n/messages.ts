@@ -164,6 +164,7 @@ const ja = {
   commentCount: "コメント数",
   extractedOpinionCount: "抽出した意見数",
   clusterCount: "集約した意見グループ数",
+  clusterLevelLabel: (level: number) => `第${level}階層`,
   commentCountTooltip:
     "全てのコメントをAIで分析し、意見が含まれるコメントを抽出します。意見が含まれないコメントや、議題と関係のないコメントは除外されます。同じ人が複数のコメントを書くこともあるため、コメント数は人数と一致するとは限りません。",
   opinionCountTooltip:
@@ -365,6 +366,7 @@ const en: Messages = {
   commentCount: "Comments",
   extractedOpinionCount: "Extracted opinions",
   clusterCount: "Opinion groups",
+  clusterLevelLabel: (level: number) => `Level ${level}`,
   commentCountTooltip:
     "All comments are analyzed by AI and those containing opinions are extracted. Comments without opinions or unrelated to the topic are excluded. One person may write several comments, so the number of comments is not necessarily the number of people.",
   opinionCountTooltip:
@@ -561,6 +563,7 @@ const ko: Messages = {
   commentCount: "댓글 수",
   extractedOpinionCount: "추출한 의견 수",
   clusterCount: "집계한 의견 그룹 수",
+  clusterLevelLabel: (level: number) => `제${level}계층`,
   commentCountTooltip:
     "모든 댓글을 AI로 분석하여 의견이 포함된 댓글을 추출합니다. 의견이 없는 댓글이나 주제와 관계없는 댓글은 제외됩니다. 한 사람이 여러 댓글을 쓸 수도 있으므로 댓글 수가 사람 수와 같다고는 할 수 없습니다.",
   opinionCountTooltip:
