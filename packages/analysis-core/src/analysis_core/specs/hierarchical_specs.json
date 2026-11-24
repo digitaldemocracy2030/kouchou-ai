@@ -203,17 +203,21 @@
     },
     {
         "step": "hierarchical_visualization",
-        "filename": "report",
+        "filename": "report.html",
         "dependencies": {
             "params": [
-                "replacements"
+                "replacements",
+                "report_url_pattern",
+                "report_html_title"
             ],
             "steps": [
                 "hierarchical_aggregation"
             ]
         },
         "options": {
-            "replacements": []
+            "replacements": [],
+            "report_url_pattern": null,
+            "report_html_title": null
         }
     }
 ]

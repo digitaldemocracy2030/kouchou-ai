@@ -214,7 +214,18 @@ open outputs/config/report.html  # macOS
 # xdg-open outputs/config/report.html  # Linux
 ```
 
-`config.json` に `"report_url_pattern"` を指定すると、各点クリックで元コメントの URL を開けます（例: `"report_url_pattern": "https://example.com/comments/{comment_id}"`）。
+`config.json` の `hierarchical_visualization` に出典 URL のテンプレートと HTML のタブタイトルを任意で設定できます。
+
+```json
+{
+  "hierarchical_visualization": {
+    "report_url_pattern": "https://example.com/comments/{comment_id}",
+    "report_html_title": "住民アンケートの分析結果"
+  }
+}
+```
+
+`report_url_pattern` を指定すると、個別の URL がない意見には `{comment_id}` を差し込んだ出典リンクが付き、散布図の点から開けます。`report_html_title` を省略するとレポート名を使います。設定を変更して CLI を再実行すると HTML が更新されます。
 
 `report.html` は CLI の補助出力であり、Web 配信やストレージ同期の canonical artifact ではありません。プロダクトの viewer は `hierarchical_result.json` を入力として描画します。
 
