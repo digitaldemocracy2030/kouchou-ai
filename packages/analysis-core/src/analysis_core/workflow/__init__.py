@@ -37,6 +37,7 @@ from analysis_core.workflow.engine import WorkflowEngine, WorkflowExecutionError
 from analysis_core.workflow.resolver import (
     CyclicDependencyError,
     DependencyError,
+    DuplicateStepError,
     MissingDependencyError,
     evaluate_condition,
     resolve_execution_order,
@@ -55,6 +56,7 @@ __all__ = [
     # Resolver
     "DependencyError",
     "CyclicDependencyError",
+    "DuplicateStepError",
     "MissingDependencyError",
     "resolve_execution_order",
     "validate_dependencies",

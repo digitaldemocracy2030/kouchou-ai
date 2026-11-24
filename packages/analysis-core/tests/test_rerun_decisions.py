@@ -564,3 +564,34 @@ class TestReuseFromInterruptedSource:
         seeded = new_config["previous"]["completed_jobs"]
         seeded_clustering = next(job for job in seeded if job["step"] == "hierarchical_clustering")
         assert seeded_clustering["params"]["cluster_nums"] == [3, 6]
+
+
+class TestSpecsOrder:
+    """decide_what_to_run hands a re-run down only to later steps, so specs must list dependencies first."""
+
+    @pytest.mark.parametrize("specs_path", [HIERARCHICAL_SPECS, LLM_GROUPING_SPECS])
+    def test_builtin_specs_are_in_dependency_order(self, specs_path):
+        load_specs(specs_path)
+
+    def test_step_listed_before_its_dependency_is_rejected(self, tmp_path):
+        path = tmp_path / "specs.json"
+        path.write_text(
+            json.dumps(
+                [
+                    {"step": "b", "filename": "b.txt", "dependencies": {"steps": ["a"], "params": []}},
+                    {"step": "a", "filename": "a.txt", "dependencies": {"steps": [], "params": []}},
+                ]
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="'b' depends on 'a', which must be listed before it"):
+            load_specs(path)
+
+    def test_step_listed_twice_is_rejected(self, tmp_path):
+        path = tmp_path / "specs.json"
+        path.write_text(
+            json.dumps([{"step": "a", "filename": "a.txt", "dependencies": {"steps": [], "params": []}}] * 2),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="listed more than once"):
+            load_specs(path)

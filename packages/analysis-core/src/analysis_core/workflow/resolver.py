@@ -29,11 +29,29 @@ class MissingDependencyError(DependencyError):
     pass
 
 
+class DuplicateStepError(DependencyError):
+    """Raised when more than one step uses the same ID."""
+
+    pass
+
+
+def _duplicate_ids(step_ids: list[str]) -> list[str]:
+    """Return the IDs used by more than one step, in order of first appearance."""
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    for step_id in step_ids:
+        if step_id in seen and step_id not in duplicates:
+            duplicates.append(step_id)
+        seen.add(step_id)
+    return duplicates
+
+
 def validate_dependencies(workflow: WorkflowDefinition) -> list[str]:
     """
     Validate workflow dependencies.
 
     Checks for:
+    - Step IDs used by more than one step
     - Missing dependencies (referencing non-existent steps)
     - Self-dependencies
     - Cyclic dependencies
@@ -42,9 +60,11 @@ def validate_dependencies(workflow: WorkflowDefinition) -> list[str]:
         workflow: Workflow definition to validate
 
     Returns:
-        List of error messages (empty if valid)
+        List of error messages (empty if valid). Problems are reported here, not raised.
     """
     errors = []
+    for step_id in _duplicate_ids(workflow.get_step_ids()):
+        errors.append(f"Step ID '{step_id}' is used by more than one step")
     step_ids = set(workflow.get_step_ids())
 
     for step in workflow.steps:
@@ -57,11 +77,13 @@ def validate_dependencies(workflow: WorkflowDefinition) -> list[str]:
             if dep_id not in step_ids:
                 errors.append(f"Step '{step.id}' depends on non-existent step '{dep_id}'")
 
-    # Check for cycles
+    # Check for cycles (duplicate IDs and missing dependencies are already reported above)
     try:
         resolve_execution_order(workflow)
     except CyclicDependencyError as e:
         errors.append(str(e))
+    except DependencyError:
+        pass
 
     return errors
 
@@ -82,8 +104,12 @@ def resolve_execution_order(workflow: WorkflowDefinition) -> list[str]:
     Raises:
         CyclicDependencyError: If the workflow has cyclic dependencies
         MissingDependencyError: If a step depends on a non-existent step
+        DuplicateStepError: If more than one step uses the same ID
     """
     step_ids = workflow.get_step_ids()
+    duplicates = _duplicate_ids(step_ids)
+    if duplicates:
+        raise DuplicateStepError(f"Step IDs used by more than one step: {duplicates}")
     step_map = {step.id: step for step in workflow.steps}
 
     # Validate all dependencies exist
