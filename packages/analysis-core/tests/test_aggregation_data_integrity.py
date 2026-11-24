@@ -4,6 +4,7 @@ import importlib
 import json
 
 import polars as pl
+import pytest
 
 aggregation = importlib.import_module("analysis_core.steps.hierarchical_aggregation")
 
@@ -134,16 +135,19 @@ def _write_classifications(report):
 
 def test_stale_opinion_classifications_are_ignored_when_disabled(tmp_path):
     report, config = _write_report(
-        tmp_path, "comment-id,comment-body,attribute_age\n1,body,20s\n", [("A1_0", "body")], [("A1_0", "1")]
+        tmp_path,
+        "comment-id,comment-body,attribute_hate_or_insult\n1,body,original\n",
+        [("A1_0", "body")],
+        [("A1_0", "1")],
     )
     _write_classifications(report)  # left over from an earlier run with the step enabled
     config["opinion_classification"] = {"enabled": False}
     result = _run(report, config)
-    assert result["arguments"][0]["attributes"] == {"age": "20s"}
+    assert result["arguments"][0]["attributes"] == {"hate_or_insult": "original"}
 
     del config["opinion_classification"]
     result = _run(report, config)
-    assert result["arguments"][0]["attributes"] == {"age": "20s"}
+    assert result["arguments"][0]["attributes"] == {"hate_or_insult": "original"}
 
 
 def test_opinion_classifications_are_merged_when_enabled(tmp_path):
@@ -156,14 +160,46 @@ def test_opinion_classifications_are_merged_when_enabled(tmp_path):
     assert result["arguments"][0]["attributes"] == {"age": "20s", "hate_or_insult": "yes"}
 
 
+def test_aggregation_rejects_enabled_default_label_collision(tmp_path):
+    report, config = _write_report(
+        tmp_path,
+        "comment-id,comment-body,attribute_hate_or_insult\n1,body,original\n",
+        [("A1_0", "body")],
+        [("A1_0", "1")],
+    )
+    config["opinion_classification"] = {"enabled": True}
+    with pytest.raises(RuntimeError, match="attribute_hate_or_insult.*opinion_classification"):
+        _run(report, config)
+    assert not (report / "hierarchical_result.json").exists()
+
+
+def test_aggregation_rejects_cached_label_collision_and_keeps_previous_report(tmp_path):
+    report, config = _write_report(
+        tmp_path,
+        "comment-id,comment-body,attribute_hate_or_insult\n1,body,original\n",
+        [("A1_0", "body")],
+        [("A1_0", "1")],
+    )
+    result = _run(report, config)
+    _write_classifications(report)
+    config["opinion_classification"] = {"enabled": True, "labels": ["policy_proposal"]}
+
+    with pytest.raises(RuntimeError, match="attribute_hate_or_insult.*opinion_classification"):
+        _run(report, config)
+    assert json.loads((report / "hierarchical_result.json").read_text(encoding="utf-8")) == result
+
+
 def test_stale_opinion_scores_are_ignored_when_disabled(tmp_path):
     report, config = _write_report(
-        tmp_path, "comment-id,comment-body,attribute_age\n1,body,20s\n", [("A1_0", "body")], [("A1_0", "1")]
+        tmp_path,
+        "comment-id,comment-body,attribute_stance_score,attribute_novelty_score\n1,body,0.9,0.1\n",
+        [("A1_0", "body")],
+        [("A1_0", "1")],
     )
     (report / "opinion_stances.csv").write_text("arg-id,stance_score\nA1_0,0.5\n", encoding="utf-8")
     (report / "opinion_novelty.csv").write_text("arg-id,novelty_score\nA1_0,0.9\n", encoding="utf-8")
     result = _run(report, config)
-    assert result["arguments"][0]["attributes"] == {"age": "20s"}
+    assert result["arguments"][0]["attributes"] == {"stance_score": "0.9", "novelty_score": "0.1"}
 
 
 def test_opinion_scores_are_merged_as_numbers_when_enabled(tmp_path):
