@@ -193,13 +193,13 @@ export function CreateReportConfirmation({
               <Text fontWeight="bold">API接続チェック</Text>
               <Text as="output" display="block" aria-live="polite" mt="2">
                 {check === "unknown_error" && request.provider === "azure" ? azureErrorMessage : checkMessages[check]}
-                <ApiBillingGuideLink errorType={check} />
                 {checkFailed && checkDetail && (
                   <Text as="span" display="block" mt="1" fontSize="sm" color="font.secondary">
                     エラー詳細：{checkDetail}
                   </Text>
                 )}
               </Text>
+              <ApiBillingGuideLink errorType={check} />
               <Text mt="2" fontSize="sm">
                 {request.provider === "azure" ? "Azureのサーバー設定済みデプロイ" : "選択したモデル"}
                 へ短いチャットを送信します。API利用料がかかる場合があります。埋め込み・残高・レポート全体の動作は未確認です。
