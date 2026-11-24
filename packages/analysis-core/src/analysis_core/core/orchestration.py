@@ -98,13 +98,28 @@ def resolve_user_api_key(config: dict[str, Any] | None = None) -> str | None:
 # Top-level config keys that steps may depend on (see "global_params" in specs).
 GLOBAL_PARAM_KEYS = ("input", "question", "intro", "is_pubcom", "enable_source_link", "enable_original_comments")
 
+# Options of other steps that a step may depend on, written "<step>.<option>" in "global_params".
+# hierarchical_aggregation merges the outputs of the opt-in steps only while they are enabled, so turning
+# one off (or back on) must re-run it even though the opt-in step itself does not run.
+STEP_OPTION_PARAM_KEYS = ("opinion_classification.enabled", "opinion_stance.enabled", "opinion_novelty.enabled")
+
+
+def global_param_value(config: dict[str, Any], key: str) -> Any:
+    """Return the current value of a "global_params" key (top-level, or "<step>.<option>")."""
+    if "." in key:
+        step, option = key.split(".", 1)
+        step_config = config.get(step)
+        return step_config.get(option) if isinstance(step_config, dict) else None
+    return config.get(key)
+
+
 # Steps whose outputs embed the job's own config and must be regenerated instead of reused.
 _NON_REUSABLE_STEPS = {"hierarchical_aggregation", "hierarchical_visualization"}
 
 
 def snapshot_global_params(config: dict[str, Any]) -> dict[str, Any]:
-    """Return the top-level params recorded with each completed job."""
-    return {key: config.get(key) for key in GLOBAL_PARAM_KEYS}
+    """Return the "global_params" values recorded with each completed job."""
+    return {key: global_param_value(config, key) for key in (*GLOBAL_PARAM_KEYS, *STEP_OPTION_PARAM_KEYS)}
 
 
 def _step_files(step_spec: dict[str, Any]) -> list[str]:
@@ -570,12 +585,26 @@ def decide_what_to_run(
         prev_globals = match.get("global_params")
         if prev_globals is not None:
             for key in step["dependencies"].get("global_params", []):
-                if prev_globals.get(key) != config.get(key):
-                    print(
-                        f"(!) {step['step']} global parameter '{key}' changed from '{prev_globals.get(key)}' to '{config.get(key)}'"
-                    )
+                before = prev_globals[key] if key in prev_globals else untracked_global_param(key)
+                after = global_param_value(config, key)
+                if before != after:
+                    print(f"(!) {step['step']} global parameter '{key}' changed from '{before}' to '{after}'")
                     diff.append(key)
         return diff
+
+    def untracked_global_param(key: str) -> Any:
+        """Best guess for a "<step>.<option>" key that an older record did not track.
+
+        Use the option the step itself last ran with (its own record), else the option's default.
+        """
+        if "." not in key:
+            return None
+        dep, option = key.split(".", 1)
+        dep_job = previous_by_step.get(dep)
+        if dep_job is not None and option in dep_job.get("params", {}):
+            return dep_job["params"][option]
+        dep_spec = next((spec for spec in specs if spec["step"] == dep), None)
+        return dep_spec.get("options", {}).get(option) if dep_spec else None
 
     def newer_deps(step: dict[str, Any]) -> list[str]:
         """Dependencies whose latest output is newer than this step's output."""
