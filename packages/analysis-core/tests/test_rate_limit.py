@@ -267,3 +267,87 @@ def test_gemini_bypasses_shared_limiter(monkeypatch):
     monkeypatch.setattr(llm, "call_with_rate_limit", lambda fn: pytest.fail("Gemini must not use the shared limiter"))
     monkeypatch.setattr(llm, "request_to_gemini_chatcompletion", lambda *args, **kwargs: ("ok", 1, 1, 2))
     assert llm.request_to_chat_ai([{"role": "user", "content": "hi"}], provider="gemini")[0] == "ok"
+
+
+def test_call_with_rate_limit_reports_each_outcome_to_limiter(monkeypatch):
+    """call_with_rate_limit は結果（429・成功・その他の失敗）を、同時実行数の制御が読む名前で伝える。
+
+    制御側のテストは自分で release を呼ぶので、ここで名前がずれると 429 で速さが落ちなくなっても気づけない。
+    """
+    monkeypatch.setattr(rate_limit.time, "sleep", lambda seconds: None)
+    outcomes = []
+
+    class RecordingLimiter(AdaptiveConcurrencyLimiter):
+        def release(self, outcome):
+            outcomes.append(outcome)
+            super().release(outcome)
+
+    monkeypatch.setattr(rate_limit, "_limiter", RecordingLimiter())
+    calls = {"count": 0}
+
+    def fn():
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise _rate_limit_error()
+        return "ok"
+
+    assert rate_limit.call_with_rate_limit(fn) == "ok"
+
+    def broken():
+        raise ValueError("boom")
+
+    with pytest.raises(ValueError):
+        rate_limit.call_with_rate_limit(broken)
+    assert outcomes == ["rate_limited", "ok", "error"]
+
+
+def test_429_through_call_with_rate_limit_lowers_then_restores_limit(monkeypatch):
+    """call_with_rate_limit 経由の 429 で同時実行数が下がり、送り直しが成功すると制限が外れる。"""
+    monkeypatch.setattr(rate_limit.time, "sleep", lambda seconds: None)
+    limits_seen_on_resend = []
+    calls = {"count": 0}
+
+    def fn():
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise _rate_limit_error()
+        limits_seen_on_resend.append(rate_limit._limiter.limit)
+        return "ok"
+
+    assert rate_limit.call_with_rate_limit(fn) == "ok"
+    assert limits_seen_on_resend == [1]  # 1 件同時のときの 429 → 下限の 1 件に下げてから送り直す
+    assert rate_limit._limiter.limit is None  # 成功で元の同時実行数（1）を超えたので制限を外す
+
+
+def test_chat_http_client_stops_sdk_retrying_429(monkeypatch):
+    """本番の要求が使う chat_http_client() 自体が、SDK の 429 の自動再試行を止めている。
+
+    test_sdk_does_not_retry_429_itself はフックを付けたクライアントを自前で組み立てるので、
+    chat_http_client() がフックを付け忘れても気づけない。ここでは送り先だけ偽物に差し替える。
+    """
+    from openai import AzureOpenAI
+
+    http = importlib.import_module(openai.DefaultHttpxClient.__mro__[1].__module__.split(".")[0])
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return http.Response(429, headers={"retry-after-ms": "5"}, json={"error": {"code": "429", "message": "x"}})
+
+    default_httpx_client = openai.DefaultHttpxClient
+    monkeypatch.setattr(
+        openai,
+        "DefaultHttpxClient",
+        lambda **kwargs: default_httpx_client(transport=http.MockTransport(handler), **kwargs),
+    )
+    monkeypatch.setattr(rate_limit, "_http_client", None)
+
+    client = rate_limit.chat_http_client()
+    assert client is not None
+    assert rate_limit.chat_http_client() is client  # プロセスで 1 つを使い回す
+    azure = AzureOpenAI(
+        api_key="k", azure_endpoint="https://example.invalid", api_version="2024-10-21", http_client=client
+    )
+    with pytest.raises(openai.RateLimitError):
+        azure.chat.completions.create(model="d", messages=[{"role": "user", "content": "hi"}])
+    assert len(requests) == 1

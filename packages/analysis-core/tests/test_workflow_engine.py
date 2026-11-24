@@ -608,3 +608,44 @@ class TestWorkflowEngineOutputDir:
             assert (output_dir / "file2.txt").exists()
             assert (output_dir / "file1.txt").read_text() == "step1"
             assert (output_dir / "file2.txt").read_text() == "step2"
+
+
+class TestWorkflowEngineTokenUsage:
+    """Token counts are summed across steps (they feed the report's token / cost display)."""
+
+    def test_token_counts_are_summed_across_steps(self, test_ctx, test_registry):
+        @step_plugin(id="test.tokens_first", version="1.0.0", inputs=[], outputs=["first"])
+        def first_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            return StepOutputs(
+                artifacts={"first": ctx.output_dir / "first.txt"},
+                token_usage=150,
+                token_input=100,
+                token_output=50,
+            )
+
+        @step_plugin(id="test.tokens_second", version="1.0.0", inputs=["first"], outputs=["second"])
+        def second_plugin(ctx: StepContext, inputs: StepInputs, config: dict) -> StepOutputs:
+            return StepOutputs(
+                artifacts={"second": ctx.output_dir / "second.txt"},
+                token_usage=30,
+                token_input=20,
+                token_output=10,
+            )
+
+        test_registry.register(first_plugin)
+        test_registry.register(second_plugin)
+        workflow = WorkflowDefinition(
+            id="test-workflow",
+            version="1.0.0",
+            steps=[
+                WorkflowStep(id="first", plugin="test.tokens_first"),
+                WorkflowStep(id="second", plugin="test.tokens_second", depends_on=["first"]),
+            ],
+        )
+
+        result = WorkflowEngine(registry=test_registry).run(workflow, {}, test_ctx)
+
+        assert result.success
+        assert result.total_token_usage == 180
+        assert result.total_token_input == 120
+        assert result.total_token_output == 60
