@@ -253,11 +253,30 @@ def _write_json_atomic(path: Path, data: dict[str, Any]) -> None:
     write_json_atomic(path, data)
 
 
+def validate_specs_order(specs: list[dict[str, Any]]) -> None:
+    """Raise ValueError unless every step is listed after the steps it depends on, once.
+
+    decide_what_to_run hands a re-run down only to steps listed after it, so a step listed
+    before one of its dependencies would be skipped even when that dependency re-runs.
+    """
+    listed: set[str] = set()
+    for spec in specs:
+        step = spec["step"]
+        if step in listed:
+            raise ValueError(f"Step '{step}' is listed more than once in the specs")
+        for dep in spec["dependencies"]["steps"]:
+            if dep not in listed:
+                raise ValueError(f"Step '{step}' depends on '{dep}', which must be listed before it in the specs")
+        listed.add(step)
+
+
 def load_specs(specs_path: Path) -> list[dict[str, Any]]:
     """Load pipeline step specifications from a JSON file."""
     global _specs
     with open(specs_path, "r", encoding="utf-8") as f:
-        _specs = json.load(f)
+        specs = json.load(f)
+    validate_specs_order(specs)
+    _specs = specs
     return _specs
 
 
