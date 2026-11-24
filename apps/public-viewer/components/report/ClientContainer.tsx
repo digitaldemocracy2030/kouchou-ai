@@ -29,6 +29,7 @@ import {
 ensurePluginsLoaded();
 
 const DEFAULT_READING_CHARTS = [...DEFAULT_ENABLED_CHARTS, "hierarchyList"];
+const NARROW_SCREEN_QUERY = "(max-width: 600px)";
 
 type Props = {
   result: Result;
@@ -61,7 +62,7 @@ export function ClientContainer({ result }: Props) {
     if (
       !visualizationConfig?.defaultChart &&
       enabledCharts.includes("hierarchyList") &&
-      window.matchMedia("(max-width: 600px)").matches
+      window.matchMedia(NARROW_SCREEN_QUERY).matches
     ) {
       setSelectedChart("hierarchyList");
     }
@@ -70,7 +71,12 @@ export function ClientContainer({ result }: Props) {
   const [maxDensity, setMaxDensity] = useState(defaultParams?.scatterDensity?.maxDensity ?? 0.2);
   const [minValue, setMinValue] = useState(defaultParams?.scatterDensity?.minValue ?? 5);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showClusterLabels, setShowClusterLabels] = useState(defaultParams?.showClusterLabels ?? true);
+  const [narrowScreenOnMount, setNarrowScreenOnMount] = useState(false);
+  const [clusterLabelPreference, setClusterLabelPreference] = useState<boolean>();
+  useEffect(() => {
+    setNarrowScreenOnMount(window.matchMedia(NARROW_SCREEN_QUERY).matches);
+  }, []);
+  const showClusterLabels = clusterLabelPreference ?? defaultParams?.showClusterLabels ?? !narrowScreenOnMount;
   const [showConvexHull, setShowConvexHull] = useState(true);
   const [treemapLevel, setTreemapLevel] = useState("0");
   // 散布図でクリックされたクラスタ（連動文章・一覧のハイライト対象）
@@ -229,7 +235,7 @@ export function ClientContainer({ result }: Props) {
           onClose={() => setOpenDensityFilterSetting(false)}
           onChangeFilter={onChangeDensityFilter}
           showClusterLabels={showClusterLabels}
-          onToggleClusterLabels={setShowClusterLabels}
+          onToggleClusterLabels={setClusterLabelPreference}
           showConvexHull={showConvexHull}
           onToggleConvexHull={setShowConvexHull}
         />
@@ -271,7 +277,7 @@ export function ClientContainer({ result }: Props) {
         chartOrder={chartOrder}
         disabledModeOverrides={{ scatterDensity: !isDenseGroupEnabled }}
         showClusterLabels={showClusterLabels}
-        onToggleClusterLabels={setShowClusterLabels}
+        onToggleClusterLabels={setClusterLabelPreference}
         showConvexHull={showConvexHull}
         treemapLevel={treemapLevel}
         onTreeZoom={setTreemapLevel}

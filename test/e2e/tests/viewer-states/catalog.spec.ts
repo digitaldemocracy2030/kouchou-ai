@@ -62,7 +62,17 @@ test("スマホは一覧を初期表示し明示設定を尊重する", async ({
   await expect(page.locator(".js-plotly-plot")).toHaveCount(0);
   await page.screenshot({ path: "test-results/viewer-mobile.png", fullPage: true });
   await page.getByRole("combobox", { name: "状態", exact: true }).selectOption("明示的な散布図");
-  await expect(page.locator(".js-plotly-plot")).toBeVisible();
+  const plot = page.locator(".js-plotly-plot");
+  await expect(plot.locator("svg.main-svg").first()).toBeVisible();
+  await expect(plot.locator(".annotation")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      plot.evaluate((element) => {
+        const { width, height } = element.getBoundingClientRect();
+        return Math.abs(width - height);
+      }),
+    )
+    .toBeLessThanOrEqual(1);
 });
 
 test("描画更新後もクラウド送信を表示せず階層クリックと説明が同期する", async ({ page }) => {

@@ -205,7 +205,14 @@ export function SelectChartButton({
           )}
 
           <Tooltip content={messages.displaySettings} openDelay={0} closeDelay={0}>
-            <Button onClick={onClickDensitySetting} variant={"outline"} h={"50px"} w={"50px"} p={0}>
+            <Button
+              aria-label={messages.displaySettings}
+              onClick={onClickDensitySetting}
+              variant={"outline"}
+              h={"50px"}
+              w={"50px"}
+              p={0}
+            >
               <Icon as={CogIcon} />
             </Button>
           </Tooltip>

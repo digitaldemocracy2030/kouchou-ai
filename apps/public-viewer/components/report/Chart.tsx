@@ -77,6 +77,7 @@ export function Chart({
 
   // Get the plugin that handles the selected chart mode
   const plugin = chartRegistry.getByMode(selectedChart);
+  const isScatter = plugin?.manifest.id === "scatter";
 
   if (isFullscreen) {
     return (
@@ -121,7 +122,13 @@ export function Chart({
 
   return (
     <Box mx={"auto"} w={"100%"} maxW={"1200px"} mb={10} border={"1px solid #ccc"}>
-      <Box h={selectedChart === "hierarchyList" ? "auto" : "500px"} mb={0}>
+      <Box
+        w="100%"
+        h={isScatter || selectedChart === "hierarchyList" ? "auto" : "500px"}
+        aspectRatio={isScatter ? 1 : undefined}
+        maxH={isScatter ? "500px" : undefined}
+        mb={0}
+      >
         {plugin?.render({ ...renderContext, onHover: undefined })}
       </Box>
     </Box>
