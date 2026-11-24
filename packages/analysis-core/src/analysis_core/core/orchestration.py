@@ -581,18 +581,21 @@ def decide_what_to_run(
             print(
                 f"(!) {step['step']} step parameter '{key}' changed from '{prev.get(key)}' to '{next_params.get(key)}'"
             )
-        # Records written before global params were tracked are not compared.
         prev_globals = match.get("global_params")
-        if prev_globals is not None:
-            for key in step["dependencies"].get("global_params", []):
-                if "." in key and key not in prev_globals:
-                    # Records written before other steps' options were tracked: the value used back
-                    # then is unknown (the step's own record may be older), so regenerate once.
+        for key in step["dependencies"].get("global_params", []):
+            after = global_param_value(config, key)
+            if key in STEP_OPTION_PARAM_KEYS and key not in (prev_globals or {}):
+                # Early reports can lack global_params entirely. Even those reports may have
+                # used an opt-in step. Its own record is evidence of use, not of what aggregation read.
+                opinion_job = previous_by_step.get(key.split(".", 1)[0])
+                was_used = opinion_job is not None and opinion_job.get("params", {}).get("enabled", True)
+                if prev_globals is not None or after or was_used:
                     print(f"(!) {step['step']} global parameter '{key}' was not recorded by the previous run")
                     diff.append(key)
-                    continue
+                continue
+            # Keep the existing behavior for top-level params on reports with no global snapshot.
+            if prev_globals is not None:
                 before = prev_globals.get(key)
-                after = global_param_value(config, key)
                 if before != after:
                     print(f"(!) {step['step']} global parameter '{key}' changed from '{before}' to '{after}'")
                     diff.append(key)

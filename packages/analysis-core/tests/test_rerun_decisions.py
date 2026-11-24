@@ -245,6 +245,25 @@ class TestOptInStepToggles:
         downstream = {"hierarchical_aggregation", "hierarchical_visualization"}
         assert all(not p["run"] for step, p in plan.items() if step not in downstream)
 
+    @pytest.mark.parametrize("legacy_step_used", [True, False])
+    def test_aggregation_without_global_params_checks_opt_in_history(self, tmp_path, legacy_step_used):
+        specs = load_specs(HIERARCHICAL_SPECS)
+        config = _initialized_config(tmp_path)
+        previous = _completed_status(config, specs)
+        aggregation = next(job for job in previous["completed_jobs"] if job["step"] == "hierarchical_aggregation")
+        aggregation.pop("global_params")
+        previous["completed_jobs"] = [job for job in previous["completed_jobs"] if job["step"] not in OPT_IN_STEPS]
+        if legacy_step_used:
+            # This record predates global snapshots, and may already have been stale during aggregation.
+            previous["previously_completed_jobs"].append(
+                {"step": "opinion_classification", "params": {"enabled": True}, "completed": aggregation["completed"]}
+            )
+        _touch_artifacts(tmp_path, config, specs)
+
+        plan = _plan_with_previous(tmp_path, config, previous, specs)
+
+        assert plan["hierarchical_aggregation"]["run"] is legacy_step_used
+
 
 class TestStaleDownstreamAfterFailure:
     """#7: a downstream step older than its upstream must re-run even if params are unchanged."""
