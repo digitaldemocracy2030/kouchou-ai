@@ -82,6 +82,8 @@ export interface ChartMode {
   label: string;
   /** Icon component for this mode */
   icon: ComponentType;
+  /** 長いリストは固定高の図と異なり、ページと一緒に伸びる */
+  layout?: "flow";
   /** Whether this mode can be disabled based on data */
   canBeDisabled?: boolean;
   /** Function to check if mode should be disabled */

@@ -82,6 +82,9 @@ export function Chart({
     onHover: undefined,
   };
 
+  // Get the plugin that handles the selected chart mode
+  const plugin = chartRegistry.getByMode(selectedChart);
+  const flowLayout = plugin?.manifest.modes.find((mode) => mode.id === selectedChart)?.layout === "flow";
   const treemapDensityControl = selectedChart === "treemap" && onTreemapDensityChange && (
     <Switch
       size="sm"
@@ -99,7 +102,7 @@ export function Chart({
         {messages.noOpinionsHere}
       </Center>
     ) : (
-      chartRegistry.getByMode(selectedChart)?.render(renderContext)
+      plugin?.render(renderContext)
     );
 
   if (isFullscreen) {
@@ -133,7 +136,7 @@ export function Chart({
                   {/* 全画面のまま表示言語を切り替えられるようにする（通常表示の切替と状態を共有） */}
                   <LanguageToggle size="sm" />
                 </FullscreenToolbar>
-                <Box w="100%" flex="1" minH={0} overflow={selectedChart === "hierarchyList" ? "auto" : "hidden"}>
+                <Box w="100%" flex="1" minH={0} overflow={flowLayout ? "auto" : "hidden"}>
                   {chartContent}
                 </Box>
               </Box>
@@ -151,7 +154,7 @@ export function Chart({
           {treemapDensityControl}
         </Box>
       )}
-      <Box h={selectedChart === "hierarchyList" ? "auto" : "500px"} mb={0}>
+      <Box h={flowLayout ? "auto" : "500px"} mb={0}>
         {chartContent}
       </Box>
     </Box>
