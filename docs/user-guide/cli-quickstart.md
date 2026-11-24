@@ -400,6 +400,20 @@ kouchou-analyze --config report_october.json
 
 出力は `opinion_classifications.csv`（意見ごとの `yes` / `no`）と `opinion_classification_summary.json`（件数と比率）です。比率はLLMの判定に基づく、定義に対する割合であり、人手で検証したものではありません。
 
+ラベルは自分で定義することもできます（例: 「安全上確認すべき指摘」「業務の課題」「解決策・アイデア」）。`labels` に `id`・`name`・`includes`（任意で `excludes`）を持つオブジェクトを書くと、その定義からプロンプトを組み立てます。通常の分析はそのまま残り、ビューアの属性フィルタで各ラベルの yes / no を指定して絞り込めます。書き方は [意見の分類ラベル — ラベルを自分で定義する](../development/opinion-classification.md#user-defined-labels) を参照してください。
+
+```json
+{
+  "opinion_classification": {
+    "enabled": true,
+    "labels": [
+      { "id": "problem", "name": "業務の課題", "includes": "困っていること・うまくいっていないことを述べているもの" },
+      { "id": "solution", "name": "解決策・アイデア", "includes": "課題への対応策や、こうするとよいという提案を述べているもの" }
+    ]
+  }
+}
+```
+
 ### 意見ごとに賛否スコア・新規性スコアを付ける（任意）
 
 意見 1 件ごとに数値の属性を足す任意ステップが 2 つあります。どちらも既定では無効で、有効にすると `hierarchical_result.json` の `arguments[].attributes` に数値が入り、公開ビューアの属性フィルタで範囲を指定して絞り込めます（「賛成の意見だけ」「珍しい意見の候補だけ」など）。詳細は [意見ごとのスコア](../development/opinion-scores.md) を参照してください。

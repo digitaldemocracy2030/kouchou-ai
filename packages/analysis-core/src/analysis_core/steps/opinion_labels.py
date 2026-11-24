@@ -8,6 +8,7 @@ runner that talks to a local LLM without installing the full package).
 import json
 import re
 from dataclasses import dataclass
+from typing import Any
 
 YES = "yes"
 NO = "no"
@@ -60,6 +61,87 @@ DEFAULT_LABELS: tuple[OpinionLabel, ...] = (
 )
 
 DEFAULT_LABEL_IDS: tuple[str, ...] = tuple(label.id for label in DEFAULT_LABELS)
+
+# ラベル ID は応答 JSON のキー・応答スキーマのフィールド名・CSV の列名・ビューアの属性名になる
+_LABEL_ID_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
+# 他の任意ステップが同じ arguments[].attributes に書く名前。ラベル ID に使うと集計で上書きし合う
+RESERVED_LABEL_IDS = frozenset({"stance_score", "novelty_score"})
+_LABEL_FIELDS = frozenset({"id", "name", "includes", "excludes"})
+_REQUIRED_LABEL_FIELDS = ("id", "name", "includes")
+
+
+class InvalidLabelSpec(ValueError):
+    """``opinion_classification.labels`` cannot be turned into a usable label set."""
+
+
+def _label_from_mapping(item: dict, position: int) -> OpinionLabel:
+    unknown = sorted(set(item) - _LABEL_FIELDS)
+    if unknown:
+        raise InvalidLabelSpec(
+            f"opinion_classification.labels[{position}] に使えない項目があります: {unknown}"
+            "（使えるのは id・name・includes・excludes）"
+        )
+    for field in (*_REQUIRED_LABEL_FIELDS, "excludes"):
+        value = item.get(field)
+        if value is not None and not isinstance(value, str):
+            raise InvalidLabelSpec(f"opinion_classification.labels[{position}].{field} は文字列で指定してください")
+    missing = [field for field in _REQUIRED_LABEL_FIELDS if not (item.get(field) or "").strip()]
+    if missing:
+        raise InvalidLabelSpec(f"opinion_classification.labels[{position}] に {missing} がありません")
+    return OpinionLabel(
+        id=item["id"].strip(),
+        name=item["name"].strip(),
+        includes=item["includes"].strip(),
+        excludes=(item.get("excludes") or "").strip(),
+    )
+
+
+def resolve_label_spec(spec: Any) -> tuple[tuple[str, ...], tuple[OpinionLabel | None, ...]]:
+    """Turn ``opinion_classification.labels`` into label IDs and their definitions.
+
+    Each entry is either a string or an object:
+
+    - a string is a label ID. The built-in IDs (``hate_or_insult``, ``policy_proposal``)
+      carry their definitions; any other string has no definition here, so it can only
+      be used together with a prompt the user wrote (the definition is in that prompt).
+    - an object ``{"id", "name", "includes", "excludes"?}`` is a label defined by the
+      user. Using a built-in ID replaces that label's definition.
+
+    ``None`` or an empty list means the built-in labels. Invalid input raises
+    ``InvalidLabelSpec`` so that a typo stops the run before any LLM call.
+    """
+    if spec is None or (isinstance(spec, (list, tuple)) and len(spec) == 0):
+        return DEFAULT_LABEL_IDS, DEFAULT_LABELS
+    if not isinstance(spec, (list, tuple)):
+        raise InvalidLabelSpec("opinion_classification.labels はリストで指定してください")
+
+    builtin = {label.id: label for label in DEFAULT_LABELS}
+    ids: list[str] = []
+    definitions: list[OpinionLabel | None] = []
+    for position, item in enumerate(spec):
+        if isinstance(item, str):
+            label_id = item.strip()
+            definition = builtin.get(label_id)
+        elif isinstance(item, dict):
+            definition = _label_from_mapping(item, position)
+            label_id = definition.id
+        else:
+            raise InvalidLabelSpec(
+                f"opinion_classification.labels[{position}] は、ラベル ID の文字列か、"
+                "id・name・includes を持つオブジェクトで指定してください"
+            )
+        if not _LABEL_ID_PATTERN.match(label_id):
+            raise InvalidLabelSpec(
+                f"ラベル ID '{label_id}' は使えません。英字で始まり、英数字と _ だけの 64 文字以内にしてください"
+            )
+        if label_id in RESERVED_LABEL_IDS:
+            raise InvalidLabelSpec(f"ラベル ID '{label_id}' は他のステップが使う属性名なので使えません")
+        if label_id in ids:
+            raise InvalidLabelSpec(f"ラベル ID '{label_id}' が重複しています")
+        ids.append(label_id)
+        definitions.append(definition)
+    return tuple(ids), tuple(definitions)
+
 
 _PROMPT_HEADER = """あなたは意見分類の補助者です。userのinputは、ある文章から抽出された1件の意見（短い主張）です。
 この意見が以下の各ラベルの定義に該当するかどうかを判定し、JSONで返してください。
@@ -117,12 +199,46 @@ def build_classification_prompt(labels: tuple[OpinionLabel, ...] | list[OpinionL
         raise ValueError("at least one label is required")
     sections = [_PROMPT_HEADER, "\n# ラベル定義\n"]
     for label in labels:
-        sections.append(f"## {label.id}（{label.name}）\n- 該当: {label.includes}\n- 非該当: {label.excludes}\n\n")
+        excludes = f"- 非該当: {label.excludes}\n" if label.excludes else ""
+        sections.append(f"## {label.id}（{label.name}）\n- 該当: {label.includes}\n{excludes}\n")
     sections.append("# 出力形式\n")
     sections.append(json.dumps({label.id: False for label in labels}, ensure_ascii=False) + "\n")
     if tuple(label.id for label in labels) == DEFAULT_LABEL_IDS:
         sections.append(_PROMPT_EXAMPLES)
     return "".join(sections)
+
+
+# 既定のプロンプト。設定に prompt が無いときはこれが入るので、これと同じなら「利用者は書いていない」とみなす
+DEFAULT_CLASSIFICATION_PROMPT = build_classification_prompt(DEFAULT_LABELS)
+
+
+def resolve_classification_prompt(
+    prompt: str | None, label_ids: tuple[str, ...], definitions: tuple[OpinionLabel | None, ...]
+) -> str:
+    """Return the prompt to send for ``label_ids``.
+
+    A prompt written by the user is used as is (it carries its own definitions).
+    When the prompt is empty or the built-in one, it is rebuilt from ``definitions``
+    so that the definitions sent to the LLM always match the labels requested.
+    """
+    if prompt and prompt.strip() != DEFAULT_CLASSIFICATION_PROMPT.strip():
+        return prompt
+    missing = [label_id for label_id, definition in zip(label_ids, definitions, strict=True) if definition is None]
+    if missing:
+        raise InvalidLabelSpec(
+            f"ラベル {missing} の定義がありません。id・name・includes を持つオブジェクトで書くか、"
+            "定義を含むプロンプトを opinion_classification.prompt に指定してください"
+        )
+    return build_classification_prompt([definition for definition in definitions if definition is not None])
+
+
+def label_definitions_for_summary(definitions: tuple[OpinionLabel | None, ...]) -> list[dict[str, str]]:
+    """Definitions to keep next to the ratios (a ratio only means something with its definition)."""
+    return [
+        {"id": label.id, "name": label.name, "includes": label.includes, "excludes": label.excludes}
+        for label in definitions
+        if label is not None
+    ]
 
 
 class InvalidClassificationResponse(ValueError):
