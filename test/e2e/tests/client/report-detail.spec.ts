@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Client - レポート詳細テスト
@@ -76,7 +76,7 @@ test.describe("Client - レポート詳細のレスポンシブデザイン", ()
   const viewports = [
     { name: "デスクトップ", width: 1920, height: 1080 },
     { name: "タブレット", width: 768, height: 1024 },
-    { name: "モバイル", width: 375, height: 667 },
+    { name: "モバイル", width: 375, height: 667, initialHierarchyList: true },
   ];
 
   for (const viewport of viewports) {
@@ -88,6 +88,13 @@ test.describe("Client - レポート詳細のレスポンシブデザイン", ()
 
       // レポートタイトルが表示される
       await expect(page.getByText("AIと著作権について、どのような意見が寄せられているのか？")).toBeVisible();
+
+      if (viewport.initialHierarchyList) {
+        // モバイルでは階層リストで開く。初期表示では全体グループの子が折りたたまれている。
+        await expect(page.getByRole("radio", { name: /リスト$/ })).toBeChecked();
+        await page.getByRole("button", { name: "展開する", exact: true }).click();
+        await page.getByRole("button", { name: /^子要素を表示/ }).click();
+      }
 
       // クラスタ情報が表示される
       await expect(page.getByText(/生成AIと著作権に関する法的/).first()).toBeVisible();
