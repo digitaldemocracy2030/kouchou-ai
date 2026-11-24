@@ -110,7 +110,8 @@
         "dependencies": {
             "params": [
                 "cluster_nums",
-                "reuse_umap_model"
+                "reuse_umap_model",
+                "random_seed"
             ],
             "steps": [
                 "embedding"
@@ -119,6 +120,7 @@
         "options": {
             "cluster_nums": null,
             "reuse_umap_model": null,
+            "random_seed": null,
             "save_umap_model": true
         }
     },

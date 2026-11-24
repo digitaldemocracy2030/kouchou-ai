@@ -25,12 +25,13 @@
     "filename": "hierarchical_clusters.csv",
     "extra_files": ["hierarchical_merge_labels.csv"],
     "dependencies": {
-      "params": ["group_count", "discovery_sample_size", "assignment_batch_size", "discovery_prompt", "assignment_prompt", "predefined_groups", "other_group_label"],
+      "params": ["group_count", "discovery_sample_size", "assignment_batch_size", "discovery_prompt", "assignment_prompt", "predefined_groups", "other_group_label", "random_seed"],
       "global_params": ["question"],
       "steps": ["extraction", "embedding"]
     },
     "options": {
       "group_count": null,
+      "random_seed": null,
       "discovery_sample_size": 80,
       "assignment_batch_size": 25,
       "discovery_prompt": "",
