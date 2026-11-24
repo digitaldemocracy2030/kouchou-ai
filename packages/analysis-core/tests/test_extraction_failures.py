@@ -66,9 +66,8 @@ def test_malformed_llm_response_fails_batch(monkeypatch, response):
     assert error.value.failures == {0: "ValueError"}
 
 
-@pytest.mark.parametrize("execution", ["legacy", "workflow"])
-def test_extraction_failure_does_not_publish_partial_outputs(tmp_path, monkeypatch, execution):
-    from analysis_core.core.orchestration import run_step, termination
+def test_extraction_failure_does_not_publish_partial_outputs(tmp_path, monkeypatch):
+    from analysis_core.orchestrator import PipelineOrchestrator
 
     inputs = tmp_path / "inputs"
     outputs = tmp_path / "outputs"
@@ -92,25 +91,14 @@ def test_extraction_failure_does_not_publish_partial_outputs(tmp_path, monkeypat
         return '{"extractedOpinionList": ["opinion"]}', 2, 1, 3
 
     monkeypatch.setattr(extraction, "request_to_chat_ai", request)
-    if execution == "legacy":
-        with pytest.raises(extraction.ExtractionBatchError):
-            try:
-                run_step("extraction", extraction.extraction, config)
-            except extraction.ExtractionBatchError as error:
-                termination(config, error)
-    else:
-        from analysis_core.orchestrator import PipelineOrchestrator
-
-        result = PipelineOrchestrator(config).run_default()
-        assert not result.success
-        assert [step.step_name for step in result.steps] == ["extraction"]
+    result = PipelineOrchestrator(config).run_default()
+    assert not result.success
+    assert [step.step_name for step in result.steps] == ["extraction"]
     status = json.loads((report / "hierarchical_status.json").read_text())
     assert status["status"] == "error"
     assert "c2" in status["error"]
     assert "private error" not in status["error"]
     assert status.get("completed_jobs", []) == []
-    if execution == "legacy":
-        assert status["total_token_usage"] == 3
     assert not (report / "args.csv").exists()
     assert not (report / "relations.csv").exists()
 
