@@ -1,5 +1,6 @@
 import path from "node:path";
 import { expect, test } from "@playwright/test";
+import { CreateReportPage } from "../../pages/admin/create-report";
 
 const scenarios = [
   ["e2e-authentication-error", "認証エラー：APIキーの設定・有効期限を確認してください。"],
@@ -14,7 +15,7 @@ for (const [key, message] of scenarios) {
     await page.goto("/create");
     await page.waitForLoadState("networkidle");
     await page.getByLabel("タイトル（省略可）", { exact: true }).fill("エラーからの復帰");
-    await page.locator('input[type="file"]').setInputFiles(path.resolve(__dirname, "../../fixtures/sample.csv"));
+    await new CreateReportPage(page).uploadCsvFile(path.resolve(__dirname, "../../fixtures/sample.csv"));
     await expect(page.getByRole("combobox", { name: "コメントカラム選択" })).toHaveValue("comment");
     await page.getByRole("button", { name: "レポート生成設定" }).click();
     const apiKey = page.getByPlaceholder("独自のAPIキーを入力（空欄の場合はサーバー設定を使用）");

@@ -25,7 +25,7 @@ export class CreateReportPage {
     this.spreadsheetTab = page.getByRole("tab", {
       name: "Googleスプレッドシート",
     });
-    this.csvFileUpload = page.locator('input[type="file"]');
+    this.csvFileUpload = page.getByRole("tabpanel", { name: "CSVファイル" }).locator('input[type="file"]');
     this.spreadsheetUrlInput = page.getByPlaceholder("https://docs.google.com/spreadsheets/d/xxxxxxxxxxxx/edit");
     this.submitButton = page.getByRole("button", {
       name: "レポート作成を開始",
