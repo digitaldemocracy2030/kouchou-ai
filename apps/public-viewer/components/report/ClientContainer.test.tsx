@@ -16,10 +16,29 @@ jest.mock("@/components/charts/ScatterChart", () => ({
   ScatterChart: (props: { targetLevel: number }) => <div data-testid="scatter" data-level={props.targetLevel} />,
 }));
 jest.mock("@/components/charts/TreemapChart", () => ({
-  TreemapChart: () => <div data-testid="treemap" />,
+  TreemapChart: (props: {
+    level: string;
+    clusterList: Result["clusters"];
+    argumentList: Result["arguments"];
+    filteredArgumentIds?: string[];
+  }) => (
+    <div
+      data-testid="treemap"
+      data-level={props.level}
+      data-clusters={props.clusterList.map(({ id }) => id).join(",")}
+      data-opinions={props.argumentList.map(({ arg_id }) => arg_id).join(",")}
+      data-filtered-opinions={props.filteredArgumentIds?.join(",")}
+    />
+  ),
 }));
 jest.mock("@/components/charts/HierarchyListChart", () => ({
-  HierarchyListChart: () => <div data-testid="hierarchy-list" />,
+  HierarchyListChart: (props: { clusterList: Result["clusters"]; filteredArgumentIds?: string[] }) => (
+    <div
+      data-testid="hierarchy-list"
+      data-clusters={props.clusterList.map(({ id }) => id).join(",")}
+      data-filtered-opinions={props.filteredArgumentIds?.join(",")}
+    />
+  ),
 }));
 jest.mock("@/components/icons/ViewIcons", () => ({
   AllViewIcon: () => null,
@@ -51,6 +70,7 @@ beforeAll(() => {
       dispatchEvent: jest.fn(),
     }),
   });
+  Element.prototype.scrollIntoView = jest.fn();
 });
 
 /**
@@ -226,6 +246,116 @@ describe("フィルタボタン", () => {
 
     // 検索中であることがバッジ（有効なフィルタ数）でわかる
     expect(within(screen.getByRole("button", { name: "フィルタ" })).getByText("1")).toBeInTheDocument();
+    await flush();
+  });
+});
+
+describe("階層図の密度フィルター", () => {
+  const result = {
+    clusters: [
+      { id: "0", parent: "", level: 0, label: "全意見のグループ", value: 4, density_rank_percentile: 0 },
+      { id: "1_0", parent: "0", level: 1, label: "教育", value: 1, density_rank_percentile: 0.8 },
+      { id: "1_1", parent: "0", level: 1, label: "交通", value: 3, density_rank_percentile: 0.8 },
+      { id: "2_0", parent: "1_0", level: 2, label: "図書館", value: 1, density_rank_percentile: 0.1 },
+      { id: "2_1", parent: "1_1", level: 2, label: "料金", value: 2, density_rank_percentile: 0.2 },
+      { id: "2_2", parent: "1_1", level: 2, label: "自転車", value: 1, density_rank_percentile: 0.9 },
+    ].map((cluster) => ({ ...cluster, takeaway: "" })),
+    arguments: [
+      { arg_id: "a", argument: "図書館を増やす", cluster_ids: ["0", "1_0", "2_0"] },
+      { arg_id: "b", argument: "自治体の料金", cluster_ids: ["0", "1_1", "2_1"] },
+      { arg_id: "c", argument: "運賃の見直し", cluster_ids: ["0", "1_1", "2_1"] },
+      { arg_id: "d", argument: "自治体の自転車施策", cluster_ids: ["0", "1_1", "2_2"] },
+    ].map((opinion) => ({ ...opinion, comment_id: 0, x: 0, y: 0, p: 0 })),
+    visualizationConfig: {
+      version: "1.0",
+      enabledCharts: ["scatterAll", "scatterDetail", "scatterDensity", "treemap", "hierarchyList"],
+      defaultChart: "treemap",
+      params: { scatterDensity: { maxDensity: 0.2, minValue: 2 } },
+    },
+  } satisfies Partial<Result>;
+  const switchName = "濃い意見グループに絞る";
+
+  it("既定はオフで、オンにすると残る親へ戻り、図と説明が同じグループを表示する", async () => {
+    await renderViewer(result);
+    const toggle = screen.getByRole("switch", { name: switchName });
+    const details = screen.getByRole("region", { name: "階層図の説明" });
+    expect(toggle).not.toBeChecked();
+    expect(screen.getByTestId("treemap")).toHaveAttribute("data-clusters", "0,1_0,1_1,2_0,2_1,2_2");
+
+    fireEvent.click(within(details).getByRole("button", { name: "交通" }));
+    fireEvent.click(within(details).getByRole("button", { name: "自転車" }));
+    expect(screen.getByTestId("treemap")).toHaveAttribute("data-level", "2_2");
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(screen.getByTestId("treemap")).toHaveAttribute("data-level", "1_1"));
+    expect(screen.getByTestId("treemap")).toHaveAttribute("data-clusters", "0,1_1,2_1");
+    expect(screen.getByTestId("treemap")).toHaveAttribute("data-opinions", "b,c");
+    expect(within(details).getByRole("heading", { name: "表示中: 交通" })).toBeInTheDocument();
+    expect(within(details).getByRole("button", { name: "料金" })).toBeInTheDocument();
+    expect(within(details).queryByRole("button", { name: "自転車" })).not.toBeInTheDocument();
+    expect(within(details).getAllByText("意見 2件（フィルター後の全意見に対する割合: 100.00%）")).toHaveLength(2);
+
+    fireEvent.click(toggle);
+    expect(await within(details).findByRole("button", { name: "自転車" })).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    await waitFor(() => expect(screen.getByTestId("treemap")).toHaveAttribute("data-opinions", "b,c"));
+    fireEvent.click(screen.getByRole("radio", { name: "リスト" }));
+    expect(screen.queryByRole("switch", { name: switchName })).not.toBeInTheDocument();
+    expect(screen.getByTestId("hierarchy-list")).toHaveAttribute("data-clusters", "0,1_0,1_1,2_0,2_1,2_2");
+    expect(screen.getByTestId("hierarchy-list")).not.toHaveAttribute("data-filtered-opinions");
+    await flush();
+  });
+
+  it("テキスト検索と密度条件を同時に満たす意見だけを図と説明に反映する", async () => {
+    await renderViewer(result);
+    fireEvent.click(screen.getByRole("switch", { name: switchName }));
+    fireEvent.click(screen.getByRole("button", { name: "フィルタ" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "自治体" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "設定を適用" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    expect(screen.getByTestId("treemap")).toHaveAttribute("data-filtered-opinions", "b");
+    expect(screen.getByTestId("treemap")).toHaveAttribute("data-opinions", "b");
+    expect(screen.getAllByText("意見 1件（フィルター後の全意見に対する割合: 100.00%）")).toHaveLength(2);
+    await flush();
+  });
+
+  it("全画面で絞り込みの結果が空でもスイッチが使え、通常表示にも状態を引き継ぐ", async () => {
+    await renderViewer({
+      ...result,
+      visualizationConfig: {
+        ...result.visualizationConfig,
+        params: { scatterDensity: { maxDensity: 0.1, minValue: 5 } },
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "全画面表示" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("switch", { name: switchName }));
+    expect(await within(dialog).findByRole("status")).toHaveTextContent("この階層に該当する意見はありません。");
+    expect(within(dialog).queryByTestId("treemap")).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "全画面終了" }));
+
+    const toggle = screen.getByRole("switch", { name: switchName });
+    expect(toggle).toBeChecked();
+    expect(screen.getByText("意見 0件（フィルター後の全意見に対する割合: —）")).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(await screen.findByTestId("treemap")).toHaveAttribute("data-clusters", "0,1_0,1_1,2_0,2_1,2_2");
+    await flush();
+  });
+
+  it("最深階層がルートだけのレポートも、密度条件に合わなければ空の結果を表示する", async () => {
+    await renderViewer({
+      ...result,
+      clusters: [{ ...result.clusters[0], value: 1 }],
+      arguments: [{ ...result.arguments[0], cluster_ids: ["0"] }],
+    });
+    fireEvent.click(screen.getByRole("switch", { name: switchName }));
+    expect(await screen.findByRole("status")).toHaveTextContent("この階層に該当する意見はありません。");
+    expect(screen.getByRole("heading", { name: "表示中: 全意見のグループ" })).toBeInTheDocument();
+    expect(screen.getByText("意見 0件（フィルター後の全意見に対する割合: —）")).toBeInTheDocument();
     await flush();
   });
 });

@@ -24,6 +24,7 @@ import {
   filterArgumentIds,
   hasActiveFilters,
 } from "./attributeFilterUtils";
+import { applyTreemapDensityFilter, resolveFilteredTreemapLevel } from "./treemapContext";
 
 // Ensure plugins are loaded for validation
 ensurePluginsLoaded();
@@ -73,6 +74,7 @@ export function ClientContainer({ result }: Props) {
   const [showClusterLabels, setShowClusterLabels] = useState(defaultParams?.showClusterLabels ?? true);
   const [showConvexHull, setShowConvexHull] = useState(true);
   const [treemapLevel, setTreemapLevel] = useState("0");
+  const [treemapDensityEnabled, setTreemapDensityEnabled] = useState(false);
   // 散布図でクリックされたクラスタ（連動文章・一覧のハイライト対象）
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
 
@@ -100,11 +102,11 @@ export function ClientContainer({ result }: Props) {
     [attributeFilters, numericRanges, enabledRanges, includeEmptyValues, textSearch],
   );
 
-  // --- 密度フィルタの有効性（派生データ） ---
-  const isDenseGroupEnabled = useMemo(() => {
-    const { isEmpty } = getDenseClusters(result.clusters || [], maxDensity, minValue);
-    return !isEmpty;
-  }, [result.clusters, maxDensity, minValue]);
+  const { filtered: densityFilteredClusters, isEmpty: isDenseGroupEmpty } = useMemo(
+    () => getDenseClusters(result.clusters || [], maxDensity, minValue),
+    [result.clusters, maxDensity, minValue],
+  );
+  const isDenseGroupEnabled = !isDenseGroupEmpty;
 
   // 濃い意見の抽出結果が 0 件になったら、一つ上の階層を濃い意見として見せないよう全体表示へ戻す。
   // 管理者が外した表示へは切り替えない（全体表示が無ければ表示順で先頭の選べる表示、それも無ければそのまま）
@@ -142,17 +144,17 @@ export function ClientContainer({ result }: Props) {
 
   // --- フィルタ済み結果を派生計算（stale closure問題を解消） ---
   const filteredResult = useMemo(() => {
-    // 1. 密度フィルタの適用（scatterDensityモードのみ有効）
-    const effectiveMaxDensity = selectedChart === "scatterDensity" ? maxDensity : 1;
-    const effectiveMinValue = selectedChart === "scatterDensity" ? minValue : 0;
-    const { filtered: densityFilteredClusters } = getDenseClusters(
-      result.clusters || [],
-      effectiveMaxDensity,
-      effectiveMinValue,
-    );
+    if (selectedChart === "treemap") {
+      return treemapDensityEnabled
+        ? applyTreemapDensityFilter(result, densityFilteredClusters, filteredArgIds)
+        : { ...result, filteredArgumentIds: filteredArgIds };
+    }
 
-    // 2. フィルタ条件に合致する引数がないクラスタをマーク
-    let combinedClusters = densityFilteredClusters;
+    let combinedClusters =
+      selectedChart === "scatterDensity"
+        ? densityFilteredClusters
+        : getDenseClusters(result.clusters || [], 1, 0).filtered;
+    // フィルタ条件に合致する引数がないクラスタをマーク
     if (filteredArgIds) {
       const filteredArgIdSet = new Set(filteredArgIds);
       const clusterIdsWithFilteredArgs = new Set<string>();
@@ -163,7 +165,7 @@ export function ClientContainer({ result }: Props) {
           }
         }
       }
-      combinedClusters = densityFilteredClusters.map((cluster) =>
+      combinedClusters = combinedClusters.map((cluster) =>
         clusterIdsWithFilteredArgs.has(cluster.id) ? cluster : { ...cluster, allFiltered: true },
       );
     }
@@ -173,7 +175,18 @@ export function ClientContainer({ result }: Props) {
       clusters: combinedClusters,
       filteredArgumentIds: filteredArgIds,
     };
-  }, [result, filteredArgIds, selectedChart, maxDensity, minValue]);
+  }, [result, filteredArgIds, selectedChart, densityFilteredClusters, treemapDensityEnabled]);
+
+  const visibleTreemapLevel = useMemo(
+    () =>
+      selectedChart === "treemap" && treemapDensityEnabled
+        ? resolveFilteredTreemapLevel(treemapLevel, result, filteredResult)
+        : treemapLevel,
+    [selectedChart, treemapDensityEnabled, treemapLevel, result, filteredResult],
+  );
+  useEffect(() => {
+    if (visibleTreemapLevel !== treemapLevel) setTreemapLevel(visibleTreemapLevel);
+  }, [treemapLevel, visibleTreemapLevel]);
 
   // --- UIハンドラ群 ---
   const handleApplyAttributeFilters = (
@@ -273,17 +286,19 @@ export function ClientContainer({ result }: Props) {
         showClusterLabels={showClusterLabels}
         onToggleClusterLabels={setShowClusterLabels}
         showConvexHull={showConvexHull}
-        treemapLevel={treemapLevel}
+        treemapLevel={visibleTreemapLevel}
         onTreeZoom={setTreemapLevel}
+        treemapDensityEnabled={treemapDensityEnabled}
+        onTreemapDensityChange={setTreemapDensityEnabled}
         onSelectCluster={setSelectedClusterId}
         textSearch={textSearch}
       />
       {selectedChart === "treemap" ? (
         <TreemapDetails
-          clusters={result.clusters}
-          arguments={result.arguments}
-          level={treemapLevel}
-          filteredIds={filteredArgIds}
+          clusters={filteredResult.clusters}
+          arguments={filteredResult.arguments}
+          level={visibleTreemapLevel}
+          filteredIds={filteredResult.filteredArgumentIds}
           onNavigate={(id) => {
             setTreemapLevel(id);
             document.getElementById("report-chart")?.scrollIntoView();

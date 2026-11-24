@@ -70,7 +70,8 @@ const ja = {
   originalCount: "元の件数",
   afterFilterCount: "フィルター後",
   treemapText: "%{label}<br>意見 %{value:,}件<br>全意見の %{percentRoot:.2%}",
-  treemapTextFiltered: "%{label}<br>意見 %{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}",
+  treemapTextFiltered: "%{label}<br>意見 %{value:,}件 (フィルター後)<br>フィルター後の全意見の %{percentRoot:.2%}",
+  treemapDenseOnly: "濃い意見グループに絞る",
 
   // 散布図の操作ヒントと、濃い意見グループの第一階層クラスタへの帰属表示
   scatterHelpButton: "散布図の見方と操作方法を表示",
@@ -109,7 +110,8 @@ const ja = {
   showClusterLabels: "意見グループ名を表示",
   showConvexHull: "意見グループの境界線を表示",
   denseSettings: "濃い意見グループ設定",
-  denseSettingsDescription: "「濃い意見グループ」に関する設定項目です。",
+  denseSettingsDescription:
+    "散布図の「濃い意見」と、階層図で「濃い意見グループに絞る」をオンにしたときの絞り込み条件です。",
   densityPercentLabel: (percent: number) => `上位何％の意見グループを表示するか: ${percent}%`,
   minSamplesLabel: (n: number) => `意見グループのサンプル数の最小数: ${n}`,
   apply: "設定を適用",
@@ -283,7 +285,8 @@ const en: Messages = {
   originalCount: "Original count",
   afterFilterCount: "After filter",
   treemapText: "%{label}<br>%{value:,} opinions<br>%{percentRoot:.2%} of all",
-  treemapTextFiltered: "%{label}<br>%{value:,} opinions (filtered)<br>%{percentRoot:.2%} of all",
+  treemapTextFiltered: "%{label}<br>%{value:,} opinions (filtered)<br>%{percentRoot:.2%} of all filtered opinions",
+  treemapDenseOnly: "Show dense groups only",
 
   scatterHelpButton: "Show how to read and use the scatter plot",
   scatterReadingTitle: "How to read the scatter plot",
@@ -314,7 +317,8 @@ const en: Messages = {
   showClusterLabels: "Show group names",
   showConvexHull: "Show group boundaries",
   denseSettings: "Dense opinion group settings",
-  denseSettingsDescription: 'Settings for the "Dense opinions" view.',
+  denseSettingsDescription:
+    'These settings apply to the "Dense opinions" scatter plot and to the hierarchy chart when "Show dense groups only" is on.',
   densityPercentLabel: (percent) => `Show the top ${percent}% densest groups`,
   minSamplesLabel: (n) => `Minimum number of opinions per group: ${n}`,
   apply: "Apply",
@@ -481,7 +485,8 @@ const ko: Messages = {
   originalCount: "원래 건수",
   afterFilterCount: "필터 후",
   treemapText: "%{label}<br>의견 %{value:,}건<br>전체 의견의 %{percentRoot:.2%}",
-  treemapTextFiltered: "%{label}<br>의견 %{value:,}건 (필터 후)<br>전체 의견의 %{percentRoot:.2%}",
+  treemapTextFiltered: "%{label}<br>의견 %{value:,}건 (필터 후)<br>필터 후 전체 의견의 %{percentRoot:.2%}",
+  treemapDenseOnly: "밀집 의견 그룹만 표시",
 
   scatterHelpButton: "산점도 보는 법과 조작 방법 보기",
   scatterReadingTitle: "산점도 보는 법",
@@ -512,7 +517,7 @@ const ko: Messages = {
   showClusterLabels: "의견 그룹 이름 표시",
   showConvexHull: "의견 그룹 경계선 표시",
   denseSettings: "밀집 의견 그룹 설정",
-  denseSettingsDescription: "「밀집 의견 그룹」에 관한 설정 항목입니다.",
+  denseSettingsDescription: '산점도의 "밀집 의견"과 계층도의 "밀집 의견 그룹만 표시"를 켰을 때 적용되는 설정입니다.',
   densityPercentLabel: (percent) => `상위 몇 %의 의견 그룹을 표시할지: ${percent}%`,
   minSamplesLabel: (n) => `의견 그룹의 최소 샘플 수: ${n}`,
   apply: "설정 적용",
