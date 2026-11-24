@@ -40,15 +40,14 @@ export function AttributeColumnsSelector({
       </Text>
       <VStack align="flex-start" gap={2}>
         {availableAttributes.map((attribute) => (
-          <Box key={attribute} display="flex" alignItems="center">
+          <Box as="label" key={attribute} display="flex" alignItems="center">
             <input
               type="checkbox"
-              id={`attribute-${attribute}`}
               checked={selectedAttributes.includes(attribute)}
               onChange={(e) => handleCheckboxChange(attribute, e.target.checked)}
               style={{ marginRight: "8px" }}
             />
-            <label htmlFor={`attribute-${attribute}`}>{attribute}</label>
+            {attribute}
           </Box>
         ))}
       </VStack>
