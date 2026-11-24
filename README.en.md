@@ -14,7 +14,7 @@ The project is based on [Talk to the City](https://github.com/AIObjectives/talk-
   - Features that are easy to use for non-developers (CSV upload)
   - Dense cluster extraction
   - Analysis for public comments (planned)
-  - Defense against majority attacks (planned)
+  - Handling majority attacks (mass posting of identical content) (under consideration, [#345](https://github.com/digitaldemocracy2030/kouchou-ai/issues/345))
 
 ## Prerequisites
 

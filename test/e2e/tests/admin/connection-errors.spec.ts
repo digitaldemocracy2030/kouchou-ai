@@ -24,6 +24,12 @@ for (const [key, message] of scenarios) {
     await expect(dialog.getByText("未確認", { exact: true })).toBeVisible();
     await dialog.getByRole("button", { name: "API接続を確認する" }).click();
     await expect(dialog.getByText(message, { exact: true })).toBeVisible();
+    const billingGuide = dialog.getByRole("link", { name: /APIの課金と429エラーの対処方法/ });
+    if (key === "e2e-insufficient-quota" || key === "e2e-rate-limit") {
+      await expect(billingGuide).toBeVisible();
+    } else {
+      await expect(billingGuide).toHaveCount(0);
+    }
     await expect(dialog.getByRole("button", { name: "エラーを確認して作成を開始" })).toBeVisible();
     await expect(dialog.getByText("OK（表示中の設定でチャット接続確認済み）")).toHaveCount(0);
 
@@ -40,5 +46,6 @@ for (const [key, message] of scenarios) {
     await expect(dialog.getByText("OK（表示中の設定でチャット接続確認済み）")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "この内容で作成を開始" })).toBeEnabled();
     await expect(dialog.getByText(message, { exact: true })).toHaveCount(0);
+    await expect(billingGuide).toHaveCount(0);
   });
 }

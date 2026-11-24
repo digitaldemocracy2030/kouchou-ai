@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import type { createReport } from "../api/createReport";
 import type { ModelOption } from "../hooks/useModelCatalog";
 import { type CostBand, type CostEstimate, JPY_PER_USD, estimateCost, formatUsdRange } from "../utils/costEstimate";
+import { ApiBillingGuideLink } from "./EnvironmentCheckDialog/ApiBillingGuideLink";
 import { azureErrorMessage } from "./EnvironmentCheckDialog/azureErrorMessage";
 import { verifyApiKey } from "./EnvironmentCheckDialog/verifyApiKey";
 
@@ -198,6 +199,7 @@ export function CreateReportConfirmation({
                   </Text>
                 )}
               </Text>
+              <ApiBillingGuideLink errorType={check} />
               <Text mt="2" fontSize="sm">
                 {request.provider === "azure" ? "Azureのサーバー設定済みデプロイ" : "選択したモデル"}
                 へ短いチャットを送信します。API利用料がかかる場合があります。埋め込み・残高・レポート全体の動作は未確認です。

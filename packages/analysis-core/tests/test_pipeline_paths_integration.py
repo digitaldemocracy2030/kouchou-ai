@@ -482,7 +482,7 @@ class TestVisualizationWorkflowIntegration:
     """The default CLI path (HTML enabled) must finish without extra config keys."""
 
     @staticmethod
-    def _visualization_orchestrator(tmp_path, only="hierarchical_visualization"):
+    def _visualization_orchestrator(tmp_path, only="hierarchical_visualization", **config_options):
         from analysis_core.orchestrator import PipelineOrchestrator
 
         input_dir = tmp_path / "inputs"
@@ -516,7 +516,7 @@ class TestVisualizationWorkflowIntegration:
         )
         config_path = tmp_path / "demo.json"
         config_path.write_text(
-            json.dumps({"name": "demo", "input": "demo", "question": "q", "model": "gpt-4o-mini"}),
+            json.dumps({"name": "demo", "input": "demo", "question": "q", "model": "gpt-4o-mini", **config_options}),
             encoding="utf-8",
         )
 
@@ -538,6 +538,36 @@ class TestVisualizationWorkflowIntegration:
 
         assert result.success, result.error
         assert (output_dir / "demo" / "report.html").exists()
+
+    @pytest.mark.parametrize("analysis_mode", ["hierarchical", "llm_grouping"])
+    def test_html_options_reach_the_renderer_and_trigger_a_rerun(self, tmp_path, analysis_mode):
+        from analysis_core.core.orchestration import decide_what_to_run, get_specs_path_for_mode, load_specs
+
+        options = {
+            "report_html_title": "住民アンケート",
+            "report_url_pattern": "https://example.com/comments/{comment_id}",
+        }
+        orchestrator, output_dir = self._visualization_orchestrator(
+            tmp_path, analysis_mode=analysis_mode, hierarchical_visualization=options
+        )
+
+        result = orchestrator.run_default()
+        assert result.success, result.error
+        report_dir = output_dir / "demo"
+        html = (report_dir / "report.html").read_text(encoding="utf-8")
+        assert "<title>住民アンケート</title>" in html
+        assert 'href="https://example.com/comments/1"' in html
+
+        previous = json.loads((report_dir / "hierarchical_status.json").read_text(encoding="utf-8"))
+        specs = load_specs(get_specs_path_for_mode(analysis_mode))
+        visualization = next(spec for spec in specs if spec["step"] == "hierarchical_visualization")
+        saved_options = orchestrator.config["hierarchical_visualization"]
+        config = {"output_dir": "demo", "previous": previous, "hierarchical_visualization": saved_options}
+        assert not decide_what_to_run(config, previous, [visualization], output_dir)[0]["run"]
+        for option in options:
+            config["hierarchical_visualization"] = {**saved_options, option: None}
+            plan = decide_what_to_run(config, previous, [visualization], output_dir)
+            assert plan[0]["reason"] == f"some parameters changed: {option}"
 
     def test_visualization_failure_fails_the_pipeline_and_keeps_old_report_intact(self, tmp_path, monkeypatch):
         """HTML 出力ありで report.html を書けなければ、成功扱いにせず status も error にする。"""

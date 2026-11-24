@@ -276,6 +276,29 @@ def test_resolve_predefined_groups_parses_validates_and_defaults_to_none():
         )
 
 
+@pytest.mark.parametrize("group_id", ["0", " 0 ", 0])
+def test_predefined_group_id_cannot_be_the_root_id(group_id):
+    """id "0" は root（全体）と衝突し、自分自身を親に持つクラスタになるので拒否する。"""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+    with pytest.raises(ValueError, match="reserved for the root"):
+        llm_grouping_step._resolve_predefined_groups({"predefined_groups": [{"id": group_id, "label": "交通"}]})
+
+
+def test_blank_predefined_group_id_falls_back_to_the_default_id():
+    """空白だけの id は strip で空文字の id にせず、未指定と同じく g{n} にする。"""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+    groups = llm_grouping_step._resolve_predefined_groups(
+        {
+            "predefined_groups": [
+                {"id": "  ", "label": "交通"},
+                {"id": "", "label": "公園"},
+                {"id": None, "label": "防災"},
+            ]
+        }
+    )
+    assert [g.group_id for g in groups] == ["g1", "g2", "g3"]
+
+
 def test_ensure_other_group_appends_and_reuses():
     """「その他」受け皿は必ず用意し、既存の同等枠があれば流用して二重に足さない。"""
     llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
@@ -405,3 +428,33 @@ def test_llm_grouping_projection_handles_two_or_three_arguments(tmp_path, n):
     assert np.isfinite(result).all()
     # 点が 1 か所に重ならない
     assert len({tuple(np.round(point, 6)) for point in result}) == n
+
+
+def test_numeric_looking_group_ids_survive_the_csv_round_trip(tmp_path):
+    """ "00" や "01" を型推論で数値にすると "0"（root）や "1" に化けるので、集計は id を文字列のまま読む。"""
+    llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
+    aggregation = importlib.import_module("analysis_core.steps.hierarchical_aggregation")
+    groups = llm_grouping_step._resolve_predefined_groups(
+        {"predefined_groups": [{"id": "00", "label": "A"}, {"id": "01", "label": "B"}, {"id": "1", "label": "C"}]}
+    )
+    assignments = {"A0": "00", "A1": "01", "A2": "1"}
+
+    labels_path = tmp_path / "hierarchical_merge_labels.csv"
+    llm_grouping_step._write_merge_labels(str(labels_path), groups, assignments)
+    clusters_path = tmp_path / "hierarchical_clusters.csv"
+    pl.DataFrame(
+        {
+            "arg-id": list(assignments),
+            "argument": ["a", "b", "c"],
+            "x": [0.0, 1.0, 2.0],
+            "y": [0.0, 1.0, 2.0],
+            "cluster-level-1-id": list(assignments.values()),
+        }
+    ).write_csv(clusters_path)
+
+    clusters = aggregation.read_clusters(clusters_path)
+    assert clusters["cluster-level-1-id"].to_list() == ["00", "01", "1"]
+    built = aggregation._build_cluster_value(aggregation.read_merge_labels(labels_path), 3)
+    ids = [c["id"] for c in built]
+    assert sorted(ids) == ["0", "00", "01", "1"]
+    assert [c["parent"] for c in built if c["id"] != "0"] == ["0", "0", "0"]

@@ -64,17 +64,26 @@ it("入力内容と警告を表示し、開いた時点ではAPIを呼ばない"
 });
 
 it.each([
-  ["authentication_error", "認証エラー"],
-  ["insufficient_quota", "残高不足"],
-  ["rate_limit_error", "rate limit"],
-  ["unknown_error", "不明なエラー"],
-] as const)("APIの%sを表示する", async (error_type, text) => {
+  ["authentication_error", "認証エラー", false],
+  ["insufficient_quota", "残高不足", true],
+  ["rate_limit_error", "rate limit", true],
+  ["unknown_error", "不明なエラー", false],
+] as const)("APIの%sを表示する", async (error_type, text, showsBillingGuide) => {
   verify.mockResolvedValue({ result: { success: false, message: "error", error_type }, error: true });
   mount();
   await userEvent.click(await screen.findByRole("button", { name: "API接続を確認する" }));
   expect(await screen.findByText(new RegExp(`^${text}`))).toBeVisible();
   expect(verify).toHaveBeenCalledWith("openai", "test-key", prepared.request.model, undefined);
   expect(screen.queryByText(/エラー詳細：/)).not.toBeInTheDocument();
+  const billingGuide = screen.queryByRole("link", { name: /APIの課金と429エラーの対処方法/ });
+  if (showsBillingGuide) {
+    expect(billingGuide).toHaveAttribute(
+      "href",
+      "https://digitaldemocracy2030.github.io/kouchou-ai/self-hosting/api-billing-and-rate-limits",
+    );
+  } else {
+    expect(billingGuide).not.toBeInTheDocument();
+  }
 });
 
 it("プロバイダーのエラー詳細があれば結果の下に表示し、再確認で成功したら消す", async () => {
