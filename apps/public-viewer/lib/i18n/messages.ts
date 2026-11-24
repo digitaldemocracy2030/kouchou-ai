@@ -17,10 +17,11 @@ const ja = {
 
   // Overview
   report: "レポート",
-  opinionCount: (n: number) => `${n.toLocaleString()}件`,
+  /** 意見の件数。人数やコメント数と取り違えないよう「意見」を付ける（#1211） */
+  opinionCount: (n: number) => `意見 ${n.toLocaleString()}件`,
   /** 階層リストの件数（属性フィルターの適用中） */
   filteredOfTotalCount: (filtered: number, total: number) =>
-    `フィルター後 ${filtered.toLocaleString()}件 / 全${total.toLocaleString()}件`,
+    `フィルター後の意見 ${filtered.toLocaleString()}件 / 全${total.toLocaleString()}件`,
   /** 意見グループ一覧の件数の後ろに付ける（属性フィルターの適用中） */
   filteredCountSuffix: "（フィルター後）",
 
@@ -68,8 +69,8 @@ const ja = {
   clickToViewSource: "クリックしてソースを見る",
   originalCount: "元の件数",
   afterFilterCount: "フィルター後",
-  treemapText: "%{label}<br>%{value:,}件<br>全意見の %{percentRoot:.2%}",
-  treemapTextFiltered: "%{label}<br>%{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}",
+  treemapText: "%{label}<br>意見 %{value:,}件<br>全意見の %{percentRoot:.2%}",
+  treemapTextFiltered: "%{label}<br>意見 %{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}",
 
   // 散布図の操作ヒントと、濃い意見グループの第一階層クラスタへの帰属表示
   scatterHelpButton: "散布図の操作方法を表示",
@@ -124,7 +125,7 @@ const ja = {
   allOpinions: "全意見",
   allOpinionsAfterFilter: "フィルター後の全意見",
   metrics: (count: number, denominator: string, percentage: string) =>
-    `${count.toLocaleString()}件（${denominator}に対する割合: ${percentage}）`,
+    `意見 ${count.toLocaleString()}件（${denominator}に対する割合: ${percentage}）`,
   filteredMetricsNote: "件数と割合はフィルター後の値です。グループの説明はフィルター前の全意見を基に生成しています。",
   noOpinionsHere: "この階層に該当する意見はありません。",
   groupsInLevel: "この階層の意見グループ",
@@ -140,7 +141,7 @@ const ja = {
   expandAll: "すべて開く",
   collapseAll: "すべて閉じる",
   closeChildren: "子要素を閉じる",
-  showChildren: (n: number) => `子要素を表示 (${n}件)`,
+  showChildren: (n: number) => `子要素を表示 (${n}グループ)`,
   closeItems: "個別データを閉じる",
   showItems: (n: number) => `個別データを表示 (${n}件)`,
   noItems: "個別データがありません",
@@ -154,9 +155,9 @@ const ja = {
   extractedOpinionCount: "抽出した意見数",
   clusterCount: "集約した意見グループ数",
   commentCountTooltip:
-    "全てのコメントをAIで分析し、意見が含まれるコメントを抽出します。意見が含まれないコメントや、議題と関係のないコメントは除外されます。",
+    "全てのコメントをAIで分析し、意見が含まれるコメントを抽出します。意見が含まれないコメントや、議題と関係のないコメントは除外されます。同じ人が複数のコメントを書くこともあるため、コメント数は人数と一致するとは限りません。",
   opinionCountTooltip:
-    "抽出したコメントをAIで分析し、様々な意見を抽出します。複数の意見が混ざったコメントなども適切に分離します。",
+    "抽出したコメントをAIで分析し、様々な意見を抽出します。複数の意見が混ざったコメントなども適切に分離します。1つのコメントから複数の意見が抽出されることがあるため、意見数はコメント数や人数とは一致しません。",
   clusterCountTooltip:
     "抽出した意見をAIで分析し、近しい意見を一つの意見グループに分類します。意見グループごとの意見を要約し、大量の意見を見える化します。",
   analysisSteps: "分析手順",
@@ -228,7 +229,7 @@ const en: Messages = {
   report: "Report",
   opinionCount: (n) => `${n.toLocaleString()} opinions`,
   filteredOfTotalCount: (filtered, total) =>
-    `${filtered.toLocaleString()} after filter / ${total.toLocaleString()} total`,
+    `${filtered.toLocaleString()} opinions after filter / ${total.toLocaleString()} total`,
   filteredCountSuffix: " (filtered)",
 
   readingGuideLabel: "How to read this report",
@@ -347,9 +348,9 @@ const en: Messages = {
   extractedOpinionCount: "Extracted opinions",
   clusterCount: "Opinion groups",
   commentCountTooltip:
-    "All comments are analyzed by AI and those containing opinions are extracted. Comments without opinions or unrelated to the topic are excluded.",
+    "All comments are analyzed by AI and those containing opinions are extracted. Comments without opinions or unrelated to the topic are excluded. One person may write several comments, so the number of comments is not necessarily the number of people.",
   opinionCountTooltip:
-    "The extracted comments are analyzed by AI to extract individual opinions. Comments mixing several opinions are split appropriately.",
+    "The extracted comments are analyzed by AI to extract individual opinions. Comments mixing several opinions are split appropriately. Because one comment can yield several opinions, the number of opinions does not match the number of comments or people.",
   clusterCountTooltip:
     "The extracted opinions are analyzed by AI and similar opinions are grouped together. Each group is summarized to make a large number of opinions visible.",
   analysisSteps: "Analysis steps",
@@ -415,9 +416,9 @@ const ko: Messages = {
   reportNotTranslated: "이 보고서의 본문은 선택한 언어로 번역되지 않아 원래 언어로 표시됩니다.",
 
   report: "보고서",
-  opinionCount: (n) => `${n.toLocaleString()}건`,
+  opinionCount: (n) => `의견 ${n.toLocaleString()}건`,
   filteredOfTotalCount: (filtered, total) =>
-    `필터 후 ${filtered.toLocaleString()}건 / 전체 ${total.toLocaleString()}건`,
+    `필터 후 의견 ${filtered.toLocaleString()}건 / 전체 ${total.toLocaleString()}건`,
   filteredCountSuffix: " (필터 후)",
 
   readingGuideLabel: "보고서 읽는 법",
@@ -459,8 +460,8 @@ const ko: Messages = {
   clickToViewSource: "클릭하여 출처 보기",
   originalCount: "원래 건수",
   afterFilterCount: "필터 후",
-  treemapText: "%{label}<br>%{value:,}건<br>전체 의견의 %{percentRoot:.2%}",
-  treemapTextFiltered: "%{label}<br>%{value:,}건 (필터 후)<br>전체 의견의 %{percentRoot:.2%}",
+  treemapText: "%{label}<br>의견 %{value:,}건<br>전체 의견의 %{percentRoot:.2%}",
+  treemapTextFiltered: "%{label}<br>의견 %{value:,}건 (필터 후)<br>전체 의견의 %{percentRoot:.2%}",
 
   scatterHelpButton: "산점도 조작 방법 보기",
   scatterHelpTitle: "산점도 조작 방법",
@@ -506,7 +507,8 @@ const ko: Messages = {
   showing: "표시 중",
   allOpinions: "전체 의견",
   allOpinionsAfterFilter: "필터 후 전체 의견",
-  metrics: (count, denominator, percentage) => `${count.toLocaleString()}건 (${denominator} 대비 비율: ${percentage})`,
+  metrics: (count, denominator, percentage) =>
+    `의견 ${count.toLocaleString()}건 (${denominator} 대비 비율: ${percentage})`,
   filteredMetricsNote: "건수와 비율은 필터 후의 값입니다. 그룹 설명은 필터 전 전체 의견을 바탕으로 생성되었습니다.",
   noOpinionsHere: "이 계층에 해당하는 의견이 없습니다.",
   groupsInLevel: "이 계층의 의견 그룹",
@@ -521,7 +523,7 @@ const ko: Messages = {
   expandAll: "모두 펼치기",
   collapseAll: "모두 접기",
   closeChildren: "하위 그룹 닫기",
-  showChildren: (n) => `하위 그룹 표시 (${n}건)`,
+  showChildren: (n) => `하위 그룹 표시 (${n}개 그룹)`,
   closeItems: "개별 의견 닫기",
   showItems: (n) => `개별 의견 표시 (${n}건)`,
   noItems: "개별 의견이 없습니다",
@@ -534,9 +536,9 @@ const ko: Messages = {
   extractedOpinionCount: "추출한 의견 수",
   clusterCount: "집계한 의견 그룹 수",
   commentCountTooltip:
-    "모든 댓글을 AI로 분석하여 의견이 포함된 댓글을 추출합니다. 의견이 없는 댓글이나 주제와 관계없는 댓글은 제외됩니다.",
+    "모든 댓글을 AI로 분석하여 의견이 포함된 댓글을 추출합니다. 의견이 없는 댓글이나 주제와 관계없는 댓글은 제외됩니다. 한 사람이 여러 댓글을 쓸 수도 있으므로 댓글 수가 사람 수와 같다고는 할 수 없습니다.",
   opinionCountTooltip:
-    "추출한 댓글을 AI로 분석하여 다양한 의견을 추출합니다. 여러 의견이 섞인 댓글도 적절히 분리합니다.",
+    "추출한 댓글을 AI로 분석하여 다양한 의견을 추출합니다. 여러 의견이 섞인 댓글도 적절히 분리합니다. 하나의 댓글에서 여러 의견이 추출될 수 있으므로, 의견 수는 댓글 수나 사람 수와 일치하지 않습니다.",
   clusterCountTooltip:
     "추출한 의견을 AI로 분석하여 비슷한 의견을 하나의 의견 그룹으로 분류합니다. 의견 그룹별로 요약하여 많은 의견을 한눈에 볼 수 있게 합니다.",
   analysisSteps: "분석 절차",

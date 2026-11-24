@@ -96,7 +96,7 @@ test.describe("Client Static - レポート詳細のレスポンシブデザイ�
       if (viewport.width <= 600) {
         await expect(page.getByRole("radio", { name: "List View リスト" })).toBeChecked();
         await page.getByRole("button", { name: "展開する", exact: true }).first().click();
-        await page.getByRole("button", { name: "子要素を表示 (10件)", exact: true }).click();
+        await page.getByRole("button", { name: "子要素を表示 (10グループ)", exact: true }).click();
       }
 
       // クラスタ情報が表示される

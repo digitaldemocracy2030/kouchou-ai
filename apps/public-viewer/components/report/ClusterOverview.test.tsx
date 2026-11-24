@@ -31,12 +31,12 @@ function renderOverview(props: Partial<React.ComponentProps<typeof ClusterOvervi
 
 it("フィルター未適用なら元の件数を表示する", () => {
   renderOverview({});
-  expect(screen.getByText("10件")).toBeInTheDocument();
+  expect(screen.getByText("意見 10件")).toBeInTheDocument();
 });
 
 it("フィルター適用中は渡された件数とフィルター後ラベルを表示する", () => {
   renderOverview({ count: 3, isFiltering: true });
-  expect(screen.getByText("3件（フィルター後）")).toBeInTheDocument();
+  expect(screen.getByText("意見 3件（フィルター後）")).toBeInTheDocument();
 });
 
 it("表示言語が英語なら、フィルター後の件数とラベルも英語で表示する", async () => {
