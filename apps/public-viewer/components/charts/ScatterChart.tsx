@@ -95,6 +95,37 @@ type Props = {
 };
 
 /**
+ * 散布図の見方と操作方法を示すヒントの中身。見方（点・軸・距離・件数、#1212）を先に置き、
+ * 輪郭の説明は輪郭を描いているときだけ出す。クリックでソースを開く挙動はソースリンク有効時のみ案内する。
+ */
+export function ScatterHint({
+  showConvexHull,
+  showOriginalComments,
+  showSourceLink,
+}: { showConvexHull: boolean; showOriginalComments: boolean; showSourceLink: boolean }) {
+  const { messages } = useLanguage();
+  return (
+    <Box fontSize="xs" lineHeight="1.6">
+      <Text fontWeight="bold" mb={1}>
+        {messages.scatterReadingTitle}
+      </Text>
+      {messages.scatterReadingItems.map((item) => (
+        <Text key={item}>{item}</Text>
+      ))}
+      {showConvexHull && <Text>{messages.scatterReadingHull}</Text>}
+      <Text fontWeight="bold" mt={2} mb={1}>
+        {messages.scatterHelpTitle}
+      </Text>
+      {messages.scatterHelpItems.map((item) => (
+        <Text key={item}>{item}</Text>
+      ))}
+      {showOriginalComments && <Text>{messages.scatterHelpOriginalComment}</Text>}
+      {showSourceLink && <Text>{messages.scatterHelpSourceLink}</Text>}
+    </Box>
+  );
+}
+
+/**
  * 意見の座標と指定階層のクラスタを散布図で表示する。
  * 絞り込み対象外の意見も灰色で残し、元の分布との比較を可能にする。
  * ソースへの遷移はレポート設定に従い、Plotly Cloudへの送信導線は表示しない。
@@ -759,18 +790,12 @@ export function ScatterChart({
     }
   }, []);
 
-  // 散布図の操作方法を示すヒント。クリックでソースを開く挙動はソースリンク有効時のみ案内する。
   const operationHint = (
-    <Box fontSize="xs" lineHeight="1.6">
-      <Text fontWeight="bold" mb={1}>
-        {messages.scatterHelpTitle}
-      </Text>
-      {messages.scatterHelpItems.map((item) => (
-        <Text key={item}>{item}</Text>
-      ))}
-      {showOriginalComments && <Text>{messages.scatterHelpOriginalComment}</Text>}
-      {config?.enable_source_link && <Text>{messages.scatterHelpSourceLink}</Text>}
-    </Box>
+    <ScatterHint
+      showConvexHull={Boolean(showConvexHull)}
+      showOriginalComments={Boolean(showOriginalComments)}
+      showSourceLink={Boolean(config?.enable_source_link)}
+    />
   );
 
   return (
@@ -807,7 +832,7 @@ export function ScatterChart({
           </Box>
         )}
         <Box position="absolute" top="8px" left="8px" zIndex={2}>
-          <Tooltip content={operationHint} showArrow openDelay={0} closeDelay={150} contentProps={{ maxW: "260px" }}>
+          <Tooltip content={operationHint} showArrow openDelay={0} closeDelay={150} contentProps={{ maxW: "320px" }}>
             <IconButton
               aria-label={messages.scatterHelpButton}
               size="xs"

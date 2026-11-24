@@ -73,7 +73,17 @@ const ja = {
   treemapTextFiltered: "%{label}<br>意見 %{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}",
 
   // 散布図の操作ヒントと、濃い意見グループの第一階層クラスタへの帰属表示
-  scatterHelpButton: "散布図の操作方法を表示",
+  scatterHelpButton: "散布図の見方と操作方法を表示",
+  /** 散布図の見方（#1212）。点・距離・軸・件数を取り違えないための説明 */
+  scatterReadingTitle: "散布図の見方",
+  scatterReadingItems: [
+    "・点 1 つが、抽出した意見 1 件です（人やコメントの数ではありません）",
+    "・縦軸・横軸そのものに意味はありません。近くにある点ほど、内容が似た意見です",
+    "・点の多いところは意見の数が多いところです。重要度や賛成の多さを表すものではありません",
+  ],
+  /** グループの輪郭（凸包）を描いているときだけ見方に足す */
+  scatterReadingHull:
+    "・色の線は、グループの点を囲んだ輪郭です。輪郭が重なって見えても、重なった部分の意見が両方のグループに入っているわけではありません",
   scatterHelpTitle: "散布図の操作方法",
   scatterHelpItems: [
     "・ドラッグ: 表示位置を移動（パン）",
@@ -274,7 +284,15 @@ const en: Messages = {
   treemapText: "%{label}<br>%{value:,} opinions<br>%{percentRoot:.2%} of all",
   treemapTextFiltered: "%{label}<br>%{value:,} opinions (filtered)<br>%{percentRoot:.2%} of all",
 
-  scatterHelpButton: "Show how to use the scatter plot",
+  scatterHelpButton: "Show how to read and use the scatter plot",
+  scatterReadingTitle: "How to read the scatter plot",
+  scatterReadingItems: [
+    "• Each point is one extracted opinion (not a person or a comment)",
+    "• The axes themselves have no meaning. Points close to each other are opinions with similar content",
+    "• Dense areas mean many opinions. They do not indicate importance or the amount of support",
+  ],
+  scatterReadingHull:
+    "• Colored lines outline the points of each group. Where outlines overlap, the opinions there do not belong to both groups",
   scatterHelpTitle: "How to use the scatter plot",
   scatterHelpItems: [
     "• Drag: move the view (pan)",
@@ -463,7 +481,15 @@ const ko: Messages = {
   treemapText: "%{label}<br>의견 %{value:,}건<br>전체 의견의 %{percentRoot:.2%}",
   treemapTextFiltered: "%{label}<br>의견 %{value:,}건 (필터 후)<br>전체 의견의 %{percentRoot:.2%}",
 
-  scatterHelpButton: "산점도 조작 방법 보기",
+  scatterHelpButton: "산점도 보는 법과 조작 방법 보기",
+  scatterReadingTitle: "산점도 보는 법",
+  scatterReadingItems: [
+    "• 점 하나가 추출한 의견 1건입니다(사람이나 댓글의 수가 아닙니다)",
+    "• 세로축·가로축 자체에는 의미가 없습니다. 가까이 있는 점일수록 내용이 비슷한 의견입니다",
+    "• 점이 많은 곳은 의견의 수가 많은 곳입니다. 중요도나 찬성의 많고 적음을 나타내는 것은 아닙니다",
+  ],
+  scatterReadingHull:
+    "• 색 선은 그룹의 점을 둘러싼 윤곽입니다. 윤곽이 겹쳐 보여도 겹친 부분의 의견이 두 그룹에 모두 속하는 것은 아닙니다",
   scatterHelpTitle: "산점도 조작 방법",
   scatterHelpItems: [
     "• 드래그: 표시 위치 이동(팬)",

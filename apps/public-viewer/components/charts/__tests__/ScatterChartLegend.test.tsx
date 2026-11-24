@@ -89,7 +89,7 @@ describe("ScatterChart attribution legend", () => {
       });
       expect(screen.getByText("Top-level cluster of each dense opinion group")).toBeInTheDocument();
       expect(screen.getByText("cluster-c2 (hidden)")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Show how to use the scatter plot" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Show how to read and use the scatter plot" })).toBeInTheDocument();
     } finally {
       window.history.replaceState(null, "", "/");
     }
