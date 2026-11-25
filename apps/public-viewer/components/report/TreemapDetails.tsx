@@ -1,5 +1,6 @@
 import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Argument, Comments } from "@/type";
+import { Button } from "@chakra-ui/react";
 import { OriginalComments } from "./OriginalComments";
 import { treemapContext } from "./treemapContext";
 
@@ -14,6 +15,7 @@ type Props = {
   comments?: Comments;
   showOriginalComments?: boolean;
   onNavigate: (id: string) => void;
+  onOpenOpposition?: (id: string) => void;
 };
 
 export function TreemapDetails({
@@ -24,6 +26,7 @@ export function TreemapDetails({
   comments,
   showOriginalComments,
   onNavigate,
+  onOpenOpposition,
 }: Props) {
   const messages = useMessages();
   const allowed = filteredIds == null ? null : new Set(filteredIds);
@@ -71,6 +74,11 @@ export function TreemapDetails({
       </h2>
       <p>{metrics(context.current)}</p>
       <p>{context.current.takeaway}</p>
+      {onOpenOpposition && (
+        <Button mt={2} size="sm" variant="outline" onClick={() => onOpenOpposition(level)}>
+          {messages.oppositionOpen}
+        </Button>
+      )}
       {context.filtering && <p>{messages.filteredMetricsNote}</p>}
       {context.current.count === 0 && <p>{messages.noOpinionsHere}</p>}
       {context.children.length > 0 ? (

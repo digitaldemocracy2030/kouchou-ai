@@ -46,6 +46,7 @@ const ja = {
     scatterDensity: "濃い意見",
     treemap: "階層",
     hierarchyList: "リスト",
+    opposition: "対立",
   } as Record<string, string>,
   chartModeDisabled: {
     scatterDetail: "クラスタが1階層のみのため利用できません",
@@ -58,6 +59,7 @@ const ja = {
     scatterDensity: "特に似た意見が集まった所を見る",
     treemap: "グループの大きさを比べる",
     hierarchyList: "全部読む・掘り下げる（詳細モード）",
+    opposition: "同じ話題の意見がどこで分かれるかを見る",
   } as Record<string, string>,
   filter: "フィルタ",
   displaySettings: "表示設定",
@@ -153,6 +155,21 @@ const ja = {
   // 階層リスト
   hierarchyList: "階層リスト（詳細モード）",
   hierarchyListDescription: "全部読む・掘り下げるための見方です。グループを展開すると要約と個別の意見を順に読めます",
+
+  oppositionHeading: "対立軸ビュー",
+  oppositionTopic: "話題",
+  oppositionAxis: "対立軸",
+  oppositionOpen: "この話題の対立を見る",
+  oppositionAvailable: "対立軸あり",
+  oppositionBack: "選んだ話題に戻る",
+  oppositionUnavailable: "このレポートには表示できる対立軸がありません。",
+  oppositionNotApplicable: (n: number) => `該当なし ${n.toLocaleString()}件`,
+  oppositionUnscored: (n: number) => `未採点 ${n.toLocaleString()}件`,
+  oppositionScore: (n: number) => `立場のスコア ${n} / 6`,
+  oppositionReadingNote: "LLMが提案した対立軸と判定した立場を表示します。",
+  oppositionAgreements: "合意できそうな点",
+  oppositionConflicts: "根本的に対立する点",
+
   sourceLink: "出典を見る",
   collapse: "折りたたむ",
   expand: "展開する",
@@ -271,6 +288,7 @@ const en: Messages = {
     scatterDensity: "Dense opinions",
     treemap: "Hierarchy",
     hierarchyList: "List",
+    opposition: "Disagreement",
   },
   chartModePurpose: {
     scatterAll: "Get the big picture",
@@ -278,6 +296,7 @@ const en: Messages = {
     scatterDensity: "See where very similar opinions gather",
     treemap: "Compare group sizes",
     hierarchyList: "Read everything, drill down (detail mode)",
+    opposition: "See where opinions on a topic diverge",
   },
   chartModeDisabled: {
     scatterDetail: "Not available because the clusters have only one level",
@@ -366,6 +385,21 @@ const en: Messages = {
   hierarchyList: "Hierarchy list (detail mode)",
   hierarchyListDescription:
     "For reading everything and drilling down. Expand a group to read its summary and each opinion",
+
+  oppositionHeading: "Disagreement view",
+  oppositionTopic: "Topic",
+  oppositionAxis: "Axis",
+  oppositionOpen: "See disagreements on this topic",
+  oppositionAvailable: "Disagreement axes available",
+  oppositionBack: "Back to the selected topic",
+  oppositionUnavailable: "There are no disagreement axes for this report.",
+  oppositionNotApplicable: (n) => `Not applicable: ${n.toLocaleString()}`,
+  oppositionUnscored: (n) => `Unscored: ${n.toLocaleString()}`,
+  oppositionScore: (n) => `Position score ${n} / 6`,
+  oppositionReadingNote: "An LLM proposed these axes and classified the opinions.",
+  oppositionAgreements: "Possible points of agreement",
+  oppositionConflicts: "Fundamental disagreements",
+
   sourceLink: "View source",
   collapse: "Collapse",
   expand: "Expand",
@@ -478,6 +512,7 @@ const ko: Messages = {
     scatterDensity: "밀집 의견",
     treemap: "계층",
     hierarchyList: "목록",
+    opposition: "의견 대립",
   },
   chartModePurpose: {
     scatterAll: "전체를 대략 파악하기",
@@ -485,6 +520,7 @@ const ko: Messages = {
     scatterDensity: "특히 비슷한 의견이 모인 곳 보기",
     treemap: "그룹 크기 비교하기",
     hierarchyList: "전부 읽기・파고들기 (상세 모드)",
+    opposition: "같은 주제에서 의견이 갈리는 지점 보기",
   },
   chartModeDisabled: {
     scatterDetail: "클러스터가 한 계층뿐이어서 사용할 수 없습니다",
@@ -571,6 +607,21 @@ const ko: Messages = {
   hierarchyList: "계층 목록 (상세 모드)",
   hierarchyListDescription:
     "전부 읽고 파고들기 위한 보기입니다. 그룹을 펼치면 요약과 개별 의견을 차례로 읽을 수 있습니다",
+
+  oppositionHeading: "의견 대립 보기",
+  oppositionTopic: "주제",
+  oppositionAxis: "대립 축",
+  oppositionOpen: "이 주제에서 의견이 갈리는 지점 보기",
+  oppositionAvailable: "대립 축 보기 가능",
+  oppositionBack: "선택한 주제로 돌아가기",
+  oppositionUnavailable: "이 보고서에는 표시할 대립 축이 없습니다.",
+  oppositionNotApplicable: (n) => `해당 없음 ${n.toLocaleString()}건`,
+  oppositionUnscored: (n) => `미채점 ${n.toLocaleString()}건`,
+  oppositionScore: (n) => `입장 점수 ${n} / 6`,
+  oppositionReadingNote: "LLM이 대립 축을 제안하고 의견의 입장을 분류했습니다.",
+  oppositionAgreements: "합의할 수 있는 부분",
+  oppositionConflicts: "근본적으로 대립하는 부분",
+
   sourceLink: "출처 보기",
   collapse: "접기",
   expand: "펼치기",

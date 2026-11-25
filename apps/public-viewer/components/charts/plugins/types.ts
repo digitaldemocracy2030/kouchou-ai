@@ -92,6 +92,8 @@ export interface ChartMode {
   disabledTooltip?: string;
 }
 
+export type OppositionSelection = { clusterId?: string; axisId?: string };
+
 /**
  * Context passed to chart components for rendering
  */
@@ -118,6 +120,14 @@ export interface ChartRenderContext {
   onTreeZoom?: (level: string) => void;
   /** Callback when a cluster is selected on the scatter chart (for linked text/list) */
   onSelectCluster?: (clusterId: string) => void;
+  /** 開ける対立ビューがあるクラスタと、選択・復帰の操作 */
+  oppositionClusterIds?: ReadonlySet<string>;
+  oppositionClusterId?: string;
+  oppositionSelection?: OppositionSelection;
+  onOppositionSelectionChange?: (selection: OppositionSelection) => void;
+  onOpenOpposition?: (clusterId: string) => void;
+  onBackFromOpposition?: () => void;
+  reopenClusterId?: string;
   /** Callback when hover occurs */
   onHover?: () => void;
 }

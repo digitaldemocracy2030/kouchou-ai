@@ -136,8 +136,10 @@ export function loadBuiltinChartPlugins(): void {
   const { treemapPlugin } = require("./treemap");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { hierarchyListPlugin } = require("./hierarchy-list");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { oppositionPlugin } = require("./opposition");
 
-  const plugins: ChartPlugin[] = [scatterPlugin, treemapPlugin, hierarchyListPlugin];
+  const plugins: ChartPlugin[] = [scatterPlugin, treemapPlugin, hierarchyListPlugin, oppositionPlugin];
   for (const plugin of plugins) {
     if (chartRegistry.get(plugin.manifest.id) !== plugin) chartRegistry.register(plugin);
   }

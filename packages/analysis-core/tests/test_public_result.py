@@ -28,6 +28,48 @@ INTERNAL_PATH = "/srv/kouchou/outputs"
 ALLOWED_CONFIG_KEYS = set(CONFIG_SCALAR_KEYS) | {"plan"} | set(CONFIG_STEP_KEYS)
 
 
+def test_opposition_axes_only_publish_display_fields_for_matching_opinions():
+    result = _full_result()
+    result["clusters"].extend([{"id": "1_0", "level": 1}, {"id": "1_1", "level": 1}])
+    result["arguments"].extend(
+        [
+            {"arg_id": "A2", "cluster_ids": ["0", "1_0"]},
+            {"arg_id": "A3", "cluster_ids": ["0", "1_0"]},
+            {"arg_id": "A4", "cluster_ids": ["0", "1_1"]},
+        ]
+    )
+    axis = {
+        "id": "axis1",
+        "cluster_id": "1_0",
+        "name": "対立軸",
+        "left_pole": "左",
+        "right_pole": "右",
+        "scores": {"A1_0": 6, "A2": None, "A3": True, "A4": 1, "absent": 1},
+        "agreements": ["共通点", {"debug": SECRET}],
+        "reasoning": SECRET,
+    }
+    result["opposition_axes"] = [
+        {**axis, "id": "stale", "cluster_id": "missing"},
+        axis,
+        {**axis, "cluster_id": "1_1"},
+    ]
+
+    public = build_public_result(result)
+
+    assert public["opposition_axes"] == [
+        {
+            "id": "axis1",
+            "cluster_id": "1_0",
+            "name": "対立軸",
+            "left_pole": "左",
+            "right_pole": "右",
+            "scores": {"A1_0": 6, "A2": None},
+            "agreements": ["共通点"],
+        }
+    ]
+    assert "opposition_axes" not in build_public_result(_full_result())
+
+
 def _full_result() -> dict:
     """hierarchical_result.json 相当。公開してはいけないものを各所に混ぜてある。"""
     return {

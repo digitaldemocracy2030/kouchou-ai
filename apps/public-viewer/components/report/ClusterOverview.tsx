@@ -2,7 +2,7 @@
 
 import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Cluster } from "@/type";
-import { Box, Heading, Link, Text } from "@chakra-ui/react";
+import { Box, Button, Heading, Link, Text } from "@chakra-ui/react";
 import { MessagesSquareIcon } from "lucide-react";
 import { memo, useEffect, useRef } from "react";
 
@@ -10,6 +10,7 @@ type Props = {
   cluster: Cluster;
   /** 見出しを押したときに、そのクラスタの id を渡して呼ぶ（一覧全体で同じ関数を共有し、memo を効かせる） */
   onNavigate?: (clusterId: string) => void;
+  onOpenOpposition?: (clusterId: string) => void;
   /** 属性フィルター適用後の件数（未指定なら cluster.value を表示） */
   count?: number;
   /** フィルター適用中かどうか（表示ラベルの切り替えに使う） */
@@ -23,6 +24,7 @@ type Props = {
 export const ClusterOverview = memo(function ClusterOverview({
   cluster,
   onNavigate,
+  onOpenOpposition,
   count,
   isFiltering,
   isSelected,
@@ -79,6 +81,11 @@ export const ClusterOverview = memo(function ClusterOverview({
         </Text>
       </Box>
       <Text>{cluster.takeaway}</Text>
+      {onOpenOpposition && (
+        <Button mt={2} size="sm" variant="outline" onClick={() => onOpenOpposition(cluster.id)}>
+          {messages.oppositionOpen}
+        </Button>
+      )}
     </Box>
   );
 });

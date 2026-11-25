@@ -11,7 +11,16 @@ import { Box, Center, Dialog, Portal } from "@chakra-ui/react";
 // Ensure plugins are loaded
 ensurePluginsLoaded();
 
-type ReportProps = {
+type ReportProps = Pick<
+  ChartRenderContext,
+  | "oppositionClusterIds"
+  | "oppositionClusterId"
+  | "oppositionSelection"
+  | "onOppositionSelectionChange"
+  | "onOpenOpposition"
+  | "onBackFromOpposition"
+  | "reopenClusterId"
+> & {
   /** 描画に使う結果（属性フィルタ・密度フィルタ適用後） */
   result: Result;
   /**
@@ -63,6 +72,13 @@ export function Chart({
   treemapDensityEnabled = false,
   onTreemapDensityChange,
   onSelectCluster,
+  oppositionClusterIds,
+  oppositionClusterId,
+  oppositionSelection,
+  onOppositionSelectionChange,
+  onOpenOpposition,
+  onBackFromOpposition,
+  reopenClusterId,
   textSearch,
 }: ReportProps) {
   const messages = useMessages();
@@ -79,6 +95,13 @@ export function Chart({
     treemapLevel,
     onTreeZoom,
     onSelectCluster,
+    oppositionClusterIds,
+    oppositionClusterId,
+    oppositionSelection,
+    onOppositionSelectionChange,
+    onOpenOpposition,
+    onBackFromOpposition,
+    reopenClusterId,
     onHover: undefined,
   };
 

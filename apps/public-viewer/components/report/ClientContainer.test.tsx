@@ -279,6 +279,73 @@ describe("フィルタボタン", () => {
   });
 });
 
+describe("対立軸ビュー", () => {
+  it("対立軸データがないレポートに導線を出さない", async () => {
+    await renderViewer();
+    expect(screen.queryByRole("radio", { name: "対立" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "この話題の対立を見る" })).not.toBeInTheDocument();
+  });
+
+  it("選んだ話題と対立軸を全画面表示の往復で保持する", async () => {
+    const result = fixture as unknown as Result;
+    const [firstTopic, secondTopic] = result.clusters.filter((cluster) => cluster.level === 1);
+    const axis = { left_pole: "左", right_pole: "右", scores: {} };
+    await renderViewer({
+      opposition_axes: [
+        { ...axis, id: "first-axis", name: "第一の論点", cluster_id: firstTopic.id },
+        { ...axis, id: "second-axis", name: "第二の論点", cluster_id: secondTopic.id },
+        { ...axis, id: "third-axis", name: "第三の論点", cluster_id: secondTopic.id },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "対立" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "話題" }), { target: { value: secondTopic.id } });
+    fireEvent.change(screen.getByRole("combobox", { name: "対立軸" }), { target: { value: "third-axis" } });
+    fireEvent.click(screen.getByRole("button", { name: "全画面表示" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("combobox", { name: "話題" })).toHaveValue(secondTopic.id);
+    expect(within(dialog).getByRole("combobox", { name: "対立軸" })).toHaveValue("third-axis");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "全画面終了" }));
+    expect(screen.getByRole("combobox", { name: "話題" })).toHaveValue(secondTopic.id);
+    expect(screen.getByRole("combobox", { name: "対立軸" })).toHaveValue("third-axis");
+    await flush();
+  });
+
+  it("クラスタの導線から、該当する軸・意見・採点の内訳を表示する", async () => {
+    const result = fixture as unknown as Result;
+    const topic = result.clusters.find((cluster) => cluster.level === 1);
+    if (!topic) throw new Error("Fixture must have a topic");
+    const opinions = result.arguments.filter((arg) => arg.cluster_ids.includes(topic.id));
+    const [left, right, notApplicable] = opinions;
+    await renderViewer({
+      arguments: [...result.arguments, { ...notApplicable, arg_id: "unscored-opinion", argument: "未採点の意見" }],
+      opposition_axes: [
+        {
+          id: "test-axis",
+          cluster_id: topic.id,
+          name: "比較する論点",
+          left_pole: "左の主張",
+          right_pole: "右の主張",
+          scores: { [left.arg_id]: 1, [right.arg_id]: 6, [notApplicable.arg_id]: null },
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "この話題の対立を見る" }));
+    expect(screen.getByRole("radio", { name: "対立" })).toBeChecked();
+    expect(screen.getByRole("heading", { name: "比較する論点" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "対立軸" })).toHaveValue("test-axis");
+    expect(screen.getByText("左の主張")).toBeInTheDocument();
+    expect(screen.getByText(right.argument)).toBeInTheDocument();
+    expect(screen.getByText(/該当なし 1件/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`未採点 ${(opinions.length - 2).toLocaleString()}件`))).toBeInTheDocument();
+    expect(screen.queryByText(notApplicable.argument)).not.toBeInTheDocument();
+    await flush();
+  });
+});
+
 describe("階層図の密度フィルター", () => {
   const result = {
     clusters: [
