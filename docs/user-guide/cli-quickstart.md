@@ -380,6 +380,24 @@ CLI で分析を実行すると、使用した UMAP モデルが各レポート�
 kouchou-analyze --config report_october.json
 ```
 
+### LLM 直接グルーピングで使う意見の件数を変える
+
+`analysis_mode` を `llm_grouping` にし、`llm_grouping.discovery_sample_size` と `llm_grouping.assignment_batch_size` を指定します。前者は分類枠を作るサンプルの最大件数（既定 200）、後者は割り当て 1 回の最大件数（既定 25）です。いずれも、元のコメントから抽出された意見を数えます。 以前の80件で再実行する場合は `discovery_sample_size` に `80` を指定してください。
+
+```json
+{
+  "analysis_mode": "llm_grouping",
+  "llm_grouping": {
+    "discovery_sample_size": 300,
+    "assignment_batch_size": 25
+  }
+}
+```
+
+`llm_grouping.use_all_arguments` を `true` にすると、分類枠の発見と割り当てにそれぞれ全件を 1 回のリクエストで渡します。指定カテゴリ分類では割り当てだけを行います。CSV 全体を抽出対象にするには、`extraction.limit` をコメント件数以上に設定してください。モデルの入力・出力上限を超える場合は、グルーピングを件数指定に戻して実行してください。
+
+Web 版では、レポート作成画面の AI 設定で「分析方式」から「LLM直接グルーピング」を選ぶと、同じ件数設定と「全件を一度に読む（Long Context）」が表示されます。
+
 ### 所与の分類枠へ意見を分類する（指定カテゴリ分類 / LLM grouping）
 
 あらかじめ決めたカテゴリに意見を割り当てたい場合は、`analysis_mode` を `llm_grouping` にし、`llm_grouping.predefined_groups` にカテゴリを与えます。クラスタを自動発見する代わりに、**枠は人間が与え、各意見の割当だけを LLM が行います**。

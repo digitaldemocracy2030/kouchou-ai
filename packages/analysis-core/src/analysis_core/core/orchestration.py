@@ -428,6 +428,7 @@ def plan_runs_step(plan: list[dict[str, Any]] | None, step: str) -> bool:
 
 # step ごとの、true / false（または未指定）だけを受け付けるオプション
 _BOOLEAN_STEP_OPTIONS: dict[str, tuple[str, ...]] = {
+    "llm_grouping": ("use_all_arguments",),
     "hierarchical_clustering": ("save_umap_model",),
 }
 
