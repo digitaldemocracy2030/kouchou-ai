@@ -1,6 +1,7 @@
-import type { Result } from "@kouchou-ai/report-schema";
+import type { Result } from "@/type";
 
-type DeckSource = Pick<Result, "comment_num" | "overview"> & {
+type DeckSource = Pick<Result, "overview"> & {
+  comment_num?: number;
   config?: Pick<Result["config"], "name" | "question">;
   arguments: Pick<Result["arguments"][number], "argument" | "cluster_ids">[];
   clusters: Pick<Result["clusters"][number], "level" | "id" | "label" | "takeaway">[];
