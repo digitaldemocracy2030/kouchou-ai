@@ -8,9 +8,10 @@ import { ScatterChart } from "../ScatterChart";
 // jsdom には structuredClone が無く、Chakra v3 の recipe 処理が必要とするため補う
 globalThis.structuredClone ??= <T,>(value: T): T => (value === undefined ? value : JSON.parse(JSON.stringify(value)));
 
-// Plotly を実描画しないよう ChartCore をモックする（凡例の検証だけが目的のため）
+// Plotly を実描画せず、点と注釈の設定を取り出す。
+const mockChartCore = jest.fn((_props: { data: { x?: number[] }[]; layout: { annotations: unknown[] } }) => null);
 jest.mock("../ChartCore", () => ({
-  ChartCore: () => null,
+  ChartCore: (props: Parameters<typeof mockChartCore>[0]) => mockChartCore(props),
 }));
 
 // lucide-react は ESM のみ配布のため空コンポーネントに差し替える
@@ -43,12 +44,14 @@ const args = [arg("a1", ["p1", "c1"]), arg("a2", ["p1", "c2"])];
 function renderChart(props: Partial<React.ComponentProps<typeof ScatterChart>> = {}) {
   return render(
     <Provider>
-      <ScatterChart clusterList={clusters} argumentList={args} targetLevel={2} showParentAttribution {...props} />
+      <ScatterChart clusterList={clusters} argumentList={args} targetLevel={2} isDensityView {...props} />
     </Provider>,
   );
 }
 
 describe("ScatterChart attribution legend", () => {
+  beforeEach(() => mockChartCore.mockClear());
+
   it("第一階層クラスタ名をグルーピング見出しとして表示する", () => {
     renderChart();
     expect(screen.getByText("cluster-p1")).toBeInTheDocument();
@@ -67,6 +70,47 @@ describe("ScatterChart attribution legend", () => {
   it("フィルタ未適用時はどのグループにも「（非表示）」を付さない", () => {
     renderChart();
     expect(screen.queryByText(/（非表示）/)).not.toBeInTheDocument();
+    expect(screen.queryByText("濃い意見グループ以外の意見")).not.toBeInTheDocument();
+  });
+
+  it.each([{ filteredArgumentIds: undefined }, { filteredArgumentIds: ["a2"] }])(
+    "濃いグループ外の点を背景に描き、名前は凡例に置く (filter: $filteredArgumentIds)",
+    ({ filteredArgumentIds }) => {
+      renderChart({
+        clusterList: clusters.filter((cluster) => cluster.id !== "c2"),
+        argumentList: [
+          { ...args[0], x: 1, y: 2 },
+          { ...args[1], x: 7, y: 8 },
+          { ...arg("a3", ["p1", "c2", "c3"]), x: 9, y: 10, url: "https://example.test/source" },
+        ],
+        filteredArgumentIds,
+        showClusterLabels: true,
+      });
+
+      const { data, layout } = mockChartCore.mock.lastCall?.[0] ?? { data: [], layout: { annotations: [] } };
+      expect(data[0]).toEqual({
+        x: [7, 9],
+        y: [8, 10],
+        type: "scattergl",
+        mode: "markers",
+        marker: { size: 6, color: "#dedede" },
+        hoverinfo: "skip",
+        showlegend: false,
+      });
+      expect(data.slice(1).flatMap((trace) => trace.x ?? [])).toEqual(expect.arrayContaining([1]));
+      expect(data.slice(1).flatMap((trace) => trace.x ?? [])).not.toContain(7);
+      expect(data.slice(1).flatMap((trace) => trace.x ?? [])).not.toContain(9);
+      expect(layout.annotations).toEqual([]);
+      expect(screen.getByText("濃い意見グループ以外の意見")).toBeInTheDocument();
+      expect(screen.getByText(filteredArgumentIds ? "cluster-c1（非表示）" : "cluster-c1")).toBeInTheDocument();
+      expect(screen.queryByText("cluster-c2")).not.toBeInTheDocument();
+    },
+  );
+
+  it("通常の散布図はグループ名を図に重ねる", () => {
+    renderChart({ isDensityView: false, showClusterLabels: true });
+    expect(mockChartCore.mock.lastCall?.[0].layout.annotations).toHaveLength(2);
+    expect(screen.queryByText("濃い意見グループ以外の意見")).not.toBeInTheDocument();
   });
 
   it("表示言語が英語なら、凡例の見出し・非表示の印・操作ヒントのボタン名も英語になる", async () => {
@@ -80,7 +124,7 @@ describe("ScatterChart attribution legend", () => {
                 clusterList={clusters}
                 argumentList={args}
                 targetLevel={2}
-                showParentAttribution
+                isDensityView
                 filteredArgumentIds={["a1"]}
               />
             </LanguageProvider>

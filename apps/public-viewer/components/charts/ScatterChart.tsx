@@ -25,6 +25,7 @@ export function truncateText(text: string, limit: number): string {
 // フィルタで全点が除外された（plot 上でグレー表示される）クラスタの凡例 swatch 色。
 // plot 側の notMatchingData と同じ色にして視覚的に整合させる。
 const FILTERED_SWATCH_COLOR = "#cccccc";
+const DENSITY_CONTEXT_COLOR = "#dedede";
 
 // ページを読み進めるためのホイール操作で図が拡大縮小されないようにする（#493）。
 // ポインタが図に入った直後はホイールをページスクロールに流し、ホイールが止まってから
@@ -88,8 +89,8 @@ type Props = {
   showConvexHull?: boolean; // クラスターの凸包を表示するか
   // クラスタ上の点をクリックした時に、そのクラスタIDを通知する（連動文章・一覧のハイライト用）
   onSelectCluster?: (clusterId: string) => void;
-  // 濃い意見グループが属する第一階層クラスタの帰属を可視化するか（scatterDensity モードで true）
-  showParentAttribution?: boolean;
+  // 濃い意見モードでは背景点と帰属凡例を表示し、図にラベルを重ねない
+  isDensityView?: boolean;
   // 全画面表示か。全画面ではページがスクロールしないので、ホイールの拡大縮小を常に有効にする
   isFullscreen?: boolean;
 };
@@ -141,10 +142,11 @@ export function ScatterChart({
   comments,
   showConvexHull,
   onSelectCluster,
-  showParentAttribution,
+  isDensityView,
   isFullscreen,
 }: Props) {
   const { language, messages } = useLanguage();
+  const showPlotLabels = showClusterLabels && !isDensityView;
   // 全ての引数を表示するため、argumentListをそのまま使用
   // フィルター条件に合致しないものは後で灰色表示する
   const allArguments = argumentList;
@@ -195,6 +197,23 @@ export function ScatterChart({
     () => clusterList.filter((cluster) => cluster.level === targetLevel),
     [clusterList, targetLevel],
   );
+  // 濃いグループ外の意見を、色付きの点の後ろに 1 意見 1 点で残す。
+  const densityContextTrace = useMemo(() => {
+    if (!isDensityView) return null;
+    const denseIds = new Set(targetClusters.map((cluster) => cluster.id));
+    const background = allArguments.filter((arg) => !arg.cluster_ids.some((id) => denseIds.has(id)));
+    if (background.length === 0) return null;
+
+    return {
+      x: background.map((arg) => arg.x),
+      y: background.map((arg) => arg.y),
+      type: "scattergl",
+      mode: "markers",
+      marker: { size: 6, color: DENSITY_CONTEXT_COLOR },
+      hoverinfo: "skip",
+      showlegend: false,
+    };
+  }, [allArguments, isDensityView, targetClusters]);
   const clusterColorMap = useMemo(() => buildClusterColorMap(targetClusters), [targetClusters]);
 
   const clusterColorMapA = useMemo(
@@ -241,7 +260,7 @@ export function ScatterChart({
   // 帰属可視化用のデータ。各濃いグループの親ラベル（hover 用）と、
   // 第一階層クラスタごとにグルーピングした凡例データ（色対応つき）を作る。
   const parentAttribution = useMemo(() => {
-    if (!showParentAttribution) return null;
+    if (!isDensityView) return null;
 
     // plot のグレー化判定と整合させるため、フィルタ条件に合致する引数を 1 件以上持つ
     // クラスタ ID の集合を 1 パスで作る。plot 側の allElementsFiltered
@@ -280,15 +299,7 @@ export function ScatterChart({
       });
     }
     return { labelByClusterId, groups: Array.from(groupMap.values()) };
-  }, [
-    showParentAttribution,
-    targetClusters,
-    resolveTopAncestor,
-    clusterColorMap,
-    allArguments,
-    filteredIdSet,
-    messages,
-  ]);
+  }, [isDensityView, targetClusters, resolveTopAncestor, clusterColorMap, allArguments, filteredIdSet, messages]);
 
   // ホイール拡大縮小のロック。通常表示ではロックから始め、ホイールが止まって一定時間経つと解除する。
   // ポインタが図から出たら再びロックする。タッチ操作（ピンチ・ドラッグ）は wheel を発生させないので影響しない。
@@ -328,8 +339,26 @@ export function ScatterChart({
   }, [clearWheelUnlockTimer]);
   useEffect(() => clearWheelUnlockTimer, [clearWheelUnlockTimer]);
 
-  // ホバー中にアノテーション（クラスタラベル）を非表示にするための参照
   const chartWrapperRef = useRef<HTMLDivElement>(null);
+  const [plotSize, setPlotSize] = useState<{ width: number; height: number }>();
+  useEffect(() => {
+    const wrapper = chartWrapperRef.current;
+    if (!wrapper || typeof ResizeObserver === "undefined") return;
+
+    // 凡例の表示や折り返しでも描画領域が変わる。ウィンドウのリサイズだけでは Plotly が追従しない。
+    const observer = new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width);
+      const height = Math.round(entry.contentRect.height);
+      if (width < 10 || height < 10) return;
+      setPlotSize((previous) =>
+        previous?.width === width && previous.height === height ? previous : { width, height },
+      );
+    });
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, []);
+
+  // ホバー中だけ該当のアノテーション（クラスタラベル）を非表示にする。
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onHoverRef = useRef(onHover);
   onHoverRef.current = onHover;
@@ -338,8 +367,9 @@ export function ScatterChart({
   // 注釈は意見が 0 件のクラスタを除いて作るので、インデックスも同じ順のクラスタ列で数える
   const argToAnnotationIndexRef = useRef<Map<string, number[]>>(new Map());
   const argToAnnotationIndex = useMemo(() => {
-    const labelledClusters = targetClusters.filter((cluster) => argumentsOf(cluster.id).length > 0);
     const map = new Map<string, number[]>();
+    if (!showPlotLabels) return map;
+    const labelledClusters = targetClusters.filter((cluster) => argumentsOf(cluster.id).length > 0);
     for (const arg of allArguments) {
       const indices: number[] = [];
       for (let i = 0; i < labelledClusters.length; i++) {
@@ -350,7 +380,7 @@ export function ScatterChart({
       if (indices.length > 0) map.set(arg.arg_id, indices);
     }
     return map;
-  }, [allArguments, targetClusters, argumentsOf]);
+  }, [allArguments, targetClusters, argumentsOf, showPlotLabels]);
   argToAnnotationIndexRef.current = argToAnnotationIndex;
 
   // Plotly gd 要素の参照とハンドラを保持し、差し替え・アンマウント時にクリーンアップする
@@ -673,14 +703,17 @@ export function ScatterChart({
   }, [showConvexHull, targetClusters, argumentsByCluster]);
 
   // 凸包を最背面に挿入（scatter点の下に描画）
-  const allPlotData = useMemo(() => [...hullTraces, ...plotData], [hullTraces, plotData]);
+  const allPlotData = useMemo(
+    () => (densityContextTrace ? [densityContextTrace, ...hullTraces, ...plotData] : [...hullTraces, ...plotData]),
+    [densityContextTrace, hullTraces, plotData],
+  );
 
   // アノテーションの設定
   // 意見が 0 件のクラスタ（指定カテゴリ分類で残った「その他 0件」など）は中心が決まらないので、
   // ラベルを描かない。描くと (0,0) に置かれ、注釈も軸範囲に含まれるので点群が縮む。
   const annotations: Partial<Annotation>[] = useMemo(
     () =>
-      showClusterLabels
+      showPlotLabels
         ? clusterDataSets
             .filter((dataSet) => dataSet.allClusterArguments.length > 0)
             .map((dataSet) => {
@@ -713,12 +746,13 @@ export function ScatterChart({
               };
             })
         : [],
-    [showClusterLabels, clusterDataSets, filteredArgumentIds, separateDataByFilter, clusterColorMapA],
+    [showPlotLabels, clusterDataSets, filteredArgumentIds, separateDataByFilter, clusterColorMapA],
   );
 
   // react-plotly は data・layout・config のどれかの参照が変わると Plotly.react で描き直すので、どれも memo して渡す
   const layout = useMemo(
     (): Partial<Layout> => ({
+      ...plotSize,
       uirevision: "scatter", // ズーム・パン状態をデータ更新後も保持する
       margin: { l: 0, r: 0, b: 0, t: 0 },
       xaxis: {
@@ -736,7 +770,7 @@ export function ScatterChart({
       annotations,
       showlegend: false,
     }),
-    [annotations],
+    [annotations, plotSize],
   );
   const plotlyConfig = useMemo(
     () => ({
@@ -848,7 +882,7 @@ export function ScatterChart({
         <ChartCore
           data={allPlotData as unknown as Data[]}
           layout={layout}
-          useResizeHandler={true}
+          useResizeHandler={!plotSize}
           style={{ width: "100%", height: "100%", cursor: config?.enable_source_link ? "pointer" : "default" }}
           config={plotlyConfig}
           onUpdate={onUpdate}
@@ -857,6 +891,12 @@ export function ScatterChart({
       </Box>
       {parentAttribution && parentAttribution.groups.length > 0 && (
         <Box flexShrink={0} px={3} py={2} borderTop="1px solid #eee" maxH="140px" overflowY="auto" bg="#fafafa">
+          {densityContextTrace && (
+            <Flex align="center" gap={1} mb={1} color="gray.600" fontSize="xs">
+              <Box w="8px" h="8px" borderRadius="full" flexShrink={0} bg={DENSITY_CONTEXT_COLOR} />
+              {messages.densityContextLegend}
+            </Flex>
+          )}
           <Text fontSize="xs" fontWeight="bold" color="gray.600" mb={1}>
             {messages.parentAttributionHeading}
           </Text>
