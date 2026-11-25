@@ -1,5 +1,5 @@
 import PolyBool, { type Polygon } from "polybooljs";
-import type { OutlineClipper, Point } from "../charts/scatterOutlines";
+import type { ClusterOutline, OutlineClipper, Point } from "../charts/scatterOutlines";
 
 type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
 const EPS = 1e-9;
@@ -145,16 +145,21 @@ function clipBox(box: Bounds, [nx, ny]: Point, offset: number): Polygon {
   return { regions: ring.length >= 3 ? [ring] : [], inverted: false };
 }
 
-export const clipScatterOutlines: OutlineClipper = (outlines) => {
-  const result = new Map<string, Point[][]>();
-  const stats = { overlaps: 0, oneSided: 0, straight: 0, remaining: 0, rejected: 0 };
-  if (outlines.length < 2) return { result, stats };
-
+function outlineTransform(outlines: ClusterOutline[]) {
   // ブール演算の許容誤差を投影座標の絶対スケールや原点に依存させない。
   const extent = bounds(outlines.flatMap(({ hull }) => hull));
   const span = Math.max(extent.maxX - extent.minX, extent.maxY - extent.minY) || 1;
   const normalize = ([x, y]: Point): Point => [(x - extent.minX) / span, (y - extent.minY) / span];
   const restore = ([x, y]: Point): Point => [x * span + extent.minX, y * span + extent.minY];
+  return { normalize, restore };
+}
+
+export const clipScatterOutlines: OutlineClipper = (outlines) => {
+  const result = new Map<string, Point[][]>();
+  const stats = { overlaps: 0, oneSided: 0, straight: 0, remaining: 0, rejected: 0 };
+  if (outlines.length < 2) return { result, stats };
+
+  const { normalize, restore } = outlineTransform(outlines);
   const regions = outlines
     .map(({ id, hull, points }) => {
       const ring = hull.map(normalize);
@@ -252,3 +257,33 @@ export const clipScatterOutlines: OutlineClipper = (outlines) => {
   }
   return { result, stats };
 };
+
+export function inspectScatterOverlaps(outlines: ClusterOutline[]) {
+  const clipped = clipScatterOutlines(outlines);
+  if (outlines.length < 2) return { cases: [], clipped };
+  const { normalize, restore } = outlineTransform(outlines);
+  const polygon = (rings: Point[][]): Polygon => ({
+    regions: rings.map((ring) => ring.map(normalize)),
+    inverted: false,
+  });
+  const originals = outlines.map(({ hull }) => polygon([hull]));
+  const finals = outlines.map(({ id, hull }) => polygon(clipped.result.get(id) ?? [hull]));
+  const cases = [];
+  for (let i = 0; i < outlines.length; i++) {
+    for (let j = i + 1; j < outlines.length; j++) {
+      const before = PolyBool.intersect(originals[i], originals[j]);
+      if (!hasArea(before)) continue;
+      const area = before.regions.reduce((sum, ring) => sum + Math.abs(signedArea(ring)), 0);
+      const after = PolyBool.intersect(finals[i], finals[j]);
+      const resolved = !hasArea(after);
+      cases.push({
+        ids: [outlines[i].id, outlines[j].id] as const,
+        originalRings: before.regions.map((ring) => ring.map(restore)),
+        remainingRings: resolved ? [] : after.regions.map((ring) => ring.map(restore)),
+        area,
+        resolved,
+      });
+    }
+  }
+  return { cases: cases.sort((a, b) => b.area - a.area), clipped };
+}

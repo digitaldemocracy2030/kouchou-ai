@@ -89,6 +89,13 @@ type Props = {
   comments?: Comments;
   showConvexHull?: boolean; // クラスターの凸包を表示するか
   prototypeClipper?: OutlineClipper;
+  prototypeViewport?: {
+    x: [number, number];
+    y: [number, number];
+    clusterIds: readonly string[];
+    guidePath: string;
+    remainingPath?: string;
+  };
   // クラスタ上の点をクリックした時に、そのクラスタIDを通知する（連動文章・一覧のハイライト用）
   onSelectCluster?: (clusterId: string) => void;
   // 濃い意見モードでは背景点と帰属凡例を表示し、図にラベルを重ねない
@@ -144,12 +151,14 @@ export function ScatterChart({
   comments,
   showConvexHull,
   prototypeClipper,
+  prototypeViewport,
   onSelectCluster,
   isDensityView,
   isFullscreen,
 }: Props) {
   const { language, messages } = useLanguage();
   const showPlotLabels = showClusterLabels && !isDensityView;
+  const focusedClusters = prototypeViewport?.clusterIds;
   // 全ての引数を表示するため、argumentListをそのまま使用
   // フィルター条件に合致しないものは後で灰色表示する
   const allArguments = argumentList;
@@ -608,6 +617,7 @@ export function ScatterChart({
   const plotData = useMemo(
     () =>
       clusterDataSets.flatMap((dataSet) => {
+        if (focusedClusters && !focusedClusters.includes(dataSet.cluster.id)) return [];
         const result = [];
 
         // フィルター対象外のデータ（背面に描画）
@@ -662,16 +672,24 @@ export function ScatterChart({
 
         return result;
       }),
-    [clusterDataSets, filteredArgumentIds, clusterColorMap, parentAttribution, wrapArgumentText, messages],
+    [
+      clusterDataSets,
+      filteredArgumentIds,
+      clusterColorMap,
+      parentAttribution,
+      wrapArgumentText,
+      messages,
+      focusedClusters,
+    ],
   );
 
   // 輪郭の計算はフィルターやズームの描き直しでは再実行しない。
   const { traces: hullTraces, shapes: outlineShapes } = useMemo(
     () =>
       showConvexHull
-        ? makeScatterOutlineLayer(targetClusters, argumentsByCluster, prototypeClipper)
+        ? makeScatterOutlineLayer(targetClusters, argumentsByCluster, prototypeClipper, focusedClusters)
         : { traces: [], shapes: [] },
-    [showConvexHull, targetClusters, argumentsByCluster, prototypeClipper],
+    [showConvexHull, targetClusters, argumentsByCluster, prototypeClipper, focusedClusters],
   );
 
   // 凸包を最背面に挿入（scatter点の下に描画）
@@ -731,29 +749,57 @@ export function ScatterChart({
         zeroline: false,
         showticklabels: false,
         showgrid: false,
+        ...(prototypeViewport && { range: prototypeViewport.x, autorange: false, fixedrange: true }),
       },
       yaxis: {
         zeroline: false,
         showticklabels: false,
         showgrid: false,
+        ...(prototypeViewport && { range: prototypeViewport.y, autorange: false, fixedrange: true }),
       },
       hovermode: "closest",
-      dragmode: "pan", // ドラッグによる移動（パン）を有効化
+      dragmode: prototypeViewport ? false : "pan",
       annotations,
-      shapes: outlineShapes,
+      shapes: prototypeViewport
+        ? [
+            ...outlineShapes,
+            ...(prototypeViewport.remainingPath
+              ? [
+                  {
+                    type: "path",
+                    path: prototypeViewport.remainingPath,
+                    xref: "x",
+                    yref: "y",
+                    fillrule: "evenodd",
+                    fillcolor: "rgba(0,0,0,0.18)",
+                    line: { width: 0 },
+                    layer: "below",
+                  } satisfies NonNullable<Layout["shapes"]>[number],
+                ]
+              : []),
+            {
+              type: "path",
+              path: prototypeViewport.guidePath,
+              xref: "x",
+              yref: "y",
+              line: { color: "#222", width: 1.5, dash: "dash" },
+              layer: "above",
+            },
+          ]
+        : outlineShapes,
       showlegend: false,
     }),
-    [annotations, outlineShapes, plotSize],
+    [annotations, outlineShapes, plotSize, prototypeViewport],
   );
   const plotlyConfig = useMemo(
     () => ({
       responsive: true,
-      displayModeBar: "hover" as const, // 操作時にツールバーを表示
+      displayModeBar: prototypeViewport ? false : ("hover" as const),
       showSendToCloud: false, // Plotly Cloudへの送信導線は表示しない
-      scrollZoom: true, // マウスホイールによるズームを有効化
+      scrollZoom: !prototypeViewport,
       locale: language, // 操作バーの文言を表示言語に合わせる（ja / ko は ChartCore で登録）
     }),
-    [language],
+    [language, prototypeViewport],
   );
 
   // react-plotly はイベントハンドラを、描画データが変わって描き直すときにしか付け替えない。
@@ -812,7 +858,7 @@ export function ScatterChart({
         flex="1"
         minH={0}
         ref={chartWrapperRef}
-        onWheelCapture={handleWheelCapture}
+        onWheelCapture={prototypeViewport ? undefined : handleWheelCapture}
         onMouseLeave={relockWheelZoom}
       >
         {wheelZoomGuardActive && (

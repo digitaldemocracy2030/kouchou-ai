@@ -9,33 +9,40 @@ export type OutlineClipper = (outlines: ClusterOutline[]) => {
   stats: { overlaps: number; oneSided: number; straight: number; remaining: number; rejected: number };
 };
 
-export function makeScatterOutlineLayer(
-  clusters: Cluster[],
-  argumentsByCluster: ReadonlyMap<string, Argument[]>,
-  clipper?: OutlineClipper,
-) {
-  const outlines = clusters.flatMap((cluster, index) => {
+export function getClusterOutlines(clusters: Cluster[], argumentsByCluster: ReadonlyMap<string, Argument[]>) {
+  return clusters.flatMap((cluster, index) => {
     const args = argumentsByCluster.get(cluster.id);
     if (!args || args.length < 3) return [];
     const points: Point[] = args.map(({ x, y }) => [x, y]);
     const hull = convexHull(points);
     return hull.length < 3 ? [] : [{ id: cluster.id, label: cluster.label, index, hull, points }];
   });
+}
+
+export function outlinePath(rings: Point[][]) {
+  return rings.map((ring) => [...ring.map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x},${y}`), "Z"].join(" ")).join(" ");
+}
+
+export function makeScatterOutlineLayer(
+  clusters: Cluster[],
+  argumentsByCluster: ReadonlyMap<string, Argument[]>,
+  clipper?: OutlineClipper,
+  shownClusters?: readonly string[],
+) {
+  const outlines = getClusterOutlines(clusters, argumentsByCluster);
   const clipped = clipper?.(outlines);
   const traces: Data[] = [];
   const shapes: NonNullable<Layout["shapes"]> = [];
 
   for (const { id, label, index, hull } of outlines) {
+    if (shownClusters && !shownClusters.includes(id)) continue;
     const color = clusterColor(index);
     const rings = clipped?.result.get(id);
     if (rings) {
       // evenodd は外周・飛び地・穴を一つのパスで扱える。
-      const path = rings
-        .map((ring) => [...ring.map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x},${y}`), "Z"].join(" "))
-        .join(" ");
       shapes.push({
         type: "path",
-        path,
+        path: outlinePath(rings),
         xref: "x",
         yref: "y",
         fillrule: "evenodd",

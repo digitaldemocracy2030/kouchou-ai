@@ -1,5 +1,5 @@
 import type { ClusterOutline, Point } from "../charts/scatterOutlines";
-import { clipScatterOutlines, containsPoint } from "./clipScatterOutlines";
+import { clipScatterOutlines, containsPoint, inspectScatterOverlaps } from "./clipScatterOutlines";
 
 function rectangle(id: string, left: number, bottom: number, right: number, top: number): ClusterOutline {
   const hull: Point[] = [
@@ -73,4 +73,19 @@ it("3 クラスタの候補は入力の順序を変えても同じ順で処理�
     const rings = clipped.result.get(outline.id) ?? [outline.hull];
     expect(outline.points.every((p) => containsPoint(p, rings))).toBe(true);
   }
+});
+
+it("拡大表示の判定は元の重なりを保持し、処理後に残る組を区別する", () => {
+  const a = rectangle("a", 0, 0, 4, 4);
+  const b = rectangle("b", 0, 0, 4, 4);
+  const c = rectangle("c", 8, 0, 12, 4);
+  const d = rectangle("d", 10, 2, 14, 6);
+  const { cases } = inspectScatterOverlaps([a, b, c, d]);
+  expect(cases.map(({ ids, resolved }) => [ids, resolved])).toEqual([
+    [["a", "b"], false],
+    [["c", "d"], true],
+  ]);
+  expect(containsPoint([11, 3], cases[1].originalRings)).toBe(true);
+  expect(containsPoint([2, 2], cases[0].remainingRings)).toBe(true);
+  expect(cases[1].remainingRings).toHaveLength(0);
 });

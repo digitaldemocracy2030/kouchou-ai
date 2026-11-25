@@ -6,6 +6,7 @@ import { groupArgumentsByCluster } from "@/lib/argumentIndex";
 import type { Argument, Cluster, Config } from "@/type";
 import type { Data, Layout, PlotlyHTMLElement, ScatterglData } from "plotly.js";
 import { useEffect, useRef, useState } from "react";
+import { ScatterOverlapComparison } from "./ScatterOverlapComparison";
 import { clipScatterOutlines } from "./clipScatterOutlines";
 
 type Strategy = "convex" | "clip";
@@ -16,12 +17,16 @@ export function ScatterOutlinePreview({
   config,
   dataset,
   measure,
+  compare,
+  initialPair,
 }: {
   arguments: Argument[];
   clusters: Cluster[];
   config: Config;
   dataset: "example" | "polis";
   measure: boolean;
+  compare: boolean;
+  initialPair?: string;
 }) {
   const [strategy, setStrategy] = useState<Strategy>("convex");
   const chart = useRef<HTMLDivElement>(null);
@@ -100,40 +105,63 @@ export function ScatterOutlinePreview({
     };
   }, [arguments_, clusters, measure]);
 
+  const datasetLink = (value: string) => `/dev/scatter-outlines/?data=${value}${compare ? "" : "&view=overview"}`;
   return (
     <main style={{ padding: 16 }}>
       <h1>散布図の輪郭比較</h1>
       <p>{arguments_.length.toLocaleString("ja-JP")} 点・最上位クラスタ</p>
-      <nav aria-label="レポート" style={{ display: "flex", gap: 16 }}>
-        <a href="/dev/scatter-outlines/?data=example" aria-current={dataset === "example" ? "page" : undefined}>
+      <nav aria-label="レポート" style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+        <a href={datasetLink("example")} aria-current={dataset === "example" ? "page" : undefined}>
           同梱サンプル
         </a>
-        <a href="/dev/scatter-outlines/?data=polis" aria-current={dataset === "polis" ? "page" : undefined}>
+        <a href={datasetLink("polis")} aria-current={dataset === "polis" ? "page" : undefined}>
           Polis の例
         </a>
       </nav>
-      <fieldset style={{ display: "flex", gap: 16, marginBlock: 12 }}>
-        <legend>輪郭の描き方</legend>
-        <label>
-          <input type="radio" name="outline" checked={strategy === "convex"} onChange={() => setStrategy("convex")} />
-          現行の凸包
-        </label>
-        <label>
-          <input type="radio" name="outline" checked={strategy === "clip"} onChange={() => setStrategy("clip")} />
-          重なりを切り抜く
-        </label>
-      </fieldset>
-      <div ref={chart} style={{ height: "min(68vh, 600px)", minHeight: 300 }}>
-        <ScatterChart
-          argumentList={arguments_}
-          clusterList={clusters}
+      <p>
+        <a href={`/dev/scatter-outlines/?data=${dataset}${compare ? "&view=overview" : ""}`}>
+          {compare ? "全体表示で見る" : "重なりを同じ範囲で拡大比較する"}
+        </a>
+      </p>
+      {compare ? (
+        <ScatterOverlapComparison
+          key={dataset}
+          arguments={arguments_}
+          clusters={clusters}
           config={config}
-          targetLevel={1}
-          showConvexHull
-          showClusterLabels
-          prototypeClipper={strategy === "clip" ? clipScatterOutlines : undefined}
+          initialPair={initialPair}
         />
-      </div>
+      ) : (
+        <>
+          <fieldset style={{ display: "flex", gap: 16, marginBlock: 12 }}>
+            <legend>輪郭の描き方</legend>
+            <label>
+              <input
+                type="radio"
+                name="outline"
+                checked={strategy === "convex"}
+                onChange={() => setStrategy("convex")}
+              />
+              現行の凸包
+            </label>
+            <label>
+              <input type="radio" name="outline" checked={strategy === "clip"} onChange={() => setStrategy("clip")} />
+              重なりを切り抜く
+            </label>
+          </fieldset>
+          <div ref={chart} style={{ height: "min(68vh, 600px)", minHeight: 300 }}>
+            <ScatterChart
+              argumentList={arguments_}
+              clusterList={clusters}
+              config={config}
+              targetLevel={1}
+              showConvexHull
+              showClusterLabels
+              prototypeClipper={strategy === "clip" ? clipScatterOutlines : undefined}
+            />
+          </div>
+        </>
+      )}
     </main>
   );
 }
