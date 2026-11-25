@@ -144,8 +144,17 @@ function stanceCounts(group: Argument[]) {
   return [positive, zero, negative, unknown] as const;
 }
 
-function ExplorationBody({ result, initial, copy }: { result: Result; initial: ExplorationSettings; copy: Labels }) {
-  const [settings, setSettings] = useState(initial);
+function ExplorationBody({
+  result,
+  settings,
+  onSettingsChange,
+  copy,
+}: {
+  result: Result;
+  settings: ExplorationSettings;
+  onSettingsChange: (settings: ExplorationSettings) => void;
+  copy: Labels;
+}) {
   const [share, setShare] = useState("");
   const target = useRef<HTMLInputElement>(null);
   const opinions = useMemo(() => coordinateOpinions(result.arguments), [result.arguments]);
@@ -169,7 +178,7 @@ function ExplorationBody({ result, initial, copy }: { result: Result; initial: E
   );
 
   function change(update: Partial<ExplorationSettings>) {
-    setSettings((current) => ({ ...current, ...update }));
+    onSettingsChange({ ...settings, ...update });
     setShare("");
   }
 
@@ -206,6 +215,7 @@ function ExplorationBody({ result, initial, copy }: { result: Result; initial: E
                 <label style={{ display: "grid", gap: "0.25rem" }}>
                   {copy[kind]}
                   <select
+                    aria-label={copy[kind]}
                     value={usable[field]}
                     onChange={(event) =>
                       change({ [field]: event.target.value, [kind]: event.target.value ? settings[kind] || 5 : 0 })
@@ -297,7 +307,7 @@ function ExplorationBody({ result, initial, copy }: { result: Result; initial: E
 export function ReportExploration({ result }: { result: Result }) {
   const { language } = useLanguage();
   const copy = labels[language];
-  const [initial, setInitial] = useState<ExplorationSettings>(DEFAULT_EXPLORATION);
+  const [settings, setSettings] = useState<ExplorationSettings>(DEFAULT_EXPLORATION);
   const [open, setOpen] = useState(false);
   const title = useRef<HTMLHeadingElement>(null);
   const scatterEnabled =
@@ -310,7 +320,7 @@ export function ReportExploration({ result }: { result: Result }) {
     if (!scatterEnabled) return;
     const settings = readExploration(window.location.search);
     if (!settings) return;
-    setInitial(settings);
+    setSettings(settings);
     setOpen(true);
     if (window.location.hash === "#report-exploration") title.current?.focus();
   }, [scatterEnabled]);
@@ -329,7 +339,7 @@ export function ReportExploration({ result }: { result: Result }) {
         </Button>
       </Heading>
       <div id="report-exploration-body">
-        {open && <ExplorationBody result={result} initial={initial} copy={copy} />}
+        {open && <ExplorationBody result={result} settings={settings} onSettingsChange={setSettings} copy={copy} />}
       </div>
     </Box>
   );
