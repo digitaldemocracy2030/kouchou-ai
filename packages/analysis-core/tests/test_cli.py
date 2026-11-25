@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -243,6 +245,68 @@ class TestCLI:
 
         assert result.returncode == 1
         assert "missing required columns" in result.stderr
+
+    @pytest.mark.parametrize("mode", [None, "--dry-run", "--validate-input"])
+    def test_cli_rejects_input_and_generated_attribute_conflicts(self, mode, tmp_path, monkeypatch, capsys):
+        from analysis_core import __main__
+        from analysis_core.orchestrator import PipelineOrchestrator, PipelineResult
+
+        config_path = tmp_path / "test_config.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "input": "demo",
+                    "question": "Test question?",
+                    "provider": "local",
+                    "opinion_stance": {"enabled": True},
+                    "opinion_novelty": {"enabled": True},
+                    "opinion_classification": {
+                        "enabled": True,
+                        "labels": [
+                            {"id": "safety_concern", "name": "Safety", "includes": "Reports about safety"},
+                        ],
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        input_file = tmp_path / "demo.csv"
+        input_file.write_text(
+            "comment-id,comment-body,attribute_stance_score,attribute_novelty_score,attribute_safety_concern\n"
+            "1,test,0.9,0.1,original\n",
+            encoding="utf-8",
+        )
+        output_dir = tmp_path / "outputs"
+        argv = [
+            "analysis_core",
+            "--config",
+            str(config_path),
+            "--input-dir",
+            str(tmp_path),
+            "--output-dir",
+            str(output_dir),
+        ]
+        if mode:
+            argv.append(mode)
+        monkeypatch.setattr(sys, "argv", argv)
+        run_default = MagicMock(return_value=PipelineResult(success=True))
+        monkeypatch.setattr(PipelineOrchestrator, "run_default", run_default)
+
+        assert __main__.main() == 1
+        stderr = capsys.readouterr().err
+        assert "'attribute_stance_score' (opinion_stance)" in stderr
+        assert "'attribute_novelty_score' (opinion_novelty)" in stderr
+        assert "'attribute_safety_concern' (opinion_classification)" in stderr
+        run_default.assert_not_called()
+
+        status_file = output_dir / "test_config" / "hierarchical_status.json"
+        if mode:
+            assert not status_file.exists()
+        else:
+            assert json.loads(status_file.read_text(encoding="utf-8"))["status"] == "error"
+            input_file.write_text("comment-id,comment-body,attribute_age\n1,test,20s\n", encoding="utf-8")
+            assert __main__.main() == 0
+            run_default.assert_called_once_with()
 
     def test_cli_uses_default_execution_path(self, monkeypatch, tmp_path, capsys):
         """Test CLI execution delegates to run_default()."""

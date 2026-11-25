@@ -3,6 +3,7 @@
 import json
 import os
 from collections import defaultdict
+from collections.abc import Collection
 from typing import Any, TypedDict
 
 import numpy as np
@@ -13,6 +14,11 @@ from analysis_core.opinion_sources import CommentReferences, comment_source_fiel
 from analysis_core.public_result import write_result_files
 from analysis_core.steps.extraction import filter_empty_comments
 from analysis_core.steps.hierarchical_translation import TRANSLATIONS_FILENAME, fresh_translations
+from analysis_core.steps.opinion_attributes import (
+    OPINION_SCORE_ATTRIBUTES,
+    configured_opinion_attributes,
+    validate_input_attribute_collisions,
+)
 
 
 def json_serialize_numpy(obj: Any) -> Any:
@@ -108,6 +114,9 @@ def hierarchical_aggregation(config) -> bool:
             "config": _public_config(config),
         }
 
+        comments = read_input_csv(f"{input_base_dir}/{config['input']}.csv")
+        validate_input_attribute_collisions(comments.columns, configured_opinion_attributes(config))
+
         arguments = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/args.csv")
         arg_num = len(arguments)
         # comment-id は入力CSVの値そのもの（"001" など）なので、型推論で数値化させない
@@ -116,7 +125,6 @@ def hierarchical_aggregation(config) -> bool:
         relation_df = pl.read_csv(
             f"{output_base_dir}/{config['output_dir']}/relations.csv", schema_overrides={"comment-id": pl.Utf8}
         ).unique(maintain_order=True)
-        comments = read_input_csv(f"{input_base_dir}/{config['input']}.csv")
         clusters = read_clusters(f"{output_base_dir}/{config['output_dir']}/hierarchical_clusters.csv")
         labels = read_merge_labels(f"{output_base_dir}/{config['output_dir']}/hierarchical_merge_labels.csv")
 
@@ -126,19 +134,21 @@ def hierarchical_aggregation(config) -> bool:
         # 無効化した後に前回の分類結果が残っていても混ぜない
         if config.get("opinion_classification", {}).get("enabled", False):
             _merge_opinion_classifications(
-                results["arguments"], f"{output_base_dir}/{config['output_dir']}/opinion_classifications.csv"
+                results["arguments"],
+                f"{output_base_dir}/{config['output_dir']}/opinion_classifications.csv",
+                comments.columns,
             )
         if config.get("opinion_stance", {}).get("enabled", False):
             _merge_opinion_scores(
                 results["arguments"],
                 f"{output_base_dir}/{config['output_dir']}/opinion_stances.csv",
-                "stance_score",
+                OPINION_SCORE_ATTRIBUTES["opinion_stance"],
             )
         if config.get("opinion_novelty", {}).get("enabled", False):
             _merge_opinion_scores(
                 results["arguments"],
                 f"{output_base_dir}/{config['output_dir']}/opinion_novelty.csv",
-                "novelty_score",
+                OPINION_SCORE_ATTRIBUTES["opinion_novelty"],
             )
         results["clusters"] = _build_cluster_value(labels, arg_num)
 
@@ -378,7 +388,7 @@ def _build_arguments(
     return arguments
 
 
-def _merge_opinion_classifications(arguments: list[Argument], path: str) -> int:
+def _merge_opinion_classifications(arguments: list[Argument], path: str, input_columns: Collection[str] = ()) -> int:
     """Attach opinion classification labels (yes/no per label) to ``arguments[].attributes``.
 
     The labels come from the optional ``opinion_classification`` step. They are added
@@ -392,6 +402,8 @@ def _merge_opinion_classifications(arguments: list[Argument], path: str) -> int:
     label_columns = [col for col in classifications.columns if col != "arg-id"]
     if not label_columns:
         return 0
+    # 再集計で再利用する CSV には、現在の設定にない以前のラベル ID が残っていることがある。
+    validate_input_attribute_collisions(input_columns, dict.fromkeys(label_columns, "opinion_classification"))
     lookup = {
         str(row["arg-id"]): {col: row[col] for col in label_columns} for row in classifications.iter_rows(named=True)
     }

@@ -261,7 +261,7 @@ kouchou-analyze --help
 | `--config`, `-c` | 設定ファイルのパス（必須） |
 | `--dry-run` | cheap preflight 後に実行計画を表示して終了 |
 | `--validate-config` | config の構造だけ検証して終了 |
-| `--validate-input` | 解決された input CSV の存在と必須カラムを検証して終了 |
+| `--validate-input` | 入力 CSV の存在、必須カラム、有効な意見分類・スコアとの属性名の衝突を検証して終了 |
 | `--force`, `-f` | 全ステップを強制再実行 |
 | `--only`, `-o` | 特定のステップのみ実行 |
 | `--without-html` | HTML生成をスキップ |
