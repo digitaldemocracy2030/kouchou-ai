@@ -107,6 +107,16 @@ describe("ScatterChart attribution legend", () => {
     },
   );
 
+  it("条件に合う濃いグループが 0 件でも、灰色の点の凡例だけは残す", () => {
+    // 最深階層のクラスタが無い → 全意見が背景の灰色になり、帰属の見出しは出さない
+    renderChart({ clusterList: [cluster("p1", 1)] });
+
+    const { data } = mockChartCore.mock.lastCall?.[0] ?? { data: [] };
+    expect(data[0]?.x).toEqual([0, 0]);
+    expect(screen.getByText("濃い意見グループ以外の意見")).toBeInTheDocument();
+    expect(screen.queryByText("濃い意見グループの第一階層クラスタへの帰属")).not.toBeInTheDocument();
+  });
+
   it("通常の散布図はグループ名を図に重ねる", () => {
     renderChart({ isDensityView: false, showClusterLabels: true });
     expect(mockChartCore.mock.lastCall?.[0].layout.annotations).toHaveLength(2);

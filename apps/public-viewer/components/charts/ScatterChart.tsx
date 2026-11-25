@@ -889,7 +889,7 @@ export function ScatterChart({
           onClick={handlePlotClick}
         />
       </Box>
-      {parentAttribution && parentAttribution.groups.length > 0 && (
+      {(densityContextTrace || (parentAttribution && parentAttribution.groups.length > 0)) && (
         <Box flexShrink={0} px={3} py={2} borderTop="1px solid #eee" maxH="140px" overflowY="auto" bg="#fafafa">
           {densityContextTrace && (
             <Flex align="center" gap={1} mb={1} color="gray.600" fontSize="xs">
@@ -897,29 +897,33 @@ export function ScatterChart({
               {messages.densityContextLegend}
             </Flex>
           )}
-          <Text fontSize="xs" fontWeight="bold" color="gray.600" mb={1}>
-            {messages.parentAttributionHeading}
-          </Text>
-          <Flex wrap="wrap" gap={3}>
-            {parentAttribution.groups.map((group) => (
-              <Box key={group.parentId} border="1px solid #e2e8f0" borderRadius="md" px={2} py={1} bg="white">
-                <Text fontSize="xs" fontWeight="bold" mb={1} color="gray.700">
-                  {group.parentLabel}
-                </Text>
-                <Flex wrap="wrap" gap={2}>
-                  {group.members.map((member) => (
-                    <Flex key={member.id} align="center" gap={1} opacity={member.filteredOut ? 0.5 : 1}>
-                      <Box w="10px" h="10px" borderRadius="sm" flexShrink={0} bg={member.color} />
-                      <Text fontSize="xs" color="gray.600">
-                        {member.label}
-                        {member.filteredOut ? messages.hiddenInLegend : ""}
-                      </Text>
+          {parentAttribution && parentAttribution.groups.length > 0 && (
+            <>
+              <Text fontSize="xs" fontWeight="bold" color="gray.600" mb={1}>
+                {messages.parentAttributionHeading}
+              </Text>
+              <Flex wrap="wrap" gap={3}>
+                {parentAttribution.groups.map((group) => (
+                  <Box key={group.parentId} border="1px solid #e2e8f0" borderRadius="md" px={2} py={1} bg="white">
+                    <Text fontSize="xs" fontWeight="bold" mb={1} color="gray.700">
+                      {group.parentLabel}
+                    </Text>
+                    <Flex wrap="wrap" gap={2}>
+                      {group.members.map((member) => (
+                        <Flex key={member.id} align="center" gap={1} opacity={member.filteredOut ? 0.5 : 1}>
+                          <Box w="10px" h="10px" borderRadius="sm" flexShrink={0} bg={member.color} />
+                          <Text fontSize="xs" color="gray.600">
+                            {member.label}
+                            {member.filteredOut ? messages.hiddenInLegend : ""}
+                          </Text>
+                        </Flex>
+                      ))}
                     </Flex>
-                  ))}
-                </Flex>
-              </Box>
-            ))}
-          </Flex>
+                  </Box>
+                ))}
+              </Flex>
+            </>
+          )}
         </Box>
       )}
     </Box>
