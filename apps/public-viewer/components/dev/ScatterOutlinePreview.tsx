@@ -6,15 +6,15 @@ import { groupArgumentsByCluster } from "@/lib/argumentIndex";
 import type { Argument, Cluster, Config } from "@/type";
 import type { Data, Layout, PlotlyHTMLElement, ScatterglData } from "plotly.js";
 import { useEffect, useRef, useState } from "react";
+import { clipScatterOutlines } from "../charts/clipScatterOutlines";
 import { ScatterOverlapComparison } from "./ScatterOverlapComparison";
-import { clipScatterOutlines } from "./clipScatterOutlines";
 
-import { clipScatterOutlinesWithVoronoi } from "./clipScatterOutlinesWithVoronoi";
+import { clipScatterOutlinesWithVoronoi } from "../charts/clipScatterOutlinesWithVoronoi";
 
 type Strategy = "convex" | "clip" | "voronoi";
 
 const outlineClippers = {
-  convex: undefined,
+  convex: null,
   clip: clipScatterOutlines,
   voronoi: clipScatterOutlinesWithVoronoi,
 };
@@ -49,7 +49,7 @@ export function ScatterOutlinePreview({
     const bench = {
       geometry(mode: Strategy) {
         const start = performance.now();
-        const layer = makeScatterOutlineLayer(topClusters, byCluster, outlineClippers[mode]);
+        const layer = makeScatterOutlineLayer(topClusters, byCluster, outlineClippers[mode] ?? undefined);
         return { ms: performance.now() - start, stats: layer.stats };
       },
       capture(mode: Strategy) {
@@ -173,7 +173,7 @@ export function ScatterOutlinePreview({
               targetLevel={1}
               showConvexHull
               showClusterLabels
-              prototypeClipper={outlineClippers[strategy]}
+              outlineClipper={outlineClippers[strategy]}
             />
           </div>
         </>

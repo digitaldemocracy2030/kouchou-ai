@@ -6,9 +6,9 @@ import { type Point, getClusterOutlines, outlinePath } from "@/components/charts
 import { groupArgumentsByCluster } from "@/lib/argumentIndex";
 import type { Argument, Cluster, Config } from "@/type";
 import { useCallback, useMemo, useState } from "react";
+import { clipScatterOutlines, inspectScatterOverlaps } from "../charts/clipScatterOutlines";
+import { clipScatterOutlinesWithVoronoi } from "../charts/clipScatterOutlinesWithVoronoi";
 import styles from "./ScatterOverlapComparison.module.css";
-import { clipScatterOutlines, inspectScatterOverlaps } from "./clipScatterOutlines";
-import { clipScatterOutlinesWithVoronoi } from "./clipScatterOutlinesWithVoronoi";
 
 type Method = "clip" | "voronoi";
 
@@ -143,7 +143,7 @@ export function ScatterOverlapComparison({
                   config={config}
                   targetLevel={1}
                   showConvexHull
-                  prototypeClipper={clip ? clipper : undefined}
+                  outlineClipper={clip ? clipper : null}
                   prototypeViewport={
                     clip && !selected.resolved
                       ? { ...viewport, remainingPath: outlinePath(selected.remainingRings) }

@@ -1,5 +1,5 @@
 import PolyBool, { type Polygon } from "polybooljs";
-import type { ClusterOutline, OutlineClipper, Point } from "../charts/scatterOutlines";
+import type { ClusterOutline, OutlineClipper, Point } from "./scatterOutlines";
 
 export type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
 const EPS = 1e-9;

@@ -9,6 +9,7 @@ import type { Annotation, Data, Layout, PlotMouseEvent } from "plotly.js";
 import type { WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartCore } from "./ChartCore";
+import { clipScatterOutlinesWithVoronoi } from "./clipScatterOutlinesWithVoronoi";
 import { buildClusterColorMap, clusterColor } from "./clusterColors";
 import { type OutlineClipper, makeScatterOutlineLayer } from "./scatterOutlines";
 
@@ -87,8 +88,9 @@ type Props = {
   config?: Config; // ソースリンク機能の有効/無効を制御するため
   // 元コメント本文（comment_id → 本文）。config.enable_original_comments が true のときだけホバーに出す
   comments?: Comments;
-  showConvexHull?: boolean; // クラスターの凸包を表示するか
-  prototypeClipper?: OutlineClipper;
+  showConvexHull?: boolean; // クラスタの輪郭を表示するか
+  // 開発用比較画面では null で未調整の凸包を描く。
+  outlineClipper?: OutlineClipper | null;
   prototypeViewport?: {
     x: [number, number];
     y: [number, number];
@@ -150,7 +152,7 @@ export function ScatterChart({
   config,
   comments,
   showConvexHull,
-  prototypeClipper,
+  outlineClipper = clipScatterOutlinesWithVoronoi,
   prototypeViewport,
   onSelectCluster,
   isDensityView,
@@ -687,9 +689,9 @@ export function ScatterChart({
   const { traces: hullTraces, shapes: outlineShapes } = useMemo(
     () =>
       showConvexHull
-        ? makeScatterOutlineLayer(targetClusters, argumentsByCluster, prototypeClipper, focusedClusters)
+        ? makeScatterOutlineLayer(targetClusters, argumentsByCluster, outlineClipper ?? undefined, focusedClusters)
         : { traces: [], shapes: [] },
-    [showConvexHull, targetClusters, argumentsByCluster, prototypeClipper, focusedClusters],
+    [showConvexHull, targetClusters, argumentsByCluster, outlineClipper, focusedClusters],
   );
 
   // 凸包を最背面に挿入（scatter点の下に描画）

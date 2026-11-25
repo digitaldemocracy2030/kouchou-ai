@@ -1,7 +1,7 @@
 import { Delaunay } from "d3-delaunay";
 import PolyBool, { type Polygon } from "polybooljs";
-import type { Point } from "../charts/scatterOutlines";
 import { type Bounds, makeScatterOutlineClipper } from "./clipScatterOutlines";
+import type { Point } from "./scatterOutlines";
 
 function mergeCells(cells: Polygon[], start: number, end: number): Polygon {
   if (end === start + 1) return cells[start];
