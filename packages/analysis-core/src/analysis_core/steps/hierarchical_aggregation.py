@@ -9,6 +9,7 @@ import numpy as np
 import polars as pl
 
 from analysis_core.core.utils import atomic_output_path, read_input_csv
+from analysis_core.opinion_sources import CommentReferences, comment_source_fields
 from analysis_core.public_result import write_result_files
 from analysis_core.steps.extraction import filter_empty_comments
 from analysis_core.steps.hierarchical_translation import TRANSLATIONS_FILENAME, fresh_translations
@@ -62,10 +63,9 @@ def _public_config(obj: Any) -> Any:
     return obj
 
 
-class Argument(TypedDict):
+class Argument(CommentReferences):
     arg_id: str
     argument: str
-    comment_id: str
     x: float
     y: float
     p: float
@@ -144,7 +144,7 @@ def hierarchical_aggregation(config) -> bool:
 
         # 元コメント本文は、レポート作成者が「公開してよい」と明示した場合だけ公開 JSON に入れる。
         # 入力 CSV には引用・再頒布が許されないコメントが混ざりうるため、既定では件数だけを出す。
-        if config.get("enable_original_comments", False):
+        if config.get("enable_original_comments") is True:
             results["comments"] = _build_comments_value(comments, relation_df, hidden_properties_map)
         results["comment_num"] = len(comments)
         # 属性情報のカラムは、元データに対して指定したカラムとclassificationするカテゴリを合わせたもの
@@ -308,13 +308,12 @@ def _build_arguments(
     # Prepare for merging with original comments to get attributes
     comments_copy = comments.with_columns(pl.col("comment-id").cast(pl.Utf8))
 
-    # Get argument to comment mapping
-    arg_comment_map = {}
+    # relations.csv の各行は1つの出典。最初の出典は旧形式の代表として保持する。
+    comment_ids_by_arg: dict[str, dict[str, None]] = {}
     if "comment-id" in relation_df.columns:
-        relation_df_copy = relation_df.with_columns(pl.col("comment-id").cast(pl.Utf8))
-        arg_comment_map = dict(
-            zip(relation_df_copy["arg-id"].to_list(), relation_df_copy["comment-id"].to_list(), strict=False)
-        )
+        for arg_id, comment_id in relation_df.select("arg-id", pl.col("comment-id").cast(pl.Utf8)).iter_rows():
+            if comment_id:
+                comment_ids_by_arg.setdefault(str(arg_id), {})[comment_id] = None
 
     # Find attribute columns in comments dataframe
     attribute_columns = [col for col in comments.columns if col.startswith("attribute_")]
@@ -330,11 +329,12 @@ def _build_arguments(
             cluster_ids.append(str(row[cluster_column]))  # Convert to string to ensure serializable
 
         # Create base argument
-        comment_id = arg_comment_map.get(row["arg-id"], "")
+        arg_id = str(row["arg-id"])
+        sources = comment_source_fields(comment_ids_by_arg.get(arg_id, ()))
         argument: Argument = {
-            "arg_id": str(row["arg-id"]),  # Convert to string to ensure serializable
+            "arg_id": arg_id,
             "argument": str(row["argument"]),
-            "comment_id": str(comment_id) if comment_id else "",
+            **sources,
             "x": float(row["x"]),  # Convert to native float
             "y": float(row["y"]),  # Convert to native float
             "p": 0,  # NOTE: 一旦全部0でいれる
@@ -344,8 +344,8 @@ def _build_arguments(
         }
 
         # Add attributes and URL if available
-        if row["arg-id"] in arg_comment_map:
-            comment_id = arg_comment_map[row["arg-id"]]
+        comment_id = sources["comment_id"]
+        if comment_id:
             comment_row = comments_lookup.get(comment_id)
 
             if comment_row is not None:

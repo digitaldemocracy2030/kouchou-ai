@@ -19,15 +19,16 @@ from pathlib import Path
 from typing import Any
 
 from analysis_core.core import utils as _utils
+from analysis_core.opinion_sources import comment_source_fields, read_comment_ids
 
 PUBLIC_RESULT_FILENAME = "public_result.json"
 RESULT_FILENAME = "hierarchical_result.json"
 
 # 互換性を壊す変更（キーの削除・意味の変更・型の変更）をしたときだけ上げる。
 # 省略可能なキーを足すだけなら上げない（読み手は未知のキーを無視する）。
-PUBLIC_RESULT_SCHEMA_VERSION = 1
+PUBLIC_RESULT_SCHEMA_VERSION = 2
 
-ARGUMENT_KEYS = ("arg_id", "argument", "comment_id", "x", "y", "p", "cluster_ids", "attributes", "url")
+ARGUMENT_KEYS = ("arg_id", "argument", "x", "y", "p", "cluster_ids", "attributes", "url")
 CLUSTER_KEYS = ("level", "id", "label", "takeaway", "value", "parent", "density_rank_percentile")
 PLAN_ITEM_KEYS = ("step", "run", "reason")
 LAYOUT_KEYS = ("kind", "points", "meta")
@@ -92,12 +93,12 @@ def _public_config_view(config: Any) -> dict[str, Any]:
     return view
 
 
-def _public_comments(comments: Any) -> dict[str, dict[str, str]]:
+def _public_comments(comments: Any, linked_ids: set[str]) -> dict[str, dict[str, str]]:
     if not isinstance(comments, dict):
         return {}
     public: dict[str, dict[str, str]] = {}
     for comment_id, value in comments.items():
-        if isinstance(value, dict) and isinstance(value.get("comment"), str):
+        if str(comment_id) in linked_ids and isinstance(value, dict) and isinstance(value.get("comment"), str):
             public[str(comment_id)] = {"comment": value["comment"]}
     return public
 
@@ -149,17 +150,26 @@ def build_public_result(result: dict[str, Any]) -> dict[str, Any]:
 
     入力は変更しない。ここに列挙していないキーは、どの深さにあっても出力に含めない。
     """
+    arguments = []
+    linked_ids: set[str] = set()
+    for arg in result.get("arguments") or []:
+        if isinstance(arg, dict):
+            ids = read_comment_ids(arg)
+            arguments.append({**_pick(arg, ARGUMENT_KEYS), **comment_source_fields(ids)})
+            linked_ids.update(ids)
+    config = _public_config_view(result.get("config"))
+    allow_bodies = config.get("enable_original_comments") is True
     public: dict[str, Any] = {
         "schema_version": PUBLIC_RESULT_SCHEMA_VERSION,
-        "arguments": [_pick(arg, ARGUMENT_KEYS) for arg in result.get("arguments") or [] if isinstance(arg, dict)],
+        "arguments": arguments,
         "clusters": [
             _pick(cluster, CLUSTER_KEYS) for cluster in result.get("clusters") or [] if isinstance(cluster, dict)
         ],
-        "comments": _public_comments(result.get("comments")),
+        "comments": _public_comments(result.get("comments"), linked_ids) if allow_bodies else {},
         "propertyMap": _public_property_map(result.get("propertyMap"), result.get("config")),
         "translations": _public_translations(result.get("translations")),
         "overview": str(result.get("overview") or ""),
-        "config": _public_config_view(result.get("config")),
+        "config": config,
     }
     if isinstance(result.get("comment_num"), int):
         public["comment_num"] = result["comment_num"]
