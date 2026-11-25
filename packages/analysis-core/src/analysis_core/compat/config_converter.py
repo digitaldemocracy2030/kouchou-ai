@@ -8,6 +8,7 @@ to the new workflow-based format while maintaining backwards compatibility.
 import inspect
 from typing import Any
 
+from analysis_core.config import validate_clustering_seed
 from analysis_core.prompts import get_default_prompt
 from analysis_core.workflow import WorkflowDefinition
 from analysis_core.workflows import get_workflow_for_mode
@@ -145,12 +146,14 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     # (from_dict -> normalize_config) でも同じ既定を入れ、workflow engine が
     # ${config.hierarchical_clustering.cluster_nums} を解決できるようにする。
     clustering.setdefault("cluster_nums", None)
+    clustering["random_seed"] = validate_clustering_seed(clustering.get("random_seed"), "hierarchical_clustering")
     if "hierarchical_clustering" in source_codes:
         clustering.setdefault("source_code", source_codes["hierarchical_clustering"])
 
     # LLM grouping defaults
     llm_grouping = result.setdefault("llm_grouping", {})
     llm_grouping.setdefault("group_count", None)
+    llm_grouping["random_seed"] = validate_clustering_seed(llm_grouping.get("random_seed"), "llm_grouping")
     llm_grouping.setdefault("discovery_sample_size", 80)
     llm_grouping.setdefault("assignment_batch_size", 25)
     llm_grouping.setdefault("workers", 1)

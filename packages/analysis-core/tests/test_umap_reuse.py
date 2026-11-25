@@ -190,14 +190,15 @@ class TestComputeUmapEmbeddings:
         assert n_features == 4
         assert embeds.shape == (6, 2)
 
-    def test_reuse_path_uses_transform(self, tmp_path):
+    @pytest.mark.parametrize("random_seed", [None, 0])
+    def test_reuse_path_uses_transform(self, tmp_path, random_seed):
         X = np.random.rand(6, 4)
         model = _FakeUMAP()
         model_path = str(tmp_path / UMAP_MODEL_FILENAME)
         save_umap_model(model_path, model, n_features_in=4, n_components=2)
 
         embeds, used_model, n_features = compute_umap_embeddings(
-            X, n_neighbors=3, reuse_model_path=model_path, umap_factory=None
+            X, n_neighbors=3, reuse_model_path=model_path, random_seed=random_seed
         )
         assert used_model.transform_called is True
         assert used_model.fitted is False

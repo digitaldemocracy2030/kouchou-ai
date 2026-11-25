@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from analysis_core.config import validate_clustering_seed
 from analysis_core.core.utils import read_input_csv, write_json_atomic
 from analysis_core.env_file import load_env_file
 from analysis_core.services.error_summary import redact_secrets
@@ -484,6 +485,9 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
     _validate_opinion_labels(config)
 
     # 型を誤ると実行の途中（抽出・埋め込みの後）で止まるオプションは、ここで先に検査する
+    for step in ("hierarchical_clustering", "llm_grouping"):
+        validate_clustering_seed(config.get(step, {}).get("random_seed"), step)
+
     for step, options in _BOOLEAN_STEP_OPTIONS.items():
         step_config = config.get(step)
         if not isinstance(step_config, dict):
