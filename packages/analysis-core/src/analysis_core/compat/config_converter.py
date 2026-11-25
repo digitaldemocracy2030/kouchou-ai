@@ -151,7 +151,7 @@ def normalize_config(config: dict[str, Any], include_source_code: bool = True) -
     # LLM grouping defaults
     llm_grouping = result.setdefault("llm_grouping", {})
     llm_grouping.setdefault("group_count", None)
-    llm_grouping.setdefault("discovery_sample_size", 80)
+    llm_grouping.setdefault("discovery_sample_size", 200)
     llm_grouping.setdefault("assignment_batch_size", 25)
     llm_grouping.setdefault("use_all_arguments", False)
     llm_grouping.setdefault("workers", 1)

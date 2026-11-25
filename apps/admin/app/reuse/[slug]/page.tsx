@@ -80,7 +80,8 @@ type DuplicateOverrides = {
 const DEFAULT_WORKERS = 30;
 
 const groupingSettingsFromConfig = (options: ReportConfig["llm_grouping"]) => ({
-  discovery_sample_size: Math.max(1, options?.discovery_sample_size ?? DEFAULT_LLM_GROUPING.discovery_sample_size),
+  // 設定に件数が無い既存レポートは、作成当時の既定値に揃える。
+  discovery_sample_size: Math.max(1, options?.discovery_sample_size ?? 80),
   assignment_batch_size: Math.max(1, options?.assignment_batch_size ?? DEFAULT_LLM_GROUPING.assignment_batch_size),
   use_all_arguments: options?.use_all_arguments ?? DEFAULT_LLM_GROUPING.use_all_arguments,
 });

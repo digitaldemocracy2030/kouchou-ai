@@ -14,7 +14,7 @@ from src.config import settings
 from src.schemas.admin_report import ReportDuplicateOverrides, ReportDuplicateRequest
 from src.schemas.report_config import ReportConfig
 from src.services import report_status
-from src.services.analysis_config import prune_config_for_mode
+from src.services.analysis_config import preserve_llm_grouping_sample_size, prune_config_for_mode
 from src.services.model_catalog import EMBEDDING_KIND, models_for_provider
 from src.services.report_launcher import disable_umap_model_saving, launch_report_generation_from_config
 from src.services.report_status import add_new_report_to_status_from_config, delete_report_from_status, slug_exists
@@ -283,6 +283,7 @@ def _generate_slug(source_slug: str) -> str:
 
 
 def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -> dict:
+    config = preserve_llm_grouping_sample_size(config)
     if overrides is None:
         return config
 

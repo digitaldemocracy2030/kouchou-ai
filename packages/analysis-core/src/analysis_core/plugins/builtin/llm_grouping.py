@@ -32,7 +32,7 @@ def llm_grouping_plugin(
     legacy_config["hierarchical_clustering"] = inputs.config.get("hierarchical_clustering", {})
     legacy_config["llm_grouping"] = {
         "group_count": step_config.get("group_count"),
-        "discovery_sample_size": step_config.get("discovery_sample_size", 80),
+        "discovery_sample_size": step_config.get("discovery_sample_size", 200),
         "assignment_batch_size": step_config.get("assignment_batch_size", 25),
         "use_all_arguments": step_config.get("use_all_arguments", False),
         "discovery_prompt": step_config.get("discovery_prompt", ""),

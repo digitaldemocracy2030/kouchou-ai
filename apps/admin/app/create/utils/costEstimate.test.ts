@@ -56,7 +56,7 @@ describe("estimateTokens", () => {
   test("分類枠のサンプル数と割り当て回数を見積もりに反映する", () => {
     const options = { analysisMode: "llm_grouping" };
     const defaults = estimateTokens(input(options));
-    const largerSample = estimateTokens(input({ ...options, llmGrouping: { discovery_sample_size: 200 } }));
+    const largerSample = estimateTokens(input({ ...options, llmGrouping: { discovery_sample_size: 300 } }));
     const largerBatch = estimateTokens(input({ ...options, llmGrouping: { assignment_batch_size: 50 } }));
     const all = estimateTokens(input({ ...options, llmGrouping: { use_all_arguments: true } }));
     expect(largerSample.chatInput.high).toBeGreaterThan(defaults.chatInput.high);

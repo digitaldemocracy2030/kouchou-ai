@@ -168,15 +168,15 @@ it("LLM直接グルーピングの件数を調整でき、全件一括の切り�
   await user.selectOptions(screen.getByRole("combobox", { name: "分析方式" }), "llm_grouping");
 
   const sample = screen.getByRole("spinbutton", discovery);
-  expect(sample).toHaveValue(80);
+  expect(sample).toHaveValue(200);
   expect(screen.getByRole("spinbutton", assignment)).toHaveValue(25);
   await user.clear(sample);
-  await user.type(sample, "200");
+  await user.type(sample, "300");
 
   const all = screen.getByRole("checkbox", { name: "全件を一度に読む（Long Context）" });
   await user.click(all);
   expect(all).toBeChecked();
   expect(screen.queryByRole("spinbutton", discovery)).not.toBeInTheDocument();
   await user.click(all);
-  expect(screen.getByRole("spinbutton", discovery)).toHaveValue(200);
+  expect(screen.getByRole("spinbutton", discovery)).toHaveValue(300);
 });

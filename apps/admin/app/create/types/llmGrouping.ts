@@ -1,6 +1,6 @@
 // analysis-core の llm_grouping_specs.json と同じ既定値。
 export const DEFAULT_LLM_GROUPING = {
-  discovery_sample_size: 80,
+  discovery_sample_size: 200,
   assignment_batch_size: 25,
   use_all_arguments: false,
 };

@@ -83,7 +83,7 @@ def llm_grouping(config: dict) -> None:
     # 旧レポートの設定を書き戻す経路では未指定の件数が null になることがある。
     discovery_sample_size = llm_config.get("discovery_sample_size")
     if discovery_sample_size is None:
-        discovery_sample_size = 80
+        discovery_sample_size = 200
     assignment_batch_size = llm_config.get("assignment_batch_size")
     if assignment_batch_size is None:
         assignment_batch_size = 25

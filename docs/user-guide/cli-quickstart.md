@@ -349,13 +349,13 @@ kouchou-analyze --config report_october.json
 
 ### LLM 直接グルーピングで使う意見の件数を変える
 
-`analysis_mode` を `llm_grouping` にし、`llm_grouping.discovery_sample_size` と `llm_grouping.assignment_batch_size` を指定します。前者は分類枠を作るサンプルの最大件数（既定 80）、後者は割り当て 1 回の最大件数（既定 25）です。いずれも、元のコメントから抽出された意見を数えます。
+`analysis_mode` を `llm_grouping` にし、`llm_grouping.discovery_sample_size` と `llm_grouping.assignment_batch_size` を指定します。前者は分類枠を作るサンプルの最大件数（既定 200）、後者は割り当て 1 回の最大件数（既定 25）です。いずれも、元のコメントから抽出された意見を数えます。 以前の80件で再実行する場合は `discovery_sample_size` に `80` を指定してください。
 
 ```json
 {
   "analysis_mode": "llm_grouping",
   "llm_grouping": {
-    "discovery_sample_size": 200,
+    "discovery_sample_size": 300,
     "assignment_batch_size": 25
   }
 }

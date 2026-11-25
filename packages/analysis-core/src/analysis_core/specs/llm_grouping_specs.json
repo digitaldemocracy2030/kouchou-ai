@@ -31,7 +31,7 @@
     },
     "options": {
       "group_count": null,
-      "discovery_sample_size": 80,
+      "discovery_sample_size": 200,
       "assignment_batch_size": 25,
       "use_all_arguments": false,
       "discovery_prompt": "",

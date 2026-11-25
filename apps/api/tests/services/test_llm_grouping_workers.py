@@ -46,7 +46,7 @@ def test_build_config_passes_workers_to_llm_grouping_assignment():
 
     config = _build_config(_report_input(analysis_mode="llm_grouping", workers=8))
 
-    assert config["llm_grouping"] == {"workers": 8}
+    assert config["llm_grouping"] == {"workers": 8, "discovery_sample_size": 200}
     assert config["extraction"]["workers"] == 8
     _validate_with_analysis_core(config)
 
@@ -85,6 +85,7 @@ def test_duplicate_workers_override_reaches_llm_grouping(source_section):
     assert result["llm_grouping"]["workers"] == 6
     if source_section is not None:
         assert result["llm_grouping"]["assignment_batch_size"] == 10
+    assert result["llm_grouping"]["discovery_sample_size"] == 80
     _validate_with_analysis_core(result)
 
 
@@ -148,7 +149,7 @@ def test_grouping_options_reach_analysis_core_and_survive_config_serialization(o
 
     config = _build_config(_report_input(analysis_mode="llm_grouping", llm_grouping=options))
 
-    assert config["llm_grouping"] == {"workers": 8, **options}
+    assert config["llm_grouping"] == {"workers": 8, "discovery_sample_size": 200, **options}
     _validate_with_analysis_core(config)
     saved_grouping = ReportConfig.model_validate(config).llm_grouping
     assert saved_grouping.model_dump(exclude_none=True) == config["llm_grouping"]
