@@ -13,8 +13,8 @@ jest.mock("lucide-react", () => new Proxy({}, { get: (_, name) => (name === "__e
 
 // Plotly を読み込まず、散布図のクラスタ選択（onSelectCluster）をボタンで擬似的に発火させる
 jest.mock("@/components/charts/ScatterChart", () => ({
-  ScatterChart: (props: { targetLevel: number; onSelectCluster?: (id: string) => void }) => (
-    <div data-testid="scatter" data-level={props.targetLevel}>
+  ScatterChart: (props: { targetLevel: number; showConvexHull: boolean; onSelectCluster?: (id: string) => void }) => (
+    <div data-testid="scatter" data-level={props.targetLevel} data-show-hull={props.showConvexHull}>
       <button type="button" onClick={() => props.onSelectCluster?.("1_1")}>
         クラスタ1_1を選択
       </button>
@@ -73,6 +73,34 @@ async function renderViewer() {
   await flush();
   return utils;
 }
+
+it("散布図の輪郭は全体・詳細とも初期表示で隠れ、表示設定で有効にすると全画面にも反映される", async () => {
+  await renderViewer();
+  expect(screen.getByTestId("scatter")).toHaveAttribute("data-show-hull", "false");
+
+  fireEvent.click(screen.getByRole("radio", { name: "詳細クラスタ" }));
+  expect(screen.getByTestId("scatter")).toHaveAttribute("data-show-hull", "false");
+
+  const fullscreenButton = screen.getByRole("button", { name: "全画面表示" });
+  const settingsButton = fullscreenButton.previousElementSibling as HTMLElement;
+  fireEvent.click(settingsButton);
+  const settings = await screen.findByRole("dialog");
+  const hullSwitch = within(settings).getByRole("checkbox", { name: "意見グループの境界線を表示" });
+  expect(hullSwitch).not.toBeChecked();
+  fireEvent.click(hullSwitch);
+  await flush();
+  expect(hullSwitch).toBeChecked();
+  expect(screen.getByTestId("scatter")).toHaveAttribute("data-show-hull", "true");
+  fireEvent.click(within(settings).getByRole("button", { name: "設定を適用" }));
+  await flush();
+
+  fireEvent.click(fullscreenButton);
+  const fullscreen = await screen.findByRole("dialog");
+  expect(within(fullscreen).getByTestId("scatter")).toHaveAttribute("data-show-hull", "true");
+  fireEvent.click(within(fullscreen).getByRole("button", { name: "全体" }));
+  expect(within(fullscreen).getByTestId("scatter")).toHaveAttribute("data-show-hull", "true");
+  await flush();
+});
 
 it("散布図でクラスタを選択すると、連動一覧の該当項目がハイライトされる", async () => {
   const { container } = await renderViewer();

@@ -59,7 +59,7 @@ export const scatterPlugin: ChartPlugin = {
       selectedChart,
       filteredArgumentIds,
       showClusterLabels,
-      showConvexHull,
+      showConvexHull = false,
       onHover,
       onSelectCluster,
       isFullscreen,
@@ -82,9 +82,7 @@ export const scatterPlugin: ChartPlugin = {
         filteredArgumentIds={filteredArgumentIds}
         config={result.config}
         comments={result.comments}
-        showConvexHull={
-          (selectedChart === "scatterDetail" || selectedChart === "scatterAll") && (showConvexHull ?? true)
-        }
+        showConvexHull={showConvexHull && (selectedChart === "scatterDetail" || selectedChart === "scatterAll")}
         onSelectCluster={onSelectCluster}
         showParentAttribution={selectedChart === "scatterDensity"}
         isFullscreen={isFullscreen}

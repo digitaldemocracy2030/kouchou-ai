@@ -23,7 +23,7 @@ export function DisplaySettingDialog({
   currentMinValue,
   showClusterLabels = false,
   onToggleClusterLabels,
-  showConvexHull = true,
+  showConvexHull = false,
   onToggleConvexHull,
 }: Props) {
   const messages = useMessages();
@@ -62,7 +62,12 @@ export function DisplaySettingDialog({
               <HStack gap={2} alignItems="center">
                 <Text fontSize="sm">{messages.showConvexHull}</Text>
                 <Spacer />
-                <Switch checked={showConvexHull} onChange={() => onToggleConvexHull?.(!showConvexHull)} size="sm" />
+                <Switch
+                  checked={showConvexHull}
+                  onCheckedChange={({ checked }) => onToggleConvexHull?.(checked)}
+                  inputProps={{ "aria-label": messages.showConvexHull }}
+                  size="sm"
+                />
               </HStack>
             </Box>
           </Box>

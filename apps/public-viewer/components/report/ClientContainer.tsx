@@ -71,7 +71,7 @@ export function ClientContainer({ result }: Props) {
   const [minValue, setMinValue] = useState(defaultParams?.scatterDensity?.minValue ?? 5);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showClusterLabels, setShowClusterLabels] = useState(defaultParams?.showClusterLabels ?? true);
-  const [showConvexHull, setShowConvexHull] = useState(true);
+  const [showConvexHull, setShowConvexHull] = useState(false);
   const [treemapLevel, setTreemapLevel] = useState("0");
   // 散布図でクリックされたクラスタ（連動文章・一覧のハイライト対象）
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
