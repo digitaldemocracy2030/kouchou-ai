@@ -1,7 +1,7 @@
 import PolyBool, { type Polygon } from "polybooljs";
 import type { ClusterOutline, OutlineClipper, Point } from "../charts/scatterOutlines";
 
-type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
+export type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
 const EPS = 1e-9;
 const MIN_AREA = 1e-12;
 
@@ -39,27 +39,57 @@ function nearBox([x, y]: Point, box: Bounds) {
   return x >= box.minX - EPS && x <= box.maxX + EPS && y >= box.minY - EPS && y <= box.maxY + EPS;
 }
 
+function edgeLocation([ax, ay]: Point, [bx, by]: Point, x: number, y: number) {
+  if (y < Math.min(ay, by) - EPS || y > Math.max(ay, by) + EPS) return "outside";
+  const dx = bx - ax;
+  const dy = by - ay;
+  if (x >= Math.min(ax, bx) - EPS && x <= Math.max(ax, bx) + EPS) {
+    const cross = dx * (y - ay) - dy * (x - ax);
+    if (cross * cross <= EPS * EPS * (dx * dx + dy * dy)) return "boundary";
+  }
+  return ay > y !== by > y && x < ax + (dx * (y - ay)) / dy ? "crossing" : "outside";
+}
+
 export function containsPoint([x, y]: Point, rings: Point[][]): boolean {
   let inside = false;
   for (const ring of rings) {
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i++) {
-      const [ax, ay] = ring[j];
-      const [bx, by] = ring[i];
-      const dx = bx - ax;
-      const dy = by - ay;
-      if (
-        x >= Math.min(ax, bx) - EPS &&
-        x <= Math.max(ax, bx) + EPS &&
-        y >= Math.min(ay, by) - EPS &&
-        y <= Math.max(ay, by) + EPS
-      ) {
-        const cross = dx * (y - ay) - dy * (x - ax);
-        if (cross * cross <= EPS * EPS * (dx * dx + dy * dy)) return true;
-      }
-      if (ay > y !== by > y && x < ax + ((bx - ax) * (y - ay)) / (by - ay)) inside = !inside;
+      const position = edgeLocation(ring[j], ring[i], x, y);
+      if (position === "boundary") return true;
+      if (position === "crossing") inside = !inside;
     }
   }
   return inside;
+}
+
+/** 追加した辺が多い輪郭を検証するときは、各点の高さに届く辺だけ調べる。 */
+function containsAllPoints(points: Point[], rings: Point[][]) {
+  const box = bounds(rings.flat());
+  const bucketCount = 32;
+  const height = box.maxY - box.minY;
+  const bucketAt = (y: number) =>
+    Math.min(bucketCount - 1, Math.max(0, Math.floor(((y - box.minY) / height) * bucketCount)));
+  const buckets = Array.from({ length: bucketCount }, () => [] as [Point, Point][]);
+  for (const ring of rings) {
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i];
+      const b = ring[(i + 1) % ring.length];
+      const first = bucketAt(Math.min(a[1], b[1]) - EPS);
+      const last = bucketAt(Math.max(a[1], b[1]) + EPS);
+      for (let index = first; index <= last; index++) buckets[index].push([a, b]);
+    }
+  }
+
+  return points.every(([x, y]) => {
+    if (!nearBox([x, y], box)) return false;
+    let inside = false;
+    for (const [a, b] of buckets[bucketAt(y)]) {
+      const position = edgeLocation(a, b, x, y);
+      if (position === "boundary") return true;
+      if (position === "crossing") inside = !inside;
+    }
+    return inside;
+  });
 }
 
 function supportHull(points: Point[]) {
@@ -154,9 +184,30 @@ function outlineTransform(outlines: ClusterOutline[]) {
   return { normalize, restore };
 }
 
-export const clipScatterOutlines: OutlineClipper = (outlines) => {
+type LocalPartition = (
+  a: Point[],
+  b: Point[],
+  box: Bounds,
+) => { polygon: Polygon; side: "a" | "b"; sites: number } | undefined;
+
+export const clipScatterOutlines = makeScatterOutlineClipper();
+
+export function makeScatterOutlineClipper(partition?: LocalPartition): OutlineClipper {
+  return (outlines) => clipOutlines(outlines, partition);
+}
+
+function clipOutlines(outlines: ClusterOutline[], partition?: LocalPartition): ReturnType<OutlineClipper> {
   const result = new Map<string, Point[][]>();
-  const stats = { overlaps: 0, oneSided: 0, straight: 0, remaining: 0, rejected: 0 };
+  const stats = {
+    overlaps: 0,
+    oneSided: 0,
+    straight: 0,
+    remaining: 0,
+    rejected: 0,
+    voronoi: 0,
+    voronoiSites: 0,
+    voronoiMaxSites: 0,
+  };
   if (outlines.length < 2) return { result, stats };
 
   const { normalize, restore } = outlineTransform(outlines);
@@ -187,13 +238,14 @@ export const clipScatterOutlines: OutlineClipper = (outlines) => {
     }
   });
 
-  for (const [i, j] of pairs) {
+  const deferred: [number, number][] = [];
+  function resolvePair(i: number, j: number, useFallback: boolean) {
     const a = regions[i];
     const b = regions[j];
     try {
       const overlap = PolyBool.intersect(a.polygon, b.polygon);
-      if (!hasArea(overlap)) continue;
-      stats.overlaps++;
+      if (!hasArea(overlap)) return;
+      if (!useFallback) stats.overlaps++;
       const box = bounds(overlap.regions.flat());
       a.normalized ??= a.points.map(normalize);
       b.normalized ??= b.points.map(normalize);
@@ -204,15 +256,33 @@ export const clipScatterOutlines: OutlineClipper = (outlines) => {
 
       let nextA = a.polygon;
       let nextB = b.polygon;
-      let split = false;
+      let method: "oneSided" | "straight" | "voronoi" = "oneSided";
       if (occupiedA.length && occupiedB.length) {
-        const line = separatingLine(occupiedA, occupiedB);
-        if (!line) continue;
-        const keepA = PolyBool.intersect(overlap, clipBox(box, line.normal, line.offset));
-        const keepB = PolyBool.difference(overlap, keepA);
-        nextA = PolyBool.difference(a.polygon, keepB);
-        nextB = PolyBool.difference(b.polygon, keepA);
-        split = true;
+        let claim: Polygon;
+        let side: "a" | "b" = "a";
+        if (useFallback) {
+          const local = partition?.(occupiedA, occupiedB, box);
+          if (!local) {
+            stats.rejected++;
+            return;
+          }
+          ({ polygon: claim, side } = local);
+          stats.voronoiSites += local.sites;
+          stats.voronoiMaxSites = Math.max(stats.voronoiMaxSites, local.sites);
+          method = "voronoi";
+        } else {
+          const line = separatingLine(occupiedA, occupiedB);
+          if (!line) {
+            if (partition) deferred.push([i, j]);
+            return;
+          }
+          claim = clipBox(box, line.normal, line.offset);
+          method = "straight";
+        }
+        const claimed = PolyBool.intersect(overlap, claim);
+        const rest = PolyBool.difference(overlap, claimed);
+        nextA = PolyBool.difference(a.polygon, side === "a" ? rest : claimed);
+        nextB = PolyBool.difference(b.polygon, side === "a" ? claimed : rest);
       } else if (occupiedA.length || (!occupiedB.length && b.area >= a.area)) {
         nextB = PolyBool.difference(b.polygon, overlap);
       } else {
@@ -220,24 +290,31 @@ export const clipScatterOutlines: OutlineClipper = (outlines) => {
       }
 
       // 近接点や数値誤差で真の所属点が欠けた場合は、適用前の両領域を残す。
+      const valid = (points: Point[], shape: Polygon) =>
+        hasArea(shape) &&
+        (useFallback
+          ? containsAllPoints(points, shape.regions)
+          : points.every((point) => containsPoint(point, shape.regions)));
       if (
-        (nextA !== a.polygon && (!hasArea(nextA) || !pointsA.every((p) => containsPoint(p, nextA.regions)))) ||
-        (nextB !== b.polygon && (!hasArea(nextB) || !pointsB.every((p) => containsPoint(p, nextB.regions)))) ||
+        (nextA !== a.polygon && !valid(pointsA, nextA)) ||
+        (nextB !== b.polygon && !valid(pointsB, nextB)) ||
         hasArea(PolyBool.intersect(nextA, nextB))
       ) {
         stats.rejected++;
-        continue;
+        return;
       }
       a.changed ||= nextA !== a.polygon;
       b.changed ||= nextB !== b.polygon;
       a.polygon = nextA;
       b.polygon = nextB;
-      if (split) stats.straight++;
-      else stats.oneSided++;
+      stats[method]++;
     } catch {
       stats.rejected++;
     }
   }
+
+  for (const [i, j] of pairs) resolvePair(i, j, false);
+  for (const [i, j] of deferred) resolvePair(i, j, true);
 
   for (const [i, j] of pairs) {
     const a = regions[i];
@@ -256,10 +333,10 @@ export const clipScatterOutlines: OutlineClipper = (outlines) => {
       );
   }
   return { result, stats };
-};
+}
 
-export function inspectScatterOverlaps(outlines: ClusterOutline[]) {
-  const clipped = clipScatterOutlines(outlines);
+export function inspectScatterOverlaps(outlines: ClusterOutline[], clipper = clipScatterOutlines) {
+  const clipped = clipper(outlines);
   if (outlines.length < 2) return { cases: [], clipped };
   const { normalize, restore } = outlineTransform(outlines);
   const polygon = (rings: Point[][]): Polygon => ({

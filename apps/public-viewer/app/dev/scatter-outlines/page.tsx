@@ -11,9 +11,9 @@ const datasets = {
 
 export default async function Page({
   searchParams,
-}: { searchParams: Promise<{ data?: string; measure?: string; view?: string; pair?: string }> }) {
+}: { searchParams: Promise<{ data?: string; measure?: string; view?: string; pair?: string; method?: string }> }) {
   if (process.env.NODE_ENV !== "development") notFound();
-  const { data, measure, view, pair } = await searchParams;
+  const { data, measure, view, pair, method } = await searchParams;
   const dataset = data === "polis" ? "polis" : "example";
   const file = resolve(process.cwd(), "../..", datasets[dataset]);
   const { arguments: arguments_, clusters, config } = JSON.parse(await readFile(file, "utf8")) as Result;
@@ -26,6 +26,7 @@ export default async function Page({
       measure={measure === "1"}
       compare={measure !== "1" && view !== "overview"}
       initialPair={pair}
+      initialMethod={method === "voronoi" ? "voronoi" : "clip"}
     />
   );
 }

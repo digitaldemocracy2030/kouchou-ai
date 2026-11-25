@@ -9,7 +9,15 @@ import { useEffect, useRef, useState } from "react";
 import { ScatterOverlapComparison } from "./ScatterOverlapComparison";
 import { clipScatterOutlines } from "./clipScatterOutlines";
 
-type Strategy = "convex" | "clip";
+import { clipScatterOutlinesWithVoronoi } from "./clipScatterOutlinesWithVoronoi";
+
+type Strategy = "convex" | "clip" | "voronoi";
+
+const outlineClippers = {
+  convex: undefined,
+  clip: clipScatterOutlines,
+  voronoi: clipScatterOutlinesWithVoronoi,
+};
 
 export function ScatterOutlinePreview({
   arguments: arguments_,
@@ -19,6 +27,7 @@ export function ScatterOutlinePreview({
   measure,
   compare,
   initialPair,
+  initialMethod,
 }: {
   arguments: Argument[];
   clusters: Cluster[];
@@ -27,8 +36,9 @@ export function ScatterOutlinePreview({
   measure: boolean;
   compare: boolean;
   initialPair?: string;
+  initialMethod: "clip" | "voronoi";
 }) {
-  const [strategy, setStrategy] = useState<Strategy>("convex");
+  const [strategy, setStrategy] = useState<Strategy>(initialMethod === "voronoi" ? "voronoi" : "convex");
   const chart = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,11 +49,7 @@ export function ScatterOutlinePreview({
     const bench = {
       geometry(mode: Strategy) {
         const start = performance.now();
-        const layer = makeScatterOutlineLayer(
-          topClusters,
-          byCluster,
-          mode === "clip" ? clipScatterOutlines : undefined,
-        );
+        const layer = makeScatterOutlineLayer(topClusters, byCluster, outlineClippers[mode]);
         return { ms: performance.now() - start, stats: layer.stats };
       },
       capture(mode: Strategy) {
@@ -57,7 +63,7 @@ export function ScatterOutlinePreview({
         return {
           width,
           height,
-          shapes: layout.shapes?.length ?? 0,
+          shapePaths: layout.shapes?.map(({ path }) => path) ?? [],
           markerCoordinates: markers.map(({ x, y }) => ({ x, y })),
           points: new Set(
             markers.flatMap((trace) => {
@@ -130,10 +136,11 @@ export function ScatterOutlinePreview({
           clusters={clusters}
           config={config}
           initialPair={initialPair}
+          initialMethod={initialMethod}
         />
       ) : (
         <>
-          <fieldset style={{ display: "flex", gap: 16, marginBlock: 12 }}>
+          <fieldset style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBlock: 12 }}>
             <legend>輪郭の描き方</legend>
             <label>
               <input
@@ -148,6 +155,15 @@ export function ScatterOutlinePreview({
               <input type="radio" name="outline" checked={strategy === "clip"} onChange={() => setStrategy("clip")} />
               重なりを切り抜く
             </label>
+            <label>
+              <input
+                type="radio"
+                name="outline"
+                checked={strategy === "voronoi"}
+                onChange={() => setStrategy("voronoi")}
+              />
+              局所ボロノイを追加
+            </label>
           </fieldset>
           <div ref={chart} style={{ height: "min(68vh, 600px)", minHeight: 300 }}>
             <ScatterChart
@@ -157,7 +173,7 @@ export function ScatterOutlinePreview({
               targetLevel={1}
               showConvexHull
               showClusterLabels
-              prototypeClipper={strategy === "clip" ? clipScatterOutlines : undefined}
+              prototypeClipper={outlineClippers[strategy]}
             />
           </div>
         </>

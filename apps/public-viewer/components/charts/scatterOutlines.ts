@@ -6,7 +6,16 @@ export type Point = [number, number];
 export type ClusterOutline = { id: string; hull: Point[]; points: Point[] };
 export type OutlineClipper = (outlines: ClusterOutline[]) => {
   result: Map<string, Point[][]>;
-  stats: { overlaps: number; oneSided: number; straight: number; remaining: number; rejected: number };
+  stats: {
+    overlaps: number;
+    oneSided: number;
+    straight: number;
+    remaining: number;
+    rejected: number;
+    voronoi: number;
+    voronoiSites: number;
+    voronoiMaxSites: number;
+  };
 };
 
 export function getClusterOutlines(clusters: Cluster[], argumentsByCluster: ReadonlyMap<string, Argument[]>) {

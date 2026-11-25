@@ -9,7 +9,8 @@ const output = resolve(process.argv[2] ?? "outline-benchmark");
 const rate = Number(process.env.SCATTER_OUTLINE_CPU_RATE ?? 1);
 const repeats = Number(process.env.SCATTER_OUTLINE_REPEATS ?? 20);
 const viewport = rate === 1 ? { width: 1440, height: 900 } : { width: 390, height: 844 };
-const modes = ["convex", "clip"];
+const modes = process.env.SCATTER_OUTLINE_COMPARE_VORONOI === "1" ? ["convex", "clip", "voronoi"] : ["convex", "clip"];
+const labels = { convex: "現行の凸包", clip: "重なりを切り抜く", voronoi: "局所ボロノイを追加" };
 assert(Number.isInteger(repeats) && repeats >= 2);
 assert(Number.isFinite(rate) && rate >= 1);
 
@@ -47,21 +48,33 @@ async function compare(browser, dataset) {
       null,
       { timeout: 90000 },
     );
-    await plot.screenshot({ path: resolve(output, `${dataset}-convex.png`) });
-    const base = await page.evaluate(() => window.scatterOutlineBenchmark.capture("convex"));
-    assert.equal(base.shapes, 0);
-
-    await page.getByRole("radio", { name: "重なりを切り抜く" }).check();
-    await page.waitForFunction(() => {
-      const plot = document.querySelector(".js-plotly-plot");
-      return plot?.layout?.shapes?.length > 0 && plot.querySelector(".shapelayer path");
-    });
-    await plot.screenshot({ path: resolve(output, `${dataset}-clip.png`) });
-    const clip = await page.evaluate(() => window.scatterOutlineBenchmark.capture("clip"));
-    assert.deepEqual(clip.markerCoordinates, base.markerCoordinates);
-    assert.deepEqual([clip.width, clip.height], [base.width, base.height]);
+    const captures = {};
+    for (const mode of modes) {
+      await page.getByRole("radio", { name: labels[mode] }).check();
+      if (mode !== "convex") {
+        const previous = mode === "voronoi" ? captures.clip.shapePaths : [];
+        await page.waitForFunction((previous) => {
+          const plot = document.querySelector(".js-plotly-plot");
+          const paths = plot?.layout?.shapes?.map(({ path }) => path) ?? [];
+          return (
+            paths.length > 0 &&
+            plot.querySelector(".shapelayer path") &&
+            JSON.stringify(paths) !== JSON.stringify(previous)
+          );
+        }, previous);
+      }
+      await plot.screenshot({ path: resolve(output, `${dataset}-${mode}.png`) });
+      captures[mode] = await page.evaluate((mode) => window.scatterOutlineBenchmark.capture(mode), mode);
+    }
+    const base = captures.convex;
+    assert.equal(base.shapePaths.length, 0);
     assert.equal(base.points, 9568);
-    assert.equal(clip.points, base.points);
+    for (const mode of modes.slice(1)) {
+      const measured = captures[mode];
+      assert.deepEqual(measured.markerCoordinates, base.markerCoordinates);
+      assert.deepEqual([measured.width, measured.height], [base.width, base.height]);
+      assert.equal(measured.points, base.points);
+    }
     const markers = base.markerCoordinates.reduce((count, trace) => count + trace.x.length, 0);
 
     const result = await page.evaluate(
@@ -72,15 +85,15 @@ async function compare(browser, dataset) {
         const debug = gl?.getExtension("WEBGL_debug_renderer_info");
         const renderer = debug && gl?.getParameter(debug.UNMASKED_RENDERER_WEBGL);
         gl?.getExtension("WEBGL_lose_context")?.loseContext();
-        const samples = { convex: [], clip: [] };
-        const geometry = { convex: [], clip: [] };
-        let stats;
+        const samples = Object.fromEntries(modes.map((mode) => [mode, []]));
+        const geometry = Object.fromEntries(modes.map((mode) => [mode, []]));
+        const statsByMode = {};
 
         for (let index = -4; index < repeats; index++) {
           const order = index % 2 === 0 ? modes : [...modes].reverse();
           for (const mode of order) {
             const measured = bench.geometry(mode);
-            stats = measured.stats ?? stats;
+            if (measured.stats) statsByMode[mode] = measured.stats;
             const drawing = await bench.draw(mode);
             if (index >= 0) {
               geometry[mode].push(measured.ms);
@@ -88,7 +101,7 @@ async function compare(browser, dataset) {
             }
           }
         }
-        return { geometry, samples, stats, renderer, userAgent: navigator.userAgent };
+        return { geometry, samples, statsByMode, renderer, userAgent: navigator.userAgent };
       },
       { repeats, modes },
     );
@@ -97,11 +110,11 @@ async function compare(browser, dataset) {
       dataset,
       points: base.points,
       markerEntries: markers,
-      plotSize: [clip.width, clip.height],
+      plotSize: [base.width, base.height],
       cpuThrottle: rate,
       repeats,
-      shapes: clip.shapes,
-      stats: result.stats,
+      shapes: Object.fromEntries(modes.map((mode) => [mode, captures[mode].shapePaths.length])),
+      stats: result.statsByMode,
       renderer: result.renderer,
       userAgent: result.userAgent,
       timings: Object.fromEntries(

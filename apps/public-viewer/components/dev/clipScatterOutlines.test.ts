@@ -1,5 +1,10 @@
 import type { ClusterOutline, Point } from "../charts/scatterOutlines";
-import { clipScatterOutlines, containsPoint, inspectScatterOverlaps } from "./clipScatterOutlines";
+import {
+  clipScatterOutlines,
+  containsPoint,
+  inspectScatterOverlaps,
+  makeScatterOutlineClipper,
+} from "./clipScatterOutlines";
 
 function rectangle(id: string, left: number, bottom: number, right: number, top: number): ClusterOutline {
   const hull: Point[] = [
@@ -88,4 +93,32 @@ it("拡大表示の判定は元の重なりを保持し、処理後に残る組�
   expect(containsPoint([11, 3], cases[1].originalRings)).toBe(true);
   expect(containsPoint([2, 2], cases[0].remainingRings)).toBe(true);
   expect(cases[1].remainingRings).toHaveLength(0);
+});
+
+it("局所分割に渡すのは、直線で分けられなかった組の重なりにある点だけ", () => {
+  const a = rectangle("a", 0, 0, 6, 6);
+  const b = rectangle("b", 2, 2, 8, 8);
+  a.points = [...a.points, [3, 3]];
+  b.points = [...b.points, [5, 5]];
+  const c = rectangle("c", 10, 0, 14, 4);
+  const d = rectangle("d", 12, 2, 16, 6);
+  const partition = jest.fn(() => undefined);
+
+  const { result, stats } = makeScatterOutlineClipper(partition)([a, b, c, d]);
+
+  expect(partition).toHaveBeenCalledTimes(1);
+  expect(partition).toHaveBeenCalledWith(
+    [
+      [6 / 16, 6 / 16],
+      [3 / 16, 3 / 16],
+    ],
+    [
+      [2 / 16, 2 / 16],
+      [5 / 16, 5 / 16],
+    ],
+    { minX: 2 / 16, minY: 2 / 16, maxX: 6 / 16, maxY: 6 / 16 },
+  );
+  expect(result.has(a.id)).toBe(false);
+  expect(result.has(b.id)).toBe(false);
+  expect(stats).toMatchObject({ straight: 1, remaining: 1, voronoi: 0, rejected: 1 });
 });
