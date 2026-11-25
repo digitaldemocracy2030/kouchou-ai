@@ -85,9 +85,7 @@ def test_success_and_concurrent_usage(monkeypatch, stage):
 
 
 @pytest.mark.parametrize("stage", ["initial", "merge"])
-@pytest.mark.parametrize("execution", ["legacy", "workflow"])
-def test_failed_step_stops_before_downstream_and_output(tmp_path, monkeypatch, stage, execution):
-    from analysis_core.core.orchestration import run_step, termination
+def test_failed_step_stops_before_downstream_and_output(tmp_path, monkeypatch, stage):
     from analysis_core.orchestrator import PipelineOrchestrator
 
     report = tmp_path / "report"
@@ -118,22 +116,14 @@ def test_failed_step_stops_before_downstream_and_output(tmp_path, monkeypatch, s
 
     module = initial if stage == "initial" else merge
     monkeypatch.setattr(module, "request_to_chat_ai", request)
-    if execution == "legacy":
-        with pytest.raises(LabellingBatchError):
-            try:
-                run_step(step, getattr(module, step), config)
-            except LabellingBatchError as error:
-                termination(config, error)
-    else:
-        result = PipelineOrchestrator(config).run_default()
-        assert not result.success
-        if stage == "initial":
-            assert not any(s.step_name in ("merge_labelling", "hierarchical_merge_labelling") for s in result.steps)
-        assert not any(
-            s.step_name
-            in ("overview", "aggregation", "visualization", "hierarchical_overview", "hierarchical_aggregation")
-            for s in result.steps
-        )
+    result = PipelineOrchestrator(config).run_default()
+    assert not result.success
+    if stage == "initial":
+        assert not any(s.step_name in ("merge_labelling", "hierarchical_merge_labelling") for s in result.steps)
+    assert not any(
+        s.step_name in ("overview", "aggregation", "visualization", "hierarchical_overview", "hierarchical_aggregation")
+        for s in result.steps
+    )
     status = json.loads((report / "hierarchical_status.json").read_text())
     assert status["status"] == "error"
     assert step in status["error"]

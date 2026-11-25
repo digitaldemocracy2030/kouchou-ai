@@ -7,21 +7,17 @@ handling step sequencing, status tracking, and error handling.
 
 import json
 import traceback
-import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
-from importlib import import_module
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from analysis_core.core.orchestration import (
     carried_over_token_usage,
     collect_previous_jobs,
     initialization,
-    run_step,
     snapshot_global_params,
     sync_without_html_keys,
-    termination,
     update_status,
 )
 
@@ -49,35 +45,6 @@ class PipelineResult:
     output_dir: Path | None = None
 
 
-DEFAULT_STEP_MODULES: dict[str, tuple[str, str]] = {
-    "extraction": ("analysis_core.steps.extraction", "extraction"),
-    "opinion_classification": ("analysis_core.steps.opinion_classification", "opinion_classification"),
-    "opinion_stance": ("analysis_core.steps.opinion_stance", "opinion_stance"),
-    "embedding": ("analysis_core.steps.embedding", "embedding"),
-    "opinion_novelty": ("analysis_core.steps.opinion_novelty", "opinion_novelty"),
-    "hierarchical_clustering": ("analysis_core.steps.hierarchical_clustering", "hierarchical_clustering"),
-    "hierarchical_initial_labelling": (
-        "analysis_core.steps.hierarchical_initial_labelling",
-        "hierarchical_initial_labelling",
-    ),
-    "hierarchical_merge_labelling": (
-        "analysis_core.steps.hierarchical_merge_labelling",
-        "hierarchical_merge_labelling",
-    ),
-    "llm_grouping": ("analysis_core.steps.llm_grouping", "llm_grouping"),
-    "hierarchical_overview": ("analysis_core.steps.hierarchical_overview", "hierarchical_overview"),
-    "hierarchical_aggregation": ("analysis_core.steps.hierarchical_aggregation", "hierarchical_aggregation"),
-    "hierarchical_visualization": ("analysis_core.steps.hierarchical_visualization", "hierarchical_visualization"),
-}
-
-
-def load_default_step_function(step_name: str) -> Callable[[dict[str, Any]], None]:
-    """Resolve a single built-in step function lazily."""
-    module_path, attr_name = DEFAULT_STEP_MODULES[step_name]
-    module = import_module(module_path)
-    return getattr(module, attr_name)
-
-
 class PipelineOrchestrator:
     """
     Orchestrates the execution of analysis pipeline steps.
@@ -98,27 +65,11 @@ class PipelineOrchestrator:
         result = orchestrator.run_default()
     """
 
-    # Default step sequence for hierarchical analysis
-    DEFAULT_STEPS = [
-        "extraction",
-        "opinion_classification",
-        "opinion_stance",
-        "embedding",
-        "opinion_novelty",
-        "hierarchical_clustering",
-        "hierarchical_initial_labelling",
-        "hierarchical_merge_labelling",
-        "hierarchical_overview",
-        "hierarchical_aggregation",
-        "hierarchical_visualization",
-    ]
-
     def __init__(
         self,
         config: dict[str, Any],
         output_base_dir: Path | None = None,
         input_base_dir: Path | None = None,
-        steps: list[str] | None = None,
     ):
         """
         Initialize the pipeline orchestrator.
@@ -127,13 +78,10 @@ class PipelineOrchestrator:
             config: Pipeline configuration dictionary (already initialized)
             output_base_dir: Base directory for outputs
             input_base_dir: Base directory for inputs
-            steps: List of step names to execute (default: all steps)
         """
         self.config = config
         self.output_base_dir = output_base_dir or Path(config.get("_output_base_dir", "outputs"))
         self.input_base_dir = input_base_dir or Path(config.get("_input_base_dir", "inputs"))
-        self.steps = steps or self.DEFAULT_STEPS
-        self._step_functions: dict[str, Callable] = {}
 
     @classmethod
     def from_config(
@@ -193,93 +141,6 @@ class PipelineOrchestrator:
             config=config,
             output_base_dir=output_base_dir,
             input_base_dir=input_base_dir,
-        )
-
-    def register_step(self, name: str, func: Callable[[dict[str, Any]], None]) -> None:
-        """
-        Register a custom step function.
-
-        Args:
-            name: Step name
-            func: Step function that takes config and performs the step
-        """
-        self._step_functions[name] = func
-
-    def run(self) -> PipelineResult:
-        """
-        Execute the legacy direct-step pipeline.
-
-        Returns:
-            PipelineResult with execution details
-        """
-        warnings.warn(
-            "PipelineOrchestrator.run() is deprecated; use run_default() for the canonical workflow path.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        start_time = datetime.now()
-        step_results: list[StepResult] = []
-        error: Exception | None = None
-
-        try:
-            # Execute each step
-            for step_name in self.steps:
-                step_func = self._step_functions.get(step_name)
-                if step_func is None and step_name in DEFAULT_STEP_MODULES:
-                    step_func = load_default_step_function(step_name)
-                    self._step_functions[step_name] = step_func
-                if step_func is None:
-                    raise ValueError(f"No function registered for step '{step_name}'")
-
-                step_start = datetime.now()
-                try:
-                    run_step(
-                        step=step_name,
-                        func=step_func,
-                        config=self.config,
-                        output_base_dir=self.output_base_dir,
-                    )
-                    step_duration = (datetime.now() - step_start).total_seconds()
-                    step_results.append(
-                        StepResult(
-                            step_name=step_name,
-                            success=True,
-                            duration_seconds=step_duration,
-                            token_usage=self.config.get("total_token_usage", 0),
-                        )
-                    )
-                except Exception as e:
-                    step_duration = (datetime.now() - step_start).total_seconds()
-                    step_results.append(
-                        StepResult(
-                            step_name=step_name,
-                            success=False,
-                            duration_seconds=step_duration,
-                            error=str(e),
-                        )
-                    )
-                    raise
-
-            # Finalize successfully
-            termination(self.config, error=None, output_base_dir=self.output_base_dir)
-
-        except Exception as e:
-            error = e
-            try:
-                termination(self.config, error=e, output_base_dir=self.output_base_dir)
-            except Exception:
-                pass  # termination re-raises, we catch it here
-
-        total_duration = (datetime.now() - start_time).total_seconds()
-        output_path = self.output_base_dir / self.config.get("output_dir", "")
-
-        return PipelineResult(
-            success=error is None,
-            steps=step_results,
-            total_duration_seconds=total_duration,
-            total_token_usage=self.config.get("total_token_usage", 0),
-            error=str(error) if error else None,
-            output_dir=output_path if output_path.exists() else None,
         )
 
     def run_default(self) -> PipelineResult:
@@ -402,8 +263,8 @@ class PipelineOrchestrator:
         """
         Execute the pipeline using the workflow engine.
 
-        This is an alternative to run() that uses the plugin-based
-        workflow engine instead of direct step function calls.
+        Runs the plugin-based workflow engine and records progress in
+        hierarchical_status.json.
 
         Returns:
             PipelineResult with execution details
