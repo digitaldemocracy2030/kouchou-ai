@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
     // 旧名の middlewareClientMaxBodySize と同時に指定すると Next が設定読み込みで例外を投げるので、こちらだけを使う。
     proxyClientMaxBodySize: PROXY_CLIENT_MAX_BODY_SIZE,
   },
-  serverExternalPackages: ["fs", "path"],
+  serverExternalPackages: ["fs", "path", "pptxgenjs"],
   async headers() {
     return [
       {

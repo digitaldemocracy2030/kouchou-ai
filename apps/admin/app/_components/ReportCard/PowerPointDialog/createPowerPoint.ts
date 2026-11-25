@@ -10,7 +10,7 @@ function shorten(text: string, limit: number) {
 
 export function makeReportUrl(viewer: string, origin: string, slug: string): URL | undefined {
   try {
-    const base = new URL(viewer || "/", origin);
+    const base = origin ? new URL(viewer || "/", origin) : new URL(viewer);
     if (base.protocol !== "https:" && base.protocol !== "http:") return;
     return new URL(`${base.pathname.replace(/\/+$/, "")}/${encodeURIComponent(slug)}`, base.origin);
   } catch {

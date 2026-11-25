@@ -1,5 +1,6 @@
 "use client";
 
+import { downloadFile } from "@/app/utils/downloadFile";
 import { Button } from "@/components/ui/button";
 import {
   DialogBody,
@@ -14,7 +15,7 @@ import type { Report } from "@/type";
 import { Stack, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import type { CoverImage } from "./createPowerPoint";
-import { loadDeckData } from "./loadDeckData";
+import { downloadPowerPoint } from "./downloadPowerPoint";
 
 async function readCover(file: File): Promise<CoverImage> {
   if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 8 * 1024 * 1024) {
@@ -44,20 +45,12 @@ export function PowerPointDialog({ report, onClose }: { report: Report; onClose:
     setError("");
     try {
       const cover = coverFile && (await readCover(coverFile));
-      const [{ createPowerPoint, makeReportUrl }, result] = await Promise.all([
-        import("./createPowerPoint"),
-        loadDeckData(report.slug),
-      ]);
+      const result = await downloadPowerPoint(report.slug, report.visibility === "public", cover);
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      const viewer = process.env.NEXT_PUBLIC_CLIENT_BASEPATH;
-      const reportUrl =
-        report.visibility === "public" && viewer
-          ? makeReportUrl(viewer, window.location.origin, report.slug)
-          : undefined;
-      await createPowerPoint(result.data, reportUrl, cover).writeFile({ fileName: `kouchou_${report.slug}.pptx` });
+      downloadFile(result);
       onClose();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "PowerPoint を書き出せませんでした。");
