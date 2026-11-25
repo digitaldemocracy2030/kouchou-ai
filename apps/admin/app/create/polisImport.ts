@@ -20,6 +20,7 @@ export type PolisImport = {
   voteSource: "comments" | "matrix" | "history";
   matchedComments: number;
   groups: number;
+  historyMismatch?: boolean;
   participantVotes?: ParticipantVotes;
 };
 
@@ -123,6 +124,20 @@ function historyVotes(rows: CsvData[], commentIds: Set<string>) {
   return { totals, ballots, events };
 }
 
+function coversBallots(
+  ballots: ParticipantVotes["ballots"],
+  other: ParticipantVotes["ballots"],
+  commentIds: Set<string>,
+): boolean {
+  for (const [voter, ballot] of ballots) {
+    const otherBallot = other.get(voter);
+    for (const [comment, vote] of ballot) {
+      if (commentIds.has(comment) && otherBallot?.get(comment) !== vote) return false;
+    }
+  }
+  return true;
+}
+
 function voteColumn(vote: Vote, group?: string): string {
   return `Polis ${voteLabels[vote]}票（${group === undefined ? "全体" : `グループ ${group}`}）`;
 }
@@ -217,11 +232,20 @@ export async function readPolisExport(
   if (matrix && history && ![...history.ballots.keys()].some((voter) => matrix.ballots.has(voter))) {
     throw new Error("参加者別投票と履歴を照合できません。同じ会話のCSVを選んでください。");
   }
+  if (matrix && history) {
+    const activeIds = new Set(comments.map((comment) => comment.id));
+    if (
+      !coversBallots(matrix.ballots, history.ballots, activeIds) ||
+      !coversBallots(history.ballots, matrix.ballots, activeIds)
+    ) {
+      result.historyMismatch = true;
+    }
+  }
   result.voteSource = matrix ? "matrix" : "history";
   result.participantVotes = {
-    ballots: history?.ballots ?? source.ballots,
+    ballots: source.ballots,
     groups: matrix?.groups ?? new Map(),
-    events: history?.events ?? [],
+    events: result.historyMismatch ? [] : (history?.events ?? []),
   };
   const totals = source.totals;
   const byGroup = matrix?.byGroup ?? new Map();

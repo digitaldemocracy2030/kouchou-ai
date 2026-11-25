@@ -1,4 +1,5 @@
 import { readPolisExport } from "./polisImport";
+import { projectParticipants } from "./polisProjection";
 
 function csv(name: string, text: string) {
   return new File([text], name, { type: "text/csv" });
@@ -59,6 +60,42 @@ it("投票履歴が時刻順でなくても参加者ごとの最新票だけを�
     "Polis 反対票（全体）": "1",
     "Polis パス票（全体）": "1",
   });
+});
+
+const matrix = csv("participants-votes.csv", "participant,group-id,001,2\n100,0,1,1\n200,1,-1,");
+
+it.each([
+  ["参加者の票が欠ける", "20,001,100,1"],
+  ["コメントへの票が増える", "20,001,100,1\n20,001,200,-1\n20,3,100,0"],
+  ["全体の賛否件数が同じでも投票した参加者が異なる", "20,001,100,-1\n20,001,200,1"],
+])("投票履歴と参加者別投票で%s場合は、参加者別投票の散布図を表示する", async (_, votes) => {
+  const history = csv("votes.csv", `timestamp,comment-id,voter-id,vote\n${votes}`);
+  const result = await readPolisExport(comments, matrix, history);
+  if (!result.participantVotes) throw new Error("参加者の投票が読み込まれていません。");
+
+  const projection = projectParticipants(result.participantVotes, ["001", "3"]);
+  expect(projection.pointsAt()).toEqual([
+    expect.objectContaining({ voter: "100", group: "0", agree: 1, disagree: 0 }),
+    expect.objectContaining({ voter: "200", group: "1", agree: 0, disagree: 1 }),
+  ]);
+  expect(result.historyMismatch).toBe(true);
+  expect(result.comments[0]).toMatchObject({ "Polis 賛成票（全体）": "1", "Polis 反対票（全体）": "1" });
+  expect(projection.start).toBeUndefined();
+  expect(projection.trailFor("100")).toEqual([]);
+});
+
+it("分析対象の最新票が一致すれば、投票し直した履歴も表示できる", async () => {
+  const history = csv(
+    "votes.csv",
+    "timestamp,comment-id,voter-id,vote\n20,001,100,1\n20,001,200,-1\n10,001,100,0\n10,2,300,-1",
+  );
+  const result = await readPolisExport(comments, matrix, history);
+  if (!result.participantVotes) throw new Error("参加者の投票が読み込まれていません。");
+
+  expect(result.historyMismatch).toBeUndefined();
+  const projection = projectParticipants(result.participantVotes, ["001", "3"]);
+  expect(projection.pointsAt(10)).toEqual([expect.objectContaining({ voter: "100", pass: 1 })]);
+  expect(projection.trailFor("100")).toHaveLength(2);
 });
 
 it("照合できない投票CSVをそのまま取り込まない", async () => {

@@ -136,6 +136,11 @@ export function PolisFileTab({
               {data.voteSource === "matrix" && <Text>Polisの参加者グループ {data.groups} 個</Text>}
               {data.comments.length === 0 && <Text>分析できるコメントがありません。</Text>}
             </Box>
+            {data.historyMismatch && (
+              <Box as="output" display="block" mt={2}>
+                投票履歴の最新票が参加者別投票と一致しないため、参加者別投票で散布図を表示します。日付と軌跡を表示するには、同じ会話を同じ時点で出力したCSVを選び直してください。
+              </Box>
+            )}
             {data.participantVotes && data.comments.length > 0 && (
               <Box mt={4}>
                 <Button variant="outline" aria-expanded={showPlot} onClick={() => setShowPlot(!showPlot)}>
