@@ -128,8 +128,8 @@ it("局所分割に渡すのは、直線で分けられなかった組の重な�
 it("交差に点が入り組んでも、局所ボロノイで全点を囲ったまま重なりを分ける", () => {
   const a = rectangle("a", 0, 0, 6, 6);
   const b = rectangle("b", 2, 2, 8, 8);
-  a.points = [...a.points, [3, 3]];
-  b.points = [...b.points, [5, 5]];
+  a.points = [...a.points, [3, 3.4]];
+  b.points = [...b.points, [5, 5.2]];
   const { cases, clipped } = inspectScatterOverlaps([a, b], clipScatterOutlinesWithVoronoi);
   expect(cases).toHaveLength(1);
   expect(cases[0].resolved).toBe(true);
@@ -142,6 +142,16 @@ it("交差に点が入り組んでも、局所ボロノイで全点を囲った�
 it("同じ座標に両方の所属点がある組は切り抜きを適用しない", () => {
   const a = rectangle("a", 0, 0, 4, 4);
   const b = rectangle("b", 0, 0, 4, 4);
+  const { result, stats } = clipScatterOutlinesWithVoronoi([a, b]);
+  expect(result.size).toBe(0);
+  expect(stats).toMatchObject({ remaining: 1, voronoi: 0, rejected: 1 });
+});
+
+it("一直線上の点でセルを作れないときは輪郭を保つ", () => {
+  const a = rectangle("a", 0, 0, 6, 6);
+  const b = rectangle("b", 2, 2, 8, 8);
+  a.points = [...a.points, [3, 3]];
+  b.points = [...b.points, [5, 5]];
   const { result, stats } = clipScatterOutlinesWithVoronoi([a, b]);
   expect(result.size).toBe(0);
   expect(stats).toMatchObject({ remaining: 1, voronoi: 0, rejected: 1 });
