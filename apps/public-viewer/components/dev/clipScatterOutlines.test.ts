@@ -1,0 +1,76 @@
+import type { ClusterOutline, Point } from "../charts/scatterOutlines";
+import { clipScatterOutlines, containsPoint } from "./clipScatterOutlines";
+
+function rectangle(id: string, left: number, bottom: number, right: number, top: number): ClusterOutline {
+  const hull: Point[] = [
+    [left, bottom],
+    [right, bottom],
+    [right, top],
+    [left, top],
+  ];
+  return { id, hull, points: hull };
+}
+
+it("削る側の点が重なりに無ければ、片側だけ切り取る", () => {
+  const a = rectangle("a", 0, 0, 4, 4);
+  const b = rectangle("b", 2, 1, 5, 3);
+  const { result, stats } = clipScatterOutlines([a, b]);
+  const trimmed = result.get(a.id);
+  expect(trimmed).toBeDefined();
+  expect(containsPoint([3, 2], trimmed ?? [])).toBe(false);
+  expect(a.points.every((p) => containsPoint(p, trimmed ?? []))).toBe(true);
+  expect(result.has(b.id)).toBe(false);
+  expect(stats).toMatchObject({ oneSided: 1, remaining: 0, rejected: 0 });
+});
+
+it("包含されたクラスタの周りには穴を作る", () => {
+  const outer = rectangle("outer", 0, 0, 4, 4);
+  const inner = rectangle("inner", 1, 1, 2, 2);
+  const { result, stats } = clipScatterOutlines([outer, inner]);
+  const trimmed = result.get(outer.id);
+  expect(trimmed).toHaveLength(2);
+  expect(containsPoint([1.5, 1.5], trimmed ?? [])).toBe(false);
+  expect(containsPoint([0.5, 0.5], trimmed ?? [])).toBe(true);
+  expect(stats.remaining).toBe(0);
+});
+
+it("両側の点が重なりにあれば、重なりの内側だけ直線で分ける", () => {
+  const a = rectangle("a", 0, 0, 4, 4);
+  const b = rectangle("b", 2, 2, 6, 6);
+  const { result, stats } = clipScatterOutlines([a, b]);
+  expect(stats).toMatchObject({ straight: 1, remaining: 0, rejected: 0 });
+  for (const outline of [a, b]) {
+    const trimmed = result.get(outline.id) ?? [];
+    expect(outline.points.every((p) => containsPoint(p, trimmed))).toBe(true);
+  }
+  for (const p of [
+    [2.3, 3.2],
+    [3.9, 3.6],
+    [3.2, 2.7],
+  ] as Point[]) {
+    expect(Number(containsPoint(p, result.get("a") ?? [])) + Number(containsPoint(p, result.get("b") ?? []))).toBe(1);
+  }
+});
+
+it("点を分けられない場合と辺が接するだけの場合は切り取らない", () => {
+  const a = rectangle("a", 0, 0, 4, 4);
+  const b = rectangle("b", 0, 0, 4, 4);
+  const c = rectangle("c", 4, 0, 8, 4);
+  const { result, stats } = clipScatterOutlines([a, b, c]);
+  expect(result.size).toBe(0);
+  expect(stats).toMatchObject({ overlaps: 1, remaining: 1, rejected: 0 });
+});
+
+it("3 クラスタの候補は入力の順序を変えても同じ順で処理し、点を保持する", () => {
+  const a = rectangle("a", 0, 0, 5, 5);
+  const b = rectangle("b", 2, 1, 6, 3);
+  const c = rectangle("c", 3, 2, 7, 4);
+  const outlines = [a, b, c];
+  const clipped = clipScatterOutlines(outlines);
+  expect(clipped).toEqual(clipScatterOutlines([c, a, b]));
+  expect(clipped.stats.oneSided + clipped.stats.straight).toBeGreaterThan(0);
+  for (const outline of outlines) {
+    const rings = clipped.result.get(outline.id) ?? [outline.hull];
+    expect(outline.points.every((p) => containsPoint(p, rings))).toBe(true);
+  }
+});

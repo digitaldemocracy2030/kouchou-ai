@@ -162,6 +162,9 @@ importers:
       plotly.js:
         specifier: ^4.1.1
         version: 4.1.1
+      polybooljs:
+        specifier: 1.2.2
+        version: 1.2.2
       react:
         specifier: ^19.2.1
         version: 19.2.3

@@ -10,6 +10,7 @@ import type { WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartCore } from "./ChartCore";
 import { buildClusterColorMap, clusterColor } from "./clusterColors";
+import { type OutlineClipper, makeScatterOutlineLayer } from "./scatterOutlines";
 
 // 意見を持たないクラスタに使う空配列（参照を共有するので変更しないこと）
 const NO_ARGUMENTS: Argument[] = [];
@@ -87,6 +88,7 @@ type Props = {
   // 元コメント本文（comment_id → 本文）。config.enable_original_comments が true のときだけホバーに出す
   comments?: Comments;
   showConvexHull?: boolean; // クラスターの凸包を表示するか
+  prototypeClipper?: OutlineClipper;
   // クラスタ上の点をクリックした時に、そのクラスタIDを通知する（連動文章・一覧のハイライト用）
   onSelectCluster?: (clusterId: string) => void;
   // 濃い意見モードでは背景点と帰属凡例を表示し、図にラベルを重ねない
@@ -141,6 +143,7 @@ export function ScatterChart({
   config,
   comments,
   showConvexHull,
+  prototypeClipper,
   onSelectCluster,
   isDensityView,
   isFullscreen,
@@ -662,45 +665,14 @@ export function ScatterChart({
     [clusterDataSets, filteredArgumentIds, clusterColorMap, parentAttribution, wrapArgumentText, messages],
   );
 
-  // 凸包トレースの生成（scatterAll / scatterDetail モード用）
-  // NOTE: hull trace は意図的に type: "scatter"（SVG）を使用している。
-  // hoveron: "fills" はSVGレイヤーのみでサポートされており、
-  // scattergl（WebGL）では動作しない。また Plotly の z-order により
-  // SVGトレースはWebGLトレースの背面に自動配置されるため、scatter点の
-  // 下に凸包が描画される。この SVG/WebGL 混在は意図的な設計である。
-  // Gift wrapping は O(nh) のため、入力が変わらない限り再計算しないよう useMemo でメモ化する。
-  // clusterDataSets / clusterColorMap は毎レンダリング再生成されるので、
-  // 上流の安定した参照（targetClusters / argumentsByCluster）を deps とする。
-  const hullTraces = useMemo(() => {
-    if (!showConvexHull) return [];
-    return targetClusters.flatMap((cluster, index) => {
-      const clusterArguments = argumentsByCluster.get(cluster.id) ?? NO_ARGUMENTS;
-      if (clusterArguments.length < 3) return [];
-      const hull = convexHull(clusterArguments.map((arg) => [arg.x, arg.y]));
-      if (hull.length < 3) return [];
-      const color = clusterColor(index);
-      return [
-        {
-          x: [...hull.map((p) => p[0]), hull[0][0]],
-          y: [...hull.map((p) => p[1]), hull[0][1]],
-          mode: "lines",
-          fill: "toself",
-          fillcolor: `${color}33`,
-          line: { color, width: 1.5 },
-          type: "scatter",
-          hoveron: "fills",
-          hoverinfo: "text",
-          text: cluster.label,
-          hoverlabel: {
-            bgcolor: color,
-            bordercolor: color,
-            font: { color: "white", size: 13 },
-          },
-          showlegend: false,
-        },
-      ];
-    });
-  }, [showConvexHull, targetClusters, argumentsByCluster]);
+  // 輪郭の計算はフィルターやズームの描き直しでは再実行しない。
+  const { traces: hullTraces, shapes: outlineShapes } = useMemo(
+    () =>
+      showConvexHull
+        ? makeScatterOutlineLayer(targetClusters, argumentsByCluster, prototypeClipper)
+        : { traces: [], shapes: [] },
+    [showConvexHull, targetClusters, argumentsByCluster, prototypeClipper],
+  );
 
   // 凸包を最背面に挿入（scatter点の下に描画）
   const allPlotData = useMemo(
@@ -768,9 +740,10 @@ export function ScatterChart({
       hovermode: "closest",
       dragmode: "pan", // ドラッグによる移動（パン）を有効化
       annotations,
+      shapes: outlineShapes,
       showlegend: false,
     }),
-    [annotations, plotSize],
+    [annotations, outlineShapes, plotSize],
   );
   const plotlyConfig = useMemo(
     () => ({
@@ -928,52 +901,6 @@ export function ScatterChart({
       )}
     </Box>
   );
-}
-
-/** 凸包計算（Gift wrapping アルゴリズム） */
-function convexHull(points: [number, number][]): [number, number][] {
-  if (points.length < 3) return points;
-
-  // 最も左下の点を開始点とする
-  let start = 0;
-  for (let i = 1; i < points.length; i++) {
-    if (points[i][0] < points[start][0] || (points[i][0] === points[start][0] && points[i][1] < points[start][1])) {
-      start = i;
-    }
-  }
-
-  // current からの二乗距離を計算するヘルパー
-  const distanceSquared = (a: [number, number], b: [number, number]) => {
-    const dx = a[0] - b[0];
-    const dy = a[1] - b[1];
-    return dx * dx + dy * dy;
-  };
-
-  const hull: [number, number][] = [];
-  let current = start;
-
-  do {
-    hull.push(points[current]);
-    let next = (current + 1) % points.length;
-    for (let i = 0; i < points.length; i++) {
-      if (i === current) continue;
-      const cross =
-        (points[next][0] - points[current][0]) * (points[i][1] - points[current][1]) -
-        (points[next][1] - points[current][1]) * (points[i][0] - points[current][0]);
-      if (cross < 0) {
-        // より外側にある点を採用
-        next = i;
-      } else if (cross === 0) {
-        // 3点が一直線上にある場合は、current からより遠い点を採用
-        if (distanceSquared(points[current], points[i]) > distanceSquared(points[current], points[next])) {
-          next = i;
-        }
-      }
-    }
-    current = next;
-  } while (current !== start && hull.length < points.length);
-
-  return hull;
 }
 
 export function applyScatterChartDomOverrides(): void {

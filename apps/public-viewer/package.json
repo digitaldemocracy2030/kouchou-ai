@@ -33,7 +33,8 @@
     "react-icons": "^5.5.0",
     "react-plotly.js": "^4.1.0",
     "react-window": "^1.8.11",
-    "plotly.js": "^4.1.1"
+    "plotly.js": "^4.1.1",
+    "polybooljs": "1.2.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
