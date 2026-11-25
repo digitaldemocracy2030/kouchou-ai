@@ -288,6 +288,8 @@ export function ClientContainer({ result }: Props) {
             setTreemapLevel(id);
             document.getElementById("report-chart")?.scrollIntoView();
           }}
+          comments={result.comments}
+          showOriginalComments={result.config?.enable_original_comments}
         />
       ) : (
         clustersToDisplay.map((c) => (
