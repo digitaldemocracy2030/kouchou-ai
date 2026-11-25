@@ -1,5 +1,6 @@
 "use client";
 
+import { PonchieDialog } from "@/app/_components/ReportCard/PonchieDialog/PonchieDialog";
 import { downloadFile } from "@/app/utils/downloadFile";
 import { MenuContent, MenuItem, MenuRoot, MenuTrigger, MenuTriggerItem } from "@/components/ui/menu";
 import { toaster } from "@/components/ui/toaster";
@@ -31,6 +32,7 @@ export function ActionMenu({
   const { exportStaticHTML } = useBuildDownload();
   const isVisible = report.visibility === "public";
   const router = useRouter();
+  const [ponchieOpen, setPonchieOpen] = useState(false);
 
   return (
     <>
@@ -109,6 +111,12 @@ export function ActionMenu({
             >
               <Eye />
               可視化設定
+            </MenuItem>
+          )}
+          {report.status === "ready" && (
+            <MenuItem value="ponchie" textStyle="body/md/bold" onClick={() => setPonchieOpen(true)}>
+              <FileText />
+              ポンチ絵を作る
             </MenuItem>
           )}
           {report.status === "ready" && report.isPubcom && (
@@ -221,6 +229,7 @@ export function ActionMenu({
         </MenuContent>
       </MenuRoot>
       <DeleteDialog isOpen={isOpen} setIsOpen={setIsOpen} report={report} />
+      {ponchieOpen && <PonchieDialog report={report} onClose={() => setPonchieOpen(false)} />}
     </>
   );
 }

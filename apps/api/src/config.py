@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     REPORT_READER_API_KEY: SecretStr | None = None
     # Gemini・Azure などだけで運用する構成もあるので、OpenAI のキーは任意
     OPENAI_API_KEY: str | None = Field(env="OPENAI_API_KEY", default=None)
+    REPORT_IMAGE_MODEL: str | None = None
     GEMINI_API_KEY: str | None = Field(env="GEMINI_API_KEY", default=None)
     ENVIRONMENT: Environment = Field(env="ENVIRONMENT", default="production")
 
