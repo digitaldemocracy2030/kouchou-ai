@@ -42,12 +42,12 @@
 
 ホワイトリストにない項目（再分析用の設定、実行状態、`hidden_properties` に指定した属性の列など）は返しません。公開ビューアと静的書き出し（ビルド時に公開 API から取得する）はこの応答を読みます。管理画面の JSON ダウンロード（`/admin/reports/{slug}/json`）は従来どおり `hierarchical_result.json` を返します。
 
-## 形（schema_version 1）
+## 形（schema_version 2）
 
 ```json
 {
-  "schema_version": 1,
-  "arguments": [ { "arg_id": "A1_0", "argument": "…", "comment_id": "c1", "x": 0.1, "y": 0.2, "p": 0,
+  "schema_version": 2,
+  "arguments": [ { "arg_id": "A1_0", "argument": "…", "comment_id": "c1", "comment_ids": ["c1", "c2"], "x": 0.1, "y": 0.2, "p": 0,
                    "cluster_ids": ["0", "1_0", "2_3"], "attributes": { "age": "20代" }, "url": "https://…" } ],
   "clusters":  [ { "level": 1, "id": "1_0", "label": "…", "takeaway": "…", "value": 120, "parent": "0",
                    "density_rank_percentile": 0.2 } ],
@@ -65,9 +65,9 @@
 | キー | 型 | 説明 |
 |---|---|---|
 | `schema_version` | int | この契約の版。互換性を壊す変更のときだけ上がる |
-| `arguments[]` | object | 意見。`arg_id` / `argument` / `comment_id` / `x` / `y` / `p` / `cluster_ids` / `attributes` / `url` のみ。`attributes` は自由形式（元データの `attribute_*` 列と、意見ごとの分類・スコア） |
+| `arguments[]` | object | 意見。`arg_id` / `argument` / `comment_id` / `comment_ids` / `x` / `y` / `p` / `cluster_ids` / `attributes` / `url` のみ。`attributes` は自由形式（元データの `attribute_*` 列と、意見ごとの分類・スコア） |
 | `clusters[]` | object | クラスタ。`level` / `id` / `label` / `takeaway` / `value` / `parent` / `density_rank_percentile` のみ |
-| `comments` | object | `comment_id` → `{ "comment": 本文 }`。レポート作成者が元コメントの公開を有効にした（`config.enable_original_comments`）ときだけ中身が入り、それ以外は `{}` |
+| `comments` | object | 出典ID → `{ "comment": 本文 }`。元コメントの公開設定（`config.enable_original_comments`）が `true` のとき、公開意見から参照される本文を入れる。それ以外は `{}` |
 | `propertyMap` | object | 属性名 → （`arg_id` → 値）。`hierarchical_aggregation.hidden_properties` に指定した属性は列ごと含めない |
 | `translations` | object | 言語コード → 訳。各言語の `overview` / `question` / `intro` / `clusters` / `arguments` は省略可能。生成に使ったモデル等の `meta` は含めない |
 | `overview` | string | 全体概要 |
@@ -103,7 +103,16 @@
   集計はこの設定に当たるコメントの元コメント本文を `comments` から除くが、`hierarchical_result.json` の `propertyMap` には指定した属性の値を意見ごとに書いている。`public_result.json` ではその属性を `propertyMap` から列ごと外す。なお、当たるコメントから抽出した意見（`arguments`）は現状どおり残る。この設定を「本文だけを隠す」ものとするか「その値を持つコメント由来の意見ごと隠す」ものとするかは [#1180](https://github.com/digitaldemocracy2030/kouchou-ai/issues/1180) で扱う
 - 表示に使っていないもの：`hierarchical_visualization.replacements`、翻訳の `meta`
 
+## 意見と出典コメントの関係
+
+- 出典IDは文字列で扱います。`"001"` と `"1"` は別のIDです。旧レポートの整数表記は桁を保って文字列化します。小数・指数表記は倍精度で読み、安全に表せる整数（絶対値が `2^53 - 1` 以下）の場合に受け入れます。
+- `comment_id` は先頭の出典IDです。出典がないときは空文字列です。`comment_ids` は、出典が2件以上ある場合に全IDを重複なく持ちます。読込時は `comment_ids` があれば優先し、旧形式では `comment_id` から出典を復元します。
+- 原文の公開設定と出典の参照は独立しています。非公開や欠落した本文があっても、出典のIDは保存します。
+- `comment_num` は入力件数です。ユニークな出典ID数、意見数、意見と出典の組の数、公開された原文数はそれぞれ異なります。
+
 ## 互換性の扱い
+
+v1 の公開JSONおよび版番号のない旧レポートでは、`comment_id` が数値の場合があります。v2 は `comment_id` を常に文字列で出力し、省略可能な `comment_ids` を追加します。読み手は v1 の単一IDも扱えます。旧データから新たに公開JSONを生成する場合は v2 を出力します。
 
 - **省略可能なキーを足す**のは互換な変更で、`schema_version` は上げません。読む側は知らないキーを無視してください
 - **キーを消す・意味や型を変える**ときは `schema_version` を上げ、読む側（公開 API、ビューア、静的書き出し）を同時に更新します

@@ -115,7 +115,8 @@ export type Argument = {
   /** 意見の内容 */
   argument: string;
   /** 関連するコメントのID */
-  comment_id: number;
+  comment_id: string | number; // 公開時は文字列。旧入力では数値のことがある
+  comment_ids?: string[];
   /** X座標（埋め込み後の位置情報） */
   x: number;
   /** Y座標（埋め込み後の位置情報） */

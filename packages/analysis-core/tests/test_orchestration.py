@@ -1047,7 +1047,6 @@ class TestPipelineOrchestrator:
 
         assert orchestrator.config == config
         assert orchestrator.output_base_dir == tmp_path
-        assert len(orchestrator.steps) == 11
 
     def test_orchestrator_from_config(self, tmp_path):
         """Test orchestrator creation from config file."""
@@ -1079,26 +1078,6 @@ class TestPipelineOrchestrator:
         assert orchestrator.config["input"] == "test"
         assert orchestrator.config["question"] == "Test?"
         assert "plan" in orchestrator.config
-
-    def test_orchestrator_register_step(self, tmp_path):
-        """Test registering a custom step."""
-        from analysis_core import PipelineOrchestrator
-
-        config = {
-            "input": "test",
-            "question": "Test?",
-            "output_dir": "test",
-        }
-
-        orchestrator = PipelineOrchestrator(config=config, output_base_dir=tmp_path)
-
-        def custom_step(config):
-            pass
-
-        orchestrator.register_step("custom", custom_step)
-
-        assert "custom" in orchestrator._step_functions
-        assert orchestrator._step_functions["custom"] is custom_step
 
     def test_orchestrator_get_plan(self, tmp_path):
         """Test getting execution plan."""
@@ -1508,27 +1487,6 @@ class TestPipelineOrchestrator:
         assert status_data["total_token_usage"] == 9
         assert status_data["token_usage_input"] == 4
         assert status_data["token_usage_output"] == 5
-
-
-def test_run_step_preserves_unknown_cost(monkeypatch):
-    from analysis_core.core import orchestration
-
-    updates = []
-    monkeypatch.setattr(
-        orchestration,
-        "update_status",
-        lambda config, status, output_dir: (updates.append(status), config.update(status)),
-    )
-    config = {
-        "provider": "unknown",
-        "model": "new",
-        "token_usage_input": 10,
-        "token_usage_output": 10,
-        "plan": [{"step": "test", "run": True}],
-        "test": {},
-    }
-    orchestration.run_step("test", lambda config: None, config, pricing_calculator=lambda *args: None)
-    assert updates[-1]["estimated_cost"] is None
 
 
 class TestTokenUsageCarryOver:

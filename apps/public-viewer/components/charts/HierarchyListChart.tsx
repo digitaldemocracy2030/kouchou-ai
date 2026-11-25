@@ -9,6 +9,7 @@
 
 "use client";
 
+import { OriginalComments } from "@/components/report/OriginalComments";
 import { Button } from "@/components/ui/button";
 import { groupArgumentsByCluster, splitArgumentsByFilter, toIdSet } from "@/lib/argumentIndex";
 import { useMessages } from "@/lib/i18n/LanguageContext";
@@ -16,7 +17,7 @@ import type { Argument, Cluster, Comments, Config } from "@/type";
 import { Box, HStack, Icon, Link, Text, VStack } from "@chakra-ui/react";
 import { ChevronRight, ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 interface HierarchyListChartProps {
   clusterList: Cluster[];
@@ -27,7 +28,7 @@ interface HierarchyListChartProps {
   onHover?: () => void;
   /** レポート設定。enable_source_link のときだけ最下層の意見に出典リンクを出す */
   config?: Config;
-  // 元コメント本文（comment_id → 本文）。config.enable_original_comments が true のときだけ意見の下に出す
+  // 元コメント本文（出典 ID → 本文）。
   comments?: Comments;
 }
 
@@ -90,14 +91,17 @@ function ArgumentsDisplay({
   filteredIdSet,
   maxDisplay = 10,
   comments,
+  showOriginalComments,
+  disclosureGroup,
   showSourceLinks = false,
 }: {
   arguments: Argument[];
   // フィルタ済み意見 ID の Set（undefined = フィルタなし）。配列の includes による線形探索を避けるため Set で受け取る
   filteredIdSet?: ReadonlySet<string>;
   maxDisplay?: number;
-  // 公開されている元コメント本文（undefined = 公開していない）
   comments?: Comments;
+  showOriginalComments?: boolean;
+  disclosureGroup: string;
   // 出典リンクを出すか（レポート設定 enable_source_link）。URL の無い意見には出さない
   showSourceLinks?: boolean;
 }) {
@@ -132,11 +136,6 @@ function ArgumentsDisplay({
               <Text fontSize="sm" color="gray.700">
                 {arg.argument}
               </Text>
-              {comments?.[String(arg.comment_id)]?.comment && (
-                <Text fontSize="xs" color="gray.500" mt={1} whiteSpace="pre-wrap">
-                  {messages.originalCommentLabel}: {comments[String(arg.comment_id)].comment}
-                </Text>
-              )}
               {showSourceLinks && arg.url && (
                 <Link
                   href={arg.url}
@@ -173,6 +172,12 @@ function ArgumentsDisplay({
           {showAll ? messages.showLess : messages.showMore(argumentsList.length - maxDisplay)}
         </Box>
       )}
+      <OriginalComments
+        opinions={filteredIdSet ? displayArguments.filter((arg) => filteredIdSet.has(arg.arg_id)) : displayArguments}
+        enabled={showOriginalComments}
+        comments={comments}
+        disclosureGroup={disclosureGroup}
+      />
     </Box>
   );
 }
@@ -187,8 +192,7 @@ export function HierarchyListChart({
   comments,
 }: HierarchyListChartProps) {
   const messages = useMessages();
-  // 元コメント本文はレポート作成者が公開を明示したときだけ表示する
-  const publishedComments = config?.enable_original_comments ? comments : undefined;
+  const disclosureGroup = useId();
   // 出典リンクは散布図と同じ条件（レポート設定で有効なときだけ）
   const showSourceLinks = Boolean(config?.enable_source_link);
   const [treeData, setTreeData] = useState<ClusterNode[]>([]);
@@ -447,7 +451,9 @@ export function HierarchyListChart({
             <ArgumentsDisplay
               arguments={node.arguments}
               filteredIdSet={filteredIdSet}
-              comments={publishedComments}
+              comments={comments}
+              showOriginalComments={config?.enable_original_comments}
+              disclosureGroup={disclosureGroup}
               showSourceLinks={showSourceLinks}
             />
           </Box>

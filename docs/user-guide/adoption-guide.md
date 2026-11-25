@@ -93,7 +93,7 @@
     - [Windows セットアップ](../self-hosting/windows-setup.md) / [Mac セットアップ](../self-hosting/mac-setup.md) / [Linux セットアップ](../self-hosting/linux-setup.md)
     - 分析だけを手早く試したい・研究用途なら [CLI クイックスタート](cli-quickstart.md) も参照できます。
 - **建ててくれる人に相談する**: 組織内の情報システム担当者や、導入を支援できる技術者に、環境の用意・運用を相談する方法です。
-- **ブラウザで試せる serverless 版を検討する**: Docker などを用意しづらい場合、ブラウザ上で動く [serverless 版](https://github.com/tokoroten/kouchou-ai-serverless) を比較候補にできます。これは **別プロジェクト** で、本体と同一の機能・設定・運用を保証するものではありません。扱えるモデルやデータの取り扱いはリンク先の説明を確認してください。
+- **ブラウザで試せる serverless 版を検討する**: Docker などを用意しづらい場合は、[ブラウザ版を開く](https://digitaldemocracy2030.github.io/kouchou-ai-serverless/) から試せます。これは **別プロジェクト** で、本体と同一の機能・設定・運用を保証するものではありません。扱えるモデルやデータの取り扱いは [ブラウザ版の説明](https://github.com/digitaldemocracy2030/kouchou-ai-serverless) を確認してください。
 - **コミュニティに質問する（非技術者も歓迎）**: 「自分の場合はどう始めればよいか」といった相談は、デジタル民主主義2030 の Slack「開発_広聴AI」チャンネルでできます。入口と質問の仕方は [コードを書かずに参加する](../development/contributing.md#コードを書かずに参加する) にまとまっています。環境構築やプログラミングの経験がなくても参加できます。
 
 !!! note "「誰かが運用するサービス（managed）」は現状ありません"

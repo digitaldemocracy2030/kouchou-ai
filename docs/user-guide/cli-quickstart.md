@@ -2,6 +2,8 @@
 
 このガイドでは、`kouchou-ai-analysis-core` パッケージを使用してCSVファイルのコメントを分析する手順を説明します。
 
+AIエージェントにCSVの準備から根拠つきの報告まで任せる場合は、[広聴AI CLIのSkill](https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/skills/kouchou-ai-analyze/SKILL.md)をエージェントに読み込ませてください。動作確認用の架空CSVも同梱しています。
+
 ## 前提条件
 
 - Python 3.12 以上
@@ -83,6 +85,8 @@ comment-id,comment-body,source
 | `extraction.workers` | 並列処理数 |
 | `extraction.limit` | 処理するコメント数の上限。空のコメントを除いた先頭からこの件数だけを分析し、超えた分は分析しない（警告を出す）。省略時は 1000。全件を分析するにはコメント数以上の値を指定する |
 | `hierarchical_clustering.cluster_nums` | 階層クラスタリングの各レベルのクラスター数。省略時は extraction 後の argument 数からおすすめ値を自動計算 |
+| `hierarchical_clustering.random_seed` | UMAP の学習と KMeans の乱数シード。省略または `null` でシードを固定せずに実行 |
+| `llm_grouping.random_seed` | LLM 直接グルーピングの散布図に使う UMAP の乱数シード |
 
 ## 4. 環境変数の設定
 
@@ -259,7 +263,7 @@ kouchou-analyze --help
 | `--config`, `-c` | 設定ファイルのパス（必須） |
 | `--dry-run` | cheap preflight 後に実行計画を表示して終了 |
 | `--validate-config` | config の構造だけ検証して終了 |
-| `--validate-input` | 解決された input CSV の存在と必須カラムを検証して終了 |
+| `--validate-input` | 入力 CSV の存在、必須カラム、有効な意見分類・スコアとの属性名の衝突を検証して終了 |
 | `--force`, `-f` | 全ステップを強制再実行 |
 | `--only`, `-o` | 特定のステップのみ実行 |
 | `--without-html` | HTML生成をスキップ |
@@ -301,6 +305,35 @@ Job already running and locked. Try again in 5 minutes.
 - **レート制限（埋め込み）**: 埋め込み（`embedding` ステップ）の要求はこの自動調整の対象外で、SDK の短い再試行だけです。429 で失敗した場合は時間をおいて再実行してください（完了済みの抽出は再利用されます）。`is_embedded_at_local: true` でローカル埋め込みに切り替えると、外部 API のレート制限を受けません。
 
 ## 9. 発展的な使い方
+
+### 保存済みの埋め込みでクラスタリングを比較する
+
+同じ意見と埋め込みからクラスタ数などの設定差を比較するときは、CLI の設定ファイルで乱数シードを指定できます。`hierarchical_clustering.random_seed` は UMAP の学習と KMeans に効きます。`analysis_mode` が `llm_grouping` の場合は `llm_grouping.random_seed` を使います。この場合の対象は散布図の UMAP 座標です。LLM による抽出・割り当て・ラベル生成の結果には揺れが残ります。
+
+設定ファイルを次のように書きます。
+
+```json
+{
+  "input": "my-comments",
+  "question": "住みやすい街にするには？",
+  "hierarchical_clustering": {
+    "cluster_nums": [3, 9],
+    "random_seed": 42
+  }
+}
+```
+
+- シードは 0 以上 4,294,967,295 以下の整数です。省略または `null` の場合は UMAP の並列実行を使えます。シードを指定すると UMAP の学習はシングルスレッドになり、時間がかかることがあります。
+- シードの変更や解除で対象の工程が再実行されます。LLM 直接グルーピングでは、座標の再計算とともに LLM によるグループ割り当ても実行されます。
+- 同じ入力順の `args.csv` と `embeddings.pkl` を使います。`--reuse-from` で既存の出力を参照し、`--dry-run` で抽出と埋め込みが `SKIP` になることを確認してください。参照元には `relations.csv` と `hierarchical_status.json` も必要です。
+- 座標とクラスタ ID を直接比較するには、別名の設定ファイルでクラスタリングだけ実行し、出力先の `hierarchical_clusters.csv` を `arg-id` ごとに照合します。
+
+```bash
+kouchou-analyze --config comparison.json --reuse-from baseline --only hierarchical_clustering
+```
+
+- 出力の `hierarchical_status.json` の `completed_jobs` に、実行した工程の `params.random_seed` が残ります。比較時には設定ファイル、参照元の成果物、analysis-core のリリース版またはコミット、Python・OS・CPU と依存ライブラリの版（`python -m pip freeze`）も控えてください。異なる実行環境では、同じシードでも結果が変わる場合があります。
+- `reuse_umap_model` を同時に指定すると、投影は保存済みモデルの設定で行い、このシードは KMeans に適用します。異なるデータを同じ座標平面に並べるときは、次の節のモデル再利用を使います。
 
 ### UMAP 平面を使い回す（別レポートと同じ散布図座標にそろえる）
 

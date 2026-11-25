@@ -60,7 +60,7 @@ ln -s ../../skills/kouchou-ai-testing .agents/skills/kouchou-ai-testing
 
 ### serverlessにも関係する変更
 
-[kouchou-ai-serverless](https://github.com/tokoroten/kouchou-ai-serverless)は別repoです。そちらの作業ルールとopen PRも読み、同じ入力・結果表示に影響する変更では対応するPRを相互リンクしてください。同じ入力例で挙動を確認し、差がある場合は理由をPRに残します。片方のテスト成功だけで両版の互換性や実動を確認済みとしません。
+[kouchou-ai-serverless](https://github.com/digitaldemocracy2030/kouchou-ai-serverless)は別リポジトリです。そちらの作業ルールとopen PRも読み、同じ入力・結果表示に影響する変更では対応するPRを相互リンクしてください。レポートの形式や参照整合性など、両版が共有する性質は[共通契約テスト](https://github.com/digitaldemocracy2030/kouchou-ai-serverless/blob/main/conformance/README.md)を参照して両実装で確認します。意図した仕様差が判断に関わる場合は、その理由をPRに残します。
 
 ## 人間の判断・attentionを使う操作
 

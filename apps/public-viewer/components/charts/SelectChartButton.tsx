@@ -16,10 +16,10 @@ ensurePluginsLoaded();
 export const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDetail", "scatterDensity", "treemap"];
 
 type Props = {
-  selected: string;
+  selected?: string;
   onChange: (value: string) => void;
   onClickDensitySetting: () => void;
-  onClickFullscreen: () => void;
+  onClickFullscreen?: () => void;
   /** Result data for evaluating mode.isDisabled conditions */
   result: Result;
   /** Override for modes that have external disabled conditions (e.g., density filter empty) */
@@ -76,7 +76,7 @@ export function resolveChartModes(
     // 1. Plugin's isDisabled function (based on result data structure)
     // 2. Parent's override (e.g., density filter produces empty results)
     const pluginDisabled = mode.isDisabled?.(result) ?? false;
-    const overrideDisabled = disabledModeOverrides[mode.id] ?? false;
+    const overrideDisabled = Object.hasOwn(disabledModeOverrides, mode.id) && disabledModeOverrides[mode.id];
     const isDisabled = pluginDisabled || overrideDisabled;
     const tooltip = isDisabled && mode.disabledTooltip ? mode.disabledTooltip : undefined;
     return { id: mode.id, label: mode.label, icon: mode.icon, isDisabled, tooltip };
@@ -172,19 +172,21 @@ export function SelectChartButton({
   return (
     <Box maxW="1200px" mx="auto" mb={2}>
       <Box display="grid" gridTemplateColumns={["1fr", null, "1fr auto"]} gap="3">
-        <SegmentGroup.Root
-          id="chart-type-selector"
-          value={selected}
-          onChange={handleChange}
-          size="md"
-          justifySelf={["center", null, "left", "center"]}
-          ml={[0, null, null, "104px"]}
-          w={["100%", null, "auto"]}
-          h={["80px", null, "56px"]}
-        >
-          <SegmentGroup.Indicator bg="white" border="1px solid #E4E4E7" boxShadow="0 4px 6px 0 rgba(0, 0, 0, 0.1)" />
-          <SegmentGroup.Items items={items} w={tabWidth} h="100%" cursor="pointer" />
-        </SegmentGroup.Root>
+        {modeCount > 0 && (
+          <SegmentGroup.Root
+            id="chart-type-selector"
+            value={selected}
+            onChange={handleChange}
+            size="md"
+            justifySelf={["center", null, "left", "center"]}
+            ml={[0, null, null, "104px"]}
+            w={["100%", null, "auto"]}
+            h={["80px", null, "56px"]}
+          >
+            <SegmentGroup.Indicator bg="white" border="1px solid #E4E4E7" boxShadow="0 4px 6px 0 rgba(0, 0, 0, 0.1)" />
+            <SegmentGroup.Items items={items} w={tabWidth} h="100%" cursor="pointer" />
+          </SegmentGroup.Root>
+        )}
 
         <HStack gap={1} justifySelf={["end"]} alignSelf={"center"}>
           {onClickAttentionFilter && (
@@ -205,23 +207,32 @@ export function SelectChartButton({
           )}
 
           <Tooltip content={messages.displaySettings} openDelay={0} closeDelay={0}>
-            <Button onClick={onClickDensitySetting} variant={"outline"} h={"50px"} w={"50px"} p={0}>
+            <Button
+              aria-label={messages.displaySettings}
+              onClick={onClickDensitySetting}
+              variant="outline"
+              h="50px"
+              w="50px"
+              p={0}
+            >
               <Icon as={CogIcon} />
             </Button>
           </Tooltip>
 
-          <Tooltip content={messages.fullscreen} openDelay={0} closeDelay={0}>
-            <Button
-              aria-label={messages.fullscreen}
-              onClick={onClickFullscreen}
-              variant={"outline"}
-              h={"50px"}
-              w={"50px"}
-              p={0}
-            >
-              <Icon as={FullscreenIcon} />
-            </Button>
-          </Tooltip>
+          {onClickFullscreen && (
+            <Tooltip content={messages.fullscreen} openDelay={0} closeDelay={0}>
+              <Button
+                aria-label={messages.fullscreen}
+                onClick={onClickFullscreen}
+                variant={"outline"}
+                h={"50px"}
+                w={"50px"}
+                p={0}
+              >
+                <Icon as={FullscreenIcon} />
+              </Button>
+            </Tooltip>
+          )}
         </HStack>
       </Box>
     </Box>

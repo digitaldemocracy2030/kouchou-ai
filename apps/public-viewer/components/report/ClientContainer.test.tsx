@@ -195,24 +195,53 @@ describe("濃い意見の抽出結果が 0 件のとき", () => {
     await flush();
   });
 
-  it("他に選べる表示が無ければ、外された「全体」へは切り替えず濃い意見のまま（最深階層）にする", async () => {
+  it("他に利用できる表示が無ければ案内を表示し、外されたチャートは描画しない", async () => {
     await renderViewer({
       visualizationConfig: {
+        version: "1",
         enabledCharts: ["scatterDensity"],
         defaultChart: "scatterDensity",
         params: { scatterDensity: { maxDensity: 1, minValue: 1_000_000 } },
       },
-    } as Partial<Result>);
-    const deepest = Math.max(...fixture.clusters.map((c) => c.level));
+    });
 
     expect(screen.queryByRole("radio", { name: "全体" })).not.toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "濃い意見" })).toBeChecked();
-    expect(screen.getByTestId("scatter")).toHaveAttribute("data-level", String(deepest));
-    // 一つ上の階層のクラスタを濃い意見として一覧に出さない
-    for (const c of fixture.clusters.filter((c) => c.level === deepest - 1)) {
-      expect(screen.queryByText(c.label)).not.toBeInTheDocument();
-    }
+    expect(screen.getByRole("radio", { name: "濃い意見" })).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent("このレポートで利用できる表示はありません。");
+    expect(screen.queryByTestId("scatter")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "全画面表示" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "フィルタ" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "表示設定" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
     await flush();
+  });
+});
+
+describe("保存済み設定と利用できる表示の不一致", () => {
+  it.each(["removedMode", "scatterAll", "scatterDetail"])(
+    "指定された初期表示 %s を描けない場合、表示順で有効なモードを使う",
+    async (defaultChart) => {
+      const result = fixture as unknown as Result;
+      await renderViewer({
+        clusters: result.clusters.filter((cluster) => cluster.level <= 1),
+        visualizationConfig: {
+          version: "1",
+          enabledCharts: ["removedMode", "scatterDetail", "hierarchyList", "treemap"],
+          chartOrder: ["treemap", "hierarchyList", "scatterDetail"],
+          defaultChart,
+        },
+      });
+      expect(screen.getByRole("radio", { name: "階層" })).toBeChecked();
+      expect(screen.getByTestId("treemap")).toBeInTheDocument();
+      expect(screen.queryByTestId("scatter")).not.toBeInTheDocument();
+    },
+  );
+
+  it("明示的に空のリストを保存したレポートで、既定の表示を勝手に有効にしない", async () => {
+    await renderViewer({ visualizationConfig: { version: "1", enabledCharts: [] } });
+    expect(screen.getByRole("status")).toHaveTextContent("このレポートで利用できる表示はありません。");
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("scatter")).not.toBeInTheDocument();
   });
 });
 

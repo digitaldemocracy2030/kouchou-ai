@@ -1,18 +1,43 @@
 import { useMessages } from "@/lib/i18n/LanguageContext";
+import type { Argument, Comments } from "@/type";
+import { OriginalComments } from "./OriginalComments";
 import { treemapContext } from "./treemapContext";
+
+type TreemapOpinion = Pick<Argument, "arg_id" | "argument" | "cluster_ids"> &
+  Partial<Pick<Argument, "comment_id" | "comment_ids">>;
 
 type Props = {
   clusters: Parameters<typeof treemapContext>[0];
-  arguments: Parameters<typeof treemapContext>[1];
+  arguments: TreemapOpinion[];
   level: string;
   filteredIds?: Iterable<string> | null;
+  comments?: Comments;
+  showOriginalComments?: boolean;
   onNavigate: (id: string) => void;
 };
 
-export function TreemapDetails({ clusters, arguments: opinions, level, filteredIds, onNavigate }: Props) {
+export function TreemapDetails({
+  clusters,
+  arguments: opinions,
+  level,
+  filteredIds,
+  comments,
+  showOriginalComments,
+  onNavigate,
+}: Props) {
   const messages = useMessages();
-  const context = treemapContext(clusters, opinions, level, filteredIds);
-  if (!context.current) return null;
+  const allowed = filteredIds == null ? null : new Set(filteredIds);
+  const context = treemapContext(clusters, opinions, level, allowed);
+  const current = context.current;
+  if (!current) return null;
+  const leafOpinions =
+    context.children.length === 0
+      ? opinions.filter(
+          (opinion) =>
+            (!allowed || allowed.has(opinion.arg_id)) &&
+            (context.isOpinion ? opinion.arg_id === current.id : opinion.cluster_ids.includes(current.id)),
+        )
+      : [];
   const denominatorLabel = context.filtering ? messages.allOpinionsAfterFilter : messages.allOpinions;
   const metrics = (item: typeof context.current) =>
     item && messages.metrics(item.count, denominatorLabel, item.percentage);
@@ -70,6 +95,7 @@ export function TreemapDetails({ clusters, arguments: opinions, level, filteredI
       ) : (
         !context.isOpinion && context.current.count > 0 && <p>{messages.leafHint}</p>
       )}
+      <OriginalComments key={current.id} opinions={leafOpinions} enabled={showOriginalComments} comments={comments} />
     </section>
   );
 }

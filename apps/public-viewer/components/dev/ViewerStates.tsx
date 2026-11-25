@@ -19,6 +19,7 @@ const states = [
   "空の意見",
   "明示的な散布図",
   "翻訳あり",
+  "元コメントあり",
 ];
 
 /** 言語切替の確認用。LLM なしで仕組みを見るため、訳文は元の文言に印を付けただけのもの。 */
@@ -61,6 +62,12 @@ export function ViewerStates() {
   if (state === "明示的な散布図")
     result.visualizationConfig = { version: "1", enabledCharts: ["scatterAll", "treemap"], defaultChart: "scatterAll" };
   if (state === "翻訳あり") result = withMockTranslations(result);
+  if (state === "元コメントあり") {
+    result.config.enable_original_comments = true;
+    result.comments = { shared: { comment: "確認用の共有元コメント本文です。" } };
+    // 異なる末端の意見 2 件から、同じ元コメントを参照させる。
+    for (const opinion of result.arguments.slice(0, 2)) opinion.comment_id = "shared";
+  }
   return (
     <main style={{ padding: 16 }}>
       <h1>Viewer状態カタログ（開発専用）</h1>
