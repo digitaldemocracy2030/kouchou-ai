@@ -96,3 +96,29 @@ test("fileで直接開くとNextの起動なしで案内を表示する", async 
   await expect(page.locator("#report-app")).toBeHidden();
   await expect(page.getByText("python -m http.server", { exact: false })).toBeVisible();
 });
+
+test("濃い意見は図の下に凡例を置き、切り替え後も描画領域が凡例に重ならない", async ({ page }) => {
+  const fullscreenButton = page.getByRole("button", { name: "全画面表示", exact: true });
+  await fullscreenButton.locator("xpath=preceding-sibling::button[1]").click();
+  const settings = page.getByRole("dialog");
+  const minSamples = settings.getByRole("slider", { name: /サンプル数の最小数/ });
+  // 確認用レポートの最下層は各グループ 1 件。最小数を下げて濃いグループを表示する。
+  await minSamples.press("Home");
+  await minSamples.press("ArrowRight");
+  await settings.getByRole("button", { name: "設定を適用" }).click();
+  await page.getByText("濃い意見", { exact: true }).click();
+
+  const plot = page.locator(".js-plotly-plot");
+  await expect(plot.locator("svg.main-svg").first()).toBeVisible();
+  await expect(plot.locator(".annotation")).toHaveCount(0);
+  await expect(page.getByText("濃い意見グループ以外の意見", { exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      plot.evaluate((element) => {
+        const chartBottom = element.getBoundingClientRect().bottom;
+        const drawingBottom = element.querySelector("svg.main-svg")?.getBoundingClientRect().bottom;
+        return drawingBottom === undefined ? Number.POSITIVE_INFINITY : Math.abs(chartBottom - drawingBottom);
+      }),
+    )
+    .toBeLessThanOrEqual(1);
+});
