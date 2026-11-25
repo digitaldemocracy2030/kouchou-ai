@@ -110,3 +110,12 @@ it("本文が JSON でなければ statusText にフォールバックする", a
 
   expect(result).toEqual({ success: false, error: "Bad Gateway" });
 });
+
+it.each([
+  { discovery_sample_size: 200, assignment_batch_size: 40, use_all_arguments: false },
+  { use_all_arguments: true },
+])("LLM直接グルーピングの設定をAPIへ送る (%j)", async (llm_grouping) => {
+  mockFetch.mockResolvedValue({ ok: true, status: 202 } as unknown as Response);
+  await createReport({ ...baseParams, analysis_mode: "llm_grouping", llm_grouping });
+  expect(JSON.parse(mockFetch.mock.calls[0][1].body).llm_grouping).toEqual(llm_grouping);
+});

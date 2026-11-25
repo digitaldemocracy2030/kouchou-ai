@@ -350,18 +350,23 @@ def _raise_sdk_like_error():
     )
 
 
-def test_termination_redacts_keys_in_error_and_stack_trace(tmp_path, monkeypatch):
-    from analysis_core.core.orchestration import termination
+def test_workflow_crash_redacts_keys_in_error_and_stack_trace(tmp_path, monkeypatch):
+    """ワークフローの実行そのものが例外で止まったときも、status のエラー文とスタックトレースからキーを伏せる。"""
+    from analysis_core.orchestrator import PipelineOrchestrator
 
     monkeypatch.setenv("OPENAI_API_KEY", SERVER_KEY_MARKER)
     report, config = _status_config(tmp_path)
+    config["plan"] = [{"step": "extraction", "run": True}]
 
-    with pytest.raises(RuntimeError):
-        try:
+    class CrashingEngine:
+        def run(self, *args, **kwargs):
             _raise_sdk_like_error()
-        except RuntimeError as error:
-            termination(config, error)
 
+    monkeypatch.setattr("analysis_core.workflow.WorkflowEngine", CrashingEngine)
+
+    result = PipelineOrchestrator(config).run_default()
+
+    assert not result.success
     text = (report / "hierarchical_status.json").read_text(encoding="utf-8")
     status = json.loads(text)
     assert USER_KEY_MARKER not in text
@@ -369,7 +374,7 @@ def test_termination_redacts_keys_in_error_and_stack_trace(tmp_path, monkeypatch
     assert "sk-proj-abcd" not in text
     assert "user_api_key" not in status
     assert status["status"] == "error"
-    assert status["error"].startswith("RuntimeError: Error code: 401")
+    assert status["error"].startswith("Error code: 401")
     assert "[REDACTED]" in status["error"]
     assert "[REDACTED]" in status["error_stack_trace"]
     assert "_raise_sdk_like_error" in status["error_stack_trace"]

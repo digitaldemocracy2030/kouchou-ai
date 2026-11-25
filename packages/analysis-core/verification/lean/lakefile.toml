@@ -1,0 +1,9 @@
+name = "kv"
+defaultTargets = ["KV", "oracle"]
+
+[[lean_lib]]
+name = "KV"
+
+[[lean_exe]]
+name = "oracle"
+root = "Main"

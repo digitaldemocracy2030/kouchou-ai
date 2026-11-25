@@ -1,3 +1,5 @@
+import { DEFAULT_LLM_GROUPING, type LLMGroupingOptions } from "../types/llmGrouping";
+
 // レポート作成前に表示する API 利用料の目安（#79）。
 //
 // 目的は精密な請求額の予測ではなく、実行前に「高額だったら怖い」を桁の見積もりで下げること。
@@ -26,10 +28,8 @@ export const LABEL_OUTPUT_CHARS = 200;
 export const OVERVIEW_OUTPUT_CHARS = 400;
 /** 初期・統合ラベル生成で 1 クラスタから送る意見の件数。apps/api の report_launcher が渡す sampling_num。 */
 export const LABELLING_SAMPLING_NUM = 30;
-/** LLM 直接グルーピング（analysis-core の llm_grouping_specs.json の既定値。管理画面からは変更できない）。 */
+/** LLM 直接グルーピングに使うプロンプトと応答の見積もり。 */
 export const LLM_GROUPING = {
-  discoverySampleSize: 80,
-  assignmentBatchSize: 25,
   /** analysis-core 既定の discovery / assignment プロンプト（prompts/__init__.py）の文字数と、user メッセージの枠。 */
   discoveryPromptChars: 249,
   assignmentPromptChars: 181,
@@ -54,6 +54,7 @@ export type CostEstimateInput = {
   prompt: { extraction: string; initialLabelling: string; mergeLabelling: string; overview: string };
   /** "hierarchical"（既定）か "llm_grouping"。 */
   analysisMode: string;
+  llmGrouping?: LLMGroupingOptions;
   /** billed=false はローカル LLM など API 利用料がかからない構成。 */
   chat: { model: string; price: UnitPrice; billed: boolean };
   /** billed=false はサーバ内埋め込み（ローカルモデル）。 */
@@ -123,15 +124,21 @@ export function estimateTokens(input: Omit<CostEstimateInput, "chat" | "embeddin
     // グループ数は管理画面の値ではなく、analysis-core が意見件数から決める（calculate_recommended_cluster_nums の第 1 階層）。
     topLevelCount = Math.max(2, Math.min(10, Math.round(Math.cbrt(argumentCount))));
     const groupChars = topLevelCount * LABEL_OUTPUT_CHARS;
-    // 発見: 1 呼び出し（意見を 80 件サンプル）。
-    const discoverySample = Math.min(LLM_GROUPING.discoverySampleSize, argumentCount);
+    // 発見はサンプルまたは全件を 1 回のリクエストに入れる。
+    const discoverySample = input.llmGrouping?.use_all_arguments
+      ? argumentCount
+      : Math.min(input.llmGrouping?.discovery_sample_size ?? DEFAULT_LLM_GROUPING.discovery_sample_size, argumentCount);
     chatInput = add(
       chatInput,
       tokensOf(LLM_GROUPING.discoveryPromptChars + discoverySample * argumentChars, CALL_INPUT_OVERHEAD_TOKENS),
     );
     chatOutput = add(chatOutput, tokensOf(groupChars, CALL_OUTPUT_OVERHEAD_TOKENS));
-    // 割当: 25 件ずつのバッチごとに 1 呼び出し（グループ定義 + 意見一覧）。出力は id の対応だけ。
-    const batches = Math.ceil(argumentCount / LLM_GROUPING.assignmentBatchSize);
+    // 割当は 1 バッチにつき 1 回のリクエスト。出力は id の対応。
+    const batches = input.llmGrouping?.use_all_arguments
+      ? 1
+      : Math.ceil(
+          argumentCount / (input.llmGrouping?.assignment_batch_size ?? DEFAULT_LLM_GROUPING.assignment_batch_size),
+        );
     chatInput = add(
       chatInput,
       tokensOf(

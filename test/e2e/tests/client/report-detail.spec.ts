@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Client - レポート詳細テスト
@@ -76,7 +76,6 @@ test.describe("Client - レポート詳細のレスポンシブデザイン", ()
   const viewports = [
     { name: "デスクトップ", width: 1920, height: 1080 },
     { name: "タブレット", width: 768, height: 1024 },
-    { name: "モバイル", width: 375, height: 667 },
   ];
 
   for (const viewport of viewports) {
@@ -93,6 +92,20 @@ test.describe("Client - レポート詳細のレスポンシブデザイン", ()
       await expect(page.getByText(/生成AIと著作権に関する法的/).first()).toBeVisible();
     });
   }
+
+  test("モバイルサイズでは初期表示の階層リストから意見グループを読める", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto("/test-report-1");
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.getByText("AIと著作権について、どのような意見が寄せられているのか？")).toBeVisible();
+    await expect(page.getByText("階層リスト（詳細モード）", { exact: true })).toBeVisible();
+
+    // 全体グループを展開して、第1階層の意見グループを表示する。
+    await page.getByRole("button", { name: "展開する", exact: true }).click();
+    await page.getByRole("button", { name: /子要素を表示/ }).click();
+    await expect(page.getByText(/^生成AIと著作権に関する法的・倫理的課題とクリエイター保護/)).toBeVisible();
+  });
 });
 
 test.describe("Client - パフォーマンス", () => {

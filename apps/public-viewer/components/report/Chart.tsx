@@ -3,8 +3,10 @@ import { chartRegistry, ensurePluginsLoaded } from "@/components/charts/plugins"
 import type { ChartRenderContext } from "@/components/charts/plugins/types";
 import { FullscreenToolbar } from "@/components/report/FullscreenToolbar";
 import { LanguageToggle } from "@/components/report/LanguageToggle";
+import { Switch } from "@/components/ui/switch";
+import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { ChartType, Result } from "@/type";
-import { Box, Dialog, Portal } from "@chakra-ui/react";
+import { Box, Center, Dialog, Portal } from "@chakra-ui/react";
 
 // Ensure plugins are loaded
 ensurePluginsLoaded();
@@ -40,6 +42,8 @@ type ReportProps = Pick<
   showConvexHull: boolean;
   treemapLevel: string;
   onTreeZoom: (level: string) => void;
+  treemapDensityEnabled?: boolean;
+  onTreemapDensityChange?: (checked: boolean) => void;
   /** 散布図でクラスタが選択された時に通知する（連動文章・一覧のハイライト用） */
   onSelectCluster?: (clusterId: string) => void;
   /** テキスト検索の文字列（空 = 検索なし） */
@@ -65,6 +69,8 @@ export function Chart({
   showConvexHull,
   treemapLevel,
   onTreeZoom,
+  treemapDensityEnabled = false,
+  onTreemapDensityChange,
   onSelectCluster,
   oppositionClusterIds,
   oppositionClusterId,
@@ -75,6 +81,7 @@ export function Chart({
   reopenClusterId,
   textSearch,
 }: ReportProps) {
+  const messages = useMessages();
   // Create render context for plugins
   const renderContext: ChartRenderContext = {
     result,
@@ -101,6 +108,25 @@ export function Chart({
   // Get the plugin that handles the selected chart mode
   const plugin = chartRegistry.getByMode(selectedChart);
   const flowLayout = plugin?.manifest.modes.find((mode) => mode.id === selectedChart)?.layout === "flow";
+  const treemapDensityControl = selectedChart === "treemap" && onTreemapDensityChange && (
+    <Switch
+      size="sm"
+      flexShrink={0}
+      inputProps={{ role: "switch" }}
+      checked={treemapDensityEnabled}
+      onCheckedChange={({ checked }) => onTreemapDensityChange(checked)}
+    >
+      {messages.treemapDenseOnly}
+    </Switch>
+  );
+  const chartContent =
+    selectedChart === "treemap" && treemapDensityEnabled && result.filteredArgumentIds?.length === 0 ? (
+      <Center as="output" h="100%" px={4}>
+        {messages.noOpinionsHere}
+      </Center>
+    ) : (
+      plugin?.render(renderContext)
+    );
 
   if (isFullscreen) {
     return (
@@ -129,11 +155,12 @@ export function Chart({
                       disabledModeOverrides={disabledModeOverrides}
                     />
                   )}
+                  {treemapDensityControl}
                   {/* 全画面のまま表示言語を切り替えられるようにする（通常表示の切替と状態を共有） */}
                   <LanguageToggle size="sm" />
                 </FullscreenToolbar>
                 <Box w="100%" flex="1" minH={0} overflow={flowLayout ? "auto" : "hidden"}>
-                  {plugin?.render(renderContext)}
+                  {chartContent}
                 </Box>
               </Box>
             </Dialog.Content>
@@ -145,8 +172,13 @@ export function Chart({
 
   return (
     <Box mx={"auto"} w={"100%"} maxW={"1200px"} mb={10} border={"1px solid #ccc"}>
+      {treemapDensityControl && (
+        <Box px={3} py={2} borderBottomWidth="1px">
+          {treemapDensityControl}
+        </Box>
+      )}
       <Box h={flowLayout ? "auto" : "500px"} mb={0}>
-        {plugin?.render({ ...renderContext, onHover: undefined })}
+        {chartContent}
       </Box>
     </Box>
   );

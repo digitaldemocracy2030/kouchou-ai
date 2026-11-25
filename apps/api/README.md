@@ -42,7 +42,7 @@ docker compose up api
 ## 認証が必要なエンドポイントについて
 
 一部のエンドポイントでは、**APIキーによる認証**が必要です。  
-APIキーには **管理者用** と **公開用** の2種類があります。
+APIキーには **管理者用**、**公開用**、任意の **レポート参照用** があります。
 
 ### 1. 管理者用APIキー
 `/admin/reports` などの管理者向けエンドポイントは、**管理者用APIキー** が必要です。  
@@ -58,6 +58,46 @@ Swagger UI 右上の **Authorize** ボタンをクリックし、`.env` ファ�
 
 ### 注意事項
 - APIキーが未入力、または無効な場合は **401 Unauthorized** エラーになります。
+
+## レポート管理の読み取り専用 REST API と MCP（試作）
+
+サーバーの `.env` に管理者用・公開用とは別の `REPORT_READER_API_KEY` を設定して起動します。キーには `openssl rand -hex 32` などで生成した値を使い、呼び出し側から `x-api-key` ヘッダーで渡します。このキーで参照できるのは、非公開分を含むレポートの一覧と進捗です。
+
+| メソッドとパス | 応答 |
+| --- | --- |
+| `GET /admin/v1/reports` | `reports` に `slug`、`title`、`created_at`、`status`、`visibility` の一覧。`?status=error` で失敗分のみ取得。 |
+| `GET /admin/v1/reports/{slug}/status` | `slug`、`status`、`current_step`、`estimated_cost_usd`。工程や費用が不明な場合は対応する項目が `null`。 |
+
+一覧と進捗には `processing`、`ready`、`error` の実行状態が現れます。`current_step` は記録されている工程で、失敗の原因を示すものではありません。状態や公開範囲を読み取る用途のため、元コメント・設定・ログは取得できません。読み取り API が無効のとき、および進捗を照会したレポートが存在しないか削除済みのときは `404` です。
+
+```bash
+curl --fail-with-body -H "x-api-key: ${REPORT_READER_API_KEY}" \
+  'http://127.0.0.1:8000/admin/v1/reports?status=error'
+```
+
+同じ API を、クライアントが起動する stdio MCP から `list_reports` と `get_report_status` で呼べます。リポジトリのルートで MCP 用の Python 環境を用意します。
+
+```bash
+python3.12 -m venv .tmp/mcp-venv
+.tmp/mcp-venv/bin/python -m pip install -r apps/api/requirements-mcp.txt
+```
+
+クライアントには次のように実行ファイルとスクリプトの絶対パスを指定します。キーはクライアントのシークレット設定などから子プロセスの環境に渡してください。`KOUCHOU_API_URL` は省略するとローカルの `http://127.0.0.1:8000` になり、リモートの API には HTTPS を使います。
+
+```json
+{
+  "mcpServers": {
+    "kouchou-report-reader": {
+      "command": "/path/to/mcp-venv/bin/python",
+      "args": ["/path/to/kouchou-ai/apps/api/report_reader_mcp.py"],
+      "env": {
+        "REPORT_READER_API_KEY": "<読み取り専用キー>",
+        "KOUCHOU_API_URL": "http://127.0.0.1:8000"
+      }
+    }
+  }
+}
+```
 
 ## 開発用Tips
 - **ホットリロード対応**  

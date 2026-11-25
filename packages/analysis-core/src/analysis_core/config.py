@@ -82,3 +82,12 @@ def save_config(config: dict[str, Any], path: Path) -> None:
     """Save configuration to a JSON file."""
     with open(path, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
+
+
+def validate_clustering_seed(value: Any, step: str) -> int | None:
+    """Validate the optional seed shared by UMAP and KMeans."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < 2**32:
+        raise ValueError(f"{step}.random_seed must be an integer between 0 and {2**32 - 1} or null, got {value!r}")
+    return value

@@ -54,9 +54,11 @@ jest.mock("../hierarchy-list", () => ({
 }));
 
 // Import after mocks
-import { chartRegistry, ensurePluginsLoaded, loadBuiltinChartPlugins } from "../registry";
+import { ChartPluginRegistry, chartRegistry, ensurePluginsLoaded, loadBuiltinChartPlugins } from "../registry";
 
 describe("ChartPluginRegistry", () => {
+  const chartRegistry = new ChartPluginRegistry();
+
   beforeEach(() => {
     // Clear registry before each test
     chartRegistry.clear();
@@ -338,6 +340,41 @@ describe("loadBuiltinChartPlugins", () => {
     expect(chartRegistry.get("opposition")).toBeDefined();
 
     consoleSpy.mockRestore();
+  });
+
+  it.each([
+    { pluginId: "scatter", modes: ["unused-mode"], collision: "plugin" },
+    { pluginId: "new-plugin", modes: ["unused-mode", "scatterAll"], collision: "mode" },
+  ])("rejects a duplicate $collision ID without leaving a partial registration", ({ pluginId, modes, collision }) => {
+    loadBuiltinChartPlugins();
+    const registered = chartRegistry.getAll();
+    const originalModeOwner = chartRegistry.getByMode("scatterAll");
+
+    expect(() =>
+      chartRegistry.register({
+        manifest: {
+          id: pluginId,
+          name: "Collision",
+          description: "",
+          version: "1.0.0",
+          icon: () => null,
+          modes: modes.map((id) => ({ id, label: id, icon: () => null })),
+        },
+        canHandle: (mode) => modes.includes(mode),
+        render: () => null,
+      }),
+    ).toThrow(`Chart ${collision} collision`);
+
+    expect(chartRegistry.getAll()).toEqual(registered);
+    expect(chartRegistry.getByMode("scatterAll")).toBe(originalModeOwner);
+    expect(chartRegistry.hasMode("unused-mode")).toBe(false);
+  });
+
+  it("can load identical built-ins more than once", () => {
+    loadBuiltinChartPlugins();
+    const registered = chartRegistry.getAll();
+    loadBuiltinChartPlugins();
+    expect(chartRegistry.getAll()).toEqual(registered);
   });
 
   it("registers all expected modes", () => {

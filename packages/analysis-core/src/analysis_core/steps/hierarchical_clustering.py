@@ -1,4 +1,4 @@
-"""Cluster the arguments using UMAP + HDBSCAN and GPT-4."""
+"""Cluster arguments with UMAP, KMeans, and hierarchical merging."""
 
 import json
 import os
@@ -8,6 +8,7 @@ from importlib import import_module
 import numpy as np
 import polars as pl
 
+from analysis_core.config import validate_clustering_seed
 from analysis_core.steps._embeddings_io import load_embeddings_pickle, stack_embedding_rows
 
 # 保存する UMAP model payload のフォーマット版数。
@@ -258,13 +259,15 @@ def compute_umap_embeddings(
     n_components: int = 2,
     reuse_model_path: str | None = None,
     umap_factory=None,
+    *,
+    random_seed: int | None = None,
 ):
     """UMAP 2D 埋め込みを計算し、使用した model と入力次元を返す。
 
     reuse_model_path が指定され、かつファイルが存在する場合は、別レポートで fit 済みの
     UMAP model を読み込み、新しい embeddings に ``.transform`` を適用する
     (別データ/時系列データを同一平面へ投影する #515 のコア)。
-    それ以外は従来通り ``fit_transform`` を行う (既定挙動は不変)。
+    新しく ``fit_transform`` する場合に限り、任意の random_seed を使う。
 
     Returns:
         (umap_embeds, model, n_features_in)
@@ -290,12 +293,11 @@ def compute_umap_embeddings(
         return np.asarray(umap_embeds), model, n_features_in
 
     if umap_factory is None:
-        UMAP, _, _ = _load_clustering_dependencies()
+        umap_factory, _, _ = _load_clustering_dependencies()
 
-        def umap_factory(**kwargs):
-            return UMAP(**kwargs)
-
-    model = umap_factory(n_components=n_components, n_neighbors=n_neighbors)
+    # Seeded UMAP fits use a single thread with the current UMAP implementation.
+    fit_options = {"random_state": random_seed, "n_jobs": 1} if random_seed is not None else {}
+    model = umap_factory(n_components=n_components, n_neighbors=n_neighbors, **fit_options)
     umap_embeds = model.fit_transform(embeddings_array)
     return np.asarray(umap_embeds), model, n_features_in
 
@@ -318,13 +320,15 @@ def _remove_stale_umap_model(model_path: str, reuse_model_path: str | None) -> N
 
 
 def hierarchical_clustering(config):
+    clustering_config = config["hierarchical_clustering"]
+    random_seed = validate_clustering_seed(clustering_config.get("random_seed"), "hierarchical_clustering")
     UMAP, _, KMeans = _load_clustering_dependencies()
 
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
     path = f"{output_base_dir}/{dataset}/hierarchical_clusters.csv"
     # 型の誤りは埋め込みの読み込みや UMAP の学習より前に止める（学習後に気づくと時間が無駄になる）
-    should_save_umap_model = _resolve_save_umap_model(config["hierarchical_clustering"].get("save_umap_model"))
+    should_save_umap_model = _resolve_save_umap_model(clustering_config.get("save_umap_model"))
     arguments_df = pl.read_csv(f"{output_base_dir}/{dataset}/args.csv", columns=["arg-id", "argument"])
     arg_ids = arguments_df["arg-id"].to_list()
 
@@ -361,7 +365,7 @@ def hierarchical_clustering(config):
 
     # #515: 別レポートで fit 済みの UMAP model があれば、それを使い回して
     # 新しい embeddings を同一平面へ投影 (transform) する。無ければ従来通り fit_transform。
-    reuse_value = config["hierarchical_clustering"].get("reuse_umap_model")
+    reuse_value = clustering_config.get("reuse_umap_model")
     reuse_model_path = _resolve_reuse_model_path(reuse_value, output_base_dir, dataset)
 
     # fit は少数件だと UMAP 内部のエラーで落ちるので、先に分かる文言で止める。
@@ -369,10 +373,10 @@ def hierarchical_clustering(config):
     if reuse_model_path is None and len(arg_ids) < MIN_ARGUMENTS_FOR_UMAP_FIT:
         raise ValueError(too_few_arguments_message(len(arg_ids)))
 
-    cluster_nums = config["hierarchical_clustering"].get("cluster_nums")
+    cluster_nums = clustering_config.get("cluster_nums")
     if not cluster_nums:
         cluster_nums = calculate_recommended_cluster_nums(len(arg_ids))
-        config["hierarchical_clustering"]["cluster_nums"] = cluster_nums
+        clustering_config["cluster_nums"] = cluster_nums
         print(f"cluster_nums not provided; using recommended cluster counts based on arg count: {cluster_nums}")
     # UMAP の前に検証・正規化しておく (config 自体は書き換えない)
     cluster_nums = normalize_cluster_nums(cluster_nums, len(arg_ids))
@@ -387,15 +391,13 @@ def hierarchical_clustering(config):
     else:
         n_neighbors = default_n_neighbors
 
-    def _umap_factory(**kwargs):
-        return UMAP(**kwargs)
-
     umap_embeds, umap_model, n_features_in = compute_umap_embeddings(
         embeddings_array,
         n_neighbors=n_neighbors,
         n_components=UMAP_N_COMPONENTS,
         reuse_model_path=reuse_model_path,
-        umap_factory=_umap_factory,
+        umap_factory=UMAP,
+        random_seed=random_seed,
     )
 
     # fit / reuse のいずれでも、使用した model を自レポートの output dir へ保存し、
@@ -414,6 +416,7 @@ def hierarchical_clustering(config):
         umap_embeds=umap_embeds,
         cluster_nums=cluster_nums,
         kmeans_class=KMeans,
+        random_seed=random_seed,
     )
     result_df = pl.DataFrame(
         {
@@ -487,6 +490,8 @@ def hierarchical_clustering_embeddings(
     umap_embeds,
     cluster_nums,
     kmeans_class=None,
+    *,
+    random_seed: int | None = None,
 ):
     if kmeans_class is None:
         _, _, kmeans_class = _load_clustering_dependencies()
@@ -498,7 +503,8 @@ def hierarchical_clustering_embeddings(
     # 最大分割数でクラスタリングを実施
     print("start initial clustering")
     initial_cluster_num = cluster_nums[-1]
-    kmeans_model = kmeans_class(n_clusters=initial_cluster_num)
+    kmeans_options = {"random_state": random_seed} if random_seed is not None else {}
+    kmeans_model = kmeans_class(n_clusters=initial_cluster_num, **kmeans_options)
     kmeans_model.fit(umap_embeds)
     print("end initial clustering")
 

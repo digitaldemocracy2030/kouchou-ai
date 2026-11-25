@@ -8,13 +8,15 @@ Usage:
 
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from analysis_core import __version__
-from analysis_core.core import plan_requires_input, validate_input_file
+from analysis_core.core import plan_requires_input, read_input_csv, update_status, validate_input_file
 from analysis_core.core.orchestration import resolve_user_api_key
 from analysis_core.orchestrator import PipelineOrchestrator
 from analysis_core.services.error_summary import redact_secrets
+from analysis_core.steps.opinion_attributes import configured_opinion_attributes, validate_input_attribute_collisions
 
 
 def main() -> int:
@@ -83,7 +85,7 @@ def main() -> int:
     parser.add_argument(
         "--validate-input",
         action="store_true",
-        help="Validate the resolved input CSV path and required columns, then exit",
+        help="Validate the resolved input CSV path, required columns, and attribute conflicts, then exit",
     )
     parser.add_argument(
         "--version",
@@ -102,6 +104,7 @@ def main() -> int:
     # 失敗の文面の伏せ字に使う、config / USER_API_KEY で渡されたユーザーのキー
     user_api_keys: tuple[str | None, ...] = ()
     try:
+        persist_status = not (args.dry_run or args.validate_config or args.validate_input)
         # Initialize the orchestrator
         orchestrator = PipelineOrchestrator.from_config(
             config_path=args.config,
@@ -109,8 +112,8 @@ def main() -> int:
             only=args.only,
             skip_interaction=args.skip_interaction,
             without_html=args.without_html,
-            validate_api_keys_early=not (args.dry_run or args.validate_config or args.validate_input),
-            persist_status=not (args.dry_run or args.validate_config or args.validate_input),
+            validate_api_keys_early=persist_status,
+            persist_status=persist_status,
             output_base_dir=args.output_dir,
             input_base_dir=args.input_dir,
             reuse_from=args.reuse_from,
@@ -118,12 +121,28 @@ def main() -> int:
         user_api_keys = (resolve_user_api_key(orchestrator.config),)
 
         plan = orchestrator.get_plan()
-        should_validate_input = args.validate_input or args.dry_run or (
-            not args.validate_config and plan_requires_input(plan)
-        )
+        requires_input = plan_requires_input(plan)
+        should_validate_input = args.validate_input or args.dry_run or (not args.validate_config and requires_input)
         validated_input_path = None
         if should_validate_input:
-            validated_input_path = validate_input_file(orchestrator.config, orchestrator.input_base_dir, plan)
+            try:
+                validated_input_path = validate_input_file(orchestrator.config, orchestrator.input_base_dir, plan)
+                opinion_attributes = configured_opinion_attributes(orchestrator.config) if requires_input else {}
+                if opinion_attributes:
+                    input_columns = read_input_csv(validated_input_path, n_rows=0).columns
+                    validate_input_attribute_collisions(input_columns, opinion_attributes)
+            except Exception as error:
+                if persist_status:
+                    update_status(
+                        orchestrator.config,
+                        {
+                            "status": "error",
+                            "end_time": datetime.now().isoformat(),
+                            "error": f"{type(error).__name__}: {error}",
+                        },
+                        orchestrator.output_base_dir,
+                    )
+                raise
 
         if args.validate_config or args.validate_input:
             print("Preflight validation passed.")

@@ -1,6 +1,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button, Field, HStack, Input, NativeSelect, Textarea, VStack } from "@chakra-ui/react";
 import { type ModelOption, modelLabel } from "../hooks/useModelCatalog";
+import { type LLMGroupingSettings, isValidGroupingSize } from "../types/llmGrouping";
 
 /**
  * AI設定セクションコンポーネント
@@ -13,6 +14,8 @@ export function AISettingsSection({
   enableSourceLink,
   enableOriginalComments = false,
   analysisMode,
+  llmGrouping,
+  onLLMGroupingChange,
   onAnalysisModeChange,
   analysisModeLocked = false,
   onProviderChange,
@@ -50,6 +53,8 @@ export function AISettingsSection({
   /** 元コメント本文を公開レポートに含めるか（入力データの引用・再頒布が許されている場合だけ ON にする） */
   enableOriginalComments?: boolean;
   analysisMode: string;
+  llmGrouping: LLMGroupingSettings;
+  onLLMGroupingChange: (settings: LLMGroupingSettings) => void;
   onAnalysisModeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   /** true のとき分析方式を変更不可にする（再利用時は元レポートの方式を引き継ぐため） */
   analysisModeLocked?: boolean;
@@ -132,6 +137,46 @@ export function AISettingsSection({
             : "埋め込みベクトルの階層クラスタリングでグループ化します（既定）。"}
         </Field.HelperText>
       </Field.Root>
+
+      {analysisMode === "llm_grouping" && (
+        <VStack w="full" align="stretch" gap={4}>
+          <Field.Root>
+            <Checkbox
+              checked={llmGrouping.use_all_arguments}
+              onCheckedChange={({ checked }) =>
+                onLLMGroupingChange({ ...llmGrouping, use_all_arguments: checked === true })
+              }
+            >
+              全件を一度に読む（Long Context）
+            </Checkbox>
+            <Field.HelperText>
+              分類枠の発見と意見の割り当てで、それぞれ抽出済みの意見を全件まとめて送ります。
+              モデルの入力・出力上限に収まらない場合は、件数を指定して実行してください。
+            </Field.HelperText>
+          </Field.Root>
+          {!llmGrouping.use_all_arguments &&
+            (
+              [
+                ["discovery_sample_size", "分類枠を作るサンプル数", "抽出した意見から最大何件を使うかを指定します。"],
+                ["assignment_batch_size", "割り当て1回あたりの件数", "全件をこの件数ずつに分けて割り当てます。"],
+              ] as const
+            ).map(([key, label, help]) => (
+              <Field.Root key={key} invalid={!isValidGroupingSize(llmGrouping[key])}>
+                <Field.Label>{label}</Field.Label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  width="36"
+                  value={Number.isNaN(llmGrouping[key]) ? "" : llmGrouping[key]}
+                  onChange={(event) => onLLMGroupingChange({ ...llmGrouping, [key]: event.target.valueAsNumber })}
+                />
+                <Field.HelperText>{help}</Field.HelperText>
+                <Field.ErrorText>1以上の整数を入力してください。</Field.ErrorText>
+              </Field.Root>
+            ))}
+        </VStack>
+      )}
 
       <Field.Root>
         <Field.Label>AIプロバイダー</Field.Label>
