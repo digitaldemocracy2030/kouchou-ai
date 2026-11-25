@@ -31,7 +31,6 @@ def create_llm_grouping_workflow(include_visualization: bool = True) -> Workflow
             depends_on=["extraction", "embedding"],
             config={
                 "group_count": "${config.llm_grouping.group_count}",
-                "random_seed": "${config.llm_grouping.random_seed}",
                 "discovery_sample_size": "${config.llm_grouping.discovery_sample_size}",
                 "assignment_batch_size": "${config.llm_grouping.assignment_batch_size}",
                 "discovery_prompt": "${config.llm_grouping.discovery_prompt}",

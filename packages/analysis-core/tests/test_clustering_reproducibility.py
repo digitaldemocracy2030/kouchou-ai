@@ -10,6 +10,7 @@ import polars as pl
 import pytest
 
 from analysis_core.__main__ import main
+from analysis_core.compat import normalize_config
 from analysis_core.core.orchestration import get_specs_path_for_mode, load_specs, validate_config
 from analysis_core.orchestrator import PipelineOrchestrator
 from analysis_core.prompts import get_default_prompt
@@ -108,6 +109,42 @@ def test_seeded_cli_uses_saved_inputs_and_records_seed(tmp_path, saved_inputs, m
         assert plan[step]["run"] is expected_run
         if expected_run:
             assert "random_seed" in plan[step]["reason"]
+
+
+@pytest.mark.parametrize(
+    ("mode", "step"),
+    [("hierarchical", "hierarchical_clustering"), ("llm_grouping", "llm_grouping")],
+)
+def test_direct_orchestrator_accepts_a_config_without_a_seed(saved_inputs, monkeypatch, mode, step):
+    if mode == "llm_grouping":
+        monkeypatch.setattr(
+            import_module("analysis_core.steps.llm_grouping"),
+            "_assign_groups",
+            lambda **kwargs: dict.fromkeys(kwargs["arg_ids"], "g1"),
+        )
+        step_config = {"predefined_groups": ["交通"]}
+    else:
+        step_config = {"cluster_nums": [3, 6], "save_umap_model": False}
+    config = normalize_config(
+        {
+            "input": "source",
+            "question": "q",
+            "analysis_mode": mode,
+            "provider": "local",
+            "output_dir": saved_inputs.name,
+            step: step_config,
+        },
+        include_source_code=False,
+    )
+    config[step].pop("random_seed", None)
+    config["plan"] = [
+        {"step": spec["step"], "run": spec["step"] == step} for spec in load_specs(get_specs_path_for_mode(mode))
+    ]
+
+    result = PipelineOrchestrator(config, output_base_dir=saved_inputs.parent).run_default()
+
+    assert result.success, result.error
+    assert len(pl.read_csv(saved_inputs / "hierarchical_clusters.csv")) == 30
 
 
 @pytest.mark.parametrize("bad_seed", [False, -1, 2**32, "42", 42.0])

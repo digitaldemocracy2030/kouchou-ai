@@ -41,7 +41,7 @@ def test_normalize_config_defaults_cluster_nums_to_none():
 
 def test_engine_resolves_cluster_nums_from_dict_path_without_raising():
     """The engine must resolve the clustering step template against a from_dict-style
-    config with ``cluster_nums`` set to ``None`` instead of raising ``WorkflowExecutionError``.
+    config to ``{"cluster_nums": None}`` instead of raising ``WorkflowExecutionError``.
 
     Before the fix, normalize_config left cluster_nums unset, so resolving
     ``${config.hierarchical_clustering.cluster_nums}`` raised WorkflowExecutionError
@@ -59,4 +59,4 @@ def test_engine_resolves_cluster_nums_from_dict_path_without_raising():
             f"cluster_nums should resolve to None for the dict (from_dict) path, but the engine raised: {exc}"
         )
 
-    assert resolved == {"cluster_nums": None, "random_seed": None}
+    assert resolved == {"cluster_nums": None}

@@ -44,7 +44,7 @@ def hierarchical_clustering_plugin(
     )
 
     step_config = config.get("hierarchical_clustering", config)
-    # reuse_umap_model は workflow template に無いため、full config から読む (#515)。
+    # 省略できるオプションは、未定義キーをエラーにする workflow の補間を通さずに読む。
     full_clustering = {}
     if isinstance(inputs.config, dict):
         candidate = inputs.config.get("hierarchical_clustering")
@@ -53,7 +53,7 @@ def hierarchical_clustering_plugin(
     legacy_config = build_legacy_runtime_config(ctx, inputs)
     legacy_config["hierarchical_clustering"] = {
         "cluster_nums": step_config.get("cluster_nums"),
-        "random_seed": step_config.get("random_seed"),
+        "random_seed": step_config.get("random_seed", full_clustering.get("random_seed")),
         "reuse_umap_model": step_config.get("reuse_umap_model") or full_clustering.get("reuse_umap_model"),
         # save_umap_model も workflow template に無いため、full config から読む（未指定なら保存する）
         "save_umap_model": _first_not_none(

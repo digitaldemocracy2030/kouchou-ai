@@ -93,7 +93,6 @@ def create_hierarchical_workflow(
             depends_on=["embedding"],
             config={
                 "cluster_nums": "${config.hierarchical_clustering.cluster_nums}",
-                "random_seed": "${config.hierarchical_clustering.random_seed}",
             },
         ),
         WorkflowStep(
