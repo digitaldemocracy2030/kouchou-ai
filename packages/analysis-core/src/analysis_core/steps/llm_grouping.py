@@ -12,6 +12,7 @@ import numpy as np
 import polars as pl
 from pydantic import BaseModel, Field
 
+from analysis_core.config import validate_clustering_seed
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS
 from analysis_core.steps._embeddings_io import load_embeddings_pickle, stack_embedding_rows
@@ -20,6 +21,7 @@ from analysis_core.steps.hierarchical_clustering import (
     UMAP_N_COMPONENTS,
     _load_clustering_dependencies,
     calculate_recommended_cluster_nums,
+    compute_umap_embeddings,
 )
 
 # グループ発見・割当の LLM 呼び出しも、ほかの工程と同じく LLM_REQUEST_TIMEOUT_SECONDS に従う
@@ -72,13 +74,14 @@ class GroupDefinition:
 
 def llm_grouping(config: dict) -> None:
     """Generate `hierarchical_clusters.csv` and `hierarchical_merge_labels.csv` via LLM grouping."""
+    llm_config = config["llm_grouping"]
+    random_seed = validate_clustering_seed(llm_config.get("random_seed"), "llm_grouping")
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
     args_df = pl.read_csv(f"{output_base_dir}/{dataset}/args.csv", columns=["arg-id", "argument"])
     arg_ids = args_df["arg-id"].to_list()
     arguments = args_df["argument"].to_list()
 
-    llm_config = config["llm_grouping"]
     use_all_arguments = llm_config.get("use_all_arguments") is True
     # 旧レポートの設定を書き戻す経路では未指定の件数が null になることがある。
     discovery_sample_size = llm_config.get("discovery_sample_size")
@@ -120,7 +123,7 @@ def llm_grouping(config: dict) -> None:
         workers=_resolve_workers(llm_config),
         require_complete=use_all_arguments,
     )
-    points = _project_embeddings_to_xy(output_base_dir, dataset, arg_ids)
+    points = _project_embeddings_to_xy(output_base_dir, dataset, arg_ids, random_seed)
 
     clusters_path = f"{output_base_dir}/{dataset}/hierarchical_clusters.csv"
     merge_labels_path = f"{output_base_dir}/{dataset}/hierarchical_merge_labels.csv"
@@ -405,7 +408,9 @@ def _assign_groups(
     return assignments
 
 
-def _project_embeddings_to_xy(output_base_dir: str, dataset: str, arg_ids: list[str]) -> np.ndarray:
+def _project_embeddings_to_xy(
+    output_base_dir: str, dataset: str, arg_ids: list[str], random_seed: int | None = None
+) -> np.ndarray:
     UMAP, _, _ = _load_clustering_dependencies()
     embeddings_data = load_embeddings_pickle(f"{output_base_dir}/{dataset}/embeddings.pkl")
 
@@ -441,8 +446,14 @@ def _project_embeddings_to_xy(output_base_dir: str, dataset: str, arg_ids: list[
         return np.column_stack([np.cos(angles), np.sin(angles)])
 
     n_neighbors = max(2, min(15, n_samples - 1))
-    umap_model = UMAP(n_components=UMAP_N_COMPONENTS, n_neighbors=n_neighbors)
-    return umap_model.fit_transform(embeddings_array)
+    points, _, _ = compute_umap_embeddings(
+        embeddings_array,
+        n_neighbors=n_neighbors,
+        n_components=UMAP_N_COMPONENTS,
+        umap_factory=UMAP,
+        random_seed=random_seed,
+    )
+    return points
 
 
 def _write_merge_labels(path: str, groups: list[GroupDefinition], assignments: dict[str, str]) -> None:

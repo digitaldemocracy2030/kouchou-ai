@@ -39,6 +39,7 @@ const ja = {
   ],
 
   // チャート選択・ツールバー
+  noAvailableChart: "このレポートで利用できる表示はありません。",
   chartModes: {
     scatterAll: "全体",
     scatterDetail: "詳細クラスタ",
@@ -97,11 +98,17 @@ const ja = {
   scatterWheelLocked: "スクロール中は拡大・縮小しません（止めると有効になります）",
   /** 元コメント本文が公開されているときだけ操作ヒントに足す */
   scatterHelpOriginalComment: "・点にカーソルを合わせる: 元コメントの本文も表示",
-  /** 散布図のホバーと階層リストで、意見の下に出す元コメント本文の見出し */
+  /** 散布図のホバーに添える元コメント本文の見出し */
   originalCommentLabel: "元コメント",
+  originalCommentCount: (n: number) => `元コメント ${n}件`,
+  numberedOriginalComment: (n: number) => `元コメント ${n}`,
+  originalCommentsNotPublic: "このレポートでは元コメント本文を公開していません。",
+  originalCommentsMissing: "元コメント本文はこのレポートに含まれていません。",
+  someOriginalCommentsMissing: "一部の元コメント本文はこのレポートに含まれていません。",
   parentCluster: (label: string) => `所属: ${label}`,
   unknownParentCluster: "不明",
   parentAttributionHeading: "濃い意見グループの第一階層クラスタへの帰属",
+  densityContextLegend: "濃い意見グループ以外の意見",
   hiddenInLegend: "（非表示）",
 
   // 表示設定ダイアログ
@@ -255,6 +262,7 @@ const en: Messages = {
     "The topics you find are starting points for dialogue and further research, not conclusions. Read minority opinions too, and verify with interviews and other materials.",
   ],
 
+  noAvailableChart: "No visualization is available for this report.",
   chartModes: {
     scatterAll: "Overview",
     scatterDetail: "Detailed clusters",
@@ -305,9 +313,15 @@ const en: Messages = {
   scatterWheelLocked: "Zoom is paused while you scroll the page (resumes when you stop)",
   scatterHelpOriginalComment: "• Hover over a point: also shows the original comment",
   originalCommentLabel: "Original comment",
+  originalCommentCount: (n) => `${n} original ${n === 1 ? "comment" : "comments"}`,
+  numberedOriginalComment: (n) => `Original comment ${n}`,
+  originalCommentsNotPublic: "Original comments are private for this report.",
+  originalCommentsMissing: "This report does not contain the original comments.",
+  someOriginalCommentsMissing: "Some original comments are unavailable in this report.",
   parentCluster: (label) => `Top-level cluster: ${label}`,
   unknownParentCluster: "Unknown",
   parentAttributionHeading: "Top-level cluster of each dense opinion group",
+  densityContextLegend: "Opinions outside the dense groups",
   hiddenInLegend: " (hidden)",
 
   displaySettingsDescription: 'Settings for the "Overview", "Detailed clusters" and "Dense opinions" views.',
@@ -453,6 +467,7 @@ const ko: Messages = {
     "발견한 쟁점은 결론이 아니라 대화와 추가 조사의 출발점입니다. 소수 의견도 읽고 관계자 인터뷰나 다른 자료로 확인해 주세요.",
   ],
 
+  noAvailableChart: "이 보고서에 사용할 수 있는 시각화가 없습니다.",
   chartModes: {
     scatterAll: "전체",
     scatterDetail: "세부 클러스터",
@@ -503,9 +518,15 @@ const ko: Messages = {
   scatterWheelLocked: "스크롤 중에는 확대·축소하지 않습니다(멈추면 활성화됩니다)",
   scatterHelpOriginalComment: "• 점에 커서를 올리기: 원본 댓글도 표시",
   originalCommentLabel: "원본 댓글",
+  originalCommentCount: (n) => `원본 댓글 ${n}개`,
+  numberedOriginalComment: (n) => `원본 댓글 ${n}`,
+  originalCommentsNotPublic: "이 보고서는 원본 댓글을 공개하지 않습니다.",
+  originalCommentsMissing: "이 보고서에 원본 댓글 본문이 없습니다.",
+  someOriginalCommentsMissing: "일부 원본 댓글이 이 보고서에 포함되어 있지 않습니다.",
   parentCluster: (label) => `소속: ${label}`,
   unknownParentCluster: "알 수 없음",
   parentAttributionHeading: "밀집 의견 그룹이 속한 제1계층 클러스터",
+  densityContextLegend: "밀집 의견 그룹에 속하지 않는 의견",
   hiddenInLegend: " (숨김)",
 
   displaySettingsDescription: "「전체」「세부 클러스터」「밀집 의견 그룹」에 관한 설정 항목입니다.",

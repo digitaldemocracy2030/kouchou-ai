@@ -24,14 +24,15 @@ def llm_grouping_plugin(
     from analysis_core.steps.llm_grouping import llm_grouping as grouping_impl
 
     step_config = config.get("llm_grouping", config)
-    # predefined_groups / other_group_label は list/dict 値のため workflow の
-    # ${...} 補間を通さず、フル config（inputs.config）から直接受け取る。
+    # 省略できる random_seed / predefined_groups / other_group_label は
+    # 未定義キーをエラーにする workflow の補間を通さずに読む。
     full_llm_config = inputs.config.get("llm_grouping", {}) or {}
     legacy_config = build_legacy_runtime_config(ctx, inputs, include_token_usage=True)
     legacy_config["question"] = inputs.config.get("question", "")
     legacy_config["hierarchical_clustering"] = inputs.config.get("hierarchical_clustering", {})
     legacy_config["llm_grouping"] = {
         "group_count": step_config.get("group_count"),
+        "random_seed": step_config.get("random_seed", full_llm_config.get("random_seed")),
         "discovery_sample_size": step_config.get("discovery_sample_size", 200),
         "assignment_batch_size": step_config.get("assignment_batch_size", 25),
         "use_all_arguments": step_config.get("use_all_arguments", False),
