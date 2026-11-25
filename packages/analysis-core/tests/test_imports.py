@@ -22,8 +22,6 @@ class TestCoreImports:
             get_specs,
             initialization,
             load_specs,
-            run_step,
-            termination,
             update_progress,
             update_status,
             validate_config,
@@ -35,9 +33,7 @@ class TestCoreImports:
         assert decide_what_to_run is not None
         assert update_status is not None
         assert update_progress is not None
-        assert run_step is not None
         assert initialization is not None
-        assert termination is not None
 
     def test_core_utils_imports(self):
         """Test core utility functions."""

@@ -365,13 +365,16 @@ class TestPublicResultArtifact:
 
     def test_old_report_without_public_result_is_converted(self, client, temp_report_dir, test_settings):
         """public_result.json の無い古いレポートは、結果からその場で公開用の形に変換して返す"""
-        self._write(temp_report_dir, "hierarchical_result.json", self._full_result())
+        result = self._full_result()
+        result["arguments"][0]["comment_id"] = 185001345000000001
+        self._write(temp_report_dir, "hierarchical_result.json", result)
 
         response = self._get(client, temp_report_dir, test_settings)
 
         assert response.status_code == 200
         body = response.json()
-        assert body["schema_version"] == 1
+        assert body["schema_version"] == 2
+        assert body["arguments"][0]["comment_id"] == "185001345000000001"
         assert body["visibility"] == "public"
         assert body["config"]["question"] == "テスト質問"
         assert body["config"]["extraction"]["prompt"] == "抽出プロンプト"

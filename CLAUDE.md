@@ -19,3 +19,4 @@ the workflow page owns the reading order and task-specific navigation.
 - `skills/kouchou-ai-architecture/SKILL.md`: system overview, services/ports, key directories, pipeline, stack.
 - `skills/kouchou-ai-development/SKILL.md`: local setup, builds, linting, env config, Azure helpers.
 - `skills/kouchou-ai-testing/SKILL.md`: test commands, E2E rules, verification workflow.
+- `skills/kouchou-ai-analyze/SKILL.md`: analyze free-text CSV with the CLI and trace findings to source comments.

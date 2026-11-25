@@ -2,6 +2,8 @@
 
 このガイドでは、`kouchou-ai-analysis-core` パッケージを使用してCSVファイルのコメントを分析する手順を説明します。
 
+AIエージェントにCSVの準備から根拠つきの報告まで任せる場合は、[広聴AI CLIのSkill](https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/skills/kouchou-ai-analyze/SKILL.md)をエージェントに読み込ませてください。動作確認用の架空CSVも同梱しています。
+
 ## 前提条件
 
 - Python 3.12 以上

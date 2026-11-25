@@ -1,0 +1,29 @@
+name: Opinion source contract
+
+on:
+  pull_request:
+    paths:
+      - "packages/analysis-core/verification/opinion-sources/**"
+      - ".github/workflows/opinion-sources-lean.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/analysis-core/verification/opinion-sources/**"
+      - ".github/workflows/opinion-sources-lean.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Elan
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/leanprover/elan/v4.4.0/elan-init.sh | sh -s -- -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Check the Lean contract
+        working-directory: packages/analysis-core/verification/opinion-sources
+        run: lean Contract.lean
