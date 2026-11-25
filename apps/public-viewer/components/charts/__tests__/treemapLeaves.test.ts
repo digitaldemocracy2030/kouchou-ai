@@ -106,4 +106,23 @@ describe("buildTreemapFigure の葉の数", () => {
     const customdata = data.customdata as string[];
     expect(customdata[(data.ids as string[]).indexOf("1_0")]).toContain("元の件数: 4<br>フィルター後: 1");
   });
+
+  it("上位の枝を密度フィルターで非表示にしても、残った枝は元の配色を保つ", () => {
+    const visibleClusters = clusters.filter((group) => ["0", "1_1", "2_2"].includes(group.id));
+    const { data: original } = buildTreemapFigure(clusters, args, "0", undefined);
+    const { data: filtered } = buildTreemapFigure(
+      visibleClusters,
+      args.slice(-2),
+      "0",
+      ["a5", "a6"],
+      undefined,
+      clusters,
+    );
+    const originalIndex = (original.ids as string[]).indexOf("1_1");
+    const filteredIndex = (filtered.ids as string[]).indexOf("1_1");
+    expect((filtered.marker?.colors as string[])[filteredIndex]).toBe(
+      (original.marker?.colors as string[])[originalIndex],
+    );
+    expect((filtered.values as number[])[0]).toBe(2);
+  });
 });

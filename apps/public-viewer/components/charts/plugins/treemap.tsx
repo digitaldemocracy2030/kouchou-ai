@@ -29,12 +29,13 @@ export const treemapPlugin: ChartPlugin = {
   },
 
   render: (context: ChartRenderContext) => {
-    const { result, filteredArgumentIds, treemapLevel = "0", onTreeZoom, onHover } = context;
+    const { result, modeResult, filteredArgumentIds, treemapLevel = "0", onTreeZoom, onHover } = context;
 
     return (
       <TreemapChart
         key={treemapLevel}
         clusterList={result.clusters}
+        colorSourceClusters={modeResult?.clusters}
         argumentList={result.arguments}
         onHover={onHover}
         level={treemapLevel}

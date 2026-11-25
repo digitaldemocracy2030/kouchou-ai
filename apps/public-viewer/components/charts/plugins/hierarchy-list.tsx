@@ -22,6 +22,7 @@ export const hierarchyListPlugin: ChartPlugin = {
         id: "hierarchyList",
         label: "リスト",
         icon: ListViewIcon,
+        layout: "flow",
       },
     ],
   },
