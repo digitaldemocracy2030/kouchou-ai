@@ -122,8 +122,46 @@ export function createPowerPoint(data: DeckData, reportUrl?: URL, cover?: CoverI
   return deck;
 }
 
+const HEADING_BOX = { w: 11.9, h: 0.82 };
+const HEADING_FONT_SIZES = [26, 24, 22, 20, 18, 16];
+
+// 半角文字は全角の約半分の幅として、行数を多めに見積もる
+function textWidthInEm(text: string) {
+  return Array.from(text).reduce((width, character) => width + (/[\u0020-\u007e]/.test(character) ? 0.55 : 1), 0);
+}
+
+// PowerPoint は開いた時点で文字を自動縮小しないため、枠に収まる文字サイズを先に決める
+export function fitHeading(text: string) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const innerWidth = (HEADING_BOX.w - 0.2) * 72;
+  const innerHeight = (HEADING_BOX.h - 0.1) * 72;
+  for (const fontSize of HEADING_FONT_SIZES) {
+    const maxLines = Math.floor(innerHeight / (fontSize * 1.2));
+    const lines = Math.ceil((textWidthInEm(normalized) * fontSize) / innerWidth);
+    if (maxLines >= 1 && lines <= maxLines) return { text: normalized, fontSize };
+  }
+  const fontSize = HEADING_FONT_SIZES[HEADING_FONT_SIZES.length - 1];
+  const maxWidth = (innerWidth / fontSize) * Math.floor(innerHeight / (fontSize * 1.2)) - 1;
+  const characters = Array.from(normalized);
+  let width = 0;
+  let end = 0;
+  while (end < characters.length && width + textWidthInEm(characters[end]) <= maxWidth) {
+    width += textWidthInEm(characters[end]);
+    end++;
+  }
+  return { text: `${characters.slice(0, end).join("")}…`, fontSize };
+}
+
 function heading(slide: pptxgen.Slide, text: string) {
-  slide.addText(text, { x: 0.7, y: 0.35, w: 11.9, h: 0.82, fontSize: 26, bold: true, color: colors.ink });
+  const fitted = fitHeading(text);
+  slide.addText(fitted.text, {
+    x: 0.7,
+    y: 0.35,
+    ...HEADING_BOX,
+    fontSize: fitted.fontSize,
+    bold: true,
+    color: colors.ink,
+  });
 }
 
 function addLink(slide: pptxgen.Slide, url: URL, text: string) {

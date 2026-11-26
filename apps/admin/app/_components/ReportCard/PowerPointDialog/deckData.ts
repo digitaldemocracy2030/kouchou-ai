@@ -23,7 +23,8 @@ export function getDeckData(result: DeckSource) {
   }
 
   return {
-    title: result.config?.name || "広聴AIレポート",
+    // config.name は入力データの識別名で、管理画面で入力したタイトルは config.question に入る
+    title: result.config?.question || result.config?.name || "広聴AIレポート",
     question: result.config?.question || "",
     overview: result.overview || "",
     inputCount:
