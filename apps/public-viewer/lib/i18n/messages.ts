@@ -46,6 +46,7 @@ const ja = {
     scatterDensity: "濃い意見",
     treemap: "階層",
     hierarchyList: "リスト",
+    opposition: "対立",
   } as Record<string, string>,
   chartModeDisabled: {
     scatterDetail: "クラスタが1階層のみのため利用できません",
@@ -58,6 +59,7 @@ const ja = {
     scatterDensity: "特に似た意見が集まった所を見る",
     treemap: "グループの大きさを比べる",
     hierarchyList: "全部読む・掘り下げる（詳細モード）",
+    opposition: "同じ話題の意見がどこで分かれるかを見る",
   } as Record<string, string>,
   filter: "フィルタ",
   displaySettings: "表示設定",
@@ -71,7 +73,8 @@ const ja = {
   originalCount: "元の件数",
   afterFilterCount: "フィルター後",
   treemapText: "%{label}<br>意見 %{value:,}件<br>全意見の %{percentRoot:.2%}",
-  treemapTextFiltered: "%{label}<br>意見 %{value:,}件 (フィルター後)<br>全意見の %{percentRoot:.2%}",
+  treemapTextFiltered: "%{label}<br>意見 %{value:,}件 (フィルター後)<br>フィルター後の全意見の %{percentRoot:.2%}",
+  treemapDenseOnly: "濃い意見グループに絞る",
 
   // 散布図の操作ヒントと、濃い意見グループの第一階層クラスタへの帰属表示
   scatterHelpButton: "散布図の見方と操作方法を表示",
@@ -116,7 +119,8 @@ const ja = {
   showClusterLabels: "意見グループ名を表示",
   showConvexHull: "意見グループの境界線を表示",
   denseSettings: "濃い意見グループ設定",
-  denseSettingsDescription: "「濃い意見グループ」に関する設定項目です。",
+  denseSettingsDescription:
+    "散布図の「濃い意見」と、階層図で「濃い意見グループに絞る」をオンにしたときの絞り込み条件です。",
   densityPercentLabel: (percent: number) => `上位何％の意見グループを表示するか: ${percent}%`,
   minSamplesLabel: (n: number) => `意見グループのサンプル数の最小数: ${n}`,
   apply: "設定を適用",
@@ -151,6 +155,21 @@ const ja = {
   // 階層リスト
   hierarchyList: "階層リスト（詳細モード）",
   hierarchyListDescription: "全部読む・掘り下げるための見方です。グループを展開すると要約と個別の意見を順に読めます",
+
+  oppositionHeading: "対立軸ビュー",
+  oppositionTopic: "話題",
+  oppositionAxis: "対立軸",
+  oppositionOpen: "この話題の対立を見る",
+  oppositionAvailable: "対立軸あり",
+  oppositionBack: "選んだ話題に戻る",
+  oppositionUnavailable: "このレポートには表示できる対立軸がありません。",
+  oppositionNotApplicable: (n: number) => `該当なし ${n.toLocaleString()}件`,
+  oppositionUnscored: (n: number) => `未採点 ${n.toLocaleString()}件`,
+  oppositionScore: (n: number) => `立場のスコア ${n} / 6`,
+  oppositionReadingNote: "LLMが提案した対立軸と判定した立場を表示します。",
+  oppositionAgreements: "合意できそうな点",
+  oppositionConflicts: "根本的に対立する点",
+
   sourceLink: "出典を見る",
   collapse: "折りたたむ",
   expand: "展開する",
@@ -269,6 +288,7 @@ const en: Messages = {
     scatterDensity: "Dense opinions",
     treemap: "Hierarchy",
     hierarchyList: "List",
+    opposition: "Disagreement",
   },
   chartModePurpose: {
     scatterAll: "Get the big picture",
@@ -276,6 +296,7 @@ const en: Messages = {
     scatterDensity: "See where very similar opinions gather",
     treemap: "Compare group sizes",
     hierarchyList: "Read everything, drill down (detail mode)",
+    opposition: "See where opinions on a topic diverge",
   },
   chartModeDisabled: {
     scatterDetail: "Not available because the clusters have only one level",
@@ -291,7 +312,8 @@ const en: Messages = {
   originalCount: "Original count",
   afterFilterCount: "After filter",
   treemapText: "%{label}<br>%{value:,} opinions<br>%{percentRoot:.2%} of all",
-  treemapTextFiltered: "%{label}<br>%{value:,} opinions (filtered)<br>%{percentRoot:.2%} of all",
+  treemapTextFiltered: "%{label}<br>%{value:,} opinions (filtered)<br>%{percentRoot:.2%} of all filtered opinions",
+  treemapDenseOnly: "Show dense groups only",
 
   scatterHelpButton: "Show how to read and use the scatter plot",
   scatterReadingTitle: "How to read the scatter plot",
@@ -328,7 +350,8 @@ const en: Messages = {
   showClusterLabels: "Show group names",
   showConvexHull: "Show group boundaries",
   denseSettings: "Dense opinion group settings",
-  denseSettingsDescription: 'Settings for the "Dense opinions" view.',
+  denseSettingsDescription:
+    'These settings apply to the "Dense opinions" scatter plot and to the hierarchy chart when "Show dense groups only" is on.',
   densityPercentLabel: (percent) => `Show the top ${percent}% densest groups`,
   minSamplesLabel: (n) => `Minimum number of opinions per group: ${n}`,
   apply: "Apply",
@@ -362,6 +385,21 @@ const en: Messages = {
   hierarchyList: "Hierarchy list (detail mode)",
   hierarchyListDescription:
     "For reading everything and drilling down. Expand a group to read its summary and each opinion",
+
+  oppositionHeading: "Disagreement view",
+  oppositionTopic: "Topic",
+  oppositionAxis: "Axis",
+  oppositionOpen: "See disagreements on this topic",
+  oppositionAvailable: "Disagreement axes available",
+  oppositionBack: "Back to the selected topic",
+  oppositionUnavailable: "There are no disagreement axes for this report.",
+  oppositionNotApplicable: (n) => `Not applicable: ${n.toLocaleString()}`,
+  oppositionUnscored: (n) => `Unscored: ${n.toLocaleString()}`,
+  oppositionScore: (n) => `Position score ${n} / 6`,
+  oppositionReadingNote: "An LLM proposed these axes and classified the opinions.",
+  oppositionAgreements: "Possible points of agreement",
+  oppositionConflicts: "Fundamental disagreements",
+
   sourceLink: "View source",
   collapse: "Collapse",
   expand: "Expand",
@@ -474,6 +512,7 @@ const ko: Messages = {
     scatterDensity: "밀집 의견",
     treemap: "계층",
     hierarchyList: "목록",
+    opposition: "의견 대립",
   },
   chartModePurpose: {
     scatterAll: "전체를 대략 파악하기",
@@ -481,6 +520,7 @@ const ko: Messages = {
     scatterDensity: "특히 비슷한 의견이 모인 곳 보기",
     treemap: "그룹 크기 비교하기",
     hierarchyList: "전부 읽기・파고들기 (상세 모드)",
+    opposition: "같은 주제에서 의견이 갈리는 지점 보기",
   },
   chartModeDisabled: {
     scatterDetail: "클러스터가 한 계층뿐이어서 사용할 수 없습니다",
@@ -496,7 +536,8 @@ const ko: Messages = {
   originalCount: "원래 건수",
   afterFilterCount: "필터 후",
   treemapText: "%{label}<br>의견 %{value:,}건<br>전체 의견의 %{percentRoot:.2%}",
-  treemapTextFiltered: "%{label}<br>의견 %{value:,}건 (필터 후)<br>전체 의견의 %{percentRoot:.2%}",
+  treemapTextFiltered: "%{label}<br>의견 %{value:,}건 (필터 후)<br>필터 후 전체 의견의 %{percentRoot:.2%}",
+  treemapDenseOnly: "밀집 의견 그룹만 표시",
 
   scatterHelpButton: "산점도 보는 법과 조작 방법 보기",
   scatterReadingTitle: "산점도 보는 법",
@@ -533,7 +574,7 @@ const ko: Messages = {
   showClusterLabels: "의견 그룹 이름 표시",
   showConvexHull: "의견 그룹 경계선 표시",
   denseSettings: "밀집 의견 그룹 설정",
-  denseSettingsDescription: "「밀집 의견 그룹」에 관한 설정 항목입니다.",
+  denseSettingsDescription: '산점도의 "밀집 의견"과 계층도의 "밀집 의견 그룹만 표시"를 켰을 때 적용되는 설정입니다.',
   densityPercentLabel: (percent) => `상위 몇 %의 의견 그룹을 표시할지: ${percent}%`,
   minSamplesLabel: (n) => `의견 그룹의 최소 샘플 수: ${n}`,
   apply: "설정 적용",
@@ -566,6 +607,21 @@ const ko: Messages = {
   hierarchyList: "계층 목록 (상세 모드)",
   hierarchyListDescription:
     "전부 읽고 파고들기 위한 보기입니다. 그룹을 펼치면 요약과 개별 의견을 차례로 읽을 수 있습니다",
+
+  oppositionHeading: "의견 대립 보기",
+  oppositionTopic: "주제",
+  oppositionAxis: "대립 축",
+  oppositionOpen: "이 주제에서 의견이 갈리는 지점 보기",
+  oppositionAvailable: "대립 축 보기 가능",
+  oppositionBack: "선택한 주제로 돌아가기",
+  oppositionUnavailable: "이 보고서에는 표시할 대립 축이 없습니다.",
+  oppositionNotApplicable: (n) => `해당 없음 ${n.toLocaleString()}건`,
+  oppositionUnscored: (n) => `미채점 ${n.toLocaleString()}건`,
+  oppositionScore: (n) => `입장 점수 ${n} / 6`,
+  oppositionReadingNote: "LLM이 대립 축을 제안하고 의견의 입장을 분류했습니다.",
+  oppositionAgreements: "합의할 수 있는 부분",
+  oppositionConflicts: "근본적으로 대립하는 부분",
+
   sourceLink: "출처 보기",
   collapse: "접기",
   expand: "펼치기",

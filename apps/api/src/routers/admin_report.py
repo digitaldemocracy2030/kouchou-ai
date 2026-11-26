@@ -28,7 +28,7 @@ from src.schemas.cluster import ClusterResponse, ClusterUpdate
 from src.schemas.report import Report, ReportStatus
 from src.schemas.report_config import ReportConfigUpdate
 from src.schemas.visualization_config import ReportDisplayConfig, parse_saved_visualization_config
-from src.services.analysis_config import prune_config_for_mode
+from src.services.analysis_config import preserve_llm_grouping_sample_size, prune_config_for_mode
 from src.services.llm_models import get_models_by_provider
 from src.services.llm_pricing import LLMPricing
 from src.services.report_duplicate import duplicate_report, slug_exists_anywhere
@@ -476,7 +476,7 @@ async def get_report_config_endpoint(slug: str, api_key: str = Depends(verify_ad
         config_repo = ConfigRepository(slug)
         config = config_repo.read_from_json()
         # analysis_mode 非該当セクション（llm_grouping:null 等）を露出させない
-        return {"config": prune_config_for_mode(config.model_dump())}
+        return {"config": preserve_llm_grouping_sample_size(prune_config_for_mode(config.model_dump()))}
     except ConfigFileNotFound as e:
         slogger.error(f"ConfigFileNotFound: {e}", exc_info=True)
         raise HTTPException(status_code=404, detail=str(e)) from e

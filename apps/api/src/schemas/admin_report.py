@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import Field, StrictBool, field_validator
 
 from src.schemas.base import SchemaBaseModel
 from src.schemas.report import ReportVisibility
@@ -21,6 +21,12 @@ class Prompt(SchemaBaseModel):
     overview: str
 
 
+class LLMGroupingOptions(SchemaBaseModel):
+    discovery_sample_size: int | None = Field(default=None, strict=True, ge=1)
+    assignment_batch_size: int | None = Field(default=None, strict=True, ge=1)
+    use_all_arguments: StrictBool | None = None
+
+
 class ReportInput(SchemaBaseModel):
     input: str  # レポートのID
     question: str  # レポートのタイトル
@@ -38,6 +44,7 @@ class ReportInput(SchemaBaseModel):
     # 分析方式。"hierarchical"=埋め込みベースの階層クラスタリング（既定）、
     # "llm_grouping"=LLM 直接グルーピング（LLM による group discovery + batch assignment）
     analysis_mode: str = "hierarchical"
+    llm_grouping: LLMGroupingOptions | None = None
 
     @field_validator("inputType")
     @classmethod
@@ -94,6 +101,7 @@ class ReportDuplicateOverrides(SchemaBaseModel):
     is_embedded_at_local: bool | None = None
     local_llm_address: str | None = None
     prompt: PromptOverride | None = None
+    llm_grouping: LLMGroupingOptions | None = None
 
 
 class ReportDuplicateReuse(SchemaBaseModel):

@@ -22,6 +22,7 @@ export const hierarchyListPlugin: ChartPlugin = {
         id: "hierarchyList",
         label: "リスト",
         icon: ListViewIcon,
+        layout: "flow",
       },
     ],
   },
@@ -42,6 +43,9 @@ export const hierarchyListPlugin: ChartPlugin = {
         textSearch={textSearch}
         config={result.config}
         comments={result.comments}
+        oppositionClusterIds={context.oppositionClusterIds}
+        onOpenOpposition={context.onOpenOpposition}
+        reopenClusterId={context.reopenClusterId}
       />
     );
   },

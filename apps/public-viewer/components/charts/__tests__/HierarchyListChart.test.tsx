@@ -95,6 +95,27 @@ describe("HierarchyListChart の展開状態", () => {
     expect(expandedCount()).toBe(1);
     expect(screen.queryByText("意見 A1")).not.toBeInTheDocument();
   });
+
+  it("対立ビューから戻ると選んだ話題と祖先を開き、対立ビューを開くボタンにフォーカスを戻す", () => {
+    const openOpposition = jest.fn();
+    render(
+      <Provider>
+        <HierarchyListChart
+          clusterList={clusters}
+          argumentList={args}
+          oppositionClusterIds={new Set(["1_1"])}
+          onOpenOpposition={openOpposition}
+          reopenClusterId="1_1"
+        />
+      </Provider>,
+    );
+
+    expect(expandedCount()).toBe(2);
+    const action = screen.getByRole("button", { name: "この話題の対立を見る" });
+    expect(action).toHaveFocus();
+    fireEvent.click(action);
+    expect(openOpposition).toHaveBeenCalledWith("1_1");
+  });
 });
 
 describe("HierarchyListChart の一括展開（#1206）", () => {

@@ -30,6 +30,9 @@ interface HierarchyListChartProps {
   config?: Config;
   // 元コメント本文（出典 ID → 本文）。
   comments?: Comments;
+  oppositionClusterIds?: ReadonlySet<string>;
+  onOpenOpposition?: (clusterId: string) => void;
+  reopenClusterId?: string;
 }
 
 interface ClusterNode {
@@ -190,12 +193,17 @@ export function HierarchyListChart({
   onHover,
   config,
   comments,
+  oppositionClusterIds,
+  onOpenOpposition,
+  reopenClusterId,
 }: HierarchyListChartProps) {
   const messages = useMessages();
   const disclosureGroup = useId();
   // 出典リンクは散布図と同じ条件（レポート設定で有効なときだけ）
   const showSourceLinks = Boolean(config?.enable_source_link);
   const [treeData, setTreeData] = useState<ClusterNode[]>([]);
+  const restoredAction = useRef<HTMLButtonElement>(null);
+  const scrollRestored = useRef(false);
   // ツリーを作り直すときに、直前の展開状態をクラスタ ID で引き継ぐための参照（下の effect より先に更新する）
   const treeDataRef = useRef(treeData);
   useEffect(() => {
@@ -211,6 +219,15 @@ export function HierarchyListChart({
     const clusterMap = new Map<string, ClusterNode>();
     // フィルタの適用・変更・解除のたびに clusterList は新しい配列になる。作り直しても開いていたクラスタは閉じない
     const previousExpansion = collectExpansion(treeDataRef.current);
+    const reopenPath = new Set<string>();
+    if (reopenClusterId && treeDataRef.current.length === 0) {
+      const parentById = new Map(clusterList.map((cluster) => [cluster.id, cluster.parent]));
+      let id: string | undefined = reopenClusterId;
+      while (id && parentById.has(id) && !reopenPath.has(id)) {
+        reopenPath.add(id);
+        id = parentById.get(id);
+      }
+    }
 
     // Create nodes for all clusters
     const maxLevel = Math.max(...clusterList.map((c) => c.level));
@@ -221,8 +238,10 @@ export function HierarchyListChart({
       clusterMap.set(cluster.id, {
         ...cluster,
         children: [],
-        isExpanded: previousExpansion.get(cluster.id)?.isExpanded ?? false,
-        isChildrenExpanded: previousExpansion.get(cluster.id)?.isChildrenExpanded ?? false,
+        isExpanded: previousExpansion.get(cluster.id)?.isExpanded ?? reopenPath.has(cluster.id),
+        isChildrenExpanded:
+          previousExpansion.get(cluster.id)?.isChildrenExpanded ??
+          (reopenPath.has(cluster.id) && cluster.id !== reopenClusterId),
         arguments: clusterArguments,
       });
     }
@@ -254,7 +273,14 @@ export function HierarchyListChart({
     };
 
     setTreeData(sortChildren(rootNodes));
-  }, [clusterList, argumentsByCluster]);
+  }, [clusterList, argumentsByCluster, reopenClusterId]);
+
+  useEffect(() => {
+    if (!treeData.length || !restoredAction.current || scrollRestored.current) return;
+    scrollRestored.current = true;
+    restoredAction.current.focus({ preventScroll: true });
+    restoredAction.current.scrollIntoView?.({ block: "center" });
+  }, [treeData]);
 
   // テキスト検索中は、一致した意見を含むグループを開いて、意見まで辿れるようにする（#1205）。
   // 上の effect がツリーを作り直した後に適用されるよう、関数形式で直前の状態に重ねる。
@@ -340,7 +366,8 @@ export function HierarchyListChart({
   const renderClusterNode = (node: ClusterNode, depth = 0): ReactNode => {
     const hasChildren = node.children.length > 0;
     const hasArguments = node.arguments.length > 0;
-    const hasExpandableContent = hasChildren || node.takeaway || hasArguments;
+    const hasOpposition = onOpenOpposition && oppositionClusterIds?.has(node.id);
+    const hasExpandableContent = hasChildren || node.takeaway || hasArguments || hasOpposition;
 
     // Check if this cluster has any matching arguments (when filter is active)
     const isFiltered = filteredArgumentIds ? !clusterFilterState.get(node.id) : false;
@@ -365,6 +392,7 @@ export function HierarchyListChart({
               border="none"
               p={0}
               aria-label={node.isExpanded ? messages.collapse : messages.expand}
+              aria-expanded={node.isExpanded}
             >
               <Icon
                 as={ChevronRight}
@@ -388,6 +416,11 @@ export function HierarchyListChart({
                   ? `(${messages.filteredOfTotalCount(filteredCounts.get(node.id) ?? 0, node.value)})`
                   : `(${messages.opinionCount(node.value)})`}
               </Text>
+              {hasOpposition && !node.isExpanded && (
+                <Text as="span" fontSize="xs" color="blue.700" fontWeight="normal" ml={2}>
+                  {messages.oppositionAvailable}
+                </Text>
+              )}
             </Text>
 
             {node.isExpanded && (
@@ -396,6 +429,17 @@ export function HierarchyListChart({
                   <Text fontSize="sm" color="gray.600" lineHeight="1.6" mb={2}>
                     {node.takeaway}
                   </Text>
+                )}
+
+                {hasOpposition && (
+                  <Button
+                    ref={node.id === reopenClusterId ? restoredAction : undefined}
+                    size="xs"
+                    variant="secondary"
+                    onClick={() => onOpenOpposition?.(node.id)}
+                  >
+                    {messages.oppositionOpen}
+                  </Button>
                 )}
 
                 {hasChildren && (

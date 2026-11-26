@@ -28,6 +28,9 @@ from typing import Any
 
 VALID_ANALYSIS_MODES = ("hierarchical", "llm_grouping")
 DEFAULT_ANALYSIS_MODE = "hierarchical"
+# 新規作成時に保存し、後から既定値が変わっても再利用元の設定を引き継げるようにする。
+DEFAULT_LLM_GROUPING_DISCOVERY_SAMPLE_SIZE = 200
+LEGACY_LLM_GROUPING_DISCOVERY_SAMPLE_SIZE = 80
 
 # Config sections that only belong to a specific analysis_mode's pipeline.
 HIERARCHICAL_ONLY_SECTIONS = (
@@ -49,6 +52,20 @@ def resolve_analysis_mode(config: dict[str, Any]) -> str:
     if mode in VALID_ANALYSIS_MODES:
         return mode
     return DEFAULT_ANALYSIS_MODE
+
+
+def preserve_llm_grouping_sample_size(config: dict[str, Any]) -> dict[str, Any]:
+    """既存レポートで分類枠のサンプル数が省略されていれば、作成当時の既定値で補う。"""
+    if resolve_analysis_mode(config) != "llm_grouping":
+        return config
+    raw_options = config.get("llm_grouping")
+    options = raw_options if isinstance(raw_options, dict) else {}
+    if options.get("discovery_sample_size") is not None:
+        return config
+    return {
+        **config,
+        "llm_grouping": {**options, "discovery_sample_size": LEGACY_LLM_GROUPING_DISCOVERY_SAMPLE_SIZE},
+    }
 
 
 def prune_config_for_mode(config: dict[str, Any]) -> dict[str, Any]:

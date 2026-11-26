@@ -1,5 +1,46 @@
+import { toIdSet } from "@/lib/argumentIndex";
+import type { Cluster, Result } from "@/type";
+
 type Group = { id: string; parent: string; label: string; takeaway: string; value: number };
 type Opinion = { arg_id: string; argument: string; cluster_ids: string[] };
+
+export function applyTreemapDensityFilter(
+  result: Result,
+  densityFilteredClusters: Cluster[],
+  filteredIds: string[] | undefined,
+): Result {
+  const root = result.clusters[0];
+  const densityIds = new Set(densityFilteredClusters.map((cluster) => cluster.id));
+  const attributeIds = toIdSet(filteredIds);
+  const visibleClusterIds = new Set<string>();
+  const arguments_ = result.arguments.filter((opinion) => {
+    if (attributeIds && !attributeIds.has(opinion.arg_id)) return false;
+    if (!opinion.cluster_ids.every((id) => densityIds.has(id))) return false;
+    for (const id of opinion.cluster_ids) visibleClusterIds.add(id);
+    return true;
+  });
+  return {
+    ...result,
+    arguments: arguments_,
+    // 表示する意見がない枝は図と説明欄から除き、全体へ戻るためのルートは残す。
+    clusters: result.clusters.filter((cluster) => cluster === root || visibleClusterIds.has(cluster.id)),
+    // 密度だけで絞った場合も、上位階層の件数と割合を絞り込み後の値にする。
+    filteredArgumentIds: arguments_.map((opinion) => opinion.arg_id),
+  };
+}
+
+export function resolveFilteredTreemapLevel(level: string, source: Result, filtered: Result): string {
+  const visibleIds = new Set(filtered.clusters.map((cluster) => cluster.id));
+  if (!level || visibleIds.has(level) || filtered.filteredArgumentIds?.includes(level)) return level;
+
+  const parents = new Map(source.clusters.map((cluster) => [cluster.id, cluster.parent]));
+  let parent = parents.get(level) ?? source.arguments.find((opinion) => opinion.arg_id === level)?.cluster_ids.at(-1);
+  for (let depth = 0; parent && depth < parents.size; depth++) {
+    if (visibleIds.has(parent)) return parent;
+    parent = parents.get(parent);
+  }
+  return filtered.clusters[0]?.id ?? level;
+}
 
 // Keep this navigation/count contract aligned with the other viewer.
 export function treemapContext(

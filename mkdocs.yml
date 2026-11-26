@@ -91,6 +91,7 @@ markdown_extensions:
 
 nav:
   - ホーム: index.md
+  - 書籍を読んだ方へ: book.md
   - セルフホスト（自分で環境を建てる）:
       - クイックスタート: self-hosting/quickstart.md
       - Windowsセットアップ: self-hosting/windows-setup.md
