@@ -11,9 +11,9 @@
 | --- | --- |
 | Docker Desktopを導入・起動できる | 下の前提条件を確認して、このガイドを進める |
 | 組織のPCでインストール権限・WSL2・利用条件が不明 | 所属組織のIT管理者に確認する。権限を回避して進めない |
-| Docker DesktopやWSL2を利用できない | 利用可能な別環境や技術者による導入を検討する。ブラウザで動く [serverless版](https://github.com/tokoroten/kouchou-ai-serverless) も比較できる |
+| Docker DesktopやWSL2を利用できない | 利用可能な別環境や技術者による導入を検討する。[ブラウザで動くserverless版](https://digitaldemocracy2030.github.io/kouchou-ai-serverless/) も試せる |
 
-serverless版は別プロジェクトです。本体と同一の機能・設定・運用を保証するものではないため、必要なモデルやデータの扱いはリンク先の説明を確認してください。このガイドはWSL内の手動構築やWindows単一実行ファイルの導入手順を扱いません。
+serverless版は別プロジェクトです。本体と同一の機能・設定・運用を保証するものではないため、必要なモデルやデータの扱いは [ブラウザ版の説明](https://github.com/digitaldemocracy2030/kouchou-ai-serverless) を確認してください。このガイドはWSL内の手動構築やWindows単一実行ファイルの導入手順を扱いません。
 
 ## 実行前の確認
 

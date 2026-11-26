@@ -123,6 +123,21 @@ test.describe("管理画面 - レポート作成フロー", () => {
     // ※Chakra UIのtoasterはalert roleで表示される
     await expect(page.getByText("入力エラー")).toBeVisible({ timeout: 5000 });
   });
+
+  for (const [name, reportId, message] of [
+    ["使用できない文字", "Invalid_id", "IDは英小文字、数字、ハイフンのみ使用できます"],
+    ["256文字", "a".repeat(256), "IDは255文字以内で入力してください"],
+  ]) {
+    test(`IDが${name}の場合に入力エラーを表示する`, async ({ page }) => {
+      const idField = page.getByRole("textbox", { name: "ID", exact: true });
+      await idField.fill(reportId);
+      await expect(idField).toHaveAttribute("aria-invalid", "true");
+      await expect(page.getByText(message, { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "作成前の確認へ" }).click();
+      await expect(page.getByText("IDが無効です", { exact: true })).toBeVisible();
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+    });
+  }
 });
 
 test.describe("管理画面 - レスポンシブデザイン", () => {

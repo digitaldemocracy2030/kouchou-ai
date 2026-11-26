@@ -19,18 +19,20 @@ from pathlib import Path
 from typing import Any
 
 from analysis_core.core import utils as _utils
+from analysis_core.opinion_sources import comment_source_fields, read_comment_ids
 
 PUBLIC_RESULT_FILENAME = "public_result.json"
 RESULT_FILENAME = "hierarchical_result.json"
 
 # 互換性を壊す変更（キーの削除・意味の変更・型の変更）をしたときだけ上げる。
 # 省略可能なキーを足すだけなら上げない（読み手は未知のキーを無視する）。
-PUBLIC_RESULT_SCHEMA_VERSION = 1
+PUBLIC_RESULT_SCHEMA_VERSION = 2
 
-ARGUMENT_KEYS = ("arg_id", "argument", "comment_id", "x", "y", "p", "cluster_ids", "attributes", "url")
+ARGUMENT_KEYS = ("arg_id", "argument", "x", "y", "p", "cluster_ids", "attributes", "url")
 CLUSTER_KEYS = ("level", "id", "label", "takeaway", "value", "parent", "density_rank_percentile")
 PLAN_ITEM_KEYS = ("step", "run", "reason")
 LAYOUT_KEYS = ("kind", "points", "meta")
+OPPOSITION_AXIS_TEXT_KEYS = ("id", "cluster_id", "name", "left_pole", "right_pole")
 
 # config のうち、公開ビューアが表示に使う項目だけ。
 # 入れないもの: name / input / output_dir（内部の識別子）、status / previous / completed_jobs /
@@ -92,12 +94,12 @@ def _public_config_view(config: Any) -> dict[str, Any]:
     return view
 
 
-def _public_comments(comments: Any) -> dict[str, dict[str, str]]:
+def _public_comments(comments: Any, linked_ids: set[str]) -> dict[str, dict[str, str]]:
     if not isinstance(comments, dict):
         return {}
     public: dict[str, dict[str, str]] = {}
     for comment_id, value in comments.items():
-        if isinstance(value, dict) and isinstance(value.get("comment"), str):
+        if str(comment_id) in linked_ids and isinstance(value, dict) and isinstance(value.get("comment"), str):
             public[str(comment_id)] = {"comment": value["comment"]}
     return public
 
@@ -144,25 +146,75 @@ def _public_layouts(layouts: Any) -> dict[str, Any]:
     return {layout_id: _pick(layout, LAYOUT_KEYS) for layout_id, layout in layouts.items() if isinstance(layout, dict)}
 
 
+def _public_opposition_axes(
+    axes: Any, clusters: list[dict[str, Any]], arguments: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """公開用に添付した軸から、存在するクラスタ・意見に対応する表示項目だけを写す。"""
+    if not isinstance(axes, list) or not axes:
+        return []
+    cluster_ids = {
+        c["id"] for c in clusters if isinstance(c.get("id"), str) and isinstance(c.get("level"), int) and c["level"] > 0
+    }
+    memberships = {
+        arg["arg_id"]: {key for key in arg["cluster_ids"] if isinstance(key, str)}
+        for arg in arguments
+        if isinstance(arg.get("arg_id"), str) and isinstance(arg.get("cluster_ids"), list)
+    }
+    public = []
+    used_ids = set()
+    for axis in axes:
+        text = _pick(axis, OPPOSITION_AXIS_TEXT_KEYS)
+        if any(not isinstance(text.get(key), str) or not text[key].strip() for key in OPPOSITION_AXIS_TEXT_KEYS):
+            continue
+        cluster_id = text["cluster_id"]
+        if text["id"] in used_ids or cluster_id not in cluster_ids or not isinstance(axis.get("scores"), dict):
+            continue
+        used_ids.add(text["id"])
+        scores = {
+            arg_id: score
+            for arg_id, score in axis["scores"].items()
+            if cluster_id in memberships.get(arg_id, ())
+            and (score is None or (isinstance(score, int) and not isinstance(score, bool) and 1 <= score <= 6))
+        }
+        public_axis = {**text, "scores": scores}
+        for key in ("agreements", "conflicts"):
+            if isinstance(points := axis.get(key), list):
+                public_axis[key] = [point for point in points if isinstance(point, str) and point.strip()]
+        public.append(public_axis)
+    return public
+
+
 def build_public_result(result: dict[str, Any]) -> dict[str, Any]:
     """``hierarchical_result.json`` の内容から、公開用 artifact の dict を作る。
 
     入力は変更しない。ここに列挙していないキーは、どの深さにあっても出力に含めない。
     """
+    arguments = []
+    linked_ids: set[str] = set()
+    for arg in result.get("arguments") or []:
+        if isinstance(arg, dict):
+            ids = read_comment_ids(arg)
+            arguments.append({**_pick(arg, ARGUMENT_KEYS), **comment_source_fields(ids)})
+            linked_ids.update(ids)
+    config = _public_config_view(result.get("config"))
+    allow_bodies = config.get("enable_original_comments") is True
     public: dict[str, Any] = {
         "schema_version": PUBLIC_RESULT_SCHEMA_VERSION,
-        "arguments": [_pick(arg, ARGUMENT_KEYS) for arg in result.get("arguments") or [] if isinstance(arg, dict)],
+        "arguments": arguments,
         "clusters": [
             _pick(cluster, CLUSTER_KEYS) for cluster in result.get("clusters") or [] if isinstance(cluster, dict)
         ],
-        "comments": _public_comments(result.get("comments")),
+        "comments": _public_comments(result.get("comments"), linked_ids) if allow_bodies else {},
         "propertyMap": _public_property_map(result.get("propertyMap"), result.get("config")),
         "translations": _public_translations(result.get("translations")),
         "overview": str(result.get("overview") or ""),
-        "config": _public_config_view(result.get("config")),
+        "config": config,
     }
     if isinstance(result.get("comment_num"), int):
         public["comment_num"] = result["comment_num"]
+    opposition_axes = _public_opposition_axes(result.get("opposition_axes"), public["clusters"], public["arguments"])
+    if opposition_axes:
+        public["opposition_axes"] = opposition_axes
     layouts = _public_layouts(result.get("layouts"))
     if layouts:
         public["layouts"] = layouts

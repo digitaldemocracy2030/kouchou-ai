@@ -52,6 +52,18 @@ describe("estimateTokens", () => {
     expect(grouping.chatInput.high).toBeGreaterThan(hierarchical.chatInput.high / 3);
     expect(grouping.chatInput.high).toBeLessThan(hierarchical.chatInput.high * 3);
   });
+
+  test("分類枠のサンプル数と割り当て回数を見積もりに反映する", () => {
+    const options = { analysisMode: "llm_grouping" };
+    const defaults = estimateTokens(input(options));
+    const largerSample = estimateTokens(input({ ...options, llmGrouping: { discovery_sample_size: 300 } }));
+    const largerBatch = estimateTokens(input({ ...options, llmGrouping: { assignment_batch_size: 50 } }));
+    const all = estimateTokens(input({ ...options, llmGrouping: { use_all_arguments: true } }));
+    expect(largerSample.chatInput.high).toBeGreaterThan(defaults.chatInput.high);
+    expect(largerSample.chatOutput).toEqual(defaults.chatOutput);
+    expect(largerBatch.chatOutput.high).toBeLessThan(defaults.chatOutput.high);
+    expect(all.chatOutput.high).toBeLessThan(largerBatch.chatOutput.high);
+  });
 });
 
 describe("estimateCost", () => {

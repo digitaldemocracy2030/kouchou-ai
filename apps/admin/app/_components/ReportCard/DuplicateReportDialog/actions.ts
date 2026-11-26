@@ -1,5 +1,6 @@
 "use server";
 
+import type { LLMGroupingOptions } from "@/app/create/types/llmGrouping";
 import { ADMIN_API_KEY_MISSING_MESSAGE, getApiBaseUrl } from "@/app/utils/api";
 
 type DuplicateParams = {
@@ -13,6 +14,7 @@ type DuplicateParams = {
     provider?: string;
     model?: string;
     cluster?: number[];
+    llm_grouping?: LLMGroupingOptions;
     prompt?: {
       extraction?: string;
       initial_labelling?: string;

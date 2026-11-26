@@ -52,7 +52,7 @@ orchestrator = PipelineOrchestrator.from_dict(config.to_dict())
 result = orchestrator.run_default()
 ```
 
-`run_default()` が current の canonical path です。`run()` も残っていますが、legacy direct-step 実行経路として deprecated 扱いです。
+`run_default()` が分析を実行する入口です。以前の `run()`（工程の関数を直接呼ぶ旧経路）は削除しました。`run()` を呼んでいた場合は `run_default()` に置き換えてください。
 
 ### レポート本文の翻訳（多言語表示）
 

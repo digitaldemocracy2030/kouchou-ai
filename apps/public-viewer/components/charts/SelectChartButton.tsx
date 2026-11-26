@@ -16,10 +16,10 @@ ensurePluginsLoaded();
 export const DEFAULT_ENABLED_CHARTS: ChartType[] = ["scatterAll", "scatterDetail", "scatterDensity", "treemap"];
 
 type Props = {
-  selected: string;
+  selected?: string;
   onChange: (value: string) => void;
   onClickDensitySetting: () => void;
-  onClickFullscreen: () => void;
+  onClickFullscreen?: () => void;
   /** Result data for evaluating mode.isDisabled conditions */
   result: Result;
   /** Override for modes that have external disabled conditions (e.g., density filter empty) */
@@ -76,7 +76,7 @@ export function resolveChartModes(
     // 1. Plugin's isDisabled function (based on result data structure)
     // 2. Parent's override (e.g., density filter produces empty results)
     const pluginDisabled = mode.isDisabled?.(result) ?? false;
-    const overrideDisabled = disabledModeOverrides[mode.id] ?? false;
+    const overrideDisabled = Object.hasOwn(disabledModeOverrides, mode.id) && disabledModeOverrides[mode.id];
     const isDisabled = pluginDisabled || overrideDisabled;
     const tooltip = isDisabled && mode.disabledTooltip ? mode.disabledTooltip : undefined;
     return { id: mode.id, label: mode.label, icon: mode.icon, isDisabled, tooltip };
@@ -98,14 +98,20 @@ export function localizeChartMode(mode: ResolvedChartMode, messages: Messages): 
   };
 }
 
-const SegmentItemWithIcon = (icon: ComponentType, text: string, selected: boolean, tooltip?: string) => {
+const SegmentItemWithIcon = (
+  icon: ComponentType,
+  text: string,
+  selected: boolean,
+  tooltip: string | undefined,
+  compact: boolean,
+) => {
   const item = (
     <Stack
-      direction={["column", null, "row"]}
+      direction={compact ? ["column", null, null, "row"] : ["column", null, "row"]}
       gap={2}
       alignItems="center"
       justifyContent="center"
-      px={4}
+      px={compact ? [1, null, 2] : 4}
       py={2}
       position="absolute"
       top={0}
@@ -115,7 +121,14 @@ const SegmentItemWithIcon = (icon: ComponentType, text: string, selected: boolea
       color="gray.500"
     >
       <Icon as={icon} />
-      <Box fontSize={["14px", null, "16px"]} fontWeight={selected ? "bold" : "normal"} lineHeight="1" textWrap="nowrap">
+      <Box
+        fontSize={["14px", null, "16px"]}
+        fontWeight={selected ? "bold" : "normal"}
+        lineHeight={compact ? "shorter" : "1"}
+        textAlign="center"
+        textWrap={compact ? "wrap" : "nowrap"}
+        overflowWrap={compact ? "anywhere" : undefined}
+      >
         {text}
       </Box>
     </Stack>
@@ -147,22 +160,25 @@ export function SelectChartButton({
   // Generate items from plugin registry, filtered by enabledCharts
   const items = useMemo(() => {
     // resolveChartModes で並び順・無効判定を一元化し、文言だけ表示言語の辞書で上書きする。
-    return resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides)
+    const modes = resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides);
+    return modes
       .map((mode) => localizeChartMode(mode, messages))
       .map((mode) => ({
         value: mode.id,
-        label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id, mode.tooltip),
+        label: SegmentItemWithIcon(mode.icon, mode.label, selected === mode.id, mode.tooltip, modes.length > 5),
         isDisabled: mode.isDisabled,
       }));
   }, [selected, result, disabledModeOverrides, enabledCharts, chartOrder, messages]);
 
   // Calculate dynamic tab width based on mode count
   const modeCount = items.length;
+  const compact = modeCount > 5;
   const tabWidth = useMemo(() => {
     // On mobile, tabs fill 100% width divided by count
     // On desktop, use fixed width per tab
-    return [`calc(100% / ${modeCount})`, null, "162px"];
-  }, [modeCount]);
+    const flexibleWidth = `calc(100% / ${modeCount})`;
+    return compact ? flexibleWidth : [flexibleWidth, null, "162px"];
+  }, [compact, modeCount]);
 
   const handleChange = (event: React.FormEvent<HTMLDivElement>) => {
     const value = (event.target as HTMLInputElement).value;
@@ -171,20 +187,22 @@ export function SelectChartButton({
 
   return (
     <Box maxW="1200px" mx="auto" mb={2}>
-      <Box display="grid" gridTemplateColumns={["1fr", null, "1fr auto"]} gap="3">
-        <SegmentGroup.Root
-          id="chart-type-selector"
-          value={selected}
-          onChange={handleChange}
-          size="md"
-          justifySelf={["center", null, "left", "center"]}
-          ml={[0, null, null, "104px"]}
-          w={["100%", null, "auto"]}
-          h={["80px", null, "56px"]}
-        >
-          <SegmentGroup.Indicator bg="white" border="1px solid #E4E4E7" boxShadow="0 4px 6px 0 rgba(0, 0, 0, 0.1)" />
-          <SegmentGroup.Items items={items} w={tabWidth} h="100%" cursor="pointer" />
-        </SegmentGroup.Root>
+      <Box display="grid" gridTemplateColumns={["minmax(0, 1fr)", null, "minmax(0, 1fr) auto"]} gap="3">
+        {modeCount > 0 && (
+          <SegmentGroup.Root
+            id="chart-type-selector"
+            value={selected}
+            onChange={handleChange}
+            size="md"
+            justifySelf={["center", null, "left", "center"]}
+            ml={compact ? 0 : [0, null, null, "104px"]}
+            w={compact ? "100%" : ["100%", null, "auto"]}
+            h={["80px", null, "56px"]}
+          >
+            <SegmentGroup.Indicator bg="white" border="1px solid #E4E4E7" boxShadow="0 4px 6px 0 rgba(0, 0, 0, 0.1)" />
+            <SegmentGroup.Items items={items} w={tabWidth} minW={0} h="100%" cursor="pointer" />
+          </SegmentGroup.Root>
+        )}
 
         <HStack gap={1} justifySelf={["end"]} alignSelf={"center"}>
           {onClickAttentionFilter && (
@@ -205,23 +223,32 @@ export function SelectChartButton({
           )}
 
           <Tooltip content={messages.displaySettings} openDelay={0} closeDelay={0}>
-            <Button onClick={onClickDensitySetting} variant={"outline"} h={"50px"} w={"50px"} p={0}>
+            <Button
+              aria-label={messages.displaySettings}
+              onClick={onClickDensitySetting}
+              variant="outline"
+              h="50px"
+              w="50px"
+              p={0}
+            >
               <Icon as={CogIcon} />
             </Button>
           </Tooltip>
 
-          <Tooltip content={messages.fullscreen} openDelay={0} closeDelay={0}>
-            <Button
-              aria-label={messages.fullscreen}
-              onClick={onClickFullscreen}
-              variant={"outline"}
-              h={"50px"}
-              w={"50px"}
-              p={0}
-            >
-              <Icon as={FullscreenIcon} />
-            </Button>
-          </Tooltip>
+          {onClickFullscreen && (
+            <Tooltip content={messages.fullscreen} openDelay={0} closeDelay={0}>
+              <Button
+                aria-label={messages.fullscreen}
+                onClick={onClickFullscreen}
+                variant={"outline"}
+                h={"50px"}
+                w={"50px"}
+                p={0}
+              >
+                <Icon as={FullscreenIcon} />
+              </Button>
+            </Tooltip>
+          )}
         </HStack>
       </Box>
     </Box>

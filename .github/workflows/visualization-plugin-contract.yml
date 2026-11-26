@@ -1,0 +1,52 @@
+name: Visualization Plugin Contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/public-viewer/components/charts/**"
+      - "apps/public-viewer/components/report/**"
+      - "apps/public-viewer/verification/**"
+      - ".github/workflows/visualization-plugin-contract.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/public-viewer/components/charts/**"
+      - "apps/public-viewer/components/report/**"
+      - "apps/public-viewer/verification/**"
+      - ".github/workflows/visualization-plugin-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chart-selection:
+    name: Lean proofs and TypeScript conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/public-viewer/verification
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cache elan and the Lean toolchain
+        id: elan-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.elan
+          key: elan-${{ runner.os }}-${{ hashFiles('apps/public-viewer/verification/lean-toolchain') }}
+
+      - name: Install elan
+        if: steps.elan-cache.outputs.cache-hit != 'true'
+        run: curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+
+      - name: Check proofs and compare selection against the viewer
+        run: |
+          "$HOME/.elan/bin/lean" --run ChartSelection.lean > "$RUNNER_TEMP/chart-selection.json"
+          node --experimental-strip-types check-selection.mjs < "$RUNNER_TEMP/chart-selection.json"

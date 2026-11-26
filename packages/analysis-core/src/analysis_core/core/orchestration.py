@@ -9,11 +9,11 @@ import inspect
 import json
 import os
 import shutil
-import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
+from analysis_core.config import validate_clustering_seed
 from analysis_core.core.utils import read_input_csv, write_json_atomic
 from analysis_core.env_file import load_env_file
 from analysis_core.services.error_summary import redact_secrets
@@ -428,6 +428,7 @@ def plan_runs_step(plan: list[dict[str, Any]] | None, step: str) -> bool:
 
 # step ごとの、true / false（または未指定）だけを受け付けるオプション
 _BOOLEAN_STEP_OPTIONS: dict[str, tuple[str, ...]] = {
+    "llm_grouping": ("use_all_arguments",),
     "hierarchical_clustering": ("save_umap_model",),
 }
 
@@ -485,6 +486,9 @@ def validate_config(config: dict[str, Any], specs: list[dict[str, Any]] | None =
     _validate_opinion_labels(config)
 
     # 型を誤ると実行の途中（抽出・埋め込みの後）で止まるオプションは、ここで先に検査する
+    for step in ("hierarchical_clustering", "llm_grouping"):
+        validate_clustering_seed(config.get(step, {}).get("random_seed"), step)
+
     for step, options in _BOOLEAN_STEP_OPTIONS.items():
         step_config = config.get(step)
         if not isinstance(step_config, dict):
@@ -902,89 +906,6 @@ def update_progress(
     _write_json_atomic(status_file, strip_secret_keys(current_status))
 
 
-def run_step(
-    step: str,
-    func: Callable[[dict[str, Any]], None],
-    config: dict[str, Any],
-    output_base_dir: Path | None = None,
-    pricing_calculator: Callable[[str, str, int, int], float | None] | None = None,
-) -> None:
-    """
-    Execute a pipeline step with status tracking.
-
-    Args:
-        step: Step name
-        func: Step function to execute
-        config: Pipeline configuration
-        output_base_dir: Base directory for outputs
-        pricing_calculator: Optional function to calculate LLM costs
-    """
-    # Check the plan before running
-    plan = [x for x in config["plan"] if x["step"] == step][0]
-    if not plan["run"]:
-        print(f"Skipping '{step}'")
-        return
-
-    # Update status before running
-    update_status(
-        config,
-        {
-            "current_job": step,
-            "current_job_started": datetime.now().isoformat(),
-        },
-        output_base_dir,
-    )
-    print("Running step:", step)
-
-    # Run the step
-    token_usage_before = config.get("total_token_usage", 0)
-    token_input_before = config.get("token_usage_input", 0)
-    token_output_before = config.get("token_usage_output", 0)
-    func(config)
-    token_usage_after = config.get("total_token_usage", token_usage_before)
-    token_usage_step = token_usage_after - token_usage_before
-    token_input_step = config.get("token_usage_input", token_input_before) - token_input_before
-    token_output_step = config.get("token_usage_output", token_output_before) - token_output_before
-
-    # Calculate estimated cost
-    estimated_cost = None
-    provider = config.get("provider")
-    model = config.get("model")
-    token_usage_input = config.get("token_usage_input", 0)
-    token_usage_output = config.get("token_usage_output", 0)
-
-    if provider and model and token_usage_input > 0 and token_usage_output > 0:
-        if pricing_calculator:
-            estimated_cost = pricing_calculator(provider, model, token_usage_input, token_usage_output)
-            print(f"Estimated cost: {estimated_cost if estimated_cost is not None else 'unknown'} ({provider} {model})")
-
-    # Update status after running
-    update_status(
-        config,
-        {
-            "current_job_progress": None,
-            "current_jop_tasks": None,
-            "completed_jobs": config.get("completed_jobs", [])
-            + [
-                {
-                    "step": step,
-                    "completed": datetime.now().isoformat(),
-                    "duration": (
-                        datetime.now() - datetime.fromisoformat(config["current_job_started"])
-                    ).total_seconds(),
-                    "params": config[step],
-                    "global_params": snapshot_global_params(config),
-                    "token_usage": token_usage_step,
-                    "token_input": token_input_step,
-                    "token_output": token_output_step,
-                }
-            ],
-            "estimated_cost": estimated_cost,
-        },
-        output_base_dir,
-    )
-
-
 def initialization(
     config_path: Path | str,
     force: bool = False,
@@ -1196,51 +1117,3 @@ def initialization(
         )
 
     return config
-
-
-def termination(
-    config: dict[str, Any],
-    error: Exception | None = None,
-    output_base_dir: Path | None = None,
-) -> None:
-    """
-    Finalize pipeline execution.
-
-    Args:
-        config: Pipeline configuration
-        error: Error that occurred (if any)
-        output_base_dir: Base directory for outputs
-
-    Raises:
-        Exception: Re-raises the error if one occurred
-    """
-    if "previous" in config:
-        # Remember all previously completed jobs
-        old_jobs = collect_previous_jobs(config["previous"])
-        newly_completed = [j["step"] for j in config.get("completed_jobs", [])]
-        config["previously_completed_jobs"] = [o for o in old_jobs if o["step"] not in newly_completed]
-        del config["previous"]
-
-    if error is None:
-        print(f"Total token usage: {config.get('total_token_usage', 0)}")
-        update_status(
-            config,
-            {
-                "status": "completed",
-                "end_time": datetime.now().isoformat(),
-            },
-            output_base_dir,
-        )
-        print("Pipeline completed.")
-    else:
-        update_status(
-            config,
-            {
-                "status": "error",
-                "end_time": datetime.now().isoformat(),
-                "error": f"{type(error).__name__}: {error}",
-                "error_stack_trace": traceback.format_exc(),
-            },
-            output_base_dir,
-        )
-        raise error

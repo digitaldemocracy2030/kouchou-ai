@@ -14,7 +14,7 @@ from src.config import settings
 from src.schemas.admin_report import ReportDuplicateOverrides, ReportDuplicateRequest
 from src.schemas.report_config import ReportConfig
 from src.services import report_status
-from src.services.analysis_config import prune_config_for_mode
+from src.services.analysis_config import preserve_llm_grouping_sample_size, prune_config_for_mode
 from src.services.model_catalog import EMBEDDING_KIND, models_for_provider
 from src.services.report_launcher import disable_umap_model_saving, launch_report_generation_from_config
 from src.services.report_status import add_new_report_to_status_from_config, delete_report_from_status, slug_exists
@@ -283,6 +283,7 @@ def _generate_slug(source_slug: str) -> str:
 
 
 def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -> dict:
+    config = preserve_llm_grouping_sample_size(config)
     if overrides is None:
         return config
 
@@ -319,11 +320,13 @@ def _apply_overrides(config: dict, overrides: ReportDuplicateOverrides | None) -
         config["local_llm_address"] = overrides.local_llm_address
     if overrides.cluster is not None:
         config.setdefault("hierarchical_clustering", {})["cluster_nums"] = overrides.cluster
-    if overrides.workers is not None and config.get("analysis_mode") == "llm_grouping":
-        # 作成時 (report_launcher._build_config) と同じく、LLM 直接グルーピングの割当にも並列数を渡す。
-        # hierarchical の config には llm_grouping セクションを作らない（analysis-core の検証で弾かれる）。
-        llm_grouping = config.get("llm_grouping") if isinstance(config.get("llm_grouping"), dict) else {}
-        config["llm_grouping"] = {**llm_grouping, "workers": overrides.workers}
+    if config.get("analysis_mode") == "llm_grouping":
+        options = overrides.llm_grouping.model_dump(exclude_none=True) if overrides.llm_grouping else {}
+        if overrides.workers is not None:
+            options["workers"] = overrides.workers
+        if options:
+            llm_grouping = config.get("llm_grouping")
+            config["llm_grouping"] = {**(llm_grouping if isinstance(llm_grouping, dict) else {}), **options}
 
     if overrides.prompt is not None:
         if overrides.prompt.extraction is not None:

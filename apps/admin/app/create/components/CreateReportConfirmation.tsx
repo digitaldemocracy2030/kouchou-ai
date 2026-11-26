@@ -61,6 +61,7 @@ function CostEstimateSection({ prepared }: { prepared: PreparedReport }) {
     cluster: request.cluster,
     prompt: request.prompt,
     analysisMode: request.analysis_mode,
+    llmGrouping: request.llm_grouping,
     chat: { model: request.model, price: prepared.pricing.chat, billed: request.provider !== "local" },
     embedding: {
       // 未指定なら analysis-core の既定（OpenAI では text-embedding-3-small）が使われる

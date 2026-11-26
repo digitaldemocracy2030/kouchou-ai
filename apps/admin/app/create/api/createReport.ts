@@ -3,6 +3,7 @@
 import { getApiBaseUrl } from "@/app/utils/api";
 import type { CsvData } from "../parseCsv";
 import type { PromptSettings } from "../types";
+import type { LLMGroupingOptions } from "../types/llmGrouping";
 
 type CreateReportResult = {
   success: boolean;
@@ -46,6 +47,7 @@ export async function createReport({
   workers,
   prompt,
   analysis_mode,
+  llm_grouping,
   is_pubcom,
   inputType,
   is_embedded_at_local,
@@ -65,6 +67,7 @@ export async function createReport({
   workers: number;
   prompt: PromptSettings;
   analysis_mode: string;
+  llm_grouping?: LLMGroupingOptions;
   is_pubcom: boolean;
   inputType: string;
   is_embedded_at_local: boolean;
@@ -100,6 +103,7 @@ export async function createReport({
         workers,
         prompt,
         analysis_mode,
+        llm_grouping,
         is_pubcom,
         inputType,
         is_embedded_at_local,

@@ -98,7 +98,8 @@ export type Result = {
 type Argument = {
   arg_id: string; // 意見の識別子
   argument: string; // 意見の内容
-  comment_id: number; // 関連するコメントの ID
+  comment_id: string | number; // 公開時は文字列。旧入力では数値のことがある
+  comment_ids?: string[];
   x: number; // X 座標（データの位置情報）
   y: number; // Y 座標（データの位置情報）
   p: number; // 追加情報（数値）

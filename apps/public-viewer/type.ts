@@ -29,7 +29,14 @@ export type Report = {
 // 可視化設定
 // ============================================================================
 
-export type ChartType = "scatterAll" | "scatterDetail" | "scatterDensity" | "treemap" | "hierarchyList" | (string & {});
+export type ChartType =
+  | "scatterAll"
+  | "scatterDetail"
+  | "scatterDensity"
+  | "treemap"
+  | "hierarchyList"
+  | "opposition"
+  | (string & {});
 
 export type ScatterDensityParams = {
   maxDensity?: number;
@@ -73,12 +80,26 @@ export type Result = {
   filteredArgumentIds?: string[]; // フィルターに一致した引数IDのリスト（グレーアウト表示の制御に使用）
   visibility?: ReportVisibility; // レポートの可視性設定
   visualizationConfig?: ReportDisplayConfig; // 可視化設定（存在する場合）
+  opposition_axes?: OppositionAxis[]; // 公開用に事前計算した対立軸（省略可）
+};
+
+export type OppositionAxis = {
+  id: string;
+  cluster_id: string;
+  name: string;
+  left_pole: string;
+  right_pole: string;
+  /** 意見 ID → 立場（1～6）、該当なし（null）。キーのない意見は未採点 */
+  scores: Record<string, number | null>;
+  agreements?: string[];
+  conflicts?: string[];
 };
 
 export type Argument = {
   arg_id: string; // 意見の識別子
   argument: string; // 意見の内容
-  comment_id: number; // 関連するコメントの ID
+  comment_id: string | number; // 公開時は文字列。旧入力では数値のことがある
+  comment_ids?: string[];
   x: number; // X 座標（データの位置情報）
   y: number; // Y 座標（データの位置情報）
   p: number; // 追加情報（数値）
@@ -187,7 +208,7 @@ export type Config = {
   hierarchical_visualization: {
     source_code: string; // 可視化スクリプト
   };
-  plan: {
+  plan?: {
     step: string; // ステップ名
     run: boolean | string; // 実行すべきか（真偽値 or 文字列）
     reason: string; // 実行理由

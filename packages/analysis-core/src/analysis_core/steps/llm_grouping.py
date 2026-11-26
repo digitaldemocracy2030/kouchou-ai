@@ -12,6 +12,7 @@ import numpy as np
 import polars as pl
 from pydantic import BaseModel, Field
 
+from analysis_core.config import validate_clustering_seed
 from analysis_core.services.llm import request_to_chat_ai
 from analysis_core.services.timeouts import DEFAULT_REQUEST_TIMEOUT_SECONDS
 from analysis_core.steps._embeddings_io import load_embeddings_pickle, stack_embedding_rows
@@ -20,6 +21,7 @@ from analysis_core.steps.hierarchical_clustering import (
     UMAP_N_COMPONENTS,
     _load_clustering_dependencies,
     calculate_recommended_cluster_nums,
+    compute_umap_embeddings,
 )
 
 # グループ発見・割当の LLM 呼び出しも、ほかの工程と同じく LLM_REQUEST_TIMEOUT_SECONDS に従う
@@ -72,13 +74,22 @@ class GroupDefinition:
 
 def llm_grouping(config: dict) -> None:
     """Generate `hierarchical_clusters.csv` and `hierarchical_merge_labels.csv` via LLM grouping."""
+    llm_config = config["llm_grouping"]
+    random_seed = validate_clustering_seed(llm_config.get("random_seed"), "llm_grouping")
     dataset = config["output_dir"]
     output_base_dir = config.get("_output_base_dir", "outputs")
     args_df = pl.read_csv(f"{output_base_dir}/{dataset}/args.csv", columns=["arg-id", "argument"])
     arg_ids = args_df["arg-id"].to_list()
     arguments = args_df["argument"].to_list()
 
-    llm_config = config["llm_grouping"]
+    use_all_arguments = llm_config.get("use_all_arguments") is True
+    # 旧レポートの設定を書き戻す経路では未指定の件数が null になることがある。
+    discovery_sample_size = llm_config.get("discovery_sample_size")
+    if discovery_sample_size is None:
+        discovery_sample_size = 200
+    assignment_batch_size = llm_config.get("assignment_batch_size")
+    if assignment_batch_size is None:
+        assignment_batch_size = 25
     predefined_groups = _resolve_predefined_groups(llm_config)
     if predefined_groups is not None:
         # 指定カテゴリ分類（supervised）: 枠は人間が与え、割当だけ LLM に任せる。
@@ -90,7 +101,7 @@ def llm_grouping(config: dict) -> None:
             arguments=arguments,
             question=config.get("question", ""),
             group_count=group_count,
-            sample_size=llm_config.get("discovery_sample_size", 80),
+            sample_size=len(arguments) if use_all_arguments else discovery_sample_size,
             prompt=llm_config["discovery_prompt"],
             model=llm_config["model"],
             provider=config["provider"],
@@ -102,7 +113,7 @@ def llm_grouping(config: dict) -> None:
         arg_ids=arg_ids,
         arguments=arguments,
         groups=groups,
-        batch_size=llm_config.get("assignment_batch_size", 25),
+        batch_size=len(arguments) if use_all_arguments else assignment_batch_size,
         prompt=llm_config["assignment_prompt"],
         model=llm_config["model"],
         provider=config["provider"],
@@ -110,8 +121,9 @@ def llm_grouping(config: dict) -> None:
         config=config,
         other_group_id=other_group_id,
         workers=_resolve_workers(llm_config),
+        require_complete=use_all_arguments,
     )
-    points = _project_embeddings_to_xy(output_base_dir, dataset, arg_ids)
+    points = _project_embeddings_to_xy(output_base_dir, dataset, arg_ids, random_seed)
 
     clusters_path = f"{output_base_dir}/{dataset}/hierarchical_clusters.csv"
     merge_labels_path = f"{output_base_dir}/{dataset}/hierarchical_merge_labels.csv"
@@ -277,6 +289,7 @@ def _assign_groups(
     config: dict,
     other_group_id: str | None = None,
     workers: int = 1,
+    require_complete: bool = False,
 ) -> dict[str, str]:
     """意見を batch_size 件ずつのバッチに分け、各バッチの割当を LLM に問い合わせる。
 
@@ -327,11 +340,20 @@ def _assign_groups(
             timeout_seconds=LLM_GROUPING_TIMEOUT_SECONDS,
         )
         response_json = json.loads(response_text) if isinstance(response_text, str) else response_text
+        raw_assignments = response_json.get("assignments", [])
         batch_assignments = {
             assignment.get("arg_id"): assignment.get("group_id")
-            for assignment in response_json.get("assignments", [])
+            for assignment in raw_assignments
             if assignment.get("arg_id")
         }
+        if require_complete and (
+            len(raw_assignments) != len(batch_ids)
+            or batch_assignments.keys() != set(batch_ids)
+            or not allowed_group_ids.issuperset(batch_assignments.values())
+        ):
+            raise ValueError(
+                "全件一括の割り当て結果が不完全です。モデルの出力上限を確認するか、件数を指定して再実行してください。"
+            )
         return batch_assignments, token_input, token_output, token_total
 
     safe_batch_size = max(1, batch_size)
@@ -386,7 +408,9 @@ def _assign_groups(
     return assignments
 
 
-def _project_embeddings_to_xy(output_base_dir: str, dataset: str, arg_ids: list[str]) -> np.ndarray:
+def _project_embeddings_to_xy(
+    output_base_dir: str, dataset: str, arg_ids: list[str], random_seed: int | None = None
+) -> np.ndarray:
     UMAP, _, _ = _load_clustering_dependencies()
     embeddings_data = load_embeddings_pickle(f"{output_base_dir}/{dataset}/embeddings.pkl")
 
@@ -422,8 +446,14 @@ def _project_embeddings_to_xy(output_base_dir: str, dataset: str, arg_ids: list[
         return np.column_stack([np.cos(angles), np.sin(angles)])
 
     n_neighbors = max(2, min(15, n_samples - 1))
-    umap_model = UMAP(n_components=UMAP_N_COMPONENTS, n_neighbors=n_neighbors)
-    return umap_model.fit_transform(embeddings_array)
+    points, _, _ = compute_umap_embeddings(
+        embeddings_array,
+        n_neighbors=n_neighbors,
+        n_components=UMAP_N_COMPONENTS,
+        umap_factory=UMAP,
+        random_seed=random_seed,
+    )
+    return points
 
 
 def _write_merge_labels(path: str, groups: list[GroupDefinition], assignments: dict[str, str]) -> None:

@@ -14,6 +14,8 @@
   - パブリックコメント用分析機能（予定）
   - 多数派攻撃（同じ内容の大量投稿）への対処（検討中、[#345](https://github.com/digitaldemocracy2030/kouchou-ai/issues/345)）
 
+> **まず試したい方へ（書籍を読んだ方も）**: インストールなしで使える[ブラウザ版](https://digitaldemocracy2030.github.io/kouchou-ai-serverless/)がおすすめです。このリポジトリはサーバで動く、機能がすべてそろった版で、下記の環境構築が必要です。試し方の道順は[書籍を読んだ方へ](https://digitaldemocracy2030.github.io/kouchou-ai/book)にまとめています。
+
 ## 前提条件
 
 - 一般ユーザー向け：

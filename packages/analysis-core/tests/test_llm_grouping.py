@@ -70,6 +70,7 @@ def test_llm_grouping_specs_treat_prompt_changes_as_dependencies():
 
     assert "discovery_prompt" in llm_grouping_spec["dependencies"]["params"]
     assert "assignment_prompt" in llm_grouping_spec["dependencies"]["params"]
+    assert "use_all_arguments" in llm_grouping_spec["dependencies"]["params"]
 
 
 def test_llm_grouping_specs_treat_supervised_options_as_dependencies():
@@ -90,7 +91,12 @@ def test_llm_grouping_specs_treat_supervised_options_as_dependencies():
     assert "other_group_label" in llm_grouping_spec["dependencies"]["params"]
 
 
-def test_llm_grouping_step_creates_viewer_compatible_outputs(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("use_all_arguments", "incomplete"),
+    [(False, False), (True, False), (True, True)],
+    ids=["sample-and-batches", "all", "incomplete-all"],
+)
+def test_llm_grouping_step_creates_viewer_compatible_outputs(tmp_path, monkeypatch, use_all_arguments, incomplete):
     """The step should cluster arguments directly with LLM and preserve embedding-based coordinates."""
     llm_grouping_step = importlib.import_module("analysis_core.steps.llm_grouping")
 
@@ -143,7 +149,14 @@ def test_llm_grouping_step_creates_viewer_compatible_outputs(tmp_path, monkeypat
         },
     ]
 
+    if use_all_arguments:
+        last_batch = responses.pop()
+        if not incomplete:
+            responses[1]["assignments"].extend(last_batch["assignments"])
+    requests = []
+
     def fake_request_to_chat_ai(**kwargs):
+        requests.append(kwargs["messages"][-1]["content"])
         response = responses.pop(0)
         return response, 10, 5, 15
 
@@ -156,8 +169,9 @@ def test_llm_grouping_step_creates_viewer_compatible_outputs(tmp_path, monkeypat
         "provider": "local",
         "llm_grouping": {
             "group_count": 2,
-            "discovery_sample_size": 3,
+            "discovery_sample_size": 2,
             "assignment_batch_size": 2,
+            "use_all_arguments": use_all_arguments,
             "discovery_prompt": "discover",
             "assignment_prompt": "assign",
             "model": "dummy-model",
@@ -165,7 +179,18 @@ def test_llm_grouping_step_creates_viewer_compatible_outputs(tmp_path, monkeypat
         "hierarchical_clustering": {"cluster_nums": [2, 4]},
     }
 
+    if incomplete:
+        with pytest.raises(ValueError, match="全件一括の割り当て結果が不完全"):
+            llm_grouping_step.llm_grouping(config)
+        assert not (output_dir / "hierarchical_clusters.csv").exists()
+        return
+
     llm_grouping_step.llm_grouping(config)
+    assert len(requests) == (2 if use_all_arguments else 3)
+    arguments = args_df["argument"].to_list()
+    assert sum(argument in requests[0] for argument in arguments) == (3 if use_all_arguments else 2)
+    if use_all_arguments:
+        assert all(argument in requests[1] for argument in arguments)
 
     clusters = pl.read_csv(output_dir / "hierarchical_clusters.csv")
     labels = pl.read_csv(output_dir / "hierarchical_merge_labels.csv")
@@ -173,7 +198,7 @@ def test_llm_grouping_step_creates_viewer_compatible_outputs(tmp_path, monkeypat
     assert clusters.columns == ["arg-id", "argument", "x", "y", "cluster-level-1-id"]
     assert clusters["cluster-level-1-id"].to_list() == ["g1", "g1", "g2"]
     assert labels.select(["id", "label"]).to_dict(as_series=False) == {"id": ["g1", "g2"], "label": ["交通", "公園"]}
-    assert config["total_token_usage"] == 45
+    assert config["total_token_usage"] == (30 if use_all_arguments else 45)
 
 
 def test_llm_grouping_uses_legacy_embedding_order_when_arg_ids_are_missing(tmp_path, monkeypatch):

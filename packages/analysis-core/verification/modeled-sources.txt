@@ -1,0 +1,8 @@
+# モデルに写したコードのファイルと、写した版の blob（git hash-object）。写したのは main afde1cb9。
+# CI（analysis-core-lean.yml）は、ファイルの今の blob がこの中に無いと warning を出す（失敗にはしない）。
+# コードを変えたらモデルと差分テストを見直し、合っていれば行を足す。
+packages/analysis-core/src/analysis_core/workflow/resolver.py 144d8c4e979aa21222fd1952fda70a497e536300 afde1cb9
+packages/analysis-core/src/analysis_core/core/orchestration.py 634bbe4a82634ecd1838ecc25e318c7be0363378 afde1cb9
+packages/analysis-core/src/analysis_core/specs/hierarchical_specs.json a3fc52a84278210c6925172c1b8ffd8b4d22e8b5 afde1cb9
+packages/analysis-core/src/analysis_core/specs/llm_grouping_specs.json df8ced780d9d26935a73d3922a592d9fe907f42e afde1cb9
+packages/analysis-core/src/analysis_core/steps/hierarchical_merge_labelling.py 67af414dbc0f533c248451db3111063a2a3cea74 afde1cb9

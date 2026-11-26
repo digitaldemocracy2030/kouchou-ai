@@ -11,7 +11,11 @@ import polars as pl
 from src.config import settings
 from src.schemas.admin_report import ReportInput
 from src.schemas.report import ReportStatus
-from src.services.analysis_config import prune_config_for_mode, resolve_analysis_mode
+from src.services.analysis_config import (
+    DEFAULT_LLM_GROUPING_DISCOVERY_SAMPLE_SIZE,
+    prune_config_for_mode,
+    resolve_analysis_mode,
+)
 from src.services.report_status import (
     add_new_report_to_status,
     load_status_as_reports,
@@ -62,12 +66,12 @@ def _build_config(report_input: ReportInput) -> dict[str, Any]:
         # LLM 直接グルーピングでは hierarchical_clustering と
         # 初期・統合ラベリングを行わず、llm_grouping ステップ
         # (group discovery + batch assignment) に置き換わる。
-        # group discovery / assignment の prompt・パラメータは
-        # analysis-core 側の既定値 (llm_grouping_specs.json) を使用する。
-        # 割当のバッチは LLM を並列に呼ぶので、並列数だけは管理画面の値を渡す。
-        # NOTE: analysis-core は analysis_mode ごとに許可される config キーを
-        # 検証するため、hierarchical 専用セクションを含めてはいけない。
-        config["llm_grouping"] = {"workers": report_input.workers}
+        options = report_input.llm_grouping.model_dump(exclude_none=True) if report_input.llm_grouping else {}
+        config["llm_grouping"] = {
+            "workers": report_input.workers,
+            "discovery_sample_size": DEFAULT_LLM_GROUPING_DISCOVERY_SAMPLE_SIZE,
+            **options,
+        }
     else:
         config["hierarchical_clustering"] = {
             "cluster_nums": report_input.cluster,

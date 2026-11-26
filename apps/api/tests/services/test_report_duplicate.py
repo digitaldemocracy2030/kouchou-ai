@@ -310,13 +310,17 @@ def _create_source_report(analysis_mode: str):
 
 
 def _run_analysis_core(env, config_path, only=None) -> None:
-    """analysis-core の initialization / run_step / termination で複製元の status を書く
+    """analysis-core を本番と同じ入口（from_config → run_default）で動かし、複製元の status を書く
 
-    LLM や埋め込みを呼ばないよう、各ステップの中身だけを成果物ファイルを書く処理に差し替える。
+    LLM や埋め込みを呼ばないよう、ワークフローの実行だけを、各工程の成果物ファイルを書く偽物に差し替える。
+    status の書き込み（完了記録・前回分の引き継ぎ）は本物の run_workflow が行う。
     """
-    from analysis_core.core import get_specs, initialization, run_step, termination
+    from analysis_core import PipelineOrchestrator
+    from analysis_core.core import get_specs
+    from analysis_core.plugin import StepOutputs
+    from analysis_core.workflow.definition import StepResult, WorkflowResult
 
-    config = initialization(
+    orchestrator = PipelineOrchestrator.from_config(
         config_path,
         only=only,
         skip_interaction=True,
@@ -325,19 +329,38 @@ def _run_analysis_core(env, config_path, only=None) -> None:
         output_base_dir=env.reports,
         input_base_dir=env.inputs,
     )
-    output_dir = env.reports / config["output_dir"]
+    output_dir = env.reports / orchestrator.config["output_dir"]
+    specs = {spec["step"]: spec for spec in get_specs()}
+    # ワークフローの工程名と、status・specs の工程名の対応（同名のものは省略）
+    plan_step_names = {
+        "clustering": "hierarchical_clustering",
+        "initial_labelling": "hierarchical_initial_labelling",
+        "merge_labelling": "hierarchical_merge_labelling",
+        "overview": "hierarchical_overview",
+        "aggregation": "hierarchical_aggregation",
+        "visualization": "hierarchical_visualization",
+    }
 
-    def fake_step(spec):
-        def run(_config):
-            # 本物のステップと同じく、spec が宣言する成果物（filename と extra_files）をすべて書く
-            for name in (spec["filename"], *spec.get("extra_files", [])):
-                (output_dir / name).write_text(spec["step"], encoding="utf-8")
+    class FileWritingEngine:
+        def run(self, workflow, config, ctx, on_step_start=None, on_step_complete=None, skip_steps=None):
+            result = WorkflowResult(workflow_id=workflow.id)
+            for step in workflow.steps:
+                on_step_start(step.id)
+                if step.id in (skip_steps or set()):
+                    step_result = StepResult(step_id=step.id, success=True, skipped=True)
+                else:
+                    # 本物の工程と同じく、spec が宣言する成果物（filename と extra_files）をすべて書く
+                    spec = specs[plan_step_names.get(step.id, step.id)]
+                    for name in (spec["filename"], *spec.get("extra_files", [])):
+                        (output_dir / name).write_text(spec["step"], encoding="utf-8")
+                    step_result = StepResult(step_id=step.id, success=True, outputs=StepOutputs())
+                result.step_results[step.id] = step_result
+                on_step_complete(step.id, step_result)
+            return result
 
-        return run
-
-    for spec in get_specs():
-        run_step(spec["step"], fake_step(spec), config, env.reports)
-    termination(config, None, env.reports)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("analysis_core.workflow.WorkflowEngine", FileWritingEngine)
+        assert orchestrator.run_default().success
 
 
 def _duplicate_with_reuse(env, overrides=None):
@@ -459,7 +482,8 @@ def test_duplicate_legacy_config_without_provider_runs_with_openai(reuse_env, mo
     provider を補わないと、analysis-core が status に "provider": None を書き、
     抽出や overview が「Unknown provider: None」で失敗していた。
     """
-    from analysis_core.core import initialization, run_step
+    from analysis_core.compat import create_step_context_from_config
+    from analysis_core.core import initialization
 
     from src.schemas.admin_report import ReportDuplicateRequest, ReportDuplicateReuse
     from src.services import report_duplicate
@@ -485,9 +509,9 @@ def test_duplicate_legacy_config_without_provider_runs_with_openai(reuse_env, mo
         output_base_dir=reuse_env.reports,
         input_base_dir=reuse_env.inputs,
     )
-    seen = {}
-    run_step("extraction", lambda c: seen.setdefault("provider", c["provider"]), config, reuse_env.reports)
-    assert seen["provider"] == "openai"
+    # 工程（プラグイン）は StepContext の provider を使う
+    ctx = create_step_context_from_config(config, output_base_dir=reuse_env.reports)
+    assert ctx.provider == "openai"
 
 
 # v4.0.0 のタグの API で作ったレポートの embeddings.pkl（pandas の DataFrame の pickle）を最小化したもの
