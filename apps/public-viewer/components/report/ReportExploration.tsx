@@ -15,6 +15,7 @@ import {
   explorationSettings,
   explorationUrl,
   exploreGroups,
+  fieldWeightAfterSelect,
   opinionStance,
   readExploration,
 } from "./explorationGroups";
@@ -218,7 +219,10 @@ function ExplorationBody({
                     aria-label={copy[kind]}
                     value={usable[field]}
                     onChange={(event) =>
-                      change({ [field]: event.target.value, [kind]: event.target.value ? settings[kind] || 5 : 0 })
+                      change({
+                        [field]: event.target.value,
+                        [kind]: fieldWeightAfterSelect(usable[field], event.target.value, usable[kind]),
+                      })
                     }
                   >
                     <option value="">{copy.none}</option>

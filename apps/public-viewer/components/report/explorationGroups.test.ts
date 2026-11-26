@@ -6,6 +6,7 @@ import {
   explorationSettings,
   explorationUrl,
   exploreGroups,
+  fieldWeightAfterSelect,
   opinionStance,
   readExploration,
 } from "./explorationGroups";
@@ -58,4 +59,11 @@ test("share settings round-trip, preserve other query parameters and discard una
     reason: 0,
     reasonKey: "",
   });
+});
+
+test("keeps the current weight, including zero, when switching attributes", () => {
+  expect(fieldWeightAfterSelect("", "地域", 0)).toBe(5);
+  expect(fieldWeightAfterSelect("地域", "年代", 0)).toBe(0);
+  expect(fieldWeightAfterSelect("地域", "年代", 3)).toBe(3);
+  expect(fieldWeightAfterSelect("地域", "", 3)).toBe(0);
 });

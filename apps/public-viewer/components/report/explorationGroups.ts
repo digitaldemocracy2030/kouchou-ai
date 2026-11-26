@@ -66,6 +66,14 @@ export function categoryKeys(opinions: Argument[]) {
   return [...keys].sort();
 }
 
+const DEFAULT_FIELD_WEIGHT = 5;
+
+// 属性を初めて選んだときだけ既定の重みを入れる。選択中の属性を切り替えるときは、0 を含めて今の重みを保つ
+export function fieldWeightAfterSelect(currentKey: string, nextKey: string, currentWeight: number) {
+  if (!nextKey) return 0;
+  return currentKey ? currentWeight : DEFAULT_FIELD_WEIGHT;
+}
+
 export function explorationSettings(settings: ExplorationSettings, opinions: Argument[], keys: string[]) {
   const topicKey = keys.includes(settings.topicKey) ? settings.topicKey : "";
   const reasonKey = keys.includes(settings.reasonKey) ? settings.reasonKey : "";
