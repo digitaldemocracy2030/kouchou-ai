@@ -19,6 +19,7 @@ OPTIONAL_KEYS = {
     "LOCAL_LLM_API_KEY",  # 認証付きゲートウェイを使う場合だけ
     "LOCAL_LLM_ALLOWED_BASE_URLS",
     "LOCAL_LLM_REASONING_EFFORT",  # 空なら reasoning_effort を送らない
+    "REPORT_READER_API_KEY",  # 未設定なら読み取り専用レポート API は無効
     "WITH_GPU",  # compose の既定値 false
     "NUMBA_CPU_NAME",  # compose の既定値 generic
     "BASIC_AUTH_USERNAME",  # 未設定なら Basic 認証なし

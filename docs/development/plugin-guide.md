@@ -706,6 +706,26 @@ apps/public-viewer/components/charts/
 └── SelectChartButton.tsx  # チャート選択UI
 ```
 
+## 可視化プラグインの契約
+
+- プラグイン ID とモード ID は、それぞれレジストリ内で一意にする。保存済み設定や切替操作はモード ID を参照するため、公開済みの ID は維持する。組み込みレジストリは重複と manifest の検証エラーを登録時に検出する。
+- レポートの `enabledCharts` がある場合、登録済みでそのリストに含まれるモードだけを提示する。リストが省略されたレポートには従来の既定値を使う。新しい任意モードは、登録と併せて既定表示に追加するかどうかを決める。管理画面から選ばせる場合は、管理画面で保存・公開し、同じ ID でビューアに表示されるところまで確認する。
+- 必要なデータは `ChartMode.isDisabled` で判定する。判定にはフィルター適用前の公開結果を使う。モードは現在の選択、指定された代替候補、`chartOrder` を反映した表示順の先頭の順に、利用可能なものから選ぶ。候補がすべて無効なら案内を表示し、表示設定から復帰できる。
+- 描画は公開結果と `ChartRenderContext` を使う。`filteredArgumentIds` が `undefined` なら全件、空配列なら該当 0 件として扱う。意見の件数・本文・出典は同じ絞り込みに従い、出典の公開設定を尊重する。前計算した追加データが必要なら、[公開結果の契約](public-result.md)に項目と参照先を記載し、項目のない旧レポートや不正な参照で安全に表示を省けることを試す。
+- 追加時は組み込みレジストリに他のビューと一緒に登録し、通常表示と全画面、欠損データ、フィルターの該当 0 件、旧レポートをテストする。意見の選択や画面間の往復がある場合は、その状態もブラウザで確認する。
+
+### Lean と実装の照合
+
+[ChartSelection.lean](https://github.com/digitaldemocracy2030/kouchou-ai/blob/main/apps/public-viewer/verification/ChartSelection.lean) は、登録済みで有効化されたモードの順序付きリストを入力にする。無効なモードを選ばず、優先順位に従い、利用可能な候補が 0 件のときだけ選択を返さないことを証明する。CI の `Visualization Plugin Contract` は Lean が出した期待値とビューアの TypeScript 関数を比較する。登録の一意性、必要データの判定、描画や操作は Jest とブラウザで確認する。
+
+ローカルでは Lean と Node.js 22 を使い、リポジトリのルートから以下を実行する。
+
+```sh
+cd apps/public-viewer/verification
+lean --run ChartSelection.lean > /tmp/chart-selection.json
+node --experimental-strip-types check-selection.mjs < /tmp/chart-selection.json
+```
+
 ## クイックスタート：新しいチャートプラグインの作成
 
 ### Step 1: チャートコンポーネントを作成
@@ -1021,12 +1041,7 @@ chartRegistry.hasMode(modeId: string): boolean;
 
 ### 衝突検出
 
-レジストリは重複するプラグインIDやモードIDを検出し、警告を出力します：
-
-```
-Chart plugin collision: "scatter" is already registered. Overwriting with new plugin (v2.0.0).
-Chart mode collision: "scatterAll" is already registered by plugin "scatter". Overwriting with plugin "scatter-v2".
-```
+組み込みの `chartRegistry` は、登録済みのプラグイン ID やモード ID と衝突する登録を拒否します。衝突したプラグインの一部のモードだけが登録されることもありません。独立した `ChartPluginRegistry` は既定で警告を出して登録を続けます。
 
 ## テスト
 
@@ -1148,19 +1163,7 @@ import {
 
 ### ストリクトモード
 
-レジストリをストリクトモードに設定すると、バリデーションエラー時に例外をスローします：
-
-```typescript
-import { chartRegistry } from "@/components/charts/plugins";
-
-// 開発環境でストリクトモードを有効化
-if (process.env.NODE_ENV === "development") {
-  chartRegistry.setStrictMode(true);
-}
-
-// エラーのあるプラグインを登録しようとすると例外がスロー
-chartRegistry.register(invalidPlugin); // throws Error
-```
+組み込みレジストリはストリクトモードで動作します。独立したレジストリで同じ検証を使うには `new ChartPluginRegistry(true)` を指定します。バリデーションエラーまたは ID の衝突時に例外をスローします。
 
 ### バリデーションの使用例
 

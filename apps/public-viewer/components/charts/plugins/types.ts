@@ -32,8 +32,8 @@ export interface ScatterChartProps extends ChartComponentProps {
   targetLevel: number;
   /** Whether to show cluster labels */
   showClusterLabels?: boolean;
-  /** Whether to visualize which first-level cluster each dense group belongs to */
-  showParentAttribution?: boolean;
+  /** Whether to show dense groups with background points and an attribution legend */
+  isDensityView?: boolean;
 }
 
 /**
@@ -82,6 +82,8 @@ export interface ChartMode {
   label: string;
   /** Icon component for this mode */
   icon: ComponentType;
+  /** 長いリストは固定高の図と異なり、ページと一緒に伸びる */
+  layout?: "flow";
   /** Whether this mode can be disabled based on data */
   canBeDisabled?: boolean;
   /** Function to check if mode should be disabled */
@@ -89,6 +91,8 @@ export interface ChartMode {
   /** Tooltip to show when disabled */
   disabledTooltip?: string;
 }
+
+export type OppositionSelection = { clusterId?: string; axisId?: string };
 
 /**
  * Context passed to chart components for rendering
@@ -116,6 +120,14 @@ export interface ChartRenderContext {
   onTreeZoom?: (level: string) => void;
   /** Callback when a cluster is selected on the scatter chart (for linked text/list) */
   onSelectCluster?: (clusterId: string) => void;
+  /** 開ける対立ビューがあるクラスタと、選択・復帰の操作 */
+  oppositionClusterIds?: ReadonlySet<string>;
+  oppositionClusterId?: string;
+  oppositionSelection?: OppositionSelection;
+  onOppositionSelectionChange?: (selection: OppositionSelection) => void;
+  onOpenOpposition?: (clusterId: string) => void;
+  onBackFromOpposition?: () => void;
+  reopenClusterId?: string;
   /** Callback when hover occurs */
   onHover?: () => void;
 }

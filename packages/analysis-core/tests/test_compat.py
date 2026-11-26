@@ -57,7 +57,7 @@ class TestNormalizeConfig:
 
         assert "llm_grouping" in result
         assert result["llm_grouping"]["group_count"] is None
-        assert result["llm_grouping"]["discovery_sample_size"] == 80
+        assert result["llm_grouping"]["discovery_sample_size"] == 200
         assert result["llm_grouping"]["assignment_batch_size"] == 25
         assert len(result["llm_grouping"]["discovery_prompt"]) > 0
         assert len(result["llm_grouping"]["assignment_prompt"]) > 0

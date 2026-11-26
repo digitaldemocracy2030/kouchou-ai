@@ -8,10 +8,14 @@ import {
   validateResultData,
   validateVisualizationConfig,
 } from "@/components/charts/plugins";
+import { OPPOSITION_CHART, getOppositionAxes } from "@/components/charts/plugins/opposition-data";
+import { resolveChartSelection } from "@/components/charts/plugins/selection";
+import type { OppositionSelection } from "@/components/charts/plugins/types";
 import { AttributeFilterDialog } from "@/components/report/AttributeFilterDialog";
 import { Chart } from "@/components/report/Chart";
 import { ClusterOverview } from "@/components/report/ClusterOverview";
 import { DisplaySettingDialog } from "@/components/report/DisplaySettingDialog";
+import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Cluster, Result } from "@/type";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TreemapDetails } from "./TreemapDetails";
@@ -24,18 +28,22 @@ import {
   filterArgumentIds,
   hasActiveFilters,
 } from "./attributeFilterUtils";
+import { applyTreemapDensityFilter, resolveFilteredTreemapLevel } from "./treemapContext";
 
 // Ensure plugins are loaded for validation
 ensurePluginsLoaded();
 
 const DEFAULT_READING_CHARTS = [...DEFAULT_ENABLED_CHARTS, "hierarchyList"];
 const NARROW_SCREEN_QUERY = "(max-width: 600px)";
+const READING_CHARTS_WITH_OPPOSITION = [...DEFAULT_READING_CHARTS, OPPOSITION_CHART];
 
 type Props = {
   result: Result;
 };
 
 export function ClientContainer({ result }: Props) {
+  const messages = useMessages();
+
   // --- Validate data at load time ---
   useEffect(() => {
     const resultValidation = validateResultData(result);
@@ -50,24 +58,27 @@ export function ClientContainer({ result }: Props) {
 
   // --- Extract visualization config with defaults ---
   const visualizationConfig = result.visualizationConfig;
-  const enabledCharts = visualizationConfig?.enabledCharts ?? DEFAULT_READING_CHARTS;
+  const oppositionClusterIds = useMemo(
+    () => new Set(getOppositionAxes(result).map((axis) => axis.cluster_id)),
+    [result],
+  );
+  const configuredCharts = visualizationConfig?.enabledCharts;
+  const enabledCharts = useMemo(() => {
+    if (oppositionClusterIds.size > 0) return configuredCharts ?? READING_CHARTS_WITH_OPPOSITION;
+    return configuredCharts?.filter((chart) => chart !== OPPOSITION_CHART) ?? DEFAULT_READING_CHARTS;
+  }, [oppositionClusterIds, configuredCharts]);
+  const canOpenOpposition = enabledCharts.includes(OPPOSITION_CHART);
   const chartOrder = visualizationConfig?.chartOrder;
-  const defaultChart = visualizationConfig?.defaultChart ?? enabledCharts[0] ?? "scatterAll";
+  const configuredDefault = visualizationConfig?.defaultChart;
+  const defaultChart =
+    (configuredDefault === OPPOSITION_CHART && !canOpenOpposition ? undefined : configuredDefault) ??
+    enabledCharts[0] ??
+    "scatterAll";
   const defaultParams = visualizationConfig?.params;
 
   // --- UI State ---
   const [openDensityFilterSetting, setOpenDensityFilterSetting] = useState(false);
-  const [selectedChart, setSelectedChart] = useState<string>(defaultChart);
-  useEffect(() => {
-    if (
-      !visualizationConfig?.defaultChart &&
-      enabledCharts.includes("hierarchyList") &&
-      window.matchMedia(NARROW_SCREEN_QUERY).matches
-    ) {
-      setSelectedChart("hierarchyList");
-    }
-    // Initial reading mode only; resizing must not overwrite the user's selection.
-  }, [visualizationConfig?.defaultChart, enabledCharts]);
+  const [chartPreference, setChartPreference] = useState<string>();
   const [maxDensity, setMaxDensity] = useState(defaultParams?.scatterDensity?.maxDensity ?? 0.2);
   const [minValue, setMinValue] = useState(defaultParams?.scatterDensity?.minValue ?? 5);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -79,15 +90,12 @@ export function ClientContainer({ result }: Props) {
   const showClusterLabels = clusterLabelPreference ?? defaultParams?.showClusterLabels ?? !narrowScreenOnMount;
   const [showConvexHull, setShowConvexHull] = useState(true);
   const [treemapLevel, setTreemapLevel] = useState("0");
+  const [treemapDensityEnabled, setTreemapDensityEnabled] = useState(false);
   // 散布図でクリックされたクラスタ（連動文章・一覧のハイライト対象）
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
-
-  // 表示モードを変えたら、散布図で選んだクラスタの選択も解除する。
-  // 選択を残すと、元のモードに戻ったときにカードが選択済みで再マウントされ、再ハイライトと自動スクロールが起きる
-  const changeChart = useCallback((chart: string) => {
-    setSelectedChart(chart);
-    setSelectedClusterId(null);
-  }, []);
+  const [oppositionOrigin, setOppositionOrigin] = useState<{ chart: string; clusterId: string }>();
+  const [oppositionSelection, setOppositionSelection] = useState<OppositionSelection>({});
+  const [reopenClusterId, setReopenClusterId] = useState<string>();
 
   // --- 属性メタデータ（純粋な派生データなのでuseMemoで計算） ---
   const attributeMetas = useMemo(() => computeAttributeMetas(result.arguments), [result.arguments]);
@@ -106,22 +114,70 @@ export function ClientContainer({ result }: Props) {
     [attributeFilters, numericRanges, enabledRanges, includeEmptyValues, textSearch],
   );
 
-  // --- 密度フィルタの有効性（派生データ） ---
-  const isDenseGroupEnabled = useMemo(() => {
-    const { isEmpty } = getDenseClusters(result.clusters || [], maxDensity, minValue);
-    return !isEmpty;
-  }, [result.clusters, maxDensity, minValue]);
+  const { filtered: densityFilteredClusters, isEmpty: isDenseGroupEmpty } = useMemo(
+    () => getDenseClusters(result.clusters || [], maxDensity, minValue),
+    [result.clusters, maxDensity, minValue],
+  );
+  const isDenseGroupEnabled = !isDenseGroupEmpty;
 
-  // 濃い意見の抽出結果が 0 件になったら、一つ上の階層を濃い意見として見せないよう全体表示へ戻す。
-  // 管理者が外した表示へは切り替えない（全体表示が無ければ表示順で先頭の選べる表示、それも無ければそのまま）
+  const disabledModeOverrides = useMemo(() => ({ scatterDensity: !isDenseGroupEnabled }), [isDenseGroupEnabled]);
+  const modes = useMemo(
+    () => resolveChartModes(result, enabledCharts, chartOrder, disabledModeOverrides),
+    [result, enabledCharts, chartOrder, disabledModeOverrides],
+  );
+  const requestedChart = chartPreference ?? defaultChart;
+  const selectedChart = resolveChartSelection(
+    modes,
+    requestedChart,
+    requestedChart === "scatterDensity" ? "scatterAll" : undefined,
+  );
+
   useEffect(() => {
-    if (selectedChart !== "scatterDensity" || isDenseGroupEnabled) return;
-    const selectable = resolveChartModes(result, enabledCharts, chartOrder, {
-      scatterDensity: !isDenseGroupEnabled,
-    }).filter((mode) => !mode.isDisabled);
-    const fallback = selectable.find((mode) => mode.id === "scatterAll") ?? selectable[0];
-    if (fallback) changeChart(fallback.id);
-  }, [selectedChart, isDenseGroupEnabled, result, enabledCharts, chartOrder, changeChart]);
+    // 初回は初期表示の指定がない場合に限り、狭い画面で階層リストを優先する。
+    if (
+      chartPreference === undefined &&
+      !visualizationConfig?.defaultChart &&
+      resolveChartSelection(modes, "hierarchyList") === "hierarchyList" &&
+      window.matchMedia(NARROW_SCREEN_QUERY).matches
+    ) {
+      setChartPreference("hierarchyList");
+    } else if (selectedChart && selectedChart !== chartPreference) {
+      // 条件を戻しても、フォールバック前のモードへ勝手に戻さない。
+      setChartPreference(selectedChart);
+      setSelectedClusterId(null);
+    }
+  }, [chartPreference, modes, selectedChart, visualizationConfig?.defaultChart]);
+
+  // 表示モードを変えたら、散布図で選んだクラスタの選択と対立軸ビューの戻り先も解除する。
+  const changeChart = useCallback(
+    (chart: string) => {
+      if (resolveChartSelection(modes, chart) !== chart) return;
+      setChartPreference(chart);
+      setSelectedClusterId(null);
+      setOppositionOrigin(undefined);
+      setOppositionSelection({});
+      setReopenClusterId(undefined);
+    },
+    [modes],
+  );
+
+  const openOpposition = useCallback(
+    (clusterId: string) => {
+      if (!selectedChart || resolveChartSelection(modes, OPPOSITION_CHART) !== OPPOSITION_CHART) return;
+      setOppositionOrigin({ chart: selectedChart, clusterId });
+      setOppositionSelection({ clusterId });
+      setChartPreference(OPPOSITION_CHART);
+    },
+    [modes, selectedChart],
+  );
+
+  const backFromOpposition = useCallback(() => {
+    if (!oppositionOrigin) return;
+    setChartPreference(oppositionOrigin.chart);
+    setSelectedClusterId(oppositionOrigin.clusterId);
+    setReopenClusterId(oppositionOrigin.clusterId);
+    setOppositionOrigin(undefined);
+  }, [oppositionOrigin]);
 
   // --- 属性・テキストフィルタの適用（密度変更時に再計算しないよう分離） ---
   const filteredArgIds = useMemo(
@@ -148,17 +204,17 @@ export function ClientContainer({ result }: Props) {
 
   // --- フィルタ済み結果を派生計算（stale closure問題を解消） ---
   const filteredResult = useMemo(() => {
-    // 1. 密度フィルタの適用（scatterDensityモードのみ有効）
-    const effectiveMaxDensity = selectedChart === "scatterDensity" ? maxDensity : 1;
-    const effectiveMinValue = selectedChart === "scatterDensity" ? minValue : 0;
-    const { filtered: densityFilteredClusters } = getDenseClusters(
-      result.clusters || [],
-      effectiveMaxDensity,
-      effectiveMinValue,
-    );
+    if (selectedChart === "treemap") {
+      return treemapDensityEnabled
+        ? applyTreemapDensityFilter(result, densityFilteredClusters, filteredArgIds)
+        : { ...result, filteredArgumentIds: filteredArgIds };
+    }
 
-    // 2. フィルタ条件に合致する引数がないクラスタをマーク
-    let combinedClusters = densityFilteredClusters;
+    let combinedClusters =
+      selectedChart === "scatterDensity"
+        ? densityFilteredClusters
+        : getDenseClusters(result.clusters || [], 1, 0).filtered;
+    // フィルタ条件に合致する引数がないクラスタをマーク
     if (filteredArgIds) {
       const filteredArgIdSet = new Set(filteredArgIds);
       const clusterIdsWithFilteredArgs = new Set<string>();
@@ -169,7 +225,7 @@ export function ClientContainer({ result }: Props) {
           }
         }
       }
-      combinedClusters = densityFilteredClusters.map((cluster) =>
+      combinedClusters = combinedClusters.map((cluster) =>
         clusterIdsWithFilteredArgs.has(cluster.id) ? cluster : { ...cluster, allFiltered: true },
       );
     }
@@ -179,7 +235,18 @@ export function ClientContainer({ result }: Props) {
       clusters: combinedClusters,
       filteredArgumentIds: filteredArgIds,
     };
-  }, [result, filteredArgIds, selectedChart, maxDensity, minValue]);
+  }, [result, filteredArgIds, selectedChart, densityFilteredClusters, treemapDensityEnabled]);
+
+  const visibleTreemapLevel = useMemo(
+    () =>
+      selectedChart === "treemap" && treemapDensityEnabled
+        ? resolveFilteredTreemapLevel(treemapLevel, result, filteredResult)
+        : treemapLevel,
+    [selectedChart, treemapDensityEnabled, treemapLevel, result, filteredResult],
+  );
+  useEffect(() => {
+    if (visibleTreemapLevel !== treemapLevel) setTreemapLevel(visibleTreemapLevel);
+  }, [treemapLevel, visibleTreemapLevel]);
 
   // --- UIハンドラ群 ---
   const handleApplyAttributeFilters = (
@@ -203,7 +270,8 @@ export function ClientContainer({ result }: Props) {
 
   // --- クラスタ表示 ---
   const clustersToDisplay = useMemo(() => {
-    if (selectedChart === "hierarchyList") return [];
+    if (selectedChart === undefined || selectedChart === "hierarchyList" || selectedChart === OPPOSITION_CHART)
+      return [];
     let c: Cluster[] = [];
     if (selectedChart === "scatterDensity" || selectedChart === "scatterDetail") {
       // 最深階層はフィルタ前の result で決める（抽出が 0 件でも一つ上の階層に繰り上げない）
@@ -223,7 +291,7 @@ export function ClientContainer({ result }: Props) {
     },
     [changeChart],
   );
-  const canNavigateToTreemap = enabledCharts.includes("treemap");
+  const canNavigateToTreemap = resolveChartSelection(modes, "treemap") === "treemap";
 
   // --- UI ---
   return (
@@ -256,9 +324,9 @@ export function ClientContainer({ result }: Props) {
         selected={selectedChart}
         onChange={changeChart}
         onClickDensitySetting={() => setOpenDensityFilterSetting(true)}
-        onClickFullscreen={() => setIsFullscreen(true)}
+        onClickFullscreen={selectedChart === undefined ? undefined : () => setIsFullscreen(true)}
         result={result}
-        disabledModeOverrides={{ scatterDensity: !isDenseGroupEnabled }}
+        disabledModeOverrides={disabledModeOverrides}
         enabledCharts={enabledCharts}
         chartOrder={chartOrder}
         onClickAttentionFilter={() => setOpenAttributeFilter(true)}
@@ -266,34 +334,52 @@ export function ClientContainer({ result }: Props) {
         attentionFilterBadgeCount={countActiveFilters(filterParams)}
       />
       <div id="report-chart" />
-      <Chart
-        result={filteredResult}
-        modeResult={result}
-        selectedChart={selectedChart}
-        isFullscreen={isFullscreen}
-        onExitFullscreen={() => setIsFullscreen(false)}
-        onChangeChart={changeChart}
-        enabledCharts={enabledCharts}
-        chartOrder={chartOrder}
-        disabledModeOverrides={{ scatterDensity: !isDenseGroupEnabled }}
-        showClusterLabels={showClusterLabels}
-        onToggleClusterLabels={setClusterLabelPreference}
-        showConvexHull={showConvexHull}
-        treemapLevel={treemapLevel}
-        onTreeZoom={setTreemapLevel}
-        onSelectCluster={setSelectedClusterId}
-        textSearch={textSearch}
-      />
+      {selectedChart === undefined ? (
+        <output>{messages.noAvailableChart}</output>
+      ) : (
+        <Chart
+          result={filteredResult}
+          modeResult={result}
+          selectedChart={selectedChart}
+          isFullscreen={isFullscreen}
+          onExitFullscreen={() => setIsFullscreen(false)}
+          onChangeChart={changeChart}
+          enabledCharts={enabledCharts}
+          chartOrder={chartOrder}
+          disabledModeOverrides={disabledModeOverrides}
+          showClusterLabels={showClusterLabels}
+          onToggleClusterLabels={setClusterLabelPreference}
+          showConvexHull={showConvexHull}
+          treemapLevel={visibleTreemapLevel}
+          onTreeZoom={setTreemapLevel}
+          treemapDensityEnabled={treemapDensityEnabled}
+          onTreemapDensityChange={setTreemapDensityEnabled}
+          onSelectCluster={setSelectedClusterId}
+          oppositionClusterIds={oppositionClusterIds}
+          oppositionClusterId={oppositionOrigin?.clusterId}
+          oppositionSelection={oppositionSelection}
+          onOppositionSelectionChange={setOppositionSelection}
+          onOpenOpposition={canOpenOpposition ? openOpposition : undefined}
+          onBackFromOpposition={oppositionOrigin ? backFromOpposition : undefined}
+          reopenClusterId={reopenClusterId}
+          textSearch={textSearch}
+        />
+      )}
       {selectedChart === "treemap" ? (
         <TreemapDetails
-          clusters={result.clusters}
-          arguments={result.arguments}
-          level={treemapLevel}
-          filteredIds={filteredArgIds}
+          clusters={filteredResult.clusters}
+          arguments={filteredResult.arguments}
+          level={visibleTreemapLevel}
+          filteredIds={filteredResult.filteredArgumentIds}
+          onOpenOpposition={
+            canOpenOpposition && oppositionClusterIds.has(visibleTreemapLevel) ? openOpposition : undefined
+          }
           onNavigate={(id) => {
             setTreemapLevel(id);
             document.getElementById("report-chart")?.scrollIntoView();
           }}
+          comments={result.comments}
+          showOriginalComments={result.config?.enable_original_comments}
         />
       ) : (
         clustersToDisplay.map((c) => (
@@ -304,6 +390,7 @@ export function ClientContainer({ result }: Props) {
             isFiltering={isFiltering}
             isSelected={c.id === selectedClusterId}
             onNavigate={canNavigateToTreemap ? navigateToTreemap : undefined}
+            onOpenOpposition={canOpenOpposition && oppositionClusterIds.has(c.id) ? openOpposition : undefined}
           />
         ))
       )}

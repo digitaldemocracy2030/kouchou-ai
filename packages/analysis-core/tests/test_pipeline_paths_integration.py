@@ -313,7 +313,6 @@ class TestOrchestratorPathsIntegration:
                 config=config,
                 output_base_dir=output_dir,
                 input_base_dir=input_dir,
-                steps=["extraction"],
             )
 
             # Verify paths are stored in orchestrator

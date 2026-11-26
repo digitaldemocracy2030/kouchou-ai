@@ -3,15 +3,22 @@
 import json
 import os
 from collections import defaultdict
+from collections.abc import Collection
 from typing import Any, TypedDict
 
 import numpy as np
 import polars as pl
 
 from analysis_core.core.utils import atomic_output_path, read_input_csv
+from analysis_core.opinion_sources import CommentReferences, comment_source_fields
 from analysis_core.public_result import write_result_files
 from analysis_core.steps.extraction import filter_empty_comments
 from analysis_core.steps.hierarchical_translation import TRANSLATIONS_FILENAME, fresh_translations
+from analysis_core.steps.opinion_attributes import (
+    OPINION_SCORE_ATTRIBUTES,
+    configured_opinion_attributes,
+    validate_input_attribute_collisions,
+)
 
 
 def json_serialize_numpy(obj: Any) -> Any:
@@ -62,10 +69,9 @@ def _public_config(obj: Any) -> Any:
     return obj
 
 
-class Argument(TypedDict):
+class Argument(CommentReferences):
     arg_id: str
     argument: str
-    comment_id: str
     x: float
     y: float
     p: float
@@ -108,6 +114,9 @@ def hierarchical_aggregation(config) -> bool:
             "config": _public_config(config),
         }
 
+        comments = read_input_csv(f"{input_base_dir}/{config['input']}.csv")
+        validate_input_attribute_collisions(comments.columns, configured_opinion_attributes(config))
+
         arguments = pl.read_csv(f"{output_base_dir}/{config['output_dir']}/args.csv")
         arg_num = len(arguments)
         # comment-id は入力CSVの値そのもの（"001" など）なので、型推論で数値化させない
@@ -116,7 +125,6 @@ def hierarchical_aggregation(config) -> bool:
         relation_df = pl.read_csv(
             f"{output_base_dir}/{config['output_dir']}/relations.csv", schema_overrides={"comment-id": pl.Utf8}
         ).unique(maintain_order=True)
-        comments = read_input_csv(f"{input_base_dir}/{config['input']}.csv")
         clusters = read_clusters(f"{output_base_dir}/{config['output_dir']}/hierarchical_clusters.csv")
         labels = read_merge_labels(f"{output_base_dir}/{config['output_dir']}/hierarchical_merge_labels.csv")
 
@@ -126,25 +134,27 @@ def hierarchical_aggregation(config) -> bool:
         # 無効化した後に前回の分類結果が残っていても混ぜない
         if config.get("opinion_classification", {}).get("enabled", False):
             _merge_opinion_classifications(
-                results["arguments"], f"{output_base_dir}/{config['output_dir']}/opinion_classifications.csv"
+                results["arguments"],
+                f"{output_base_dir}/{config['output_dir']}/opinion_classifications.csv",
+                comments.columns,
             )
         if config.get("opinion_stance", {}).get("enabled", False):
             _merge_opinion_scores(
                 results["arguments"],
                 f"{output_base_dir}/{config['output_dir']}/opinion_stances.csv",
-                "stance_score",
+                OPINION_SCORE_ATTRIBUTES["opinion_stance"],
             )
         if config.get("opinion_novelty", {}).get("enabled", False):
             _merge_opinion_scores(
                 results["arguments"],
                 f"{output_base_dir}/{config['output_dir']}/opinion_novelty.csv",
-                "novelty_score",
+                OPINION_SCORE_ATTRIBUTES["opinion_novelty"],
             )
         results["clusters"] = _build_cluster_value(labels, arg_num)
 
         # 元コメント本文は、レポート作成者が「公開してよい」と明示した場合だけ公開 JSON に入れる。
         # 入力 CSV には引用・再頒布が許されないコメントが混ざりうるため、既定では件数だけを出す。
-        if config.get("enable_original_comments", False):
+        if config.get("enable_original_comments") is True:
             results["comments"] = _build_comments_value(comments, relation_df, hidden_properties_map)
         results["comment_num"] = len(comments)
         # 属性情報のカラムは、元データに対して指定したカラムとclassificationするカテゴリを合わせたもの
@@ -308,13 +318,12 @@ def _build_arguments(
     # Prepare for merging with original comments to get attributes
     comments_copy = comments.with_columns(pl.col("comment-id").cast(pl.Utf8))
 
-    # Get argument to comment mapping
-    arg_comment_map = {}
+    # relations.csv の各行は1つの出典。最初の出典は旧形式の代表として保持する。
+    comment_ids_by_arg: dict[str, dict[str, None]] = {}
     if "comment-id" in relation_df.columns:
-        relation_df_copy = relation_df.with_columns(pl.col("comment-id").cast(pl.Utf8))
-        arg_comment_map = dict(
-            zip(relation_df_copy["arg-id"].to_list(), relation_df_copy["comment-id"].to_list(), strict=False)
-        )
+        for arg_id, comment_id in relation_df.select("arg-id", pl.col("comment-id").cast(pl.Utf8)).iter_rows():
+            if comment_id:
+                comment_ids_by_arg.setdefault(str(arg_id), {})[comment_id] = None
 
     # Find attribute columns in comments dataframe
     attribute_columns = [col for col in comments.columns if col.startswith("attribute_")]
@@ -330,11 +339,12 @@ def _build_arguments(
             cluster_ids.append(str(row[cluster_column]))  # Convert to string to ensure serializable
 
         # Create base argument
-        comment_id = arg_comment_map.get(row["arg-id"], "")
+        arg_id = str(row["arg-id"])
+        sources = comment_source_fields(comment_ids_by_arg.get(arg_id, ()))
         argument: Argument = {
-            "arg_id": str(row["arg-id"]),  # Convert to string to ensure serializable
+            "arg_id": arg_id,
             "argument": str(row["argument"]),
-            "comment_id": str(comment_id) if comment_id else "",
+            **sources,
             "x": float(row["x"]),  # Convert to native float
             "y": float(row["y"]),  # Convert to native float
             "p": 0,  # NOTE: 一旦全部0でいれる
@@ -344,8 +354,8 @@ def _build_arguments(
         }
 
         # Add attributes and URL if available
-        if row["arg-id"] in arg_comment_map:
-            comment_id = arg_comment_map[row["arg-id"]]
+        comment_id = sources["comment_id"]
+        if comment_id:
             comment_row = comments_lookup.get(comment_id)
 
             if comment_row is not None:
@@ -378,7 +388,7 @@ def _build_arguments(
     return arguments
 
 
-def _merge_opinion_classifications(arguments: list[Argument], path: str) -> int:
+def _merge_opinion_classifications(arguments: list[Argument], path: str, input_columns: Collection[str] = ()) -> int:
     """Attach opinion classification labels (yes/no per label) to ``arguments[].attributes``.
 
     The labels come from the optional ``opinion_classification`` step. They are added
@@ -392,6 +402,8 @@ def _merge_opinion_classifications(arguments: list[Argument], path: str) -> int:
     label_columns = [col for col in classifications.columns if col != "arg-id"]
     if not label_columns:
         return 0
+    # 再集計で再利用する CSV には、現在の設定にない以前のラベル ID が残っていることがある。
+    validate_input_attribute_collisions(input_columns, dict.fromkeys(label_columns, "opinion_classification"))
     lookup = {
         str(row["arg-id"]): {col: row[col] for col in label_columns} for row in classifications.iter_rows(named=True)
     }

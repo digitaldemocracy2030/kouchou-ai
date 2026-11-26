@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 
 # Load .env file into os.environ so plugins can access all settings
@@ -17,6 +17,7 @@ StorageType = Literal["local", "azure_blob"]
 class Settings(BaseSettings):
     ADMIN_API_KEY: str = Field(env="ADMIN_API_KEY")
     PUBLIC_API_KEY: str = Field(env="PUBLIC_API_KEY")
+    REPORT_READER_API_KEY: SecretStr | None = None
     # Gemini・Azure などだけで運用する構成もあるので、OpenAI のキーは任意
     OPENAI_API_KEY: str | None = Field(env="OPENAI_API_KEY", default=None)
     GEMINI_API_KEY: str | None = Field(env="GEMINI_API_KEY", default=None)

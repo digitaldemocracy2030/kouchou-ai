@@ -35,6 +35,7 @@ class LLMGroupingConfig(SchemaBaseModel):
     group_count: int | None = None
     discovery_sample_size: int | None = None
     assignment_batch_size: int | None = None
+    use_all_arguments: bool | None = None
     discovery_prompt: str | None = None
     assignment_prompt: str | None = None
     workers: int | None = None  # 割当バッチの LLM 並列呼び出し数

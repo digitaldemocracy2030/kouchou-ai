@@ -36,3 +36,4 @@ export type { ValidationError, ValidationResult } from "./validation";
 export { scatterPlugin } from "./scatter";
 export { treemapPlugin } from "./treemap";
 export { hierarchyListPlugin } from "./hierarchy-list";
+export { oppositionPlugin } from "./opposition";

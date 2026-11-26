@@ -10,6 +10,7 @@ import { buildClusterColorMap } from "./clusterColors";
 
 type Props = {
   clusterList: Cluster[];
+  colorSourceClusters?: Cluster[];
   argumentList: Argument[];
   onHover?: () => void;
   level: string;
@@ -27,6 +28,7 @@ export function buildTreemapFigure(
   level: string,
   filteredArgumentIds: string[] | undefined,
   messages: Messages = getMessages("ja"),
+  colorSourceClusters: Cluster[] = clusterList,
 ): { data: Partial<TreemapData>; layout: Partial<Layout> } {
   // フィルタリングが有効かどうかをチェック
   const isFilteringActive = !!filteredArgumentIds;
@@ -111,7 +113,7 @@ export function buildTreemapFigure(
   // 第一階層の意見グループには、散布図（全体図）と同じ色を明示する（#337）。
   // Plotly は第三階層以降を親の色で塗るので、子の意見グループと意見も同じ系統の色になる。
   // 指定しないと Plotly が大きさ順に colorway を割り当てるため、全体図と色がずれる。
-  const topLevelColorMap = buildClusterColorMap(clusterList.filter((cluster) => cluster.level === 1));
+  const topLevelColorMap = buildClusterColorMap(colorSourceClusters.filter((cluster) => cluster.level === 1));
 
   // フィルター状態によって色を変更
   const colors = list.map((node) => {
@@ -164,12 +166,20 @@ export function buildTreemapFigure(
  * 絞り込み結果を件数と色に反映し、クリックやパスバーでの階層移動を
  * onTreeZoomへ通知して、React側の表示階層と説明を同期する。
  */
-export function TreemapChart({ clusterList, argumentList, onHover, level, onTreeZoom, filteredArgumentIds }: Props) {
+export function TreemapChart({
+  clusterList,
+  colorSourceClusters,
+  argumentList,
+  onHover,
+  level,
+  onTreeZoom,
+  filteredArgumentIds,
+}: Props) {
   const { language, messages } = useLanguage();
   // react-plotly は data・layout・config のどれかの参照が変わると Plotly.react で描き直すので、どれも memo して渡す
   const figure = useMemo(
-    () => buildTreemapFigure(clusterList, argumentList, level, filteredArgumentIds, messages),
-    [clusterList, argumentList, level, filteredArgumentIds, messages],
+    () => buildTreemapFigure(clusterList, argumentList, level, filteredArgumentIds, messages, colorSourceClusters),
+    [clusterList, argumentList, level, filteredArgumentIds, messages, colorSourceClusters],
   );
   // Plotly の設定。参照を安定させて、再描画のたびに Plotly.react が走らないようにする（言語の切替時だけ作り直す）
   const plotlyConfig = useMemo(() => ({ responsive: true, displayModeBar: false, locale: language }), [language]);

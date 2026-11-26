@@ -28,6 +28,7 @@ import { usePluginData } from "./hooks/usePluginData";
 import { usePromptSettings } from "./hooks/usePromptSettings";
 import { type CsvData, parseCsv } from "./parseCsv";
 import type { InputType } from "./types";
+import { DEFAULT_LLM_GROUPING, isValidLLMGrouping, toLLMGroupingOptions } from "./types/llmGrouping";
 import { toAttributeKey } from "./utils/attributeKey";
 import { validateFormValues } from "./utils/validation";
 
@@ -46,6 +47,8 @@ export default function Page() {
   const clusterSettings = useClusterSettings();
   const promptSettings = usePromptSettings();
   const aiSettings = useAISettings();
+  const [llmGrouping, setLLMGrouping] = useState(DEFAULT_LLM_GROUPING);
+  const isGroupingValid = aiSettings.analysisMode !== "llm_grouping" || isValidLLMGrouping(llmGrouping);
   const inputData = useInputData(clusterSettings.setRecommended);
   const pluginData = usePluginData(clusterSettings.setRecommended);
   const activePluginId = inputData.inputType.startsWith("plugin:") ? inputData.inputType.replace("plugin:", "") : null;
@@ -62,6 +65,7 @@ export default function Page() {
    * レポート作成の送信
    */
   const onSubmit = async () => {
+    if (!isGroupingValid) return;
     setLoading(true);
 
     // プラグインの場合、インポート状態を取得
@@ -235,6 +239,7 @@ export default function Page() {
       workers: aiSettings.workers,
       prompt: promptData,
       analysis_mode: aiSettings.analysisMode,
+      llm_grouping: aiSettings.analysisMode === "llm_grouping" ? toLLMGroupingOptions(llmGrouping) : undefined,
       is_pubcom: aiSettings.isPubcomMode,
       inputType: inputData.inputType,
       is_embedded_at_local: aiSettings.isEmbeddedAtLocal,
@@ -449,6 +454,8 @@ export default function Page() {
               enableSourceLink={aiSettings.enableSourceLink}
               enableOriginalComments={aiSettings.enableOriginalComments}
               analysisMode={aiSettings.analysisMode}
+              llmGrouping={llmGrouping}
+              onLLMGroupingChange={setLLMGrouping}
               isEmbeddedAtLocal={aiSettings.isEmbeddedAtLocal}
               localLLMAddress={aiSettings.localLLMAddress}
               userApiKey={aiSettings.userApiKey}
@@ -495,7 +502,14 @@ export default function Page() {
               <Button variant="outline" size={"2xl"} w={"140px"} asChild>
                 <Link href="/">キャンセル</Link>
               </Button>
-              <Button className={"gradientBg shadow"} size={"2xl"} w={"300px"} onClick={onSubmit} loading={loading}>
+              <Button
+                className={"gradientBg shadow"}
+                size={"2xl"}
+                w={"300px"}
+                onClick={onSubmit}
+                loading={loading}
+                disabled={!isGroupingValid}
+              >
                 作成前の確認へ
               </Button>
             </HStack>
