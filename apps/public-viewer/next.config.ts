@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
   output: isStaticExport ? "export" : undefined,
   distDir: isStaticExport ? DIST_DIR : ".next",
   trailingSlash: true,
+  transpilePackages: ["d3-delaunay", "delaunator", "robust-predicates"],
   turbopack: {
     // Ensure Turbopack resolves the monorepo workspace root correctly.
     root: path.join(__dirname, "../.."),

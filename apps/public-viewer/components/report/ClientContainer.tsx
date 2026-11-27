@@ -18,6 +18,7 @@ import { DisplaySettingDialog } from "@/components/report/DisplaySettingDialog";
 import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Cluster, Result } from "@/type";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { OpinionSearch } from "./OpinionSearch";
 import { TreemapDetails } from "./TreemapDetails";
 import {
   type AttributeFilters,
@@ -260,7 +261,7 @@ export function ClientContainer({ result }: Props) {
     setNumericRanges(numericRanges_);
     setIncludeEmptyValues(includeEmpty);
     setEnabledRanges(enabledRanges_);
-    setTextSearch(textSearchString);
+    setTextSearch(textSearchString.trim());
   };
 
   const onChangeDensityFilter = (density: number, value: number) => {
@@ -333,6 +334,16 @@ export function ClientContainer({ result }: Props) {
         showAttentionFilterBadge={hasActiveFilters(filterParams)}
         attentionFilterBadgeCount={countActiveFilters(filterParams)}
       />
+      {selectedChart && (
+        <OpinionSearch
+          query={textSearch}
+          matchCount={filteredArgIds?.length ?? 0}
+          onSearch={(query) => {
+            setTextSearch(query);
+            if (query) changeChart("hierarchyList");
+          }}
+        />
+      )}
       <div id="report-chart" />
       {selectedChart === undefined ? (
         <output>{messages.noAvailableChart}</output>
