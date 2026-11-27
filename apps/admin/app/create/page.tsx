@@ -18,6 +18,7 @@ import { ClusterSettingsSection } from "./components/ClusterSettingsSection";
 import { CreateReportConfirmation, type PreparedReport } from "./components/CreateReportConfirmation";
 import { CsvFileTab } from "./components/CsvFileTab";
 import { PluginTab } from "./components/PluginTab";
+import { PromptSourceLoader } from "./components/PromptSourceLoader";
 import { SpreadsheetTab } from "./components/SpreadsheetTab";
 import { WarningSection } from "./components/WarningSection";
 import { useAISettings } from "./hooks/useAISettings";
@@ -490,6 +491,7 @@ export default function Page() {
               requiresConnectionSettings={aiSettings.requiresConnectionSettings}
               isEmbeddedAtLocalDisabled={aiSettings.isEmbeddedAtLocalDisabled}
               promptSettings={promptSettings}
+              promptLoader={<PromptSourceLoader promptSettings={promptSettings} />}
             />
           </Presence>
 
