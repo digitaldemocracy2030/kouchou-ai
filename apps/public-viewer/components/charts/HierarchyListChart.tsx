@@ -211,6 +211,8 @@ export function HierarchyListChart({
 }: HierarchyListChartProps) {
   const messages = useMessages();
   const disclosureGroup = useId();
+  // 対立軸ビューから戻るとき（reopenClusterId）はそちらを優先し、散布図から開いたグループは使わない
+  const openTarget = reopenClusterId ? undefined : openClusterId;
   // 出典リンクは散布図と同じ条件（レポート設定で有効なときだけ）
   const showSourceLinks = Boolean(config?.enable_source_link);
   const [treeData, setTreeData] = useState<ClusterNode[]>([]);
@@ -234,7 +236,7 @@ export function HierarchyListChart({
     // フィルタの適用・変更・解除のたびに clusterList は新しい配列になる。作り直しても開いていたクラスタは閉じない
     const previousExpansion = collectExpansion(treeDataRef.current);
     const isFirstBuild = treeDataRef.current.length === 0;
-    const pathTarget = reopenClusterId ?? openClusterId;
+    const pathTarget = reopenClusterId ?? openTarget;
     const reopenPath = new Set<string>();
     if (pathTarget && isFirstBuild) {
       const parentById = new Map(clusterList.map((cluster) => [cluster.id, cluster.parent]));
@@ -289,8 +291,8 @@ export function HierarchyListChart({
     };
 
     const tree = sortChildren(rootNodes);
-    setTreeData(openClusterId && isFirstBuild ? expandSubtree(tree, openClusterId) : tree);
-  }, [clusterList, argumentsByCluster, reopenClusterId, openClusterId]);
+    setTreeData(openTarget && isFirstBuild ? expandSubtree(tree, openTarget) : tree);
+  }, [clusterList, argumentsByCluster, reopenClusterId, openTarget]);
 
   useEffect(() => {
     if (!treeData.length || !restoredAction.current || scrollRestored.current) return;
@@ -435,8 +437,8 @@ export function HierarchyListChart({
 
           <Box flex={1} opacity={isFiltered ? 0.4 : 1}>
             <Text
-              ref={node.id === openClusterId ? openedLabel : undefined}
-              tabIndex={node.id === openClusterId ? -1 : undefined}
+              ref={node.id === openTarget ? openedLabel : undefined}
+              tabIndex={node.id === openTarget ? -1 : undefined}
               fontWeight="semibold"
               color="gray.800"
               mb={1}

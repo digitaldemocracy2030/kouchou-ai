@@ -165,6 +165,8 @@ export function ClientContainer({ result }: Props) {
       setOppositionOrigin({ chart: selectedChart, clusterId });
       setOppositionSelection({ clusterId });
       setChartPreference(OPPOSITION_CHART);
+      // 散布図から開いたグループは一度だけ開く。対立軸ビューから戻ったときに開き直さない（#1207）
+      setOpenClusterId(undefined);
     },
     [modes, selectedChart],
   );
@@ -332,7 +334,15 @@ export function ClientContainer({ result }: Props) {
         selected={selectedChart}
         onChange={changeChart}
         onClickDensitySetting={() => setOpenDensityFilterSetting(true)}
-        onClickFullscreen={selectedChart === undefined ? undefined : () => setIsFullscreen(true)}
+        onClickFullscreen={
+          selectedChart === undefined
+            ? undefined
+            : () => {
+                // 全画面の出入りでリストはマウントし直される。散布図から開いたグループを開き直さない（#1207）
+                setOpenClusterId(undefined);
+                setIsFullscreen(true);
+              }
+        }
         result={result}
         disabledModeOverrides={disabledModeOverrides}
         enabledCharts={enabledCharts}
@@ -360,7 +370,10 @@ export function ClientContainer({ result }: Props) {
           modeResult={result}
           selectedChart={selectedChart}
           isFullscreen={isFullscreen}
-          onExitFullscreen={() => setIsFullscreen(false)}
+          onExitFullscreen={() => {
+            setOpenClusterId(undefined);
+            setIsFullscreen(false);
+          }}
           onChangeChart={changeChart}
           enabledCharts={enabledCharts}
           chartOrder={chartOrder}

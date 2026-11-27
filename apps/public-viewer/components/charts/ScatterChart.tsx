@@ -108,13 +108,15 @@ type Props = {
 
 /**
  * 散布図の見方と操作方法を示すヒントの中身。見方（点・軸・距離・件数、#1212）を先に置き、
- * 輪郭の説明は輪郭を描いているときだけ出す。クリックでソースを開く挙動はソースリンク有効時のみ案内する。
+ * 輪郭の説明は輪郭を描いているときだけ出す。クリックでソースを開く挙動はソースリンク有効時のみ、
+ * 点のクリックでグループの説明を出す挙動は全画面以外でグループを選べるときのみ案内する。
  */
 export function ScatterHint({
   showConvexHull,
   showOriginalComments,
   showSourceLink,
-}: { showConvexHull: boolean; showOriginalComments: boolean; showSourceLink: boolean }) {
+  showSelectGroup = false,
+}: { showConvexHull: boolean; showOriginalComments: boolean; showSourceLink: boolean; showSelectGroup?: boolean }) {
   const { messages } = useLanguage();
   return (
     <Box fontSize="xs" lineHeight="1.6">
@@ -132,7 +134,11 @@ export function ScatterHint({
         <Text key={item}>{item}</Text>
       ))}
       {showOriginalComments && <Text>{messages.scatterHelpOriginalComment}</Text>}
-      {showSourceLink && <Text>{messages.scatterHelpSourceLink}</Text>}
+      {showSelectGroup ? (
+        <Text>{showSourceLink ? messages.scatterHelpSelectGroupAndSourceLink : messages.scatterHelpSelectGroup}</Text>
+      ) : (
+        showSourceLink && <Text>{messages.scatterHelpSourceLink}</Text>
+      )}
     </Box>
   );
 }
@@ -850,6 +856,8 @@ export function ScatterChart({
       showConvexHull={Boolean(showConvexHull)}
       showOriginalComments={Boolean(showOriginalComments)}
       showSourceLink={Boolean(config?.enable_source_link)}
+      // 全画面では図の下の説明が見えないので、グループの選択は案内しない（#1207）
+      showSelectGroup={Boolean(onSelectCluster) && !isFullscreen}
     />
   );
 

@@ -237,9 +237,17 @@ describe("HierarchyListChart のテキスト検索（#1205）", () => {
 });
 
 describe("HierarchyListChart の指定グループを開いた表示（#1207）", () => {
-  it("散布図から移ってきたグループと祖先を開き、そのグループは最下層の意見まで見せる", () => {
-    const scrollIntoView = jest.fn();
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  let scrollIntoView: jest.Mock;
+  beforeEach(() => {
+    scrollIntoView = jest.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
+  });
+  afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
+  it("散布図から移ってきたグループと祖先を開き、そのグループは最下層の意見まで見せる", () => {
     render(
       <Provider>
         <HierarchyListChart clusterList={clusters} argumentList={args} openClusterId="1_1" />
@@ -258,5 +266,27 @@ describe("HierarchyListChart の指定グループを開いた表示（#1207）"
     expect(heading).toHaveFocus();
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView.mock.contexts[0]).toBe(heading);
+  });
+
+  it("対立軸ビューから戻るときは、散布図から開いたグループより戻り先を優先する", () => {
+    render(
+      <Provider>
+        <HierarchyListChart
+          clusterList={clusters}
+          argumentList={args}
+          oppositionClusterIds={new Set(["1_2"])}
+          onOpenOpposition={jest.fn()}
+          reopenClusterId="1_2"
+          openClusterId="1_1"
+        />
+      </Provider>,
+    );
+
+    // 1_1 は開かず、戻り先の 1_2 のボタンにだけフォーカスとスクロールが移る
+    expect(screen.queryByText("意見 A1")).not.toBeInTheDocument();
+    const action = screen.getByRole("button", { name: "この話題の対立を見る" });
+    expect(action).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(action);
   });
 });

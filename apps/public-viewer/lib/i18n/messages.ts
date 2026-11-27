@@ -96,10 +96,13 @@ const ja = {
     "・マウスホイール / ピンチ: 拡大・縮小（ページをスクロールした直後は、少し待つと有効になります）",
     "・右上ツールバー: 拡大・移動・初期表示へリセット",
     "・点にカーソルを合わせる: 意見の内容を表示",
-    "・点をクリック: 図の下に、そのグループの説明を表示",
   ],
   /** ソースリンクが有効なときだけ操作ヒントに足す */
   scatterHelpSourceLink: "・点をクリック: 元のソースを開く",
+  /** 点のクリックでグループを選べるとき（全画面以外）だけ操作ヒントに足す（#1207） */
+  scatterHelpSelectGroup: "・点をクリック: 図の下に、そのグループの説明を表示",
+  /** グループの選択とソースリンクの両方が有効なときは、点のクリックの説明を 1 行にまとめる */
+  scatterHelpSelectGroupAndSourceLink: "・点をクリック: 図の下にそのグループの説明を表示し、元のソースを開く",
   /** ページスクロール中に散布図へ重ねる案内（ホイールが止まると消え、拡大・縮小が有効になる） */
   scatterWheelLocked: "スクロール中は拡大・縮小しません（止めると有効になります）",
   /** 元コメント本文が公開されているときだけ操作ヒントに足す */
@@ -338,9 +341,11 @@ const en: Messages = {
     "• Mouse wheel / pinch: zoom in and out (after scrolling the page, wait a moment for it to take effect)",
     "• Toolbar at the top right: zoom, pan, reset to the initial view",
     "• Hover over a point: show the opinion",
-    "• Click a point: show that group's description below the chart",
   ],
   scatterHelpSourceLink: "• Click a point: open the original source",
+  scatterHelpSelectGroup: "• Click a point: show that group's description below the chart",
+  scatterHelpSelectGroupAndSourceLink:
+    "• Click a point: show that group's description below the chart and open the original source",
   scatterWheelLocked: "Zoom is paused while you scroll the page (resumes when you stop)",
   scatterHelpOriginalComment: "• Hover over a point: also shows the original comment",
   originalCommentLabel: "Original comment",
@@ -568,9 +573,10 @@ const ko: Messages = {
     "• 마우스 휠 / 핀치: 확대·축소(페이지를 스크롤한 직후에는 잠시 기다리면 활성화됩니다)",
     "• 오른쪽 위 도구 모음: 확대·이동·초기 화면으로 되돌리기",
     "• 점에 커서 올리기: 의견 내용 표시",
-    "• 점 클릭: 그림 아래에 그 그룹의 설명 표시",
   ],
   scatterHelpSourceLink: "• 점 클릭: 원래 출처 열기",
+  scatterHelpSelectGroup: "• 점 클릭: 그림 아래에 그 그룹의 설명 표시",
+  scatterHelpSelectGroupAndSourceLink: "• 점 클릭: 그림 아래에 그 그룹의 설명을 표시하고 원래 출처 열기",
   scatterWheelLocked: "스크롤 중에는 확대·축소하지 않습니다(멈추면 활성화됩니다)",
   scatterHelpOriginalComment: "• 점에 커서를 올리기: 원본 댓글도 표시",
   originalCommentLabel: "원본 댓글",

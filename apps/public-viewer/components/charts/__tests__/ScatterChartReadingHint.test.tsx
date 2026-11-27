@@ -10,7 +10,12 @@ jest.mock("../ChartCore", () => ({ ChartCore: () => null }));
 jest.mock("lucide-react", () => new Proxy({}, { get: (_, name) => (name === "__esModule" ? true : () => null) }));
 
 function renderHint(
-  props: Partial<{ showConvexHull: boolean; showOriginalComments: boolean; showSourceLink: boolean }>,
+  props: Partial<{
+    showConvexHull: boolean;
+    showOriginalComments: boolean;
+    showSourceLink: boolean;
+    showSelectGroup: boolean;
+  }>,
 ) {
   render(
     <Provider>
@@ -44,5 +49,21 @@ describe("散布図のヒントの見方（#1212）", () => {
     renderHint({ showSourceLink: true });
     expect(screen.getByText(/元のソースを開く/)).toBeInTheDocument();
     expect(screen.queryByText(/元コメントの本文も表示/)).not.toBeInTheDocument();
+  });
+
+  it("点のクリックでグループの説明を出す操作は、グループを選べるときだけ案内する（#1207）", () => {
+    renderHint({ showSelectGroup: true });
+    expect(screen.getByText(/図の下に、そのグループの説明を表示/)).toBeInTheDocument();
+  });
+
+  it("グループの選択とソースリンクが両方有効なときは、点のクリックの説明を 1 行にまとめる", () => {
+    renderHint({ showSelectGroup: true, showSourceLink: true });
+    expect(screen.getAllByText(/点をクリック/)).toHaveLength(1);
+    expect(screen.getByText(/そのグループの説明を表示し、元のソースを開く/)).toBeInTheDocument();
+  });
+
+  it("グループを選べないとき（全画面など）は、グループの説明の操作を案内しない", () => {
+    renderHint({ showSelectGroup: false });
+    expect(screen.queryByText(/そのグループの説明を表示/)).not.toBeInTheDocument();
   });
 });

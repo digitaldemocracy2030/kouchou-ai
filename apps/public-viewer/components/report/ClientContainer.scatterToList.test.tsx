@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 import { Provider } from "@/components/ui/provider";
 import type { Result } from "@/type";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import fixture from "../dev/viewer-fixture.json";
 import { ClientContainer } from "./ClientContainer";
 
@@ -34,6 +34,7 @@ jest.mock("@/components/icons/ViewIcons", () => ({
 
 const GROUP = "社会的影響に配慮した法案の検討と未来のルール形成";
 const SHOW_IN_LIST = "このグループの意見をリストで見る";
+const OPPOSITION_GROUP = "AIの権利認識と倫理的共存に向けた社会的枠組みの構築";
 
 function mockWidth(narrow: boolean) {
   Object.defineProperty(window, "matchMedia", {
@@ -113,4 +114,59 @@ it.each([
   }
   // ほかのグループ（1_2）は閉じたまま
   expect(screen.queryByText("AIと人権: 技術革新と倫理の両立に向けた挑戦")).not.toBeInTheDocument();
+});
+
+it("リストで開いた後に対立軸ビューへ行って戻っても、散布図から開いたグループを開き直さない", async () => {
+  mockWidth(false);
+  const result = structuredClone(fixture) as unknown as Result;
+  const axis = { id: "axis-1_2", name: "比較する論点", left_pole: "左", right_pole: "右", scores: {} };
+  render(
+    <Provider>
+      <ClientContainer result={{ ...result, opposition_axes: [{ ...axis, cluster_id: "1_2" }] }} />
+    </Provider>,
+  );
+  await flush();
+
+  fireEvent.click(screen.getByRole("button", { name: "クラスタ1_1を選択" }));
+  fireEvent.click(screen.getByRole("button", { name: SHOW_IN_LIST }));
+  await flush();
+  expect(screen.getByText(GROUP)).toHaveFocus();
+
+  // リストで 1_1 を閉じ、1_2 を開いて、その対立を見る
+  const rowOf = (label: string) => screen.getByText(label).parentElement?.parentElement as HTMLElement;
+  fireEvent.click(within(rowOf(GROUP)).getByRole("button", { name: "折りたたむ" }));
+  fireEvent.click(within(rowOf(OPPOSITION_GROUP)).getByRole("button", { name: "展開する" }));
+  fireEvent.click(within(rowOf(OPPOSITION_GROUP)).getByRole("button", { name: "この話題の対立を見る" }));
+  expect(screen.getByRole("radio", { name: "対立" })).toBeChecked();
+
+  const scrollIntoView = Element.prototype.scrollIntoView as jest.Mock;
+  scrollIntoView.mockClear();
+  fireEvent.click(screen.getByRole("button", { name: "選んだ話題に戻る" }));
+  await flush();
+
+  // 戻り先は 1_2 の「この話題の対立を見る」。1_1 は閉じたままで、そこへスクロールもしない
+  expect(screen.getByRole("radio", { name: "リスト" })).toBeChecked();
+  expect(within(rowOf(OPPOSITION_GROUP)).getByRole("button", { name: "この話題の対立を見る" })).toHaveFocus();
+  expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText((content) => content.startsWith("賛成とも反対とも言えない"))).not.toBeInTheDocument();
+});
+
+it("リストで開いた後に全画面表示を出入りしても、散布図から開いたグループを開き直さない", async () => {
+  mockWidth(false);
+  await renderViewer();
+  fireEvent.click(screen.getByRole("button", { name: "クラスタ1_1を選択" }));
+  fireEvent.click(screen.getByRole("button", { name: SHOW_IN_LIST }));
+  await flush();
+  const opinion = (content: string) => content.startsWith("賛成とも反対とも言えない");
+  expect(screen.getByText(opinion)).toBeInTheDocument();
+
+  // 全画面のリストはマウントし直されるが、1_1 を最下層まで開き直さない
+  fireEvent.click(screen.getByRole("button", { name: "全画面表示" }));
+  const dialog = await screen.findByRole("dialog");
+  await flush();
+  expect(within(dialog).queryByText(opinion)).not.toBeInTheDocument();
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "全画面終了" }));
+  await flush();
+  expect(screen.queryByText(opinion)).not.toBeInTheDocument();
 });
