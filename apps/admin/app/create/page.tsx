@@ -41,6 +41,8 @@ export default function Page() {
   const { open, onToggle } = useDisclosure();
   const [loading, setLoading] = useState<boolean>(false);
   const [prepared, setPrepared] = useState<PreparedReport | null>(null);
+  // 既存のレポートからプロンプトを読み込んでいる途中（取得中・上書きの確認待ち）か
+  const [promptLoaderBusy, setPromptLoaderBusy] = useState(false);
   const submitting = useRef(false);
 
   // カスタムフックの使用
@@ -66,7 +68,7 @@ export default function Page() {
    * レポート作成の送信
    */
   const onSubmit = async () => {
-    if (!isGroupingValid) return;
+    if (!isGroupingValid || promptLoaderBusy) return;
     setLoading(true);
 
     // プラグインの場合、インポート状態を取得
@@ -491,7 +493,7 @@ export default function Page() {
               requiresConnectionSettings={aiSettings.requiresConnectionSettings}
               isEmbeddedAtLocalDisabled={aiSettings.isEmbeddedAtLocalDisabled}
               promptSettings={promptSettings}
-              promptLoader={<PromptSourceLoader promptSettings={promptSettings} />}
+              promptLoader={<PromptSourceLoader promptSettings={promptSettings} onBusyChange={setPromptLoaderBusy} />}
             />
           </Presence>
 
@@ -510,11 +512,16 @@ export default function Page() {
                 w={"300px"}
                 onClick={onSubmit}
                 loading={loading}
-                disabled={!isGroupingValid}
+                disabled={!isGroupingValid || promptLoaderBusy}
               >
                 作成前の確認へ
               </Button>
             </HStack>
+            {promptLoaderBusy && (
+              <Text textStyle="body/sm" color="font.secondary">
+                プロンプトの読み込み（上書きの確認を含む）が終わると、作成前の確認へ進めます。
+              </Text>
+            )}
             <Text textStyle="body/sm" color="font.secondary">
               有料のAIプロバイダーの場合は作成する度にAPI利用料がかかります。
             </Text>

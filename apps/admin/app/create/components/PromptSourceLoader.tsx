@@ -61,7 +61,14 @@ async function fetchReportConfig(slug: string): Promise<ReportPromptConfig> {
  * 既存のレポートを手本に、プロンプトだけを読み込む（#1203）。
  * 入力データや他の設定は読み込まない。読み込んだ後もプロンプトは個別に編集できる。
  */
-export function PromptSourceLoader({ promptSettings }: { promptSettings: PromptSettings }) {
+export function PromptSourceLoader({
+  promptSettings,
+  onBusyChange,
+}: {
+  promptSettings: PromptSettings;
+  /** 設定の取得中・上書きの確認待ちの間 true。作成側はこの間、作成前の確認へ進ませない */
+  onBusyChange?: (busy: boolean) => void;
+}) {
   const [reports, setReports] = useState<PromptSourceReport[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [selected, setSelected] = useState("");
@@ -99,6 +106,13 @@ export function PromptSourceLoader({ promptSettings }: { promptSettings: PromptS
   useEffect(() => {
     loadReports();
   }, [loadReports]);
+
+  // 取得中や確認待ちのまま作成へ進むと、読み込む前のプロンプトで作成されてしまう
+  const busy = loadingConfig || pending !== null;
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
   const apply = (label: string, plan: PromptLoadPlan) => {
     if (plan.loaded.includes("extraction")) promptSettings.setExtraction(plan.next.extraction);
