@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import { useBuildDownload } from "../../BuildDownloadButton/useBuildDownload";
 import { DeleteDialog } from "../DeleteDialog/DeleteDialog";
+import { PowerPointDialog } from "../PowerPointDialog/PowerPointDialog";
 import { csvDownload } from "./csvDownload";
 import { csvDownloadForWindows } from "./csvDownloadForWindows";
 import { jsonDownload } from "./jsonDownload";
@@ -29,6 +30,7 @@ export function ActionMenu({
   setIsVisualizationConfigDialogOpen,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
+  const [powerPointOpen, setPowerPointOpen] = useState(false);
   const { exportStaticHTML } = useBuildDownload();
   const isVisible = report.visibility === "public";
   const router = useRouter();
@@ -197,6 +199,12 @@ export function ActionMenu({
               JSONダウンロード
             </MenuItem>
           )}
+          {report.status === "ready" && (
+            <MenuItem value="powerpoint" textStyle="body/md/bold" onClick={() => setPowerPointOpen(true)}>
+              <FileText />
+              PowerPoint 書き出し
+            </MenuItem>
+          )}
           <MenuItem
             value="static-export"
             textStyle="body/md/bold"
@@ -228,6 +236,7 @@ export function ActionMenu({
           </MenuItem>
         </MenuContent>
       </MenuRoot>
+      {powerPointOpen && <PowerPointDialog report={report} onClose={() => setPowerPointOpen(false)} />}
       <DeleteDialog isOpen={isOpen} setIsOpen={setIsOpen} report={report} />
       {ponchieOpen && <PonchieDialog report={report} onClose={() => setPonchieOpen(false)} />}
     </>

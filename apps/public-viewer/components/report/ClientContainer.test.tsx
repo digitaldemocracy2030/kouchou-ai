@@ -245,6 +245,36 @@ describe("保存済み設定と利用できる表示の不一致", () => {
   });
 });
 
+describe("図の上の意見検索", () => {
+  it("散布図からキーワードを検索し、一致する意見をリストに渡す", async () => {
+    const args = (structuredClone(fixture) as unknown as Result).arguments;
+    args[0].argument = "避難時にエレベーターを使えるか知りたい";
+    await renderViewer({ arguments: args });
+    expect(screen.getByTestId("scatter")).toBeInTheDocument();
+    const search = screen.getByRole("searchbox", { name: "抽出された意見を検索" });
+    fireEvent.change(search, { target: { value: " エレベーター " } });
+    fireEvent.click(screen.getByRole("button", { name: "検索" }));
+    expect(screen.getByText("「エレベーター」に一致する意見：1件")).toBeVisible();
+    expect(screen.getByTestId("hierarchy-list")).toHaveAttribute("data-filtered-opinions", args[0].arg_id);
+    fireEvent.click(screen.getByRole("button", { name: "検索を解除" }));
+    expect(search).toHaveValue("");
+    expect(search).toHaveFocus();
+    expect(screen.getByTestId("hierarchy-list")).not.toHaveAttribute("data-filtered-opinions");
+  });
+
+  it("リストを使わないレポートでも現在の表示で検索でき、0件からやり直せる", async () => {
+    await renderViewer({ visualizationConfig: { version: "1", enabledCharts: ["scatterAll"] } });
+    const search = screen.getByRole("searchbox");
+    fireEvent.change(search, { target: { value: "該当しない語" } });
+    fireEvent.click(screen.getByRole("button", { name: "検索" }));
+    expect(screen.getByText("「該当しない語」に一致する意見：0件")).toBeVisible();
+    expect(screen.getByTestId("scatter")).toBeInTheDocument();
+    fireEvent.change(search, { target: { value: "より良い社会" } });
+    fireEvent.click(screen.getByRole("button", { name: "検索" }));
+    expect(screen.getByText("「より良い社会」に一致する意見：1件")).toBeVisible();
+  });
+});
+
 describe("フィルタボタン", () => {
   it("属性のあるレポートではフィルタボタンからテキスト検索に到達できる", async () => {
     await renderViewer();
@@ -274,6 +304,7 @@ describe("フィルタボタン", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     // 検索中であることがバッジ（有効なフィルタ数）でわかる
+    expect(screen.getByRole("searchbox")).toHaveValue("AI");
     expect(within(screen.getByRole("button", { name: "フィルタ" })).getByText("1")).toBeInTheDocument();
     await flush();
   });
