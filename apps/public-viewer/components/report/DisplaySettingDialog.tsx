@@ -52,6 +52,7 @@ export function DisplaySettingDialog({
                 <Text fontSize="sm">{messages.showClusterLabels}</Text>
                 <Spacer />
                 <Switch
+                  inputProps={{ "aria-label": messages.showClusterLabels }}
                   checked={showClusterLabels}
                   onChange={() => onToggleClusterLabels?.(!showClusterLabels)}
                   size="sm"

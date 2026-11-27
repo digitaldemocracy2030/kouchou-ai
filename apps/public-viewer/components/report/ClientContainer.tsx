@@ -35,6 +35,7 @@ import { applyTreemapDensityFilter, resolveFilteredTreemapLevel } from "./treema
 ensurePluginsLoaded();
 
 const DEFAULT_READING_CHARTS = [...DEFAULT_ENABLED_CHARTS, "hierarchyList"];
+const NARROW_SCREEN_QUERY = "(max-width: 600px)";
 const READING_CHARTS_WITH_OPPOSITION = [...DEFAULT_READING_CHARTS, OPPOSITION_CHART];
 
 type Props = {
@@ -82,7 +83,12 @@ export function ClientContainer({ result }: Props) {
   const [maxDensity, setMaxDensity] = useState(defaultParams?.scatterDensity?.maxDensity ?? 0.2);
   const [minValue, setMinValue] = useState(defaultParams?.scatterDensity?.minValue ?? 5);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showClusterLabels, setShowClusterLabels] = useState(defaultParams?.showClusterLabels ?? true);
+  const [narrowScreenOnMount, setNarrowScreenOnMount] = useState(false);
+  const [clusterLabelPreference, setClusterLabelPreference] = useState<boolean>();
+  useEffect(() => {
+    setNarrowScreenOnMount(window.matchMedia(NARROW_SCREEN_QUERY).matches);
+  }, []);
+  const showClusterLabels = clusterLabelPreference ?? defaultParams?.showClusterLabels ?? !narrowScreenOnMount;
   const [showConvexHull, setShowConvexHull] = useState(true);
   const [treemapLevel, setTreemapLevel] = useState("0");
   const [treemapDensityEnabled, setTreemapDensityEnabled] = useState(false);
@@ -133,7 +139,7 @@ export function ClientContainer({ result }: Props) {
       chartPreference === undefined &&
       !visualizationConfig?.defaultChart &&
       resolveChartSelection(modes, "hierarchyList") === "hierarchyList" &&
-      window.matchMedia("(max-width: 600px)").matches
+      window.matchMedia(NARROW_SCREEN_QUERY).matches
     ) {
       setChartPreference("hierarchyList");
     } else if (selectedChart && selectedChart !== chartPreference) {
@@ -298,7 +304,7 @@ export function ClientContainer({ result }: Props) {
           onClose={() => setOpenDensityFilterSetting(false)}
           onChangeFilter={onChangeDensityFilter}
           showClusterLabels={showClusterLabels}
-          onToggleClusterLabels={setShowClusterLabels}
+          onToggleClusterLabels={setClusterLabelPreference}
           showConvexHull={showConvexHull}
           onToggleConvexHull={setShowConvexHull}
         />
@@ -353,7 +359,7 @@ export function ClientContainer({ result }: Props) {
           chartOrder={chartOrder}
           disabledModeOverrides={disabledModeOverrides}
           showClusterLabels={showClusterLabels}
-          onToggleClusterLabels={setShowClusterLabels}
+          onToggleClusterLabels={setClusterLabelPreference}
           showConvexHull={showConvexHull}
           treemapLevel={visibleTreemapLevel}
           onTreeZoom={setTreemapLevel}

@@ -107,6 +107,7 @@ export function Chart({
 
   // Get the plugin that handles the selected chart mode
   const plugin = chartRegistry.getByMode(selectedChart);
+  const isScatter = plugin?.manifest.id === "scatter";
   const flowLayout = plugin?.manifest.modes.find((mode) => mode.id === selectedChart)?.layout === "flow";
   const treemapDensityControl = selectedChart === "treemap" && onTreemapDensityChange && (
     <Switch
@@ -177,7 +178,13 @@ export function Chart({
           {treemapDensityControl}
         </Box>
       )}
-      <Box h={flowLayout ? "auto" : "500px"} mb={0}>
+      <Box
+        w="100%"
+        h={isScatter || flowLayout ? "auto" : "500px"}
+        aspectRatio={isScatter ? 1 : undefined}
+        maxH={isScatter ? "500px" : undefined}
+        mb={0}
+      >
         {chartContent}
       </Box>
     </Box>

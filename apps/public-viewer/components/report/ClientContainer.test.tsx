@@ -11,9 +11,11 @@ globalThis.structuredClone ??= <T,>(value: T): T => (value === undefined ? value
 // lucide-react は ESM のみ配布で Jest が変換しないため、全アイコンを空コンポーネントにする
 jest.mock("lucide-react", () => new Proxy({}, { get: (_, name) => (name === "__esModule" ? true : () => null) }));
 
-// Plotly を読み込まず、散布図に渡された階層だけを記録する
+// Plotly を読み込まず、散布図に渡された階層とラベル設定を記録する
 jest.mock("@/components/charts/ScatterChart", () => ({
-  ScatterChart: (props: { targetLevel: number }) => <div data-testid="scatter" data-level={props.targetLevel} />,
+  ScatterChart: ({ targetLevel, showClusterLabels }: { targetLevel: number; showClusterLabels: boolean }) => (
+    <div data-testid="scatter" data-level={targetLevel} data-show-labels={String(showClusterLabels)} />
+  ),
 }));
 jest.mock("@/components/charts/TreemapChart", () => ({
   TreemapChart: (props: {
@@ -93,6 +95,33 @@ async function renderViewer(overrides: Partial<Result> = {}) {
   await flush();
   return utils;
 }
+
+describe("散布図の意見グループ名の初期表示", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    { narrow: true, configured: undefined, expected: false },
+    { narrow: false, configured: undefined, expected: true },
+    { narrow: true, configured: true, expected: true },
+    { narrow: false, configured: false, expected: false },
+  ])("画面幅とレポート設定を反映する ($narrow, $configured)", async ({ narrow, configured, expected }) => {
+    const matchMedia = window.matchMedia;
+    jest.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      ...matchMedia(query),
+      matches: query === "(max-width: 600px)" && narrow,
+    }));
+    await renderViewer({
+      visualizationConfig: {
+        version: "1",
+        enabledCharts: ["scatterAll"],
+        defaultChart: "scatterAll",
+        params: { showClusterLabels: configured },
+      },
+    });
+
+    expect(screen.getByTestId("scatter")).toHaveAttribute("data-show-labels", String(expected));
+  });
+});
 
 describe("全画面表示でのクラスタ粒度の切替", () => {
   it("全画面のまま大きいクラスタと細かいクラスタを行き来し、全画面終了も使える", async () => {
