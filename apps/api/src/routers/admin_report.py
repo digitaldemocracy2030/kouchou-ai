@@ -10,7 +10,7 @@ except Exception:  # pragma: no cover
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Security
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, ORJSONResponse
+from fastapi.responses import FileResponse, ORJSONResponse, Response
 from fastapi.security.api_key import APIKeyHeader
 
 from src.config import settings
@@ -33,6 +33,7 @@ from src.services.llm_models import get_models_by_provider
 from src.services.llm_pricing import LLMPricing
 from src.services.report_duplicate import duplicate_report, slug_exists_anywhere
 from src.services.report_launcher import execute_aggregation, launch_report_generation
+from src.services.report_ponchie import generate_ponchie_png, load_ponchie_prompt
 from src.services.report_status import (
     add_analysis_data,
     invalidate_report_cache,
@@ -197,6 +198,32 @@ async def download_report_json(slug: str, api_key: str = Depends(verify_admin_ap
     if not json_path.exists():
         raise HTTPException(status_code=404, detail="JSON file not found")
     return FileResponse(path=str(json_path), media_type="application/json", filename=f"kouchou_{slug}.json")
+
+
+@router.post("/admin/reports/{slug}/ponchie", dependencies=[Depends(verify_admin_api_key)])
+async def create_report_ponchie(slug: str) -> Response:
+    validate_slug(slug)
+    report = next((report for report in load_status_as_reports() if report.slug == slug), None)
+    if report is None or report.status != ReportStatus.READY:
+        raise HTTPException(status_code=404, detail="完了したレポートが見つかりません。")
+    model = (settings.REPORT_IMAGE_MODEL or "").strip()
+    if not model or not settings.OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="画像生成にはサーバの OpenAI キーと画像モデルの設定が必要です。")
+
+    result_path = (settings.REPORT_DIR / slug / "hierarchical_result.json").resolve()
+    if not result_path.is_relative_to(settings.REPORT_DIR.resolve()):
+        raise HTTPException(status_code=404, detail="分析結果が見つかりません。")
+    try:
+        prompt = await run_in_threadpool(load_ponchie_prompt, result_path)
+    except (OSError, ValueError, TypeError, AttributeError) as error:
+        raise HTTPException(status_code=422, detail="分析結果から画像用の論点を読み取れませんでした。") from error
+    try:
+        image = await generate_ponchie_png(prompt, settings.OPENAI_API_KEY, model)
+    except (openai.OpenAIError, ValueError) as error:
+        raise HTTPException(
+            status_code=502, detail="ポンチ絵を生成できませんでした。画像生成の設定を確認してください。"
+        ) from error
+    return Response(image, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 def _read_error_log_excerpt(log_path: Path) -> str | None:
