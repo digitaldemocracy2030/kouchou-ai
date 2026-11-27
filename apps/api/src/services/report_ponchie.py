@@ -22,9 +22,12 @@ def load_ponchie_prompt(result_path: Path) -> str:
         raise ValueError("The report has no top-level topics")
 
     topics = [str(cluster["label"])[:120] for cluster in clusters]
+    config = result.get("config") or {}
+    # config.name は入力データの識別名（slug）で、管理画面で入力したタイトルは config.question に入る
+    title = config.get("question") or config.get("name") or "広聴AIレポート"
     report = json.dumps(
         {
-            "題名": str((result.get("config") or {}).get("name") or "広聴AIレポート")[:160],
+            "題名": str(title)[:160],
             "概要": str(result.get("overview") or "")[:800],
             "論点": topics,
         },

@@ -32,7 +32,7 @@ def ponchie(tmp_path, monkeypatch):
     path.write_text(
         json.dumps(
             {
-                "config": {"name": "街の交通", "user_api_key": "DO_NOT_SEND_KEY"},
+                "config": {"name": "demo-input", "question": "街の交通", "user_api_key": "DO_NOT_SEND_KEY"},
                 "overview": "交通と移動の検討",
                 "clusters": [
                     {"level": 1, "label": "自転車", "value": 5},
@@ -65,6 +65,7 @@ def test_uses_only_the_report_summary_and_top_level_topics(ponchie):
     assert response.content == PNG
     prompt, key, model = generate.await_args.args
     assert "街の交通" in prompt and "自転車" in prompt and "交通と移動の検討" in prompt
+    assert '"題名": "街の交通"' in prompt and "demo-input" not in prompt
     assert "DO_NOT_SEND" not in prompt
     assert (key, model) == ("fake-image-key", "fake-image-model")
 
