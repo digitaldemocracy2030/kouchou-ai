@@ -6,6 +6,7 @@ import { ClientContainer } from "@/components/report/ClientContainer";
 import { LanguageToggle } from "@/components/report/LanguageToggle";
 import { Overview } from "@/components/report/Overview";
 import { ReadingGuide } from "@/components/report/ReadingGuide";
+import { ReportTopicLink } from "@/components/report/ReportTopicLink";
 import { useLanguage, useLocalizedResult } from "@/lib/i18n/LanguageContext";
 import { DEFAULT_LANGUAGE } from "@/lib/i18n/languages";
 import { hasReportTranslation } from "@/lib/i18n/translateResult";
@@ -33,6 +34,7 @@ export function LocalizedReportView({ result, reporter }: { result: Result; repo
         </Text>
       )}
       <Overview result={localized} />
+      <ReportTopicLink result={localized} />
       <ReadingGuide />
       <ClientContainer result={localized} />
       <Analysis result={localized} />
