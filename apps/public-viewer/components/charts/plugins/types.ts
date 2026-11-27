@@ -128,6 +128,8 @@ export interface ChartRenderContext {
   onOpenOpposition?: (clusterId: string) => void;
   onBackFromOpposition?: () => void;
   reopenClusterId?: string;
+  /** 階層リストで最初から開いておくグループ（散布図の「このグループの意見をリストで見る」、#1207） */
+  openClusterId?: string;
   /** Callback when hover occurs */
   onHover?: () => void;
 }

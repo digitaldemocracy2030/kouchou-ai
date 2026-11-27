@@ -20,6 +20,7 @@ type ReportProps = Pick<
   | "onOpenOpposition"
   | "onBackFromOpposition"
   | "reopenClusterId"
+  | "openClusterId"
 > & {
   /** 描画に使う結果（属性フィルタ・密度フィルタ適用後） */
   result: Result;
@@ -79,6 +80,7 @@ export function Chart({
   onOpenOpposition,
   onBackFromOpposition,
   reopenClusterId,
+  openClusterId,
   textSearch,
 }: ReportProps) {
   const messages = useMessages();
@@ -102,6 +104,7 @@ export function Chart({
     onOpenOpposition,
     onBackFromOpposition,
     reopenClusterId,
+    openClusterId,
     onHover: undefined,
   };
 

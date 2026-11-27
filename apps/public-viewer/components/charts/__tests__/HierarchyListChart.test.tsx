@@ -235,3 +235,88 @@ describe("HierarchyListChart のテキスト検索（#1205）", () => {
     expect(screen.queryByText("意見 M10")).not.toBeInTheDocument();
   });
 });
+
+describe("HierarchyListChart の指定グループを開いた表示（#1207）", () => {
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  let scrollIntoView: jest.Mock;
+  beforeEach(() => {
+    scrollIntoView = jest.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+  });
+  afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
+  it("散布図から移ってきたグループと祖先を開き、そのグループは最下層の意見まで見せる", () => {
+    render(
+      <Provider>
+        <HierarchyListChart clusterList={clusters} argumentList={args} openClusterId="1_1" />
+      </Provider>,
+    );
+
+    // 全体・1_1・2_1 の 3 グループが開き、1_1 の意見が見える。ほかの 1_2 の枝は閉じたまま
+    expect(expandedCount()).toBe(3);
+    for (const text of ["意見 A1", "意見 A2", "意見 A3"]) {
+      expect(screen.getByText(text)).toBeInTheDocument();
+    }
+    expect(screen.queryByText("意見 A4")).not.toBeInTheDocument();
+
+    // 押したボタンは消えるので、開いたグループの見出しへフォーカスとスクロールを移す
+    const heading = screen.getByText("ラベル 1_1");
+    expect(heading).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(heading);
+  });
+
+  it("検索中に散布図から開いても、検索に一致したほかのグループは開かず、検索語を変えたら従来どおり開く", () => {
+    // 検索語 "意見" が 1_1 の A1 と 1_2 の A4 に一致している状態で、1_1 を開いて移ってくる
+    const matches = ["A1", "A4"];
+    const element = (filteredArgumentIds: string[], textSearch: string) => (
+      <Provider>
+        <HierarchyListChart
+          clusterList={clusters}
+          argumentList={args}
+          filteredArgumentIds={filteredArgumentIds}
+          textSearch={textSearch}
+          openClusterId="1_1"
+        />
+      </Provider>
+    );
+    const view = render(element(matches, "意見"));
+
+    // 全体・1_1・2_1 だけが開き、検索に一致した A4 の 1_2 の枝は閉じたまま
+    expect(expandedCount()).toBe(3);
+    expect(screen.getByText("意見 A1")).toBeInTheDocument();
+    expect(screen.queryByText("意見 A4")).not.toBeInTheDocument();
+
+    // 同じ検索のまま再描画されても開かない
+    view.rerender(element(matches, "意見"));
+    expect(screen.queryByText("意見 A4")).not.toBeInTheDocument();
+
+    // 検索語を変えたら、一致したグループを自動で開く
+    view.rerender(element(["A4"], "A4"));
+    expect(screen.getByText("意見 A4")).toBeInTheDocument();
+  });
+
+  it("対立軸ビューから戻るときは、散布図から開いたグループより戻り先を優先する", () => {
+    render(
+      <Provider>
+        <HierarchyListChart
+          clusterList={clusters}
+          argumentList={args}
+          oppositionClusterIds={new Set(["1_2"])}
+          onOpenOpposition={jest.fn()}
+          reopenClusterId="1_2"
+          openClusterId="1_1"
+        />
+      </Provider>,
+    );
+
+    // 1_1 は開かず、戻り先の 1_2 のボタンにだけフォーカスとスクロールが移る
+    expect(screen.queryByText("意見 A1")).not.toBeInTheDocument();
+    const action = screen.getByRole("button", { name: "この話題の対立を見る" });
+    expect(action).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(action);
+  });
+});

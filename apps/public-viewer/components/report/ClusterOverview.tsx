@@ -2,7 +2,7 @@
 
 import { useMessages } from "@/lib/i18n/LanguageContext";
 import type { Cluster } from "@/type";
-import { Box, Button, Heading, Link, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Link, Text } from "@chakra-ui/react";
 import { MessagesSquareIcon } from "lucide-react";
 import { memo, useEffect, useRef } from "react";
 
@@ -11,6 +11,8 @@ type Props = {
   /** 見出しを押したときに、そのクラスタの id を渡して呼ぶ（一覧全体で同じ関数を共有し、memo を効かせる） */
   onNavigate?: (clusterId: string) => void;
   onOpenOpposition?: (clusterId: string) => void;
+  /** 散布図で選んだグループのとき、階層リストでそのグループの意見を開く（#1207）。未指定ならボタンを出さない */
+  onShowOpinions?: (clusterId: string) => void;
   /** 属性フィルター適用後の件数（未指定なら cluster.value を表示） */
   count?: number;
   /** フィルター適用中かどうか（表示ラベルの切り替えに使う） */
@@ -25,6 +27,7 @@ export const ClusterOverview = memo(function ClusterOverview({
   cluster,
   onNavigate,
   onOpenOpposition,
+  onShowOpinions,
   count,
   isFiltering,
   isSelected,
@@ -41,6 +44,7 @@ export const ClusterOverview = memo(function ClusterOverview({
 
   // フィルター適用時はフィルター後の件数を優先し、未指定時は元の件数にフォールバックする
   const displayCount = count ?? cluster.value;
+  const showOpinionsAction = isSelected && onShowOpinions;
 
   return (
     <Box
@@ -81,10 +85,19 @@ export const ClusterOverview = memo(function ClusterOverview({
         </Text>
       </Box>
       <Text>{cluster.takeaway}</Text>
-      {onOpenOpposition && (
-        <Button mt={2} size="sm" variant="outline" onClick={() => onOpenOpposition(cluster.id)}>
-          {messages.oppositionOpen}
-        </Button>
+      {(showOpinionsAction || onOpenOpposition) && (
+        <Flex mt={2} gap={2} wrap="wrap">
+          {showOpinionsAction && (
+            <Button size="sm" variant="outline" onClick={() => onShowOpinions(cluster.id)}>
+              {messages.showGroupOpinionsInList}
+            </Button>
+          )}
+          {onOpenOpposition && (
+            <Button size="sm" variant="outline" onClick={() => onOpenOpposition(cluster.id)}>
+              {messages.oppositionOpen}
+            </Button>
+          )}
+        </Flex>
       )}
     </Box>
   );

@@ -24,6 +24,8 @@ const ja = {
     `フィルター後の意見 ${filtered.toLocaleString()}件 / 全${total.toLocaleString()}件`,
   /** 意見グループ一覧の件数の後ろに付ける（属性フィルターの適用中） */
   filteredCountSuffix: "（フィルター後）",
+  /** 散布図で選んだグループの説明から、階層リストでそのグループを開く（#1207） */
+  showGroupOpinionsInList: "このグループの意見をリストで見る",
 
   // ReadingGuide（本体・serverless で文言を揃える #696。日本語は変更しない）
   readingGuideLabel: "レポートの読み方",
@@ -97,6 +99,10 @@ const ja = {
   ],
   /** ソースリンクが有効なときだけ操作ヒントに足す */
   scatterHelpSourceLink: "・点をクリック: 元のソースを開く",
+  /** 点のクリックでグループを選べるとき（全画面以外）だけ操作ヒントに足す（#1207） */
+  scatterHelpSelectGroup: "・点をクリック: 図の下に、そのグループの説明を表示",
+  /** グループの選択とソースリンクの両方が有効なときは、点のクリックの説明を 1 行にまとめる */
+  scatterHelpSelectGroupAndSourceLink: "・点をクリック: 図の下にそのグループの説明を表示し、元のソースを開く",
   /** ページスクロール中に散布図へ重ねる案内（ホイールが止まると消え、拡大・縮小が有効になる） */
   scatterWheelLocked: "スクロール中は拡大・縮小しません（止めると有効になります）",
   /** 元コメント本文が公開されているときだけ操作ヒントに足す */
@@ -272,6 +278,7 @@ const en: Messages = {
   filteredOfTotalCount: (filtered, total) =>
     `${filtered.toLocaleString()} opinions after filter / ${total.toLocaleString()} total`,
   filteredCountSuffix: " (filtered)",
+  showGroupOpinionsInList: "See this group's opinions in the list",
 
   readingGuideLabel: "How to read this report",
   readingGuideLead:
@@ -336,6 +343,9 @@ const en: Messages = {
     "• Hover over a point: show the opinion",
   ],
   scatterHelpSourceLink: "• Click a point: open the original source",
+  scatterHelpSelectGroup: "• Click a point: show that group's description below the chart",
+  scatterHelpSelectGroupAndSourceLink:
+    "• Click a point: show that group's description below the chart and open the original source",
   scatterWheelLocked: "Zoom is paused while you scroll the page (resumes when you stop)",
   scatterHelpOriginalComment: "• Hover over a point: also shows the original comment",
   originalCommentLabel: "Original comment",
@@ -500,6 +510,7 @@ const ko: Messages = {
   filteredOfTotalCount: (filtered, total) =>
     `필터 후 의견 ${filtered.toLocaleString()}건 / 전체 ${total.toLocaleString()}건`,
   filteredCountSuffix: " (필터 후)",
+  showGroupOpinionsInList: "이 그룹의 의견을 목록으로 보기",
 
   readingGuideLabel: "보고서 읽는 법",
   readingGuideLead:
@@ -564,6 +575,8 @@ const ko: Messages = {
     "• 점에 커서 올리기: 의견 내용 표시",
   ],
   scatterHelpSourceLink: "• 점 클릭: 원래 출처 열기",
+  scatterHelpSelectGroup: "• 점 클릭: 그림 아래에 그 그룹의 설명 표시",
+  scatterHelpSelectGroupAndSourceLink: "• 점 클릭: 그림 아래에 그 그룹의 설명을 표시하고 원래 출처 열기",
   scatterWheelLocked: "스크롤 중에는 확대·축소하지 않습니다(멈추면 활성화됩니다)",
   scatterHelpOriginalComment: "• 점에 커서를 올리기: 원본 댓글도 표시",
   originalCommentLabel: "원본 댓글",

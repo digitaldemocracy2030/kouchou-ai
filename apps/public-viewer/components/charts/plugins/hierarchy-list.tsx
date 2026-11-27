@@ -46,6 +46,7 @@ export const hierarchyListPlugin: ChartPlugin = {
         oppositionClusterIds={context.oppositionClusterIds}
         onOpenOpposition={context.onOpenOpposition}
         reopenClusterId={context.reopenClusterId}
+        openClusterId={context.openClusterId}
       />
     );
   },
