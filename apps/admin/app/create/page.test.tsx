@@ -4,6 +4,7 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createReport } from "./api/createReport";
+import { listPromptSourceReports } from "./api/promptSources";
 import { useAISettings } from "./hooks/useAISettings";
 import { useInputData } from "./hooks/useInputData";
 import { usePluginData } from "./hooks/usePluginData";
@@ -16,7 +17,26 @@ jest.mock("@/components/ui/toaster", () => ({ toaster: { create: jest.fn() } }))
 jest.mock("./hooks/useAISettings");
 jest.mock("./hooks/useInputData");
 jest.mock("./hooks/usePluginData");
-jest.mock("./components/AISettingsSection", () => ({ AISettingsSection: () => null }));
+jest.mock("./api/promptSources", () => ({ listPromptSourceReports: jest.fn() }));
+// プロンプトの読み込み欄と抽出プロンプト欄だけを本物の Page の状態につないで描く
+jest.mock("./components/AISettingsSection", () => ({
+  AISettingsSection: ({
+    promptLoader,
+    promptSettings,
+  }: {
+    promptLoader?: React.ReactNode;
+    promptSettings: { extraction: string; setExtraction: (value: string) => void };
+  }) => (
+    <>
+      {promptLoader}
+      <textarea
+        aria-label="抽出プロンプト"
+        value={promptSettings.extraction}
+        onChange={(e) => promptSettings.setExtraction(e.target.value)}
+      />
+    </>
+  ),
+}));
 jest.mock("./components/CsvFileTab", () => ({ CsvFileTab: () => null }));
 jest.mock("./components/SpreadsheetTab", () => ({ SpreadsheetTab: () => null }));
 jest.mock("./components/PluginTab", () => ({ PluginTab: () => null }));
@@ -62,6 +82,10 @@ beforeEach(() => {
     pluginSelectedAttributeColumns: ["age"],
     getPluginState: () => ({ imported: true, data: [{ id: "1", answer: "意見", age: "30" }] }),
   } as unknown as ReturnType<typeof usePluginData>);
+  jest.mocked(listPromptSourceReports).mockResolvedValue({
+    success: true,
+    reports: [{ slug: "group-a", title: "グループA", createdAt: "2026-11-01T00:00:00Z" }],
+  });
 });
 
 it.each(["file", "spreadsheet", "plugin:source"])(
@@ -189,4 +213,100 @@ it("送信データが Server Action の本文上限を超えるときは、確�
   );
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(createReport).not.toHaveBeenCalled();
+});
+
+describe("既存のレポートからプロンプトを読み込んでいる間は、作成前の確認へ進めない（#1203）", () => {
+  const loadedPrompt = "議題に関係する発言だけを抽出する";
+  const originalFetch = global.fetch;
+  let resolveConfig!: () => void;
+
+  beforeEach(() => {
+    jest.mocked(useInputData).mockReturnValue({
+      inputType: "file",
+      csv: new File(["csv"], "test.csv"),
+      spreadsheetImported: false,
+      spreadsheetData: [],
+      selectedCommentColumn: "answer",
+      csvColumns: ["answer", "age"],
+      selectedAttributeColumns: ["age"],
+    } as unknown as ReturnType<typeof useInputData>);
+    jest.mocked(createReport).mockResolvedValue({ success: true } as Awaited<ReturnType<typeof createReport>>);
+    // 設定の取得は、テストが resolveConfig を呼ぶまで終わらない
+    global.fetch = jest.fn(
+      () =>
+        new Promise((done) => {
+          resolveConfig = () =>
+            done({ ok: true, json: async () => ({ config: { extraction: { prompt: loadedPrompt } } }) } as Response);
+        }),
+    );
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  const startLoad = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole("button", { name: "レポート生成設定" }));
+    await screen.findByRole("option", { name: "グループA（group-a）" });
+    await user.selectOptions(screen.getByLabelText("プロンプトを読み込むレポート"), "group-a");
+    await user.click(screen.getByRole("button", { name: "読み込む" }));
+  };
+
+  const createAndGetExtraction = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole("button", { name: "作成前の確認へ" }));
+    await user.click(await screen.findByRole("button", { name: "未確認のまま作成を開始" }));
+    await waitFor(() => expect(createReport).toHaveBeenCalledTimes(1));
+    return jest.mocked(createReport).mock.calls[0][0].prompt.extraction;
+  };
+
+  it("設定の取得中は進めず、取得が終わったら読み込んだプロンプトで作成する", async () => {
+    render(
+      <ChakraProvider value={system}>
+        <Page />
+      </ChakraProvider>,
+    );
+    const user = userEvent.setup();
+    await startLoad(user);
+
+    const next = screen.getByRole("button", { name: "作成前の確認へ" });
+    expect(next).toBeDisabled();
+    await user.click(next);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    resolveConfig();
+    await waitFor(() => expect(screen.getByRole("button", { name: "作成前の確認へ" })).toBeEnabled());
+    expect(await createAndGetExtraction(user)).toBe(loadedPrompt);
+  });
+
+  it("取得に失敗した後は、今のプロンプトのまま進める", async () => {
+    global.fetch = jest.fn(async () => ({ ok: false, json: async () => ({ detail: "見つかりません" }) }) as Response);
+    render(
+      <ChakraProvider value={system}>
+        <Page />
+      </ChakraProvider>,
+    );
+    const user = userEvent.setup();
+    await startLoad(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("見つかりません");
+    await waitFor(() => expect(screen.getByRole("button", { name: "作成前の確認へ" })).toBeEnabled());
+    expect(await createAndGetExtraction(user)).not.toBe(loadedPrompt);
+  });
+
+  it("上書きの確認待ちの間も進めず、選んだ方のプロンプトで作成する", async () => {
+    render(
+      <ChakraProvider value={system}>
+        <Page />
+      </ChakraProvider>,
+    );
+    const user = userEvent.setup();
+    await user.clear(screen.getByLabelText("抽出プロンプト"));
+    await user.type(screen.getByLabelText("抽出プロンプト"), "手元の抽出");
+    await startLoad(user);
+    resolveConfig();
+
+    const overwrite = await screen.findByRole("button", { name: "上書きする" });
+    expect(screen.getByRole("button", { name: "作成前の確認へ" })).toBeDisabled();
+    await user.click(overwrite);
+    await waitFor(() => expect(screen.getByRole("button", { name: "作成前の確認へ" })).toBeEnabled());
+    expect(await createAndGetExtraction(user)).toBe(loadedPrompt);
+  });
 });

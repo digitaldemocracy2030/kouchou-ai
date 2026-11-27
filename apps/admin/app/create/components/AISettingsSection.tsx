@@ -39,6 +39,7 @@ export function AISettingsSection({
   localLLMAddress,
   setLocalLLMAddress,
   promptSettings,
+  promptLoader,
   isEmbeddedAtLocal,
   onEmbeddedAtLocalChange,
   fetchLocalLLMModels,
@@ -79,6 +80,8 @@ export function AISettingsSection({
   localLLMAddress?: string;
   setLocalLLMAddress?: (value: string) => void;
   fetchLocalLLMModels?: () => Promise<boolean>;
+  /** プロンプト欄の上に置く、既存のレポートからプロンプトを読み込む UI（新規作成画面のみ） */
+  promptLoader?: React.ReactNode;
   promptSettings: {
     extraction: string;
     initialLabelling: string;
@@ -347,6 +350,8 @@ export function AISettingsSection({
           非公開にした属性値を持つコメントは含まれません。
         </Field.HelperText>
       </Field.Root>
+
+      {promptLoader}
 
       <Field.Root>
         <Field.Label>抽出プロンプト</Field.Label>
