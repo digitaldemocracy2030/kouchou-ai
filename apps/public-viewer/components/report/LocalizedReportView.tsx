@@ -6,12 +6,14 @@ import { ClientContainer } from "@/components/report/ClientContainer";
 import { LanguageToggle } from "@/components/report/LanguageToggle";
 import { Overview } from "@/components/report/Overview";
 import { ReadingGuide } from "@/components/report/ReadingGuide";
+import { ReportTopicLink } from "@/components/report/ReportTopicLink";
 import { useLanguage, useLocalizedResult } from "@/lib/i18n/LanguageContext";
 import { DEFAULT_LANGUAGE } from "@/lib/i18n/languages";
 import { hasReportTranslation } from "@/lib/i18n/translateResult";
 import type { Result } from "@/type";
 import { Box, Flex, Separator, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+import { ReportExploration } from "./ReportExploration";
 
 /**
  * レポート本文。表示言語に応じて `translations` を適用した Result を
@@ -33,8 +35,10 @@ export function LocalizedReportView({ result, reporter }: { result: Result; repo
         </Text>
       )}
       <Overview result={localized} />
+      <ReportTopicLink result={localized} />
       <ReadingGuide />
       <ClientContainer result={localized} />
+      <ReportExploration result={localized} />
       <Analysis result={localized} />
       <BackButton />
       <Separator my={12} maxW={"750px"} mx={"auto"} />

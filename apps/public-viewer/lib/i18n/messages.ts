@@ -128,6 +128,10 @@ const ja = {
   // 属性フィルタダイアログ
   filterDescription: "表示する意見グループを絞り込みます。フィルタ間はAND結合され、フィルタ内の条件はOR結合されます。",
   textSearch: "テキスト検索",
+  searchOpinions: "抽出された意見を検索",
+  searchAction: "検索",
+  clearOpinionSearch: "検索を解除",
+  opinionSearchMatches: (query: string, n: number) => `「${query}」に一致する意見：${n.toLocaleString()}件`,
   textSearchPlaceholder: "検索したいテキストを入力してください。入力されたテキストが含まれる意見のみ表示されます。",
   noAttributes: "このレポートには、絞り込みに使える属性情報がありません。",
   enableRange: "フィルター有効化",
@@ -359,6 +363,10 @@ const en: Messages = {
   filterDescription:
     "Narrow down the opinions to display. Filters are combined with AND, and conditions within a filter with OR.",
   textSearch: "Text search",
+  searchOpinions: "Search extracted opinions",
+  searchAction: "Search",
+  clearOpinionSearch: "Clear search",
+  opinionSearchMatches: (query, n) => `Matches for “${query}”: ${n.toLocaleString()}`,
   textSearchPlaceholder: "Enter text to search. Only opinions containing the text will be shown.",
   noAttributes: "This report has no attributes available for filtering.",
   enableRange: "Enable filter",
@@ -581,6 +589,10 @@ const ko: Messages = {
 
   filterDescription: "표시할 의견 그룹을 좁힙니다. 필터 간에는 AND, 필터 내 조건은 OR로 결합됩니다.",
   textSearch: "텍스트 검색",
+  searchOpinions: "추출된 의견 검색",
+  searchAction: "검색",
+  clearOpinionSearch: "검색 해제",
+  opinionSearchMatches: (query, n) => `‘${query}’에 일치하는 의견: ${n.toLocaleString()}건`,
   textSearchPlaceholder: "검색할 텍스트를 입력하세요. 입력한 텍스트가 포함된 의견만 표시됩니다.",
   noAttributes: "이 보고서에는 필터링에 사용할 수 있는 속성 정보가 없습니다.",
   enableRange: "필터 활성화",
