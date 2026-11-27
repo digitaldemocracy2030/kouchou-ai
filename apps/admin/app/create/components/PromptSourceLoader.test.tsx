@@ -24,7 +24,11 @@ function Harness() {
         value={promptSettings.extraction}
         onChange={(e) => promptSettings.setExtraction(e.target.value)}
       />
-      <Textarea aria-label="要約プロンプト" value={promptSettings.overview} readOnly />
+      <Textarea
+        aria-label="要約プロンプト"
+        value={promptSettings.overview}
+        onChange={(e) => promptSettings.setOverview(e.target.value)}
+      />
     </ChakraProvider>
   );
 }
@@ -84,6 +88,35 @@ it("入力済みのプロンプトは確認してから上書きし、やめれ�
   await user.click(screen.getByRole("button", { name: "読み込む" }));
   await user.click(await screen.findByRole("button", { name: "上書きする" }));
   expect(extraction).toHaveValue("議題に関係する発言だけを抽出する");
+});
+
+it("確認を出した後に書き換えた欄があれば、上書きする前に確認を出し直す", async () => {
+  const user = userEvent.setup();
+  render(<Harness />);
+  const extraction = screen.getByLabelText("抽出プロンプト");
+  const overview = screen.getByLabelText("要約プロンプト");
+  await user.clear(extraction);
+  await user.type(extraction, "自分で書いた抽出");
+
+  await selectReport(user);
+  expect(
+    await screen.findByText("入力済みの抽出プロンプトを「グループA（group-a）」の内容で上書きします。よろしいですか？"),
+  ).toBeVisible();
+
+  await user.clear(overview);
+  await user.type(overview, "自分の要約");
+  await user.click(screen.getByRole("button", { name: "上書きする" }));
+  expect(
+    await screen.findByText(
+      "入力済みの抽出・要約プロンプトを「グループA（group-a）」の内容で上書きします。よろしいですか？",
+    ),
+  ).toBeVisible();
+  expect(overview).toHaveValue("自分の要約");
+  expect(extraction).toHaveValue("自分で書いた抽出");
+
+  await user.click(screen.getByRole("button", { name: "上書きする" }));
+  expect(extraction).toHaveValue("議題に関係する発言だけを抽出する");
+  expect(overview).toHaveValue("グループの議論を要約する");
 });
 
 it("設定の取得に失敗したらプロンプトを変えずに理由を示す", async () => {

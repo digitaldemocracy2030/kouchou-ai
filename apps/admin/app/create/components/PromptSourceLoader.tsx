@@ -36,6 +36,12 @@ type LoadedFrom = {
   missing: PromptKey[];
 };
 
+type PendingLoad = {
+  label: string;
+  config: ReportPromptConfig;
+  plan: PromptLoadPlan;
+};
+
 const CONFIG_ERROR = "設定の取得に失敗しました";
 
 async function fetchReportConfig(slug: string): Promise<ReportPromptConfig> {
@@ -61,7 +67,7 @@ export function PromptSourceLoader({ promptSettings }: { promptSettings: PromptS
   const [selected, setSelected] = useState("");
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [pending, setPending] = useState<{ label: string; plan: PromptLoadPlan } | null>(null);
+  const [pending, setPending] = useState<PendingLoad | null>(null);
   const [loadedFrom, setLoadedFrom] = useState<LoadedFrom | null>(null);
   const requestId = useRef(0);
 
@@ -103,6 +109,18 @@ export function PromptSourceLoader({ promptSettings }: { promptSettings: PromptS
     setPending(null);
   };
 
+  // 確認を出している間もプロンプト欄は編集できるので、「上書きする」の時点の値で計画し直す。
+  // 確認した時には無かった上書きが増えていたら、確認を出し直す。
+  const confirmOverwrite = (confirmed: PendingLoad) => {
+    const plan = planPromptLoad(latest.current, confirmed.config);
+    const added = plan.overwritten.filter((key) => !confirmed.plan.overwritten.includes(key));
+    if (added.length > 0) {
+      setPending({ ...confirmed, plan });
+    } else {
+      apply(confirmed.label, plan);
+    }
+  };
+
   const handleLoad = async () => {
     const source = reports?.find((report) => report.slug === selected);
     if (!source) return;
@@ -118,7 +136,7 @@ export function PromptSourceLoader({ promptSettings }: { promptSettings: PromptS
       if (plan.loaded.length === 0) {
         setLoadError(`「${label}」にはプロンプトが保存されていません。今の内容のままです。`);
       } else if (plan.overwritten.length > 0) {
-        setPending({ label, plan });
+        setPending({ label, config, plan });
       } else {
         apply(label, plan);
       }
@@ -198,7 +216,7 @@ export function PromptSourceLoader({ promptSettings }: { promptSettings: PromptS
             {`入力済みの${formatPromptKeys(pending.plan.overwritten)}プロンプトを「${pending.label}」の内容で上書きします。よろしいですか？`}
           </Text>
           <HStack>
-            <Button size="sm" colorPalette="orange" onClick={() => apply(pending.label, pending.plan)}>
+            <Button size="sm" colorPalette="orange" onClick={() => confirmOverwrite(pending)}>
               上書きする
             </Button>
             <Button size="sm" variant="outline" onClick={() => setPending(null)}>
