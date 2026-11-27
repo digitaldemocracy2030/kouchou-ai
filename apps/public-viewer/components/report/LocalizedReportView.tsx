@@ -13,6 +13,7 @@ import { hasReportTranslation } from "@/lib/i18n/translateResult";
 import type { Result } from "@/type";
 import { Box, Flex, Separator, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+import { ReportExploration } from "./ReportExploration";
 
 /**
  * レポート本文。表示言語に応じて `translations` を適用した Result を
@@ -37,6 +38,7 @@ export function LocalizedReportView({ result, reporter }: { result: Result; repo
       <ReportTopicLink result={localized} />
       <ReadingGuide />
       <ClientContainer result={localized} />
+      <ReportExploration result={localized} />
       <Analysis result={localized} />
       <BackButton />
       <Separator my={12} maxW={"750px"} mx={"auto"} />
