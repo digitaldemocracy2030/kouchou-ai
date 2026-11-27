@@ -312,9 +312,12 @@ export function HierarchyListChart({
   // テキスト検索中は、一致した意見を含むグループを開いて、意見まで辿れるようにする（#1205）。
   // 上の effect がツリーを作り直した後に適用されるよう、関数形式で直前の状態に重ねる。
   // 属性フィルタだけのときは開かない（一致が多く、全体が開いてしまうため）
+  // 散布図からグループを開いて移ってきたときは、その時点の検索では他のグループを開かない（#1207）。
+  // 検索語やフィルタを変えると filteredIdSet が新しくなり、従来どおり開く
   const isSearching = Boolean(textSearch?.trim());
+  const searchAtOpen = useRef(openTarget ? filteredIdSet : undefined);
   useEffect(() => {
-    if (!isSearching || !filteredIdSet) return;
+    if (!isSearching || !filteredIdSet || filteredIdSet === searchAtOpen.current) return;
     setTreeData((prev) => expandMatches(prev, argumentsByCluster, filteredIdSet));
   }, [isSearching, filteredIdSet, argumentsByCluster]);
 

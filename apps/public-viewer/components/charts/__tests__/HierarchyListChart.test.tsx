@@ -268,6 +268,36 @@ describe("HierarchyListChart の指定グループを開いた表示（#1207）"
     expect(scrollIntoView.mock.contexts[0]).toBe(heading);
   });
 
+  it("検索中に散布図から開いても、検索に一致したほかのグループは開かず、検索語を変えたら従来どおり開く", () => {
+    // 検索語 "意見" が 1_1 の A1 と 1_2 の A4 に一致している状態で、1_1 を開いて移ってくる
+    const matches = ["A1", "A4"];
+    const element = (filteredArgumentIds: string[], textSearch: string) => (
+      <Provider>
+        <HierarchyListChart
+          clusterList={clusters}
+          argumentList={args}
+          filteredArgumentIds={filteredArgumentIds}
+          textSearch={textSearch}
+          openClusterId="1_1"
+        />
+      </Provider>
+    );
+    const view = render(element(matches, "意見"));
+
+    // 全体・1_1・2_1 だけが開き、検索に一致した A4 の 1_2 の枝は閉じたまま
+    expect(expandedCount()).toBe(3);
+    expect(screen.getByText("意見 A1")).toBeInTheDocument();
+    expect(screen.queryByText("意見 A4")).not.toBeInTheDocument();
+
+    // 同じ検索のまま再描画されても開かない
+    view.rerender(element(matches, "意見"));
+    expect(screen.queryByText("意見 A4")).not.toBeInTheDocument();
+
+    // 検索語を変えたら、一致したグループを自動で開く
+    view.rerender(element(["A4"], "A4"));
+    expect(screen.getByText("意見 A4")).toBeInTheDocument();
+  });
+
   it("対立軸ビューから戻るときは、散布図から開いたグループより戻り先を優先する", () => {
     render(
       <Provider>
