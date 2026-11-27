@@ -9,7 +9,9 @@ import type { Annotation, Data, Layout, PlotMouseEvent } from "plotly.js";
 import type { WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChartCore } from "./ChartCore";
+import { clipScatterOutlinesWithVoronoi } from "./clipScatterOutlinesWithVoronoi";
 import { buildClusterColorMap, clusterColor } from "./clusterColors";
+import { type OutlineClipper, makeScatterOutlineLayer } from "./scatterOutlines";
 
 // 意見を持たないクラスタに使う空配列（参照を共有するので変更しないこと）
 const NO_ARGUMENTS: Argument[] = [];
@@ -86,7 +88,16 @@ type Props = {
   config?: Config; // ソースリンク機能の有効/無効を制御するため
   // 元コメント本文（comment_id → 本文）。config.enable_original_comments が true のときだけホバーに出す
   comments?: Comments;
-  showConvexHull?: boolean; // クラスターの凸包を表示するか
+  showConvexHull?: boolean; // クラスタの輪郭を表示するか
+  // 開発用比較画面では null で未調整の凸包を描く。
+  outlineClipper?: OutlineClipper | null;
+  prototypeViewport?: {
+    x: [number, number];
+    y: [number, number];
+    clusterIds: readonly string[];
+    guidePath: string;
+    remainingPath?: string;
+  };
   // クラスタ上の点をクリックした時に、そのクラスタIDを通知する（連動文章・一覧のハイライト用）
   onSelectCluster?: (clusterId: string) => void;
   // 濃い意見モードでは背景点と帰属凡例を表示し、図にラベルを重ねない
@@ -141,12 +152,15 @@ export function ScatterChart({
   config,
   comments,
   showConvexHull,
+  outlineClipper = clipScatterOutlinesWithVoronoi,
+  prototypeViewport,
   onSelectCluster,
   isDensityView,
   isFullscreen,
 }: Props) {
   const { language, messages } = useLanguage();
   const showPlotLabels = showClusterLabels && !isDensityView;
+  const focusedClusters = prototypeViewport?.clusterIds;
   // 全ての引数を表示するため、argumentListをそのまま使用
   // フィルター条件に合致しないものは後で灰色表示する
   const allArguments = argumentList;
@@ -605,6 +619,7 @@ export function ScatterChart({
   const plotData = useMemo(
     () =>
       clusterDataSets.flatMap((dataSet) => {
+        if (focusedClusters && !focusedClusters.includes(dataSet.cluster.id)) return [];
         const result = [];
 
         // フィルター対象外のデータ（背面に描画）
@@ -659,48 +674,25 @@ export function ScatterChart({
 
         return result;
       }),
-    [clusterDataSets, filteredArgumentIds, clusterColorMap, parentAttribution, wrapArgumentText, messages],
+    [
+      clusterDataSets,
+      filteredArgumentIds,
+      clusterColorMap,
+      parentAttribution,
+      wrapArgumentText,
+      messages,
+      focusedClusters,
+    ],
   );
 
-  // 凸包トレースの生成（scatterAll / scatterDetail モード用）
-  // NOTE: hull trace は意図的に type: "scatter"（SVG）を使用している。
-  // hoveron: "fills" はSVGレイヤーのみでサポートされており、
-  // scattergl（WebGL）では動作しない。また Plotly の z-order により
-  // SVGトレースはWebGLトレースの背面に自動配置されるため、scatter点の
-  // 下に凸包が描画される。この SVG/WebGL 混在は意図的な設計である。
-  // Gift wrapping は O(nh) のため、入力が変わらない限り再計算しないよう useMemo でメモ化する。
-  // clusterDataSets / clusterColorMap は毎レンダリング再生成されるので、
-  // 上流の安定した参照（targetClusters / argumentsByCluster）を deps とする。
-  const hullTraces = useMemo(() => {
-    if (!showConvexHull) return [];
-    return targetClusters.flatMap((cluster, index) => {
-      const clusterArguments = argumentsByCluster.get(cluster.id) ?? NO_ARGUMENTS;
-      if (clusterArguments.length < 3) return [];
-      const hull = convexHull(clusterArguments.map((arg) => [arg.x, arg.y]));
-      if (hull.length < 3) return [];
-      const color = clusterColor(index);
-      return [
-        {
-          x: [...hull.map((p) => p[0]), hull[0][0]],
-          y: [...hull.map((p) => p[1]), hull[0][1]],
-          mode: "lines",
-          fill: "toself",
-          fillcolor: `${color}33`,
-          line: { color, width: 1.5 },
-          type: "scatter",
-          hoveron: "fills",
-          hoverinfo: "text",
-          text: cluster.label,
-          hoverlabel: {
-            bgcolor: color,
-            bordercolor: color,
-            font: { color: "white", size: 13 },
-          },
-          showlegend: false,
-        },
-      ];
-    });
-  }, [showConvexHull, targetClusters, argumentsByCluster]);
+  // 輪郭の計算はフィルターやズームの描き直しでは再実行しない。
+  const { traces: hullTraces, shapes: outlineShapes } = useMemo(
+    () =>
+      showConvexHull
+        ? makeScatterOutlineLayer(targetClusters, argumentsByCluster, outlineClipper ?? undefined, focusedClusters)
+        : { traces: [], shapes: [] },
+    [showConvexHull, targetClusters, argumentsByCluster, outlineClipper, focusedClusters],
+  );
 
   // 凸包を最背面に挿入（scatter点の下に描画）
   const allPlotData = useMemo(
@@ -759,28 +751,57 @@ export function ScatterChart({
         zeroline: false,
         showticklabels: false,
         showgrid: false,
+        ...(prototypeViewport && { range: prototypeViewport.x, autorange: false, fixedrange: true }),
       },
       yaxis: {
         zeroline: false,
         showticklabels: false,
         showgrid: false,
+        ...(prototypeViewport && { range: prototypeViewport.y, autorange: false, fixedrange: true }),
       },
       hovermode: "closest",
-      dragmode: "pan", // ドラッグによる移動（パン）を有効化
+      dragmode: prototypeViewport ? false : "pan",
       annotations,
+      shapes: prototypeViewport
+        ? [
+            ...outlineShapes,
+            ...(prototypeViewport.remainingPath
+              ? [
+                  {
+                    type: "path",
+                    path: prototypeViewport.remainingPath,
+                    xref: "x",
+                    yref: "y",
+                    fillrule: "evenodd",
+                    fillcolor: "rgba(0,0,0,0.18)",
+                    line: { width: 0 },
+                    layer: "below",
+                  } satisfies NonNullable<Layout["shapes"]>[number],
+                ]
+              : []),
+            {
+              type: "path",
+              path: prototypeViewport.guidePath,
+              xref: "x",
+              yref: "y",
+              line: { color: "#222", width: 1.5, dash: "dash" },
+              layer: "above",
+            },
+          ]
+        : outlineShapes,
       showlegend: false,
     }),
-    [annotations, plotSize],
+    [annotations, outlineShapes, plotSize, prototypeViewport],
   );
   const plotlyConfig = useMemo(
     () => ({
       responsive: true,
-      displayModeBar: "hover" as const, // 操作時にツールバーを表示
+      displayModeBar: prototypeViewport ? false : ("hover" as const),
       showSendToCloud: false, // Plotly Cloudへの送信導線は表示しない
-      scrollZoom: true, // マウスホイールによるズームを有効化
+      scrollZoom: !prototypeViewport,
       locale: language, // 操作バーの文言を表示言語に合わせる（ja / ko は ChartCore で登録）
     }),
-    [language],
+    [language, prototypeViewport],
   );
 
   // react-plotly はイベントハンドラを、描画データが変わって描き直すときにしか付け替えない。
@@ -839,7 +860,7 @@ export function ScatterChart({
         flex="1"
         minH={0}
         ref={chartWrapperRef}
-        onWheelCapture={handleWheelCapture}
+        onWheelCapture={prototypeViewport ? undefined : handleWheelCapture}
         onMouseLeave={relockWheelZoom}
       >
         {wheelZoomGuardActive && (
@@ -928,52 +949,6 @@ export function ScatterChart({
       )}
     </Box>
   );
-}
-
-/** 凸包計算（Gift wrapping アルゴリズム） */
-function convexHull(points: [number, number][]): [number, number][] {
-  if (points.length < 3) return points;
-
-  // 最も左下の点を開始点とする
-  let start = 0;
-  for (let i = 1; i < points.length; i++) {
-    if (points[i][0] < points[start][0] || (points[i][0] === points[start][0] && points[i][1] < points[start][1])) {
-      start = i;
-    }
-  }
-
-  // current からの二乗距離を計算するヘルパー
-  const distanceSquared = (a: [number, number], b: [number, number]) => {
-    const dx = a[0] - b[0];
-    const dy = a[1] - b[1];
-    return dx * dx + dy * dy;
-  };
-
-  const hull: [number, number][] = [];
-  let current = start;
-
-  do {
-    hull.push(points[current]);
-    let next = (current + 1) % points.length;
-    for (let i = 0; i < points.length; i++) {
-      if (i === current) continue;
-      const cross =
-        (points[next][0] - points[current][0]) * (points[i][1] - points[current][1]) -
-        (points[next][1] - points[current][1]) * (points[i][0] - points[current][0]);
-      if (cross < 0) {
-        // より外側にある点を採用
-        next = i;
-      } else if (cross === 0) {
-        // 3点が一直線上にある場合は、current からより遠い点を採用
-        if (distanceSquared(points[current], points[i]) > distanceSquared(points[current], points[next])) {
-          next = i;
-        }
-      }
-    }
-    current = next;
-  } while (current !== start && hull.length < points.length);
-
-  return hull;
 }
 
 export function applyScatterChartDomOverrides(): void {
