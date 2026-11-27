@@ -24,6 +24,8 @@ const ja = {
     `フィルター後の意見 ${filtered.toLocaleString()}件 / 全${total.toLocaleString()}件`,
   /** 意見グループ一覧の件数の後ろに付ける（属性フィルターの適用中） */
   filteredCountSuffix: "（フィルター後）",
+  /** 散布図で選んだグループの説明から、階層リストでそのグループを開く（#1207） */
+  showGroupOpinionsInList: "このグループの意見をリストで見る",
 
   // ReadingGuide（本体・serverless で文言を揃える #696。日本語は変更しない）
   readingGuideLabel: "レポートの読み方",
@@ -94,6 +96,7 @@ const ja = {
     "・マウスホイール / ピンチ: 拡大・縮小（ページをスクロールした直後は、少し待つと有効になります）",
     "・右上ツールバー: 拡大・移動・初期表示へリセット",
     "・点にカーソルを合わせる: 意見の内容を表示",
+    "・点をクリック: 図の下に、そのグループの説明を表示",
   ],
   /** ソースリンクが有効なときだけ操作ヒントに足す */
   scatterHelpSourceLink: "・点をクリック: 元のソースを開く",
@@ -272,6 +275,7 @@ const en: Messages = {
   filteredOfTotalCount: (filtered, total) =>
     `${filtered.toLocaleString()} opinions after filter / ${total.toLocaleString()} total`,
   filteredCountSuffix: " (filtered)",
+  showGroupOpinionsInList: "See this group's opinions in the list",
 
   readingGuideLabel: "How to read this report",
   readingGuideLead:
@@ -334,6 +338,7 @@ const en: Messages = {
     "• Mouse wheel / pinch: zoom in and out (after scrolling the page, wait a moment for it to take effect)",
     "• Toolbar at the top right: zoom, pan, reset to the initial view",
     "• Hover over a point: show the opinion",
+    "• Click a point: show that group's description below the chart",
   ],
   scatterHelpSourceLink: "• Click a point: open the original source",
   scatterWheelLocked: "Zoom is paused while you scroll the page (resumes when you stop)",
@@ -500,6 +505,7 @@ const ko: Messages = {
   filteredOfTotalCount: (filtered, total) =>
     `필터 후 의견 ${filtered.toLocaleString()}건 / 전체 ${total.toLocaleString()}건`,
   filteredCountSuffix: " (필터 후)",
+  showGroupOpinionsInList: "이 그룹의 의견을 목록으로 보기",
 
   readingGuideLabel: "보고서 읽는 법",
   readingGuideLead:
@@ -562,6 +568,7 @@ const ko: Messages = {
     "• 마우스 휠 / 핀치: 확대·축소(페이지를 스크롤한 직후에는 잠시 기다리면 활성화됩니다)",
     "• 오른쪽 위 도구 모음: 확대·이동·초기 화면으로 되돌리기",
     "• 점에 커서 올리기: 의견 내용 표시",
+    "• 점 클릭: 그림 아래에 그 그룹의 설명 표시",
   ],
   scatterHelpSourceLink: "• 점 클릭: 원래 출처 열기",
   scatterWheelLocked: "스크롤 중에는 확대·축소하지 않습니다(멈추면 활성화됩니다)",

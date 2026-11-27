@@ -235,3 +235,28 @@ describe("HierarchyListChart のテキスト検索（#1205）", () => {
     expect(screen.queryByText("意見 M10")).not.toBeInTheDocument();
   });
 });
+
+describe("HierarchyListChart の指定グループを開いた表示（#1207）", () => {
+  it("散布図から移ってきたグループと祖先を開き、そのグループは最下層の意見まで見せる", () => {
+    const scrollIntoView = jest.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(
+      <Provider>
+        <HierarchyListChart clusterList={clusters} argumentList={args} openClusterId="1_1" />
+      </Provider>,
+    );
+
+    // 全体・1_1・2_1 の 3 グループが開き、1_1 の意見が見える。ほかの 1_2 の枝は閉じたまま
+    expect(expandedCount()).toBe(3);
+    for (const text of ["意見 A1", "意見 A2", "意見 A3"]) {
+      expect(screen.getByText(text)).toBeInTheDocument();
+    }
+    expect(screen.queryByText("意見 A4")).not.toBeInTheDocument();
+
+    // 押したボタンは消えるので、開いたグループの見出しへフォーカスとスクロールを移す
+    const heading = screen.getByText("ラベル 1_1");
+    expect(heading).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(heading);
+  });
+});

@@ -33,6 +33,8 @@ interface HierarchyListChartProps {
   oppositionClusterIds?: ReadonlySet<string>;
   onOpenOpposition?: (clusterId: string) => void;
   reopenClusterId?: string;
+  /** 最初からこのグループと祖先を開き、最下層の意見まで見せてスクロールする（散布図の「このグループの意見をリストで見る」、#1207） */
+  openClusterId?: string;
 }
 
 interface ClusterNode {
@@ -69,6 +71,15 @@ function setAllExpansion(nodes: ClusterNode[], open: boolean): ClusterNode[] {
     isChildrenExpanded: open,
     children: setAllExpansion(node.children, open),
   }));
+}
+
+// 指定したグループの要約・子グループ・最下層の意見までを開く。ほかのグループの開閉はそのまま
+function expandSubtree(nodes: ClusterNode[], clusterId: string): ClusterNode[] {
+  return nodes.map((node) =>
+    node.id === clusterId
+      ? setAllExpansion([node], true)[0]
+      : { ...node, children: expandSubtree(node.children, clusterId) },
+  );
 }
 
 // 一致した意見を含むグループを、最下層の個別データまで開く。一致しないグループの開閉はそのまま
@@ -196,6 +207,7 @@ export function HierarchyListChart({
   oppositionClusterIds,
   onOpenOpposition,
   reopenClusterId,
+  openClusterId,
 }: HierarchyListChartProps) {
   const messages = useMessages();
   const disclosureGroup = useId();
@@ -204,6 +216,8 @@ export function HierarchyListChart({
   const [treeData, setTreeData] = useState<ClusterNode[]>([]);
   const restoredAction = useRef<HTMLButtonElement>(null);
   const scrollRestored = useRef(false);
+  const openedLabel = useRef<HTMLParagraphElement>(null);
+  const openedScrolled = useRef(false);
   // ツリーを作り直すときに、直前の展開状態をクラスタ ID で引き継ぐための参照（下の effect より先に更新する）
   const treeDataRef = useRef(treeData);
   useEffect(() => {
@@ -219,10 +233,12 @@ export function HierarchyListChart({
     const clusterMap = new Map<string, ClusterNode>();
     // フィルタの適用・変更・解除のたびに clusterList は新しい配列になる。作り直しても開いていたクラスタは閉じない
     const previousExpansion = collectExpansion(treeDataRef.current);
+    const isFirstBuild = treeDataRef.current.length === 0;
+    const pathTarget = reopenClusterId ?? openClusterId;
     const reopenPath = new Set<string>();
-    if (reopenClusterId && treeDataRef.current.length === 0) {
+    if (pathTarget && isFirstBuild) {
       const parentById = new Map(clusterList.map((cluster) => [cluster.id, cluster.parent]));
-      let id: string | undefined = reopenClusterId;
+      let id: string | undefined = pathTarget;
       while (id && parentById.has(id) && !reopenPath.has(id)) {
         reopenPath.add(id);
         id = parentById.get(id);
@@ -272,14 +288,23 @@ export function HierarchyListChart({
         .sort((a, b) => b.value - a.value);
     };
 
-    setTreeData(sortChildren(rootNodes));
-  }, [clusterList, argumentsByCluster, reopenClusterId]);
+    const tree = sortChildren(rootNodes);
+    setTreeData(openClusterId && isFirstBuild ? expandSubtree(tree, openClusterId) : tree);
+  }, [clusterList, argumentsByCluster, reopenClusterId, openClusterId]);
 
   useEffect(() => {
     if (!treeData.length || !restoredAction.current || scrollRestored.current) return;
     scrollRestored.current = true;
     restoredAction.current.focus({ preventScroll: true });
     restoredAction.current.scrollIntoView?.({ block: "center" });
+  }, [treeData]);
+
+  // 散布図から移ってきたときは、開いたグループの見出しへスクロールし、フォーカスも移す（押したボタンは消えるため）
+  useEffect(() => {
+    if (!treeData.length || !openedLabel.current || openedScrolled.current) return;
+    openedScrolled.current = true;
+    openedLabel.current.focus({ preventScroll: true });
+    openedLabel.current.scrollIntoView?.({ block: "start" });
   }, [treeData]);
 
   // テキスト検索中は、一致した意見を含むグループを開いて、意見まで辿れるようにする（#1205）。
@@ -409,7 +434,13 @@ export function HierarchyListChart({
           )}
 
           <Box flex={1} opacity={isFiltered ? 0.4 : 1}>
-            <Text fontWeight="semibold" color="gray.800" mb={1}>
+            <Text
+              ref={node.id === openClusterId ? openedLabel : undefined}
+              tabIndex={node.id === openClusterId ? -1 : undefined}
+              fontWeight="semibold"
+              color="gray.800"
+              mb={1}
+            >
               {node.label}
               <Text as="span" fontWeight="normal" fontSize="sm" color="gray.500" ml={2}>
                 {filteredCounts

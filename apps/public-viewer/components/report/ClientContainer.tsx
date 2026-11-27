@@ -91,6 +91,8 @@ export function ClientContainer({ result }: Props) {
   const [oppositionOrigin, setOppositionOrigin] = useState<{ chart: string; clusterId: string }>();
   const [oppositionSelection, setOppositionSelection] = useState<OppositionSelection>({});
   const [reopenClusterId, setReopenClusterId] = useState<string>();
+  // 散布図で選んだグループの説明から階層リストへ移ったときに、リストで開いておくグループ（#1207）
+  const [openClusterId, setOpenClusterId] = useState<string>();
 
   // --- 属性メタデータ（純粋な派生データなのでuseMemoで計算） ---
   const attributeMetas = useMemo(() => computeAttributeMetas(result.arguments), [result.arguments]);
@@ -152,6 +154,7 @@ export function ClientContainer({ result }: Props) {
       setOppositionOrigin(undefined);
       setOppositionSelection({});
       setReopenClusterId(undefined);
+      setOpenClusterId(undefined);
     },
     [modes],
   );
@@ -288,6 +291,16 @@ export function ClientContainer({ result }: Props) {
   );
   const canNavigateToTreemap = resolveChartSelection(modes, "treemap") === "treemap";
 
+  // 散布図で選んだグループの説明から、階層リストに切り替えてそのグループを意見まで開く（#1207）
+  const showOpinionsInList = useCallback(
+    (clusterId: string) => {
+      changeChart("hierarchyList");
+      setOpenClusterId(clusterId);
+    },
+    [changeChart],
+  );
+  const canShowOpinionsInList = resolveChartSelection(modes, "hierarchyList") === "hierarchyList";
+
   // --- UI ---
   return (
     <div>
@@ -367,6 +380,7 @@ export function ClientContainer({ result }: Props) {
           onOpenOpposition={canOpenOpposition ? openOpposition : undefined}
           onBackFromOpposition={oppositionOrigin ? backFromOpposition : undefined}
           reopenClusterId={reopenClusterId}
+          openClusterId={openClusterId}
           textSearch={textSearch}
         />
       )}
@@ -395,6 +409,7 @@ export function ClientContainer({ result }: Props) {
             isFiltering={isFiltering}
             isSelected={c.id === selectedClusterId}
             onNavigate={canNavigateToTreemap ? navigateToTreemap : undefined}
+            onShowOpinions={canShowOpinionsInList ? showOpinionsInList : undefined}
             onOpenOpposition={canOpenOpposition && oppositionClusterIds.has(c.id) ? openOpposition : undefined}
           />
         ))
