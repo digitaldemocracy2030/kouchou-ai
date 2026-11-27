@@ -89,7 +89,9 @@ export function useInputData(onDataLoaded: (commentCount: number) => void) {
         const commentData = await getSpreadsheetData(id);
         setSpreadsheetData(commentData.comments);
 
-        if (commentData.comments.length > 0) {
+        // 取り込み中に別の入力（Polis など）へ切り替えていたら、列とクラスタ数をそちらの値のまま残す。
+        // スプレッドシートのタブに戻った時に handleInputTypeChange が spreadsheetData から作り直す
+        if (commentData.comments.length > 0 && inputTypeRef.current === "spreadsheet") {
           selectBestColumn(commentData.comments as unknown as Record<string, unknown>[]);
         }
 

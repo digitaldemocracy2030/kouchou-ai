@@ -190,3 +190,47 @@ it("送信データが Server Action の本文上限を超えるときは、確�
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(createReport).not.toHaveBeenCalled();
 });
+
+it("Polisから除外済み行を外し、確認後に選んだ集計属性だけを送る", async () => {
+  jest.mocked(useInputData).mockImplementation(jest.requireActual("./hooks/useInputData").useInputData);
+  jest.mocked(createReport).mockResolvedValue({ success: true });
+  const parseCsv = jest.requireMock("./parseCsv") as typeof import("./parseCsv");
+  const originalParseCsv = parseCsv.parseCsv;
+  parseCsv.parseCsv = jest.requireActual("./parseCsv").parseCsv;
+  try {
+    render(
+      <ChakraProvider value={system}>
+        <Page />
+      </ChakraProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Polis" }));
+    await user.upload(
+      screen.getByLabelText("コメント（comments.csv）"),
+      new File(
+        ["comment-id,agrees,disagrees,moderated,comment-body\n1,1,0,1,分析対象\n2,1,0,-1,除外する行"],
+        "comments.csv",
+        {
+          type: "text/csv",
+        },
+      ),
+    );
+    await user.upload(
+      screen.getByLabelText("参加者別投票（任意）"),
+      new File(["participant,group-id,1,2\n20,0,1,1"], "participants-votes.csv", { type: "text/csv" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Polisデータを読み込む" }));
+    expect(await screen.findByText(/分析対象 1 件／Polisで除外済み 1 件/)).toBeVisible();
+    await user.click(screen.getByRole("checkbox", { name: "Polis 賛成票（グループ 0）" }));
+    await user.click(screen.getByRole("button", { name: "作成前の確認へ" }));
+    expect(await screen.findByText("入力元：Polis")).toBeVisible();
+    expect(createReport).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "未確認のまま作成を開始" }));
+    await waitFor(() => expect(createReport).toHaveBeenCalledTimes(1));
+    const [request] = jest.mocked(createReport).mock.calls[0];
+    expect(request.inputType).toBe("file");
+    expect(request.comments).toEqual([{ id: "1", comment: "分析対象", "attribute_Polis 賛成票（グループ 0）": "1" }]);
+  } finally {
+    parseCsv.parseCsv = originalParseCsv;
+  }
+});

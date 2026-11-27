@@ -52,6 +52,7 @@ export function validateFormValues({
   extractionPrompt,
   inputType,
   csv,
+  polisImported,
   spreadsheetImported,
   selectedCommentColumn,
   csvColumns,
@@ -72,6 +73,7 @@ export function validateFormValues({
   extractionPrompt: string;
   inputType: string;
   csv: File | null;
+  polisImported?: boolean;
   spreadsheetImported: boolean;
   selectedCommentColumn: string;
   csvColumns: string[];
@@ -106,6 +108,7 @@ export function validateFormValues({
   const isPluginInput = inputType.startsWith("plugin:");
   const sourceCheck =
     (inputType === "file" && !!csv) ||
+    (inputType === "polis" && polisImported) ||
     (inputType === "spreadsheet" && spreadsheetImported) ||
     (isPluginInput && pluginImported);
 

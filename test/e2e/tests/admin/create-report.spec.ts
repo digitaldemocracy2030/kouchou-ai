@@ -1,5 +1,6 @@
 import path from "node:path";
 import { expect, test } from "@playwright/test";
+import { CreateReportPage } from "../../pages/admin/create-report";
 
 /**
  * 広聴AI 管理画面テストスイート
@@ -57,7 +58,7 @@ test.describe("管理画面 - レポート作成フロー", () => {
     test(`CSVを確認して戻れる（${width}px）。API確認は明示操作で実行する`, async ({ page }) => {
       await page.setViewportSize({ width, height: 720 });
       await page.getByLabel("タイトル（省略可）", { exact: true }).fill("確認テスト");
-      await page.locator('input[type="file"]').setInputFiles(path.resolve(__dirname, "../../fixtures/sample.csv"));
+      await new CreateReportPage(page).uploadCsvFile(path.resolve(__dirname, "../../fixtures/sample.csv"));
       await expect(page.getByRole("combobox", { name: "コメントカラム選択" })).toHaveValue("comment");
       await page.getByRole("button", { name: "作成前の確認へ" }).click();
       const dialog = page.getByRole("dialog");
